@@ -195,8 +195,11 @@ namespace DrivenRides.Core.Routing
                     float ox = positions[x].X - positions[i].X, oz = positions[x].Z - positions[i].Z;
                     float ahead = ox * dx + oz * dz, side = ox * dz - oz * dx;
                     float turn = ex * dz - ez * dx; // > 0: the exit heads to the entry's right
-                    if (ahead < 2f || Math.Abs(ex * dx + ez * dz) > 0.4f) continue;
                     bool right = turn > 0;
+                    // Junctions aren't all square: a right turn may be from about 40 to 140 degrees (spike 16: a
+                    // 130-degree right turn after the bridge was missed for a U-turn and a left), a left turn from
+                    // about 60 to 120.
+                    if (ahead < 2f || Math.Abs(ex * dx + ez * dz) > (right ? 0.75f : 0.5f)) continue;
                     if (right != side > 0) continue;
                     float distance = (float)Math.Sqrt(ox * ox + oz * oz);
                     if (distance > (right ? 25f : 60f)) continue;
