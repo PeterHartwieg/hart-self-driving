@@ -56,6 +56,7 @@ namespace DrivenRides
         private readonly GameManager manager;
         private readonly string happinessModifier;
         private readonly string? driverVehicleType;
+        private readonly int driverTopSpeed;
         private readonly VehicleComponent prefab;
         private readonly int vehicleType;
         private readonly List<Goal> goals;
@@ -125,6 +126,7 @@ namespace DrivenRides
             player = manager.playerController;
             happinessModifier = taxi.GetHappinessModifierName() ?? "";
             driverVehicleType = taxi is PrivateDriverVehicle pd ? pd.vehicleInstance?.vehicleTypeName : null;
+            driverTopSpeed = taxi is PrivateDriverVehicle driver ? driver.vehicleInstance?.VehicleType?.maxSpeed ?? 0 : 0;
             startMinute = NowMinutes();
             timeMultiplier = taxi.GetTimeMultiplier();
             rideSpeed = Options.RideSpeed;
@@ -538,8 +540,9 @@ namespace DrivenRides
             return false;
         }
 
-        // Gley gives each car a random top speed between its model's minimum and maximum; the ride car gets a high
-        // one, so it keeps up with traffic. The road's limit still caps it.
+        // Gley gives each car a random top speed between its model's minimum and maximum. The private driver drives
+        // the player's own vehicle, so its top speed is that vehicle type's (a better car rides faster, Peter); a
+        // taxi gets its traffic model's maximum. Gley still caps it at the road's limit.
         private static readonly FieldInfo? DrivingAIField = AccessTools.Field(typeof(TrafficManager), "drivingAI");
         private static readonly MethodInfo? SetMaxSpeedMethod = AccessTools.Method(typeof(DrivingAI), "setVehMaxSpeed");
 
@@ -549,10 +552,9 @@ namespace DrivenRides
             {
                 var ai = DrivingAIField?.GetValue(TrafficManager.Instance);
                 if (ai == null || SetMaxSpeedMethod == null) { Log.Error("Top speed: Gley's DrivingAI not found."); return; }
-                // At least 80 km/h: some models top out at 45, slower than the traffic around them.
-                var top = Math.Max(car.maxPossibleSpeed, 80);
+                var top = driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
                 SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, (float)top });
-                Log.Info($"Top speed {top} km/h (model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
+                Log.Info($"Top speed {top} km/h ({(driverTopSpeed > 0 ? $"vehicle type {driverVehicleType}" : "traffic model")}; Gley model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
             }
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
         }
