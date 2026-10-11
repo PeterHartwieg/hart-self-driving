@@ -207,7 +207,10 @@ namespace DrivenRides.Core.Routing
                     // turn, as a driver does. Turning at the stop line and cutting across drove a left turn through
                     // the oncoming lanes of the street it turned into (spike 11). A short turn, such as a right turn
                     // into the near lane, takes a waypoint on its curve instead.
-                    float radius = Math.Min(Math.Abs(side), 9f);
+                    // A left turn goes on until almost level with the exit's lane (3 m short), past the oncoming lanes
+                    // of the street it turns into: a swing wide then carries the car into lanes going its own way, not
+                    // into the oncoming ones (spike 12: it corrected at the end of a left turn, just short of them).
+                    float radius = right ? Math.Min(Math.Abs(side), 9f) : 3f;
                     int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _) : -1;
                     var via = straight >= 0 ? straight : ArcVia(i, dx, dz, x, ex, ez);
                     if (via >= 0) turnVia[(i, x)] = new[] { via };

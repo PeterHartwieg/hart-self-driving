@@ -71,6 +71,10 @@ namespace DrivenRides
         private Route route;
         // The route as Gley drives it: the planner's waypoints with each added turn's curve waypoint put in.
         private List<int> path;
+        // Path positions of added turns (entry to exit, U-turns not included), driven at TurnSpeed.
+        private readonly HashSet<int> slowPath = new HashSet<int>();
+        private float appliedTop = -1f;
+        private const float TurnSpeed = 25f;
         private RouteProgress? progress;
         private readonly RideTrace trace = new RideTrace();
         private CollisionProbe? probe;
@@ -480,12 +484,21 @@ namespace DrivenRides
         private List<int> Expand(Route r)
         {
             var graph = GleyGraph.Graph;
+            slowPath.Clear();
             var result = new List<int>(r.Waypoints.Count + 4);
             for (var k = 0; k < r.Waypoints.Count; k++)
             {
                 result.Add(r.Waypoints[k]);
                 if (graph == null || k + 1 >= r.Waypoints.Count) continue;
                 var vias = graph.TurnVias(r.Waypoints[k], r.Waypoints[k + 1]);
+                if (vias.Count > 0 && graph.UTurn(r.Waypoints[k]) != r.Waypoints[k + 1])
+                {
+                    // Spike 12's trace: an added left turn at 50 km/h came out 2.5 m wide, on the centre line.
+                    for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);
+                    foreach (var via in vias) { slowPath.Add(result.Count); result.Add(via); }
+                    slowPath.Add(result.Count);
+                    continue;
+                }
                 foreach (var via in vias) result.Add(via);
             }
             return result;
@@ -513,6 +526,9 @@ namespace DrivenRides
             var traffic = TrafficManager.Instance;
             trace.Sample(car.transform.position, car.transform.eulerAngles.y, car.rb != null ? car.rb.velocity.magnitude : 0f,
                 traffic.GetTargetWaypoint(carIndex)?.listIndex ?? -1, traffic.GetCurrentDrivingState(carIndex).Item2.ToString(), along, progress.LeftMetres, owned.Count);
+            var slow = false;
+            for (var k = progress.NextIndex - 1; k <= progress.NextIndex + 1 && !slow; k++) slow = slowPath.Contains(k);
+            ApplyTopSpeed(slow ? TurnSpeed : TopSpeed);
             lastAlong = along;
 
             if (phase == Phase.Driving)
@@ -599,14 +615,32 @@ namespace DrivenRides
         private static readonly FieldInfo? PowerStepField = AccessTools.Field(typeof(TrafficManager), "vehiclePowerStep");
         private const float AccelerationSeconds = 5f;
 
+        private float TopSpeed => driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
+
+        // Changes the car's top speed in Gley when it differs from the last one set; Gley reads it at the next waypoint.
+        private void ApplyTopSpeed(float speed)
+        {
+            if (Mathf.Approximately(speed, appliedTop)) return;
+            try
+            {
+                var ai = DrivingAIField?.GetValue(TrafficManager.Instance);
+                if (ai == null || SetMaxSpeedMethod == null) return;
+                SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, speed });
+                appliedTop = speed;
+                if (speed < TopSpeed) trace.Note($"slow {speed:0} km/h for an added turn");
+            }
+            catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
+        }
+
         private void SetTopSpeed()
         {
             try
             {
                 var ai = DrivingAIField?.GetValue(TrafficManager.Instance);
                 if (ai == null || SetMaxSpeedMethod == null) { Log.Error("Top speed: Gley's DrivingAI not found."); return; }
-                var top = driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
+                var top = TopSpeed;
                 SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, (float)top });
+                appliedTop = top;
                 // Gley sets the acceleration so a car reaches its rolled top speed in its model's accelerationTime
                 // (10 s by default): slow off the line. The ride car reaches its top speed in AccelerationSeconds.
                 if (PowerStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> power && carIndex < power.Length)
