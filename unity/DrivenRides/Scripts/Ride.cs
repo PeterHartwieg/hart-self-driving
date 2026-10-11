@@ -538,8 +538,8 @@ namespace DrivenRides
             return false;
         }
 
-        // Gley gives each car a random top speed between its model's minimum and maximum; the ride car gets the
-        // maximum, so it keeps up with traffic. The road's limit still caps it.
+        // Gley gives each car a random top speed between its model's minimum and maximum; the ride car gets a high
+        // one, so it keeps up with traffic. The road's limit still caps it.
         private static readonly FieldInfo? DrivingAIField = AccessTools.Field(typeof(TrafficManager), "drivingAI");
         private static readonly MethodInfo? SetMaxSpeedMethod = AccessTools.Method(typeof(DrivingAI), "setVehMaxSpeed");
 
@@ -549,8 +549,10 @@ namespace DrivenRides
             {
                 var ai = DrivingAIField?.GetValue(TrafficManager.Instance);
                 if (ai == null || SetMaxSpeedMethod == null) { Log.Error("Top speed: Gley's DrivingAI not found."); return; }
-                SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, (float)car.maxPossibleSpeed });
-                Log.Info($"Top speed {car.maxPossibleSpeed} km/h (was {car.GetMaxSpeed()}).");
+                // At least 80 km/h: some models top out at 45, slower than the traffic around them.
+                var top = Math.Max(car.maxPossibleSpeed, 80);
+                SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, (float)top });
+                Log.Info($"Top speed {top} km/h (model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
             }
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
         }

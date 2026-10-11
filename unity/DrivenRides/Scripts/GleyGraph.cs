@@ -6,6 +6,7 @@ using DrivenRides.Core.Routing;
 using GleyTrafficSystem;
 using GleyUrbanAssets;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
@@ -79,7 +80,10 @@ namespace DrivenRides
 
         private static bool Ensure()
         {
-            var current = CurrentSceneData.GetSceneInstance();
+            // Called every frame during a ride, so the scene object is cached. Gley's own GetSceneInstance runs
+            // FindObjectsOfType over the whole scene each call (and creates an object if none is found).
+            if (graph != null && scene != null) return true;
+            var current = Object.FindObjectOfType<CurrentSceneData>();
             if (current == null || current.allWaypoints == null || current.allWaypoints.Length == 0) return false;
             if (graph != null && ReferenceEquals(current, scene)) return true;
 
