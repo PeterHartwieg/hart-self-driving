@@ -19,7 +19,7 @@ namespace DrivenRides
             (Key.X, "clear a stuck ride", Ride.DebugClear),
             (Key.K, "remove the ride car", Ride.DebugRemoveCar),
             (Key.V, "hospital now", Hospital),
-            (Key.U, "throw inside the ride", Ride.DebugThrow),
+            (Key.U, "throw in the ride's frame update", Ride.DebugThrow),
             (Key.J, "fake a save change", Ride.DebugFakeSaveChange),
         };
 

@@ -15,10 +15,12 @@ Call the driver with **L** (outdoors), then **L** again: you walk to the car and
 5. **Ctrl+Alt+Shift+K** during a ride (removes the car): the ride finishes the vanilla way.
 6. **Ctrl+Alt+Shift+V** during a ride (hospital): the ride is cancelled and the hospital takes over as usual.
 7. Click a cargo item's Read during a ride: refused with "Not during a ride."
-8. **Ctrl+Alt+Shift+U** during a ride (exception): you get out where the car is, on foot, and taxis still work.
+8. **Ctrl+Alt+Shift+U** during a ride (an exception in the ride's frame update): you get out where the car is, on foot, and taxis still work.
 9. Quit to the main menu during a ride and load again: you're on foot; the log says `Ride cancelled: game unloaded`.
 10. **Ctrl+Alt+Shift+J** during a ride (fake save change): the log says `Ride cancelled: the save changed`; you get out on foot with controls.
-11. A second ride straight after any of the above works.
+11. Skip, then **Ctrl+Alt+Shift+X** while the screen is fading: the screen comes back (no black screen), you're on foot.
+12. A ride that waits at a red light or in a queue for a whole light cycle: the car waits and then drives on (the log shows no `Watchdog: restart` while it waits).
+13. A second ride straight after any of the above works.
 
 After each: you can walk, the clock runs at normal speed, the game speed isn't stuck at 3x, and the log shows `Ride finished` or `Ride cancelled`.
 

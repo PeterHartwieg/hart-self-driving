@@ -35,19 +35,22 @@ namespace DrivenRides
             runtimeObject.AddComponent<RideHost>();
             runtimeObject.AddComponent<DriverShortcut>();
             runtimeObject.AddComponent<DebugKeys>();
+            // Built now, so the first ride's planning time doesn't include it.
+            try { _ = GleyGraph.Graph; }
+            catch (Exception ex) { Log.Error("Lane graph: " + ex); }
             Log.Info("City ready.");
         }
 
         // Fires before the city scene goes, so the ride's player and managers still exist (LoadScene.cs:27-31).
         private static void OnGameUnloaded()
         {
-            Ride.CancelActive("game unloaded");
+            Ride.CancelActive("game unloaded", handedOver: true);
             GleyGraph.Drop();
             if (runtimeObject != null) Object.Destroy(runtimeObject);
             runtimeObject = null;
         }
 
-        private static void OnHospital() => Ride.CancelActive("hospital");
+        private static void OnHospital() => Ride.CancelActive("hospital", handedOver: true);
 
         public Task OnUnloadAsync()
         {
@@ -61,9 +64,31 @@ namespace DrivenRides
     // Drives the active ride each frame and shows its panel.
     internal sealed class RideHost : MonoBehaviour
     {
+        private static RideHost? instance;
         private GUIStyle? boxStyle;
 
-        private void Update() => Ride.Active?.Tick();
+        // Runs a game coroutine (an unfade after a cancel) on the mod's own object.
+        public static void Run(System.Collections.IEnumerator routine)
+        {
+            if (instance != null) instance.StartCoroutine(routine);
+        }
+
+        private void OnEnable() => instance = this;
+
+        private void OnDisable()
+        {
+            if (instance == this) instance = null;
+        }
+
+        private void Update()
+        {
+            try { Ride.Active?.Tick(); }
+            catch (Exception ex)
+            {
+                Log.Error("Ride frame update: " + ex);
+                Ride.CancelActive("an exception in the ride's frame update");
+            }
+        }
 
         private void OnGUI()
         {

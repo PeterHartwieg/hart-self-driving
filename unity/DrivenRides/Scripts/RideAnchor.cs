@@ -9,6 +9,9 @@ namespace DrivenRides
     internal sealed class RideAnchor : MonoBehaviour
     {
         public Transform? Target;
+        // False once the ride car is no longer the ride's: the anchor then keeps its last pose, so the hidden player
+        // never jumps along with a pooled car Gley has moved elsewhere.
+        public System.Func<bool>? Valid;
 
         private void Update() => Follow();
 
@@ -16,7 +19,7 @@ namespace DrivenRides
 
         private void Follow()
         {
-            if (Target == null || !Target.gameObject.activeInHierarchy) return;
+            if (Target == null || !Target.gameObject.activeInHierarchy || (Valid != null && !Valid())) return;
             transform.SetPositionAndRotation(Target.position, Target.rotation);
         }
     }

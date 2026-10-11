@@ -60,4 +60,21 @@ public sealed class GoalPickerTests
         Assert.Throws<ArgumentException>(() => GoalPicker.Pick(Chain(), default, 0, new GoalOptions { WalkSpeedMs = 0 }));
         Assert.Throws<ArgumentException>(() => GoalPicker.Pick(Chain(), default, 0, new GoalOptions { MinStraightMetres = -1 }));
     }
+
+    [Fact]
+    public void NoLimitByDefaultSoFartherReachableGoalsStay()
+    {
+        // Twenty parallel one-way stretches near the target; a cut to the nearest few could keep only unreachable lanes.
+        var points = new System.Collections.Generic.List<Vec3>();
+        var edges = new System.Collections.Generic.List<int[]>();
+        for (var lane = 0; lane < 20; lane++)
+            for (var i = 0; i < 4; i++)
+            {
+                points.Add(new Vec3(i * 10, 0, lane * 2));
+                edges.Add(i == 3 ? Array.Empty<int>() : new[] { points.Count });
+            }
+        var graph = RoutingTests.Graph(points.ToArray(), edges.ToArray());
+        var goals = GoalPicker.Pick(graph, new Vec3(15, 0, 0), 0, new GoalOptions { MinStraightMetres = 10 });
+        Assert.True(goals.Count > 12, $"{goals.Count} goals");
+    }
 }

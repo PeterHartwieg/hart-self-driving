@@ -32,9 +32,12 @@ namespace DrivenRides
 
         private const string Hamptons = "ba:neighborhood_thehamptons";
         private const long PlanBudgetMs = 100;
-        private const int PlanStep = 4000;
+        private const int PlanStep = 500;
         private const float MapWaitSeconds = 3f;
         private const float StopWaitSeconds = 5f;
+        private const double ArriveMetres = 12;
+        private const int ReplanStep = 1500;
+        private const float ReplanSecondsLimit = 2f;
 
         private static readonly FieldInfo? TravelField = AccessTools.Field(typeof(TaxiSystem), "_travelCoroutine");
         private static readonly FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
@@ -71,6 +74,7 @@ namespace DrivenRides
         private Vector3 pickupPosition;
         private Quaternion pickupRotation;
         private GameObject? anchor;
+        private RideAnchor? anchorComponent;
         private bool attached;
         private bool departed;
         private bool cameraSet;
@@ -81,6 +85,10 @@ namespace DrivenRides
         private bool cancelled;
         private bool finished;
         private bool throwNext;
+        private bool boardFailed;
+        private bool faded;
+        private PlanJob? replanJob;
+        private float replanSeconds;
         private bool fakeSaveChange;
         private Phase phase = Phase.Boarding;
         private Outcome outcome = Outcome.None;
@@ -90,7 +98,7 @@ namespace DrivenRides
         public string PanelText { get; private set; } = "";
 
         // The car Gley must leave alone: PrivateDriverVehicle.Update is skipped for it.
-        public static bool OwnsCarObject(GameObject car) => Active != null && !Active.finished && Active.car != null && Active.car.gameObject == car;
+        public static bool OwnsCarObject(GameObject car) => Active != null && !Active.finished && Active.OwnsCar && Active.car.gameObject == car;
         public static bool OwnsPlayer => Active != null && !Active.finished && Active.attached;
         public static Vector3 PickupPosition => Active!.pickupPosition;
         public static Quaternion PickupRotation => Active!.pickupRotation;
@@ -237,6 +245,8 @@ namespace DrivenRides
                 job.Step(PlanStep);
             ms = watch.ElapsedMilliseconds;
             why = job.Status == PlanStatus.Running ? "over the time budget" : job.Status.ToString();
+            // A small step size keeps the overshoot small; a route found well past the budget still counts as late.
+            if (job.Status == PlanStatus.Found && ms > PlanBudgetMs * 3 / 2) { why = "found too late"; return null; }
             return job.Status == PlanStatus.Found ? job.Result : null;
         }
 
@@ -274,7 +284,7 @@ namespace DrivenRides
 
         private double LeftMetres => progress?.LeftMetres ?? route.LengthMetres;
 
-        private bool OwnsCar =>
+        internal bool OwnsCar =>
             car != null && car.gameObject.activeInHierarchy && car.GetIndex() == carIndex &&
             (!departed || ReferenceEquals(car.presetPath, owned));
 
@@ -286,9 +296,12 @@ namespace DrivenRides
         {
             try
             {
-                Board();
-                // At least one yield before any exit, or TravelTo would store a finished coroutine.
+                try { Board(); }
+                catch (Exception ex) { boardFailed = true; Log.Error("Boarding failed: " + ex); }
+                // At least one yield before any exit: TravelTo stores the coroutine only after this first step, so an
+                // exit before it would leave a dead handle in TaxiSystem's field.
                 yield return null;
+                if (boardFailed) { Cancel("boarding failed"); yield break; }
                 var waited = 0f;
                 while (!mapClosed && waited < MapWaitSeconds && outcome == Outcome.None)
                 {
@@ -301,21 +314,25 @@ namespace DrivenRides
                 while (outcome == Outcome.None)
                 {
                     if (cancelled) yield break;
-                    if (throwNext) { throwNext = false; throw new InvalidOperationException("Debug: exception inside the ride."); }
                     yield return null;
                 }
                 if (cancelled) yield break;
                 phase = Phase.Finishing;
                 ApplyScale(false);
                 Log.Info($"Ride ending: {outcome} ({outcomeReason}), {clock.Left(NowMinutes()):0.0} game minutes of budget left.");
+                faded = true;
                 yield return UiFader.Fade(1f);
                 if (cancelled) yield break;
-                yield return Bookkeeping();
+                // Stepped here rather than yielded as a nested coroutine, so an exception inside it runs this
+                // iterator's finally block.
+                var steps = Bookkeeping();
+                while (steps.MoveNext()) yield return steps.Current;
                 if (cancelled) yield break;
                 if (outcome == Outcome.Complete) ReleaseComplete();
                 else ReleaseVanilla();
                 RestoreCamera();
                 yield return UiFader.UnFade();
+                faded = false;
                 Finish();
             }
             finally
@@ -332,9 +349,12 @@ namespace DrivenRides
             anchor = new GameObject("DrivenRides.Anchor");
             anchor.transform.SetPositionAndRotation(car.transform.position, car.transform.rotation);
             anchor.AddComponent<RideAnchor>().Target = car.transform;
+            anchorComponent = anchor.GetComponent<RideAnchor>();
+            anchorComponent.Valid = () => OwnsCar;
+            // Set first, so cleanup also undoes a partly finished attachment.
+            attached = true;
             // Also sets NavigationBlocker.Taxi, disables the capsule and the agent, and tells Gley the collider is gone.
             player.AttachToObject(anchor.transform, NavigationBlocker.Taxi);
-            attached = true;
             player.Character.ToggleVisibility(false);
             InstanceBehavior<CityManager>.Instance.cityMap.Close();
             Log.Info($"Boarded at {pickupPosition}.");
@@ -390,6 +410,7 @@ namespace DrivenRides
             if (phase != Phase.Driving && phase != Phase.Stopping) return;
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car is no longer the ride's"); return; }
 
+            if (throwNext) { throwNext = false; throw new InvalidOperationException("Debug: exception inside the ride's frame update."); }
             progress!.Update(GleyGraph.ToVec(car.transform.position));
             var along = alongOffset + progress.AlongMetres;
             clock.Observe(Time.deltaTime, Math.Max(0, along - lastAlong));
@@ -397,9 +418,11 @@ namespace DrivenRides
 
             if (phase == Phase.Driving)
             {
-                if (owned.Count <= 1 || progress.PointsLeft <= 1) StopAtEnd();
+                if (replanJob != null) StepReplan();
+                else if (owned.Count <= 1 || progress.PointsLeft <= 1) StopAtEnd();
                 else
                 {
+                    if (IsWaiting()) watch!.Waiting(unpausedSeconds);
                     switch (watch!.Update(unpausedSeconds, along))
                     {
                         case WatchVerdict.Restart: Restart(); break;
@@ -411,7 +434,7 @@ namespace DrivenRides
             else
             {
                 stopWait += Time.unscaledDeltaTime;
-                if ((car.rb != null && car.rb.velocity.magnitude < 0.5f) || stopWait > StopWaitSeconds)
+                if ((car.rb != null && car.rb.velocity.magnitude < 0.5f && LeftMetres < ArriveMetres) || stopWait > StopWaitSeconds)
                     EndWith(Outcome.Complete, "arrived");
             }
             ApplyScale(phase == Phase.Driving || phase == Phase.Stopping);
@@ -437,20 +460,50 @@ namespace DrivenRides
             Log.Info("Watchdog: restart (" + watch.LastReason + ").");
         }
 
+        // Gley signals a red light by "stop" on the target waypoint and StopInPoint, the car in front by
+        // StopInDistance. A waiting car isn't stuck, and a restart would clear those stops.
+        private bool IsWaiting()
+        {
+            var traffic = TrafficManager.Instance;
+            var next = traffic.GetTargetWaypoint(carIndex);
+            var state = traffic.GetCurrentDrivingState(carIndex).Item2;
+            return (next != null && next.stop) || state == SpecialDriveActionTypes.StopInPoint ||
+                   state == SpecialDriveActionTypes.GiveWay || state == SpecialDriveActionTypes.StopInDistance;
+        }
+
+        // Starts a replan; StepReplan advances it over the next frames.
         private void Replan()
         {
             var graph = GleyGraph.Graph;
             var next = TrafficManager.Instance.GetTargetWaypoint(carIndex);
-            var fresh = graph != null && next != null ? Plan(graph, next.listIndex, goals, vehicleType, out var ms, out var why) : null;
-            if (fresh == null) { EndWith(Outcome.Vanilla, "replan found no route"); return; }
+            if (graph == null || next == null) { EndWith(Outcome.Vanilla, "replan had no start"); return; }
+            replanJob = RoutePlanner.Begin(graph, new RouteRequest
+            {
+                Start = next.listIndex,
+                Goals = goals,
+                VehicleType = vehicleType,
+                IsDisabled = GleyGraph.IsDisabled,
+            });
+            replanSeconds = 0f;
+            Log.Info("Watchdog: replanning (" + watch!.LastReason + ").");
+        }
+
+        private void StepReplan()
+        {
+            var job = replanJob!;
+            job.Step(ReplanStep);
+            replanSeconds += Time.unscaledDeltaTime;
+            if (job.Status == PlanStatus.Running && replanSeconds < ReplanSecondsLimit) return;
+            replanJob = null;
+            if (job.Status != PlanStatus.Found || job.Result == null) { EndWith(Outcome.Vanilla, $"replan found no route ({job.Status})"); return; }
             alongOffset += progress!.AlongMetres;
-            route = fresh;
+            route = job.Result;
             owned.Clear();
             owned.AddRange(route.Waypoints);
             progress = new RouteProgress(Points(route));
             Restart();
             watch!.Replanned(unpausedSeconds);
-            Log.Info($"Watchdog: replanned, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m.");
+            Log.Info($"Watchdog: replanned, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, {job.Expanded} expanded.");
         }
 
         public void RequestSkip()
@@ -524,7 +577,7 @@ namespace DrivenRides
         private void Detach(Vector3 place)
         {
             if (!attached) return;
-            if (anchor != null) anchor.GetComponent<RideAnchor>().Target = null;
+            if (anchorComponent != null) anchorComponent.Target = null;
             player.transform.position = place;
             player.DeattachFromObject(NavigationBlocker.Taxi);
             attached = false;
@@ -650,7 +703,12 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
-            if (anchor != null) Object.Destroy(anchor);
+            if (anchor != null)
+            {
+                // Destroying the anchor destroys its children; a player still under it must never go with it.
+                for (var i = anchor.transform.childCount - 1; i >= 0; i--) anchor.transform.GetChild(i).SetParent(null, true);
+                Object.Destroy(anchor);
+            }
             anchor = null;
             if (Active == this)
             {
@@ -661,25 +719,34 @@ namespace DrivenRides
 
         // Hospital, unload, a foreign time machine, or an iterator that stopped early: drop the mod's changes now,
         // synchronously, through the captured owners, before the interrupting system goes on. No completion.
-        public void Cancel(string reason)
+        // handedOver: the hospital or an unload takes the screen and the player from here, so no unfade.
+        public void Cancel(string reason, bool handedOver = false)
         {
             if (finished || cancelled) return;
             cancelled = true;
             Log.Info("Ride cancelled: " + reason + ".");
-            try
+            replanJob = null;
+            if (attached && player != null)
             {
-                if (attached && player != null)
+                try
                 {
                     var here = player.transform.position;
                     var place = NavMesh.SamplePosition(here, out var hit, 10f, NavMesh.AllAreas) ? hit.position : pickupPosition;
                     Detach(place);
-                    player.Character.ToggleVisibility(true);
                 }
+                catch (Exception ex) { Log.Error("Cancel, detach: " + ex); }
+                try { player.Character.ToggleVisibility(true); }
+                catch (Exception ex) { Log.Error("Cancel, visibility: " + ex.Message); }
             }
-            catch (Exception ex) { Log.Error("Cancel, player: " + ex); }
             try { RestoreCamera(); } catch (Exception ex) { Log.Error("Cancel, camera: " + ex.Message); }
             try { RestoreScale(); } catch (Exception ex) { Log.Error("Cancel, time scale: " + ex.Message); }
-            try { if (departed && OwnsCar) ReleaseToTraffic(); } catch (Exception ex) { Log.Error("Cancel, car: " + ex.Message); }
+            // A stand's car was loaded and held before departure, so it is released even if the ride never left.
+            try { if (OwnsCar && (departed || kind == Kind.Stand)) ReleaseToTraffic(); } catch (Exception ex) { Log.Error("Cancel, car: " + ex.Message); }
+            if (faded && !handedOver)
+            {
+                faded = false;
+                try { RideHost.Run(UiFader.UnFade()); } catch (Exception ex) { Log.Error("Cancel, unfade: " + ex.Message); }
+            }
             finished = true;
             phase = Phase.Done;
             DropState();
@@ -691,10 +758,11 @@ namespace DrivenRides
         private void Dispose()
         {
             if (finished || cancelled) return;
-            if (player != null && manager != null) { Cancel("the save changed"); return; }
+            // The game helpers Cancel uses reach the current GameManager; only safe while it is still the ride's.
+            if (player != null && manager != null && InstanceBehavior<GameManager>.Instance == manager) { Cancel("the save changed"); return; }
             cancelled = true;
             finished = true;
-            Log.Info("Ride disposed: the save changed and its owners are gone.");
+            Log.Info("Ride disposed: the save changed and its owners are gone or replaced.");
             if (anchor != null)
             {
                 for (var i = anchor.transform.childCount - 1; i >= 0; i--) anchor.transform.GetChild(i).SetParent(null, true);
@@ -704,7 +772,7 @@ namespace DrivenRides
             if (Active == this) Active = null;
         }
 
-        public static void CancelActive(string reason) => Active?.Cancel(reason);
+        public static void CancelActive(string reason, bool handedOver = false) => Active?.Cancel(reason, handedOver);
 
         // The RunMainGameTick prefix: while a ride owns the clock, no tick passes vanilla's deadline.
         public static void CapTick(ref float minutes)

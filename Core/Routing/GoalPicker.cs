@@ -9,7 +9,8 @@ namespace DrivenRides.Core.Routing
         public float MaxHeightDiff = 3f;
         public float MinStraightMetres = 15f;
         public float WalkSpeedMs = 1.4f;
-        public int MaxGoals = 12;
+        // No limit by default: a cut by walking distance alone can drop every reachable goal (one-way lanes).
+        public int MaxGoals = int.MaxValue;
     }
 
     public static class GoalPicker

@@ -115,4 +115,21 @@ public sealed class RideWatchTests
         var watch = new RideWatch(10, 1);
         Assert.Throws<ArgumentOutOfRangeException>(() => watch.Update(9, 0));
     }
+
+    [Fact]
+    public void WaitingRestartsTheStallClocksButNotTheDeadline()
+    {
+        var watch = new RideWatch(0, 100);
+        // A long red light: the car doesn't move, but the adapter reports it waiting.
+        for (var t = 1; t <= 120; t++)
+        {
+            watch.Waiting(t);
+            Assert.Equal(WatchVerdict.Ok, watch.Update(t, 0));
+        }
+        Assert.Equal(WatchVerdict.Ok, watch.Update(134, 0));
+        Assert.Equal(WatchVerdict.Restart, watch.Update(135, 0));
+        // The deadline (3 x 100 + 60 s) still holds while waiting.
+        watch.Waiting(361);
+        Assert.Equal(WatchVerdict.GiveUp, watch.Update(361, 1));
+    }
 }

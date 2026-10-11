@@ -8,9 +8,14 @@ namespace DrivenRides.Core.Ride
     {
         private readonly Vec3[] points;
         private readonly double[] lengths;
+        private readonly double maxAdvance;
 
-        public RouteProgress(IReadOnlyList<Vec3> points)
+        // maxAdvanceMetres bounds how far one update may move the car along the route. A car covers a metre or two
+        // per frame, so a projection further ahead is a different part of the route passing nearby (a loop round a
+        // block), not progress.
+        public RouteProgress(IReadOnlyList<Vec3> points, double maxAdvanceMetres = 25)
         {
+            maxAdvance = maxAdvanceMetres;
             if (points == null) throw new ArgumentNullException(nameof(points));
             if (points.Count == 0) throw new ArgumentException("A route needs at least one point.", nameof(points));
             this.points = new Vec3[points.Count];
@@ -42,8 +47,10 @@ namespace DrivenRides.Core.Ride
             int first = Math.Max(0, NextIndex - 1), last = Math.Min(points.Length - 2, NextIndex + 6);
             double bestDistance = double.PositiveInfinity, bestAlong = AlongMetres;
             int bestNext = NextIndex;
+            double reach = AlongMetres + maxAdvance;
             for (int i = first; i <= last; i++)
             {
+                if (lengths[i] > reach) break;
                 Vec3 a = points[i], b = points[i + 1];
                 double dx = (double)b.X - a.X, dy = (double)b.Y - a.Y, dz = (double)b.Z - a.Z;
                 double squared = dx * dx + dy * dy + dz * dz;
@@ -52,7 +59,9 @@ namespace DrivenRides.Core.Ride
                 double x = car.X - (a.X + t * dx), y = car.Y - (a.Y + t * dy), z = car.Z - (a.Z + t * dz);
                 double distance = x * x + y * y + z * z;
                 double along = lengths[i] + t * (lengths[i + 1] - lengths[i]);
-                if (distance > bestDistance || (distance == bestDistance && along < bestAlong)) continue;
+                if (along > reach) continue;
+                // On a tie the nearer part of the route wins, so a crossing never pulls progress forward.
+                if (distance > bestDistance || (distance == bestDistance && along >= bestAlong)) continue;
                 bestDistance = distance;
                 bestAlong = along;
                 bestNext = i + (raw >= 1 ? 2 : raw >= 0 ? 1 : 0);

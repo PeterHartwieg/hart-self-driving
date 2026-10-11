@@ -82,6 +82,15 @@ namespace DrivenRides.Core.Ride
             restartTime = nowSeconds;
             restartAlong = along;
         }
+        // The car is waiting for a red light, a give-way or the car in front: the stall clocks start again, the
+        // ride deadline doesn't move.
+        public void Waiting(double nowSeconds)
+        {
+            CheckTime(nowSeconds);
+            restartTime = nowSeconds;
+            replanTime = nowSeconds;
+        }
+
         public void Replanned(double nowSeconds)
         {
             CheckTime(nowSeconds);
