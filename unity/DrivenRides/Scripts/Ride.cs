@@ -28,7 +28,7 @@ namespace DrivenRides
     internal sealed class Ride
     {
         private enum Kind { Taxi, Stand, PrivateDriver }
-        private enum Phase { Boarding, Driving, Stopping, Finishing, Done }
+        private enum Phase { Boarding, Driving, Bridging, Stopping, Finishing, Done }
         private enum Outcome { None, Complete, Vanilla }
 
         private const long PlanBudgetMs = 100;
@@ -380,6 +380,13 @@ namespace DrivenRides
                 while (outcome == Outcome.None)
                 {
                     if (cancelled) yield break;
+                    if (bridgeSkip != null)
+                    {
+                        var skip = SkipBridge();
+                        while (skip.MoveNext()) yield return skip.Current;
+                        if (cancelled) yield break;
+                        continue;
+                    }
                     yield return null;
                 }
                 if (cancelled) yield break;
@@ -542,6 +549,7 @@ namespace DrivenRides
             {
                 if (replanJob != null) StepReplan();
                 else if (owned.Count <= 1 || progress.PointsLeft <= 1) StopAtEnd();
+                else if (OnBridge()) return;
                 else
                 {
                     HandleStops();
@@ -677,6 +685,116 @@ namespace DrivenRides
                 Log.Info($"Top speed {top} km/h ({(driverTopSpeed > 0 ? $"vehicle type {driverVehicleType}" : "traffic model")}; Gley model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
             }
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
+        }
+
+        // The bridge to the Hamptons is skipped as the game skips it for the player's own car (SkipBridgeHelper):
+        // entering a bridge trigger, the car is moved behind a fade to the trigger's far-side target facing its way,
+        // and the clock runs the game's own bridge time (Peter).
+        private static readonly FieldInfo? SkipTargetsField = AccessTools.Field(typeof(Streets.BridgeTriggerController), "skipTargets");
+        private (Transform Target, int PathIndex)? bridgeSkip;
+        private readonly HashSet<Streets.BridgeTriggerController> skipped = new HashSet<Streets.BridgeTriggerController>();
+        private Streets.BridgeTriggerController[]? bridges;
+
+        private bool OnBridge()
+        {
+            var here = car.transform.position;
+            // Found once per ride: a scene search every frame is what made 0.1.5 lag.
+            bridges ??= Object.FindObjectsOfType<Streets.BridgeTriggerController>();
+            foreach (var bridge in bridges)
+            {
+                if (bridge == null) continue;
+                if (skipped.Contains(bridge)) continue;
+                var trigger = bridge.GetComponent<Collider>();
+                if (trigger == null || !trigger.bounds.Contains(here)) continue;
+                skipped.Add(bridge);
+                if (!(SkipTargetsField?.GetValue(bridge) is Transform[] targets) || targets.Length == 0) { Event("Bridge: no skip targets."); return false; }
+                // As SkipBridgeHelper.FindTarget: the target facing most nearly the car's way, here also ahead of it.
+                Transform? best = null;
+                var bestAngle = float.MaxValue;
+                foreach (var t in targets)
+                {
+                    if (t == null || Vector3.Dot(t.position - here, car.transform.forward) < 0f) continue;
+                    var angle = Mathf.Abs(Mathf.DeltaAngle(car.transform.eulerAngles.y, t.eulerAngles.y));
+                    if (angle < bestAngle) { bestAngle = angle; best = t; }
+                }
+                if (best == null) { Event("Bridge: no skip target ahead."); return false; }
+                var all = GleyGraph.Waypoints!;
+                var at = -1;
+                var nearest = 40f;
+                for (var k = progress!.NextIndex; k + 1 < path.Count; k++)
+                {
+                    var d = Vector3.Distance(all[path[k]].position, best.position);
+                    if (d < nearest) { nearest = d; at = k; }
+                }
+                if (at < 0) { Event("Bridge: the route doesn't pass the far side; driving on."); return false; }
+                bridgeSkip = (best, at);
+                phase = Phase.Bridging;
+                return true;
+            }
+            return false;
+        }
+
+        private IEnumerator SkipBridge()
+        {
+            var (target, at) = bridgeSkip!.Value;
+            bridgeSkip = null;
+            var all = GleyGraph.Waypoints!;
+            var from = car.transform.position;
+            var to = all[path[at]].position;
+            Event($"Bridge: skipping {Vector3.Distance(from, to):0} m to waypoint {path[at]}.");
+            faded = true;
+            var fade = UiFader.Fade();
+            while (fade.MoveNext()) yield return fade.Current;
+            if (cancelled) yield break;
+
+            // The car onto the far side, facing along the route; the path from there on.
+            var ahead = all[path[at + 1]].position - to;
+            var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(new Vector3(ahead.x, 0f, ahead.z)) : target.rotation;
+            if (car.rb != null)
+            {
+                car.rb.velocity = Vector3.zero;
+                car.rb.angularVelocity = Vector3.zero;
+                car.rb.position = to + Vector3.up * 0.3f;
+                car.rb.rotation = rotation;
+            }
+            car.transform.SetPositionAndRotation(to + Vector3.up * 0.3f, rotation);
+            alongOffset += progress!.AlongMetres;
+            var rest = path.GetRange(at, path.Count - at);
+            var shifted = new HashSet<int>();
+            foreach (var k in slowPath) if (k >= at) shifted.Add(k - at);
+            slowPath.Clear();
+            slowPath.UnionWith(shifted);
+            path = rest;
+            owned.Clear();
+            for (var k = 1; k < path.Count; k++) owned.Add(path[k]);
+            progress = new RouteProgress(Points(path));
+            IndexRoute();
+            lastAlong = alongOffset;
+            Go();
+            yield return null;
+
+            // The game's own bridge time: 0.04 game minutes per metre at the game speed (SkipBridgeHelper).
+            var minutes = Vector3.Distance(from, to) * 0.04f * PlayerPrefSettings.GameSpeed;
+            timeMachineEnded = false;
+            Action ended = () => timeMachineEnded = true;
+            GlobalEvents.onTimeMachineEnded += ended;
+            try
+            {
+                Timestamp goal = TimeHelper.Now();
+                goal.AddMinutes(minutes);
+                ownTimeMachine = true;
+                try { InstanceBehavior<UIs>.Instance.timeMachine.StartTimeMachine(goal, disableCancel: true); }
+                finally { ownTimeMachine = false; }
+                while (!timeMachineEnded && !cancelled) yield return null;
+            }
+            finally { GlobalEvents.onTimeMachineEnded -= ended; }
+            if (cancelled) yield break;
+
+            var unfade = UiFader.UnFade();
+            while (unfade.MoveNext()) yield return unfade.Current;
+            faded = false;
+            watch!.Waiting(unpausedSeconds);
+            phase = Phase.Driving;
         }
 
         private void StopAtEnd()
