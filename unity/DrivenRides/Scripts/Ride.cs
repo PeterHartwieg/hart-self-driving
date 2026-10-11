@@ -242,7 +242,7 @@ namespace DrivenRides
                 IsDisabled = GleyGraph.IsDisabled,
             });
             while (job.Status == PlanStatus.Running && watch.ElapsedMilliseconds < PlanBudgetMs)
-                job.Step(PlanStep);
+                job.Step(PlanStep, () => watch.ElapsedMilliseconds >= PlanBudgetMs);
             ms = watch.ElapsedMilliseconds;
             why = job.Status == PlanStatus.Running ? "over the time budget" : job.Status.ToString();
             // Small steps keep the overshoot small; a route found after the budget counts as none.

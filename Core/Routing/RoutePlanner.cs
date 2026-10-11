@@ -97,7 +97,10 @@ namespace DrivenRides.Core.Routing
         public int Expanded { get; private set; }
         public Route? Result { get; private set; }
 
-        public PlanStatus Step(int maxExpansions)
+        public PlanStatus Step(int maxExpansions) => Step(maxExpansions, null);
+
+        // shouldStop is asked every 64 expansions, so a caller with a time budget can end a step inside the search.
+        public PlanStatus Step(int maxExpansions, Func<bool>? shouldStop)
         {
             if (maxExpansions < 0) throw new ArgumentOutOfRangeException(nameof(maxExpansions));
             if (Status != PlanStatus.Running) return Status;
@@ -114,6 +117,7 @@ namespace DrivenRides.Core.Routing
                 }
                 if (entry.Cost != costs[entry.Node]) { open.Pop(); continue; }
                 if (used == maxExpansions) return Status;
+                if (shouldStop != null && (used & 63) == 0 && used > 0 && shouldStop()) return Status;
                 open.Pop();
                 used++;
                 Expanded++;

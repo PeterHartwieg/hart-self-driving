@@ -306,4 +306,19 @@ public sealed class RoutingTests
         }
         return request.Goals.Min(goal => cost[goal.Waypoint] + goal.WalkSeconds);
     }
+
+    [Fact]
+    public void ShouldStopEndsAStepInsideTheSearchAndTheJobResumes()
+    {
+        var points = new Vec3[200];
+        var edges = new int[200][];
+        for (var i = 0; i < 200; i++) { points[i] = new Vec3(i * 10, 0, 0); edges[i] = i == 199 ? Array.Empty<int>() : new[] { i + 1 }; }
+        var graph = Graph(points, edges);
+        var job = RoutePlanner.Begin(graph, new RouteRequest { Start = 0, Goals = new[] { new Goal(199, 0) } });
+        var asked = 0;
+        Assert.Equal(PlanStatus.Running, job.Step(int.MaxValue, () => ++asked >= 1));
+        Assert.Equal(64, job.Expanded);
+        Assert.Equal(PlanStatus.Found, job.Step(int.MaxValue));
+        Assert.Equal(200, job.Result!.Waypoints.Count);
+    }
 }
