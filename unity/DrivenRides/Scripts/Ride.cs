@@ -31,7 +31,6 @@ namespace DrivenRides
         private enum Phase { Boarding, Driving, Stopping, Finishing, Done }
         private enum Outcome { None, Complete, Vanilla }
 
-        private const string Hamptons = "ba:neighborhood_thehamptons";
         private const long PlanBudgetMs = 100;
         private const int PlanStep = 500;
         private const float MapWaitSeconds = 3f;
@@ -43,7 +42,6 @@ namespace DrivenRides
         private static readonly FieldInfo? TravelField = AccessTools.Field(typeof(TaxiSystem), "_travelCoroutine");
         private static readonly FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
         private static readonly FieldInfo? TimeScaleTweenField = AccessTools.Field(typeof(GameSpeedController), "timeScaleTween");
-        private static readonly FieldInfo? DestinationDataField = AccessTools.Field(typeof(TaxiDestinationController), "taxiDestinationData");
 
         public static Ride? Active { get; private set; }
 
@@ -157,8 +155,8 @@ namespace DrivenRides
                 if (!(taxi is MonoBehaviour taxiObject) || taxiObject == null) return Vanilla("no taxi");
                 if (PlayerActivityUI.IsPanelOpen) return Vanilla("an activity panel is open");
                 if (BuildingManager.IsInsideBuilding) return Vanilla("the player is inside a building");
-                if (IsHamptons(target)) return Vanilla("the destination is in the Hamptons");
-                if (ClosestBuildingFromPlayer.Get()?.Neighbourhood == Hamptons) return Vanilla("the player is in the Hamptons");
+                // The Hamptons are driven too: the lane graph runs across the bridge (Peter, after the first rides).
+                // Vanilla's TravelTo has already checked the private fence.
 
                 Kind kind;
                 VehicleComponent? car = null;
@@ -339,14 +337,6 @@ namespace DrivenRides
             var asset = prefab.gameObject;
             foreach (var v in vehicles.GetVehicleList())
                 if (v != null && v.prefab == asset && !v.gameObject.activeInHierarchy) return true;
-            return false;
-        }
-
-        private static bool IsHamptons(EntityController target)
-        {
-            if (target is CityBuildingController building) return building.building?.Neighbourhood == Hamptons;
-            if (target is TaxiDestinationController && DestinationDataField?.GetValue(target) is TaxiDestinationData data)
-                return data.neighbourhood == Hamptons;
             return false;
         }
 

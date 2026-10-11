@@ -11,7 +11,7 @@ Version 1:
 - Rides with the **private driver** and the **taxis** (a taxi hailed from traffic and a taxi stand) drive the real route when both ends are in Manhattan.
 - During a ride the clock runs at a third of its speed. Skip charges vanilla's time for the rest of the way.
 - A **Skip** button finishes a ride the vanilla way at any moment.
-- When the mod can't drive a ride (no route, a parked private driver, the Hamptons), the ride is vanilla from the start. When a driven ride fails midway (stuck car, car removed), it finishes the vanilla way. When something else takes over (the hospital, a game load), the ride is cancelled cleanly without a completion.
+- When the mod can't drive a ride (no route, a parked private driver), the ride is vanilla from the start. The Hamptons are driven too, across the bridge (Peter, 11 October 2026; the lane graph is one network from Manhattan to x -3,380). When a driven ride fails midway (stuck car, car removed), it finishes the vanilla way. When something else takes over (the hospital, a game load), the ride is cancelled cleanly without a completion.
 - Prices, achievements, events, happiness modifiers and the limo's energy and food bonus stay as in vanilla.
 - A **driver shortcut**: one key calls the private driver, and once it waits, the same key walks you to it and opens the destination map. Vanilla needs the phone, the driver app and a vehicle each time.
 
