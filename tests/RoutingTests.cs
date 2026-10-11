@@ -428,8 +428,9 @@ public sealed class RoutingTests
         Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(Make(false), request, int.MaxValue).Status);
         var graph = Make(true);
         Assert.Equal(new[] { eastRight[1] }, graph.MissingTurns(right[1]));
-        var via = graph.TurnVia(right[1], eastRight[1]);
-        Assert.True(via >= 0 && graph.IsIntersection(via));
+        var vias = graph.TurnVias(right[1], eastRight[1]);
+        Assert.Single(vias);
+        Assert.True(graph.IsIntersection(vias[0]));
         Assert.Empty(graph.MissingTurns(left[1]));
         var route = Found(graph, request);
         Assert.Contains(eastRight[1], route.Waypoints);
@@ -446,16 +447,18 @@ public sealed class RoutingTests
         var junction = new List<bool>();
         int Add(float x, float z, bool inJunction) { points.Add(new Vec3(x, 0, z)); edges.Add(Array.Empty<int>()); junction.Add(inJunction); return points.Count - 1; }
         void Link(params int[] chain) { for (var k = 0; k + 1 < chain.Length; k++) edges[chain[k]] = new[] { chain[k + 1] }; }
-        int[] East(float z) { var a = Add(-30, z, false); var e = Add(-5, z, false); var j1 = Add(5, z, true); var j2 = Add(25, z, true); var o = Add(35, z, false); var o2 = Add(45, z, false); Link(a, e, j1, j2, o, o2); return new[] { a, e }; }
+        int[] East(float z) { var a = Add(-30, z, false); var e = Add(-5, z, false); var j1 = Add(5, z, true); var j2 = Add(12, z, true); var j3 = Add(25, z, true); var o = Add(35, z, false); var o2 = Add(45, z, false); Link(a, e, j1, j2, j3, o, o2); return new[] { a, e }; }
         var left = East(0); var outer = East(-4);
         var w0 = Add(35, 15, false); var wj1 = Add(20, 15, true); var wj2 = Add(10, 15, true); var wj3 = Add(0, 15, true); var wj4 = Add(-10, 15, true); var wexit = Add(-15, 15, false); var wend = Add(-30, 15, false);
         Link(w0, wj1, wj2, wj3, wj4, wexit, wend);
         var n = points.Count;
         var graph = new LaneGraph(points.ToArray(), edges.ToArray(), Enumerable.Repeat(1, n).ToArray(), junction.ToArray(), new float[n], inferTurns: true);
-        Assert.Equal(wj2, graph.UTurn(left[1]));
+        Assert.Equal(wj1, graph.UTurn(left[1]));
         Assert.Equal(-1, graph.UTurn(outer[1]));
         var route = Found(graph, Request(left[0], new Goal(wend, 0)));
-        Assert.Equal(new[] { left[0], left[1], wj2, wj3, wj4, wexit, wend }, route.Waypoints);
+        Assert.Equal(new[] { left[0], left[1], wj1, wj2, wj3, wj4, wexit, wend }, route.Waypoints);
+        // The turn starts well inside the junction, at the eastbound junction waypoint 17 m past the entry.
+        Assert.Equal(left[1] + 2, graph.TurnVias(left[1], wj1)[0]);
         var noUTurns = Request(left[0], new Goal(wend, 0));
         noUTurns.UTurnPenaltySeconds = float.PositiveInfinity;
         Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, noUTurns, int.MaxValue).Status);

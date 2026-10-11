@@ -475,8 +475,9 @@ namespace DrivenRides
             return points;
         }
 
-        // Puts each added turn's curve waypoint between its entry and exit, so the car follows the curve.
-        private static List<int> Expand(Route r)
+        // Puts each added turn's and U-turn's waypoints (straight into the junction, then the curve) between its
+        // entry and exit, so the car drives them as a driver would.
+        private List<int> Expand(Route r)
         {
             var graph = GleyGraph.Graph;
             var result = new List<int>(r.Waypoints.Count + 4);
@@ -484,8 +485,8 @@ namespace DrivenRides
             {
                 result.Add(r.Waypoints[k]);
                 if (graph == null || k + 1 >= r.Waypoints.Count) continue;
-                var via = graph.TurnVia(r.Waypoints[k], r.Waypoints[k + 1]);
-                if (via >= 0) result.Add(via);
+                var vias = graph.TurnVias(r.Waypoints[k], r.Waypoints[k + 1]);
+                foreach (var via in vias) result.Add(via);
             }
             return result;
         }
