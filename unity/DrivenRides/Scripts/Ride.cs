@@ -245,8 +245,8 @@ namespace DrivenRides
                 job.Step(PlanStep);
             ms = watch.ElapsedMilliseconds;
             why = job.Status == PlanStatus.Running ? "over the time budget" : job.Status.ToString();
-            // A small step size keeps the overshoot small; a route found well past the budget still counts as late.
-            if (job.Status == PlanStatus.Found && ms > PlanBudgetMs * 3 / 2) { why = "found too late"; return null; }
+            // Small steps keep the overshoot small; a route found after the budget counts as none.
+            if (job.Status == PlanStatus.Found && ms > PlanBudgetMs) { why = "found after the time budget"; return null; }
             return job.Status == PlanStatus.Found ? job.Result : null;
         }
 
@@ -321,7 +321,9 @@ namespace DrivenRides
                 ApplyScale(false);
                 Log.Info($"Ride ending: {outcome} ({outcomeReason}), {clock.Left(NowMinutes()):0.0} game minutes of budget left.");
                 faded = true;
-                yield return UiFader.Fade(1f);
+                // The game's fades are stepped here too, so an exception inside them runs this iterator's finally.
+                var fade = UiFader.Fade(1f);
+                while (fade.MoveNext()) yield return fade.Current;
                 if (cancelled) yield break;
                 // Stepped here rather than yielded as a nested coroutine, so an exception inside it runs this
                 // iterator's finally block.
@@ -331,7 +333,8 @@ namespace DrivenRides
                 if (outcome == Outcome.Complete) ReleaseComplete();
                 else ReleaseVanilla();
                 RestoreCamera();
-                yield return UiFader.UnFade();
+                var unfade = UiFader.UnFade();
+                while (unfade.MoveNext()) yield return unfade.Current;
                 faded = false;
                 Finish();
             }
@@ -501,7 +504,10 @@ namespace DrivenRides
             owned.Clear();
             owned.AddRange(route.Waypoints);
             progress = new RouteProgress(Points(route));
-            Restart();
+            // Gley takes the new list at its next waypoint request. At a light or in a queue a restart would clear
+            // the stop, so it only happens when the car isn't waiting.
+            if (IsWaiting()) watch!.Waiting(unpausedSeconds);
+            else Restart();
             watch!.Replanned(unpausedSeconds);
             Log.Info($"Watchdog: replanned, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, {job.Expanded} expanded.");
         }
@@ -745,7 +751,13 @@ namespace DrivenRides
             if (faded && !handedOver)
             {
                 faded = false;
-                try { RideHost.Run(UiFader.UnFade()); } catch (Exception ex) { Log.Error("Cancel, unfade: " + ex.Message); }
+                try
+                {
+                    // The ride's fade may still be running; left alone it would finish after the unfade and stay black.
+                    DOTween.Kill(InstanceBehavior<UIs>.Instance.blackOverlay);
+                    RideHost.Run(UiFader.UnFade());
+                }
+                catch (Exception ex) { Log.Error("Cancel, unfade: " + ex.Message); }
             }
             finished = true;
             phase = Phase.Done;

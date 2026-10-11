@@ -120,8 +120,19 @@ public sealed class RouteProgressTests
         var points = new[] { new Vec3(0, 0, 0), new Vec3(100, 0, 0) };
         var progress = new RouteProgress(points, maxAdvanceMetres: 25);
         progress.Update(new Vec3(80, 0, 0));
-        Assert.Equal(0, progress.AlongMetres, 6);
-        progress.Update(new Vec3(20, 0, 0));
-        Assert.Equal(20, progress.AlongMetres, 6);
+        Assert.Equal(25, progress.AlongMetres, 6);
+        progress.Update(new Vec3(80, 0, 0));
+        Assert.Equal(50, progress.AlongMetres, 6);
+    }
+
+    [Fact]
+    public void CatchesUpAfterAnOversizedJumpOnALongSegment()
+    {
+        // Review case: a hitch moves the car far along one long segment; progress must recover, not freeze.
+        var progress = new RouteProgress(new[] { new Vec3(0, 0, 0), new Vec3(100, 0, 0), new Vec3(200, 0, 0) });
+        foreach (var x in new[] { 0f, 30f, 40f, 80f, 100f, 150f, 200f, 200f, 200f, 200f, 200f })
+            progress.Update(new Vec3(x, 0, 0));
+        Assert.Equal(200, progress.AlongMetres, 6);
+        Assert.Equal(0, progress.PointsLeft);
     }
 }
