@@ -17,6 +17,6 @@ A Workshop mod that makes taxi and private-driver rides drive through the city i
 - Core decides, the game only shows. Keep game calls in thin adapters.
 - Each Harmony patch logs one `Active` or `Not active` line at startup, with the method name.
 - The mod writes nothing into saves. A ride is never saved; keep it that way or version a schema first.
-- A ride must never cost more game time than the vanilla ride, and every failure must end the ride the vanilla way or cancel it cleanly.
+- During a ride the clock runs at a third of its speed; Skip charges vanilla's time for the rest of the way. Every failure must end the ride the vanilla way or cancel it cleanly.
 - Mark evidence in the README as checked (seen in game), pending or unverified. Code reading is not a check.
 - Neutral names: no references to any YouTube series or personal saves in shipped files.

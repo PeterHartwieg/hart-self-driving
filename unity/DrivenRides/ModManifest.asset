@@ -15,7 +15,7 @@ MonoBehaviour:
   ModId: DrivenRides
   DisplayName: Driven Rides
   Author: Peter Hartwieg
-  Version: 0.1.3
+  Version: 0.1.4
   AssetBundleName: drivenrides.unity3d
   ModAssembly: {fileID: 5897886265953266890, guid: 836e19523881454681fabf923180b944,
     type: 3}

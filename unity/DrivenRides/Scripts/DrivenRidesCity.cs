@@ -95,10 +95,17 @@ namespace DrivenRides
             var ride = Ride.Active;
             if (ride == null || !ride.ShowPanel) return;
             boxStyle ??= new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 8, 8) };
-            var width = 360f;
+            var width = 420f;
             var rect = new Rect((Screen.width - width) / 2f, 24f, width, 44f);
             GUI.Box(rect, ride.PanelText, boxStyle);
-            if (GUI.Button(new Rect(rect.xMax - 84f, rect.y + 8f, 72f, 28f), "Skip")) ride.RequestSkip();
+            var x = rect.xMax - 8f - 4 * 56f;
+            foreach (var speed in new[] { 1f, 2f, 3f })
+            {
+                var label = Mathf.Approximately(ride.RideSpeed, speed) ? $"[{speed:0}x]" : $"{speed:0}x";
+                if (GUI.Button(new Rect(x, rect.y + 8f, 50f, 28f), label)) ride.SetSpeed(speed);
+                x += 56f;
+            }
+            if (GUI.Button(new Rect(x, rect.y + 8f, 50f, 28f), "Skip")) ride.RequestSkip();
         }
     }
 }

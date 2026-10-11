@@ -11,14 +11,15 @@ namespace DrivenRides
     internal static class Options
     {
         private const string RidesId = "rides";
-        private const string SpeedId = "speed";
+        // A new id: the first spike builds defaulted to 3x under "speed".
+        private const string SpeedId = "startspeed";
         private const string ShortcutId = "shortcut";
         private static readonly float[] Speeds = { 1f, 2f, 3f };
-        private const int DefaultSpeedIndex = 2;
+        private const int DefaultSpeedIndex = 0;
         private static string? modId;
 
         public static bool DrivenRides { get; private set; } = true;
-        public static float RideSpeed { get; private set; } = 3f;
+        public static float RideSpeed { get; private set; } = 1f;
         public static bool Shortcut { get; private set; } = true;
 
         public static void Register(string id)

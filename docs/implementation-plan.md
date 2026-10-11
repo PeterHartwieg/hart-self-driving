@@ -2,14 +2,14 @@
 
 A separate Workshop mod for Big Ambitions, in its own repo (`~/Coding_Projects/big-ambitions-driven-rides`). Taxi and private-driver rides drive through the city instead of fading to black. You sit in the car, the camera follows it, and you get out at the destination. Written 11 October 2026, revised the same day over five rounds of reviews (Fable 5.1, GPT 6 Astra) until both said "ready to build the spike". The reviews are in the Food Trucks checkout's `build/review-rides/` (not committed). Name: **Driven Rides** (Peter, 11 October 2026).
 
-**Peter's decisions, 11 October 2026:** own repo; ride speed 3× by default; the private driver is dismissed after a ride as in vanilla, so it has to be called again, and the mod adds a shortcut for calling it (see [Driver shortcut](#driver-shortcut)).
+**Peter's decisions, 11 October 2026:** own repo; normal world speed by default with the clock at a third of its speed during a ride, and buttons on the ride panel for 2×, 3× and Skip (this replaced the first choice, 3× by default with the clock held to vanilla's cost, after the first test rides); the private driver is dismissed after a ride as in vanilla, so it has to be called again, and the mod adds a shortcut for calling it (see [Driver shortcut](#driver-shortcut)).
 
 ## Goal and scope
 
 Version 1:
 
 - Rides with the **private driver** and the **taxis** (a taxi hailed from traffic and a taxi stand) drive the real route when both ends are in Manhattan.
-- The ride costs the same game time as a vanilla ride, never more.
+- During a ride the clock runs at a third of its speed. Skip charges vanilla's time for the rest of the way.
 - A **Skip** button finishes a ride the vanilla way at any moment.
 - When the mod can't drive a ride (no route, a parked private driver, the Hamptons), the ride is vanilla from the start. When a driven ride fails midway (stuck car, car removed), it finishes the vanilla way. When something else takes over (the hospital, a game load), the ride is cancelled cleanly without a completion.
 - Prices, achievements, events, happiness modifiers and the limo's energy and food bonus stay as in vanilla.
@@ -86,13 +86,13 @@ One iterator (`RideRunner`). Its body sits in try/finally for exceptions and nor
    - `PrivateDriverVehicle`: the summoned car. The `Update` prefix now leaves it alone.
    - `PermanentTaxiController`: the car the prefix loaded and hard-stopped.
 3. **Depart.** Give Gley a mutable copy of the route as `presetPath`; keep the immutable route in the context for progress. `ForceSetVehicleActiveAction(car, Forward)` to clear any `StopNow`, then `VehicleUpdateWaypoint(car)`. Once `GlobalEvents.onCityMapClosed` has fired, switch the camera (see [Camera](#camera)).
-4. **Drive.** Each frame: the clock budget, the watchdog, ride speed, and a small panel (destination, distance left, **Skip**). The car is **ours** while its `VehicleComponent` is active, its index is the one captured, and its `presetPath` is the very list the mod gave it. Every release, removal or path change first checks that. If it stops being ours, give up.
+4. **Drive.** Each frame: the watchdog, ride speed, and a small panel (distance left, 1×/2×/3× and **Skip**). The car is **ours** while its `VehicleComponent` is active, its index is the one captured, and its `presetPath` is the very list the mod gave it. Every release, removal or path change first checks that. If it stops being ours, give up.
 5. **Arrive.** When one route waypoint is left, `SetVehicleAction(car, StopInPoint, true)` (the vanilla summon's stop) and clear the owned list in place, so `presetPath` stays the same non-null list and the car stays protected from removal. If the list ran out first, Gley has already picked an ordinary next waypoint and the car stops one waypoint further on; the warp to the door covers that.
 6. **Finish.** See `Complete` below.
 
 **Shared bookkeeping**, in vanilla's order (`TaxiSystem.cs:86-105`), used by both `Complete` and `FinishVanilla`:
 
-1. Spend any budget left with the time machine, then wait for `GlobalEvents.onTimeMachineEnded` (not just `isRunning == false`, since teardown takes another second).
+1. For Skip and the vanilla finish, run the time machine for vanilla's charge for the rest of the way, then wait for `GlobalEvents.onTimeMachineEnded` (not just `isRunning == false`, since teardown takes another second).
 2. Achievement counter for the taxi type, `GameEvent.Invoke("")`.
 3. Place the player: move the transform to the target's NavMesh position (`NavMesh.SamplePosition`; fallback, the pickup position), `DeattachFromObject(Taxi)`, `WarpSafely` there, check the agent is on the NavMesh, show, `Character.Reset()`.
 4. `ba:gameevent_completedtaxiride`.
@@ -139,26 +139,14 @@ Core's `RideWatch` gets the car's progress along the immutable route, the time (
 
 So the player sits in a stuck car for at most about 75 s before the vanilla finish.
 
-## Clock
+## Clock and ride speed
 
-Core's `ClockBudget`. The ride must cost vanilla's game time and never more.
+Peter, 11 October 2026, after the first test rides: the world runs at normal speed and the clock at a third of its speed while you ride. Buttons on the ride panel set 1×, 2× or 3× (`Time.timeScale`, applied only while the game is unpaused and its own time-scale tween has finished; `fixedDeltaTime` is never changed), and **Skip** finishes the ride the vanilla way. The options page sets the speed a ride starts at (default 1×).
 
-- The ride **owns the clock** from the moment the prefix accepts it until `Complete` or `FinishVanilla` has unfaded, and until `Cancel` releases it. Boarding, fades, driving and the closing time machine all count.
-- At the start, capture `start = TimeHelper.Now()` and `deadline = start + minutes` (vanilla's own `minutes`).
-- Pacing: each frame, `left = deadline − now` in game minutes, and `R` = route length left ÷ the car's observed average speed, both in **scaled** seconds (`Time.deltaTime`), the unit `RunMainGameTick` uses. The pace is `m = clamp(left ÷ R, 0, GameSpeed)`.
-- The hard cap is the `RunMainGameTick` prefix: while the ride owns the clock, it replaces the argument with `max(0, min(Time.deltaTime × m, left))` for the game's own tick, and with `max(0, min(argument, left + 0.001))` for the ride's time machine. The floor matters: after the time machine's overshoot `left` is slightly negative, and the game keeps ticking during the time machine's one-second teardown and the unfade, so without it a tick would turn the clock back. The 0.001 is vanilla's own overshoot; without it, float rounding near the target leaves a residue the time machine never clears, and it spins forever. So the ride overshoots vanilla's cost by at most 0.001 game minutes. `GameManager.MinutesMultiplier` is never changed, so there's nothing global to restore.
-- When `left` reaches zero the clock stands still for the rest of the ride. The watchdog's deadline bounds how long that lasts. Time is never taken back.
-- After the ride, the cap is released and the clock runs normally.
-- Expected pace at 1×: about 0.33 (vanilla 40 game min per km over about 120 s per km). The spike log confirms it.
-
-## Ride speed
-
-At 1× a 3 km ride takes about 6 real minutes. **Ride speed** shortens that: 1×, 2× or 3× via `Time.timeScale` during the ride. The default is **3×** (Peter). It is a dropdown on the mod's options page (see [Options](#options)).
-
-- Applied each frame only when the game is unpaused (`UIs.Instance.gameSpeed.Paused` false), no time machine runs, and `GameSpeedController`'s own time-scale tween is finished (read through AccessTools). While paused or tweening, the mod doesn't touch the scale.
-- `fixedDeltaTime` is never changed. At 3× physics runs three FixedUpdates per frame: the cost is CPU, which the spike measures.
-- On exit, set `Time.timeScale` back to 1 only if the game is unpaused; if paused, leave it to the game.
-- If the spike shows trouble at 3×, the default drops to what works and Peter decides. Skip covers impatience.
+- The `RunMainGameTick` prefix multiplies each tick by ⅓ while a ride owns the clock. Ticks are game minutes from scaled time, so at 3× the clock runs at its normal rate. The ride's own time machine is left alone.
+- A ride's game time is its driving time at a third of the clock's rate, usually more than vanilla's teleport. Vanilla charges 0.04 game minutes per metre of straight line, which the first test showed is very cheap: 6.6 game minutes for a 964 m drive.
+- Skip and the vanilla finish run the time machine for vanilla's charge for the straight line from the car to the destination. An arrival charges nothing more.
+- The first design held the ride to vanilla's cost with a clock budget; in play the clock looked stopped, so it was dropped.
 
 ## Camera
 
@@ -172,7 +160,7 @@ At 1× a 3 km ride takes about 6 real minutes. **Ride speed** shortens that: 1×
 The ModAPI has an options page per mod (`BigAmbitions.Mods.OptionsService.Register(modId, new ModOptions()...)`, the SDK's `Example-Options`). The game stores each value in `PlayerPrefs` under `m:<modId>:<optionId>` (`ModOptionPrefs.cs`) and calls the option's callback only when the options page builds its controls or the player changes one. So the mod reads `PlayerPrefs` with the same keys at load, and takes callbacks for changes after that. Options are player preferences, not save data.
 
 - **Driven rides** (toggle, `rides`, default on): off makes every ride vanilla.
-- **Ride speed** (dropdown, `speed`, 1× / 2× / 3×, default 3×).
+- **Ride speed at the start** (dropdown, `startspeed`, 1× / 2× / 3×, default 1×). The panel's buttons change it during a ride.
 - **Driver shortcut** (toggle, `shortcut`, default on).
 
 ## Driver shortcut
@@ -199,7 +187,7 @@ The Food Trucks layout and tools, copied:
 
 ```
 big-ambitions-driven-rides/
-  Core/      LaneGraph, RoutePlanner, GoalPicker, ClockBudget, RideWatch (netstandard2.1, no Unity)
+  Core/      LaneGraph, RoutePlanner, GoalPicker, RouteProgress, RideWatch (netstandard2.1, no Unity)
   tests/     xUnit
   unity/DrivenRides/
     Scripts/ DrivenRidesMod, Options, Patches, GleyGraph adapter, RideRunner, RideAnchor,
@@ -216,7 +204,7 @@ Each ends in one in-game session on homepc with a disposable save, Food Trucks p
 
 ### Milestone 0: spike (one session)
 
-The real ride path for the **private driver** only, at 1×, with the minimum around it: the `TravelCoroutine` prefix, the `Update` prefix, anchor and attachment, the route planner, `presetPath` handoff, `StopInPoint` arrival, vanilla placement, the clock budget, Skip, the watchdog, the three exits, and log lines for every step. Plus debug keys:
+The real ride path for the **private driver** only, at 1×, with the minimum around it: the `TravelCoroutine` prefix, the `Update` prefix, anchor and attachment, the route planner, `presetPath` handoff, `StopInPoint` arrival, vanilla placement, the ⅓ clock, Skip, the watchdog, the three exits, and log lines for every step. Plus debug keys:
 
 Debug keys on Ctrl+Alt+Shift with the unbound letters, so they clash with nothing (see [Driver shortcut](#driver-shortcut)):
 
@@ -259,7 +247,6 @@ Getting out at the curb and walking to the door (needs the pavement-side lane, a
 | Something else touches the ride car (private driver `Update`, crash freeze, pool reuse) | Car stops or vanishes | `Update` prefix, forced `Forward` on depart and restart, reuse check each frame |
 | The player rides on a deactivated object | Player vanishes | Mod-owned anchor, never the pooled car |
 | Hospital or load mid-ride | Two systems move the player | `Cancel` synchronously in the event handler, save identity check |
-| A tick overshoots the deadline | Ride costs more than vanilla | Cap in the `RunMainGameTick` prefix |
 | Time scale fights the game's tween | Unpaused by accident, stuck at 3× | Apply only when unpaused; restore only when unpaused |
 | A bug leaves `_travelCoroutine` set | No more taxis until reload | try/finally, unload handler, debug key |
 | Graph dead ends or one-way traps | No route | Vanilla ride, logged with waypoint indices |

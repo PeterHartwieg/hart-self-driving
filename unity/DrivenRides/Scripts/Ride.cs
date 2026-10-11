@@ -59,7 +59,9 @@ namespace DrivenRides
         private readonly VehicleComponent prefab;
         private readonly int vehicleType;
         private readonly List<Goal> goals;
-        private readonly ClockBudget clock;
+        private readonly double startMinute;
+        private readonly float timeMultiplier;
+        private float rideSpeed;
         private readonly List<int> owned = new List<int>();
         private readonly VehicleComponent car;
         private readonly int carIndex;
@@ -121,7 +123,9 @@ namespace DrivenRides
             player = manager.playerController;
             happinessModifier = taxi.GetHappinessModifierName() ?? "";
             driverVehicleType = taxi is PrivateDriverVehicle pd ? pd.vehicleInstance?.vehicleTypeName : null;
-            clock = new ClockBudget(NowMinutes(), minutes, Math.Max(0.01, PlayerPrefSettings.GameSpeed));
+            startMinute = NowMinutes();
+            timeMultiplier = taxi.GetTimeMultiplier();
+            rideSpeed = Options.RideSpeed;
         }
 
         // The TravelCoroutine prefix. Returns the ride's iterator, or null for a vanilla ride. Vanilla's TravelTo has
@@ -356,7 +360,7 @@ namespace DrivenRides
                 if (cancelled) yield break;
                 phase = Phase.Finishing;
                 ApplyScale(false);
-                Log.Info($"Ride ending: {outcome} ({outcomeReason}), {clock.Left(NowMinutes()):0.0} game minutes of budget left.");
+                Log.Info($"Ride ending: {outcome} ({outcomeReason}), {NowMinutes() - startMinute:0.0} game minutes so far.");
                 faded = true;
                 // The game's fades are stepped here too, so an exception inside them runs this iterator's finally.
                 var fade = UiFader.Fade(1f);
@@ -449,7 +453,6 @@ namespace DrivenRides
             if (throwNext) { throwNext = false; throw new InvalidOperationException("Debug: exception inside the ride's frame update."); }
             progress!.Update(GleyGraph.ToVec(car.transform.position));
             var along = alongOffset + progress.AlongMetres;
-            clock.Observe(Time.deltaTime, Math.Max(0, along - lastAlong));
             lastAlong = along;
 
             if (phase == Phase.Driving)
@@ -474,7 +477,7 @@ namespace DrivenRides
                     EndWith(Outcome.Complete, "arrived");
             }
             ApplyScale(phase == Phase.Driving || phase == Phase.Stopping);
-            PanelText = $"  Ride: {LeftMetres / 1000.0:0.0} km to go  ({Options.RideSpeed:0}x)";
+            PanelText = $"  {LeftMetres / 1000.0:0.0} km to go";
         }
 
         // Sets the car driving forward in both of Gley's records. The AI keeps a list of actions; the physics keeps a
@@ -571,7 +574,9 @@ namespace DrivenRides
 
         private IEnumerator Bookkeeping()
         {
-            var left = clock.Left(NowMinutes());
+            // Skip and the vanilla finish charge what vanilla would for the rest of the way; an arrival charges nothing
+            // more, the ride's clock already ran.
+            var left = outcome == Outcome.Vanilla ? VanillaMinutesLeft() : 0;
             if (left > 0.01)
             {
                 timeMachineEnded = false;
@@ -605,7 +610,7 @@ namespace DrivenRides
                 manager.ChangeHunger(10);
             }
             if (!string.IsNullOrEmpty(happinessModifier)) HappinessHelper.AddModifier(happinessModifier);
-            Log.Info($"Ride done: {clock.Left(NowMinutes()):0.000} game minutes of budget left (never below -{ClockBudget.TimeMachineTolerance}).");
+            Log.Info($"Ride done: {NowMinutes() - startMinute:0.0} game minutes in all.");
         }
 
         private void PlacePlayer()
@@ -719,7 +724,8 @@ namespace DrivenRides
             if (want)
             {
                 if (speed.Paused || TimeMachineRunning || TweenActive(speed)) return;
-                if (!Mathf.Approximately(Time.timeScale, Options.RideSpeed)) Time.timeScale = Options.RideSpeed;
+                if (Mathf.Approximately(rideSpeed, 1f)) { RestoreScale(); return; }
+                if (!Mathf.Approximately(Time.timeScale, rideSpeed)) Time.timeScale = rideSpeed;
                 scaleSet = true;
             }
             else RestoreScale();
@@ -827,16 +833,34 @@ namespace DrivenRides
 
         public static void CancelActive(string reason, bool handedOver = false) => Active?.Cancel(reason, handedOver);
 
-        // The RunMainGameTick prefix: while a ride owns the clock, no tick passes vanilla's deadline.
+        // During a ride the clock runs at a third of its speed (Peter, 11 October 2026). Ticks are game minutes from
+        // scaled time, so at 3x ride speed the clock runs at its normal rate. The ride's own time machine (Skip) is
+        // left alone.
+        public const float ClockFactor = 1f / 3f;
+
         public static void CapTick(ref float minutes)
         {
             var ride = Active;
             if (ride == null || ride.finished || ride.cancelled) return;
             if (ride.SaveChanged) { ride.Dispose(); return; }
-            var now = NowMinutes();
-            minutes = TimeMachineRunning
-                ? (float)ride.clock.CapTimeMachineTick(now, minutes)
-                : (float)ride.clock.GameTick(now, Time.deltaTime, ride.LeftMetres);
+            if (!TimeMachineRunning) minutes *= ClockFactor;
+        }
+
+        // Vanilla's charge for the straight line from the car to the destination (TaxiSystem.GetTravelDurationMinutes).
+        private double VanillaMinutesLeft()
+        {
+            var from = car != null && car.gameObject.activeInHierarchy ? car.transform.position : player.transform.position;
+            var to = target != null ? target.GetNavMeshTargetPosition() : from;
+            return Vector3.Distance(from, to) * 0.04 * PlayerPrefSettings.GameSpeed * timeMultiplier;
+        }
+
+        public float RideSpeed => rideSpeed;
+
+        // The panel's speed buttons.
+        public void SetSpeed(float speed)
+        {
+            rideSpeed = speed;
+            Log.Info($"Ride speed {speed:0}x.");
         }
 
         // The StartTimeMachine prefix: a time machine the ride didn't start cancels it first.
