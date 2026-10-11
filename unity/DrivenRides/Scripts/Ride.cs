@@ -247,6 +247,20 @@ namespace DrivenRides
                     route = PlanFromNearby(graph, car!.transform, start, goals, vehicleType, ref planMs);
                     if (route != null) Log.Info($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(car.transform.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
                 }
+                // Steps the game's data doesn't have are checked against the world; a blocked one is remembered and the
+                // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
+                for (var attempt = 0; route != null && attempt < 6; attempt++)
+                {
+                    var blocked = FindBlockedSteps(graph, route.Waypoints);
+                    if (blocked.Count == 0) break;
+                    foreach (var (from, to, what) in blocked)
+                    {
+                        GleyGraph.BlockStep(from, to);
+                        Log.Info($"Step {from} -> {to} blocked by '{what}'.");
+                    }
+                    route = Plan(graph, route.Waypoints[0], goals, vehicleType, out var ms, out why);
+                    planMs += ms;
+                }
                 if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
 
                 if (kind == Kind.Stand)
@@ -304,6 +318,7 @@ namespace DrivenRides
                 Goals = goals,
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
+                IsBlockedStep = GleyGraph.IsBlockedStep,
             });
             while (job.Status == PlanStatus.Running && watch.ElapsedMilliseconds < PlanBudgetMs)
                 job.Step(PlanStep, () => watch.ElapsedMilliseconds >= PlanBudgetMs);
@@ -338,6 +353,34 @@ namespace DrivenRides
                 if (route != null) return route;
             }
             return null;
+        }
+
+        // Street props and buildings a car can hit: barricades, medians, posts.
+        private static readonly int ObstacleMask = LayerMask.GetMask("StreetProps") | LayerHelper.buildingsLayerMask;
+
+        // The steps of a route the game's data doesn't have, swept with a car-wide capsule against street props and
+        // buildings, along the waypoints the car will steer through.
+        private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w)
+        {
+            var result = new List<(int, int, string)>();
+            var all = GleyGraph.Waypoints!;
+            var points = new List<Vector3>();
+            for (var k = 0; k + 1 < w.Count; k++)
+            {
+                if (Contains(graph.Successors(w[k]), w[k + 1])) continue;
+                points.Clear();
+                points.Add(all[w[k]].position);
+                foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
+                points.Add(all[w[k + 1]].position);
+                for (var q = 0; q + 1 < points.Count; q++)
+                {
+                    var hits = Physics.OverlapCapsule(points[q] + Vector3.up * 1f, points[q + 1] + Vector3.up * 1f, 0.8f, ObstacleMask, QueryTriggerInteraction.Ignore);
+                    if (hits.Length == 0) continue;
+                    result.Add((w[k], w[k + 1], hits[0].name));
+                    break;
+                }
+            }
+            return result;
         }
 
         private static bool IsGoodStart(Waypoint w, float y) =>
@@ -568,6 +611,7 @@ namespace DrivenRides
                 if (replanJob != null) StepReplan();
                 else if (owned.Count <= 1 || progress.PointsLeft <= 1) StopAtEnd();
                 else if (OnBridge()) return;
+                else if (StepBlockedAhead()) Replan();
                 else
                 {
                     HandleStops();
@@ -824,6 +868,35 @@ namespace DrivenRides
             phase = Phase.Driving;
         }
 
+        // A route is planned with the world as loaded then; far away (the Hamptons from Manhattan) the props may not
+        // be there yet. So each added step is checked again once the car is within 80 m of it.
+        private readonly HashSet<(int, int)> checkedNear = new HashSet<(int, int)>();
+        private float nextNearCheck;
+
+        private bool StepBlockedAhead()
+        {
+            if (Time.unscaledTime < nextNearCheck) return false;
+            nextNearCheck = Time.unscaledTime + 0.5f;
+            var graph = GleyGraph.Graph;
+            if (graph == null) return false;
+            var all = GleyGraph.Waypoints!;
+            var here = car.transform.position;
+            var w = route.Waypoints;
+            for (var k = 0; k + 1 < w.Count; k++)
+            {
+                if (Contains(graph.Successors(w[k]), w[k + 1]) || checkedNear.Contains((w[k], w[k + 1]))) continue;
+                if (!routeIndex.TryGetValue(w[k], out var at) || at < progress!.NextIndex - 1) continue;
+                if (Vector3.Distance(here, all[w[k]].position) > 80f) continue;
+                checkedNear.Add((w[k], w[k + 1]));
+                var blocked = FindBlockedSteps(graph, new[] { w[k], w[k + 1] });
+                if (blocked.Count == 0) continue;
+                GleyGraph.BlockStep(w[k], w[k + 1]);
+                Event($"Step {w[k]} -> {w[k + 1]} ahead blocked by '{blocked[0].What}'; replanning.");
+                return true;
+            }
+            return false;
+        }
+
         private void StopAtEnd()
         {
             TrafficManager.Instance.SetVehicleAction(car, SpecialDriveActionTypes.StopInPoint, true);
@@ -863,6 +936,7 @@ namespace DrivenRides
                 Goals = goals,
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
+                IsBlockedStep = GleyGraph.IsBlockedStep,
             });
             replanSeconds = 0f;
             Log.Info("Watchdog: replanning (" + watch!.LastReason + ").");

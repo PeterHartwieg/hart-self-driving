@@ -28,6 +28,9 @@ namespace DrivenRides.Core.Routing
         public float MissingTurnPenaltySeconds = 8f;
         // A U-turn at a junction (LaneGraph.UTurn) costs this on top. PositiveInfinity turns them off.
         public float UTurnPenaltySeconds = 12f;
+        // Steps the game's data doesn't have (lane changes, added turns, U-turns) that the caller found blocked in the
+        // world, by their start and end waypoints. Asked only for those steps.
+        public Func<int, int, bool>? IsBlockedStep;
     }
 
     public sealed class Route
@@ -70,6 +73,7 @@ namespace DrivenRides.Core.Routing
         private readonly float laneChangePenalty;
         private readonly float missingTurnPenalty;
         private readonly float uTurnPenalty;
+        private readonly Func<int, int, bool>? blockedStep;
         private readonly Func<int, bool>? disabled;
         private readonly Dictionary<int, (Goal Goal, int Index)> goals = new Dictionary<int, (Goal, int)>();
         private readonly List<Vec3> goalPositions = new List<Vec3>();
@@ -90,6 +94,7 @@ namespace DrivenRides.Core.Routing
             laneChangePenalty = request.LaneChangePenaltySeconds;
             missingTurnPenalty = request.MissingTurnPenaltySeconds;
             uTurnPenalty = request.UTurnPenaltySeconds;
+            blockedStep = request.IsBlockedStep;
             disabled = request.IsDisabled;
             costs = new double[graph.Count];
             parents = new int[graph.Count];
@@ -173,10 +178,10 @@ namespace DrivenRides.Core.Routing
                             IReadOnlyList<int> further = graph.Successors(first);
                             // Nor may it end on a junction entry: the car should be straight in its lane before it turns.
                             // The quicker change to the first waypoint costs a little more, for short blocks only.
-                            if (!graph.IsJunctionEntryWaypoint(first)) Relax(i, first, entry.Cost, laneChangePenalty + SharpChangeSeconds);
+                            if (!graph.IsJunctionEntryWaypoint(first)) RelaxAdded(i, first, entry.Cost, laneChangePenalty + SharpChangeSeconds);
                             for (int f = 0; f < further.Count; f++)
                                 if (further[f] != i && !graph.IsIntersection(further[f]) && !graph.IsJunctionEntryWaypoint(further[f]))
-                                    Relax(i, further[f], entry.Cost, laneChangePenalty);
+                                    RelaxAdded(i, further[f], entry.Cost, laneChangePenalty);
                         }
                     }
                 }
@@ -185,17 +190,23 @@ namespace DrivenRides.Core.Routing
                     // Through a junction along a curve, about a fifth longer than the straight line, plus the penalty.
                     IReadOnlyList<int> added = graph.MissingTurns(i);
                     for (int k = 0; k < added.Count; k++)
-                        Relax(i, added[k], entry.Cost, missingTurnPenalty + 0.2 * Vec3.Distance(graph.Position(i), graph.Position(added[k])) / graph.SpeedMs(i));
+                        RelaxAdded(i, added[k], entry.Cost, missingTurnPenalty + 0.2 * Vec3.Distance(graph.Position(i), graph.Position(added[k])) / graph.SpeedMs(i));
                 }
                 int uTurn = graph.UTurn(i);
                 if (uTurn >= 0 && !float.IsPositiveInfinity(uTurnPenalty))
-                    Relax(i, uTurn, entry.Cost, uTurnPenalty + 0.6 * Vec3.Distance(graph.Position(i), graph.Position(uTurn)) / graph.SpeedMs(i));
+                    RelaxAdded(i, uTurn, entry.Cost, uTurnPenalty + 0.6 * Vec3.Distance(graph.Position(i), graph.Position(uTurn)) / graph.SpeedMs(i));
             }
             Status = PlanStatus.NoPath;
             return Status;
         }
 
         private const double SharpChangeSeconds = 2;
+
+        private void RelaxAdded(int i, int j, double from, double extra)
+        {
+            if (blockedStep != null && blockedStep(i, j)) return;
+            Relax(i, j, from, extra);
+        }
 
         private void Relax(int i, int j, double from, double extra)
         {

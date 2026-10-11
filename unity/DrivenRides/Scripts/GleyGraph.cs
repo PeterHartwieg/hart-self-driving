@@ -21,8 +21,14 @@ namespace DrivenRides
         public static LaneGraph? Graph => Ensure() ? graph : null;
         public static Waypoint[]? Waypoints => Ensure() ? waypoints : null;
 
+        // Steps found blocked in the world (a barricade, a median), kept for the session: they don't move.
+        private static readonly HashSet<(int, int)> blockedSteps = new HashSet<(int, int)>();
+        public static bool IsBlockedStep(int from, int to) => blockedSteps.Contains((from, to));
+        public static void BlockStep(int from, int to) => blockedSteps.Add((from, to));
+
         public static void Drop()
         {
+            blockedSteps.Clear();
             scene = null;
             graph = null;
             waypoints = null;
