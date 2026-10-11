@@ -40,6 +40,11 @@ namespace DrivenRides
             Patch(typeof(DrivingAI), "WaypointRequested", new[] { typeof(int), typeof(VehicleTypes) }, nameof(WaypointRequestedPrefix), prefix: true);
             // Gley's "passed" test pops every waypoint behind the car's nose; in a sharp turn that emptied the route.
             Patch(typeof(DrivingAI), "HasReachedOrPassedWaypoint", new[] { typeof(int), typeof(int) }, nameof(PassedPrefix), prefix: true);
+            // The phone's full-screen apps pause the game; during a ride time goes on, so a passenger can be busy
+            // on the phone (Peter).
+            Patch(typeof(UI.Smartphone.FullMenu), "Toggle", new[] { typeof(bool) }, nameof(FullMenuTogglePrefix), prefix: true);
+            Patch(typeof(UI.Smartphone.FullMenu), "Toggle", new[] { typeof(bool) }, nameof(FullMenuTogglePostfix));
+            Patch(typeof(GameSpeedController), "SetPause", new[] { typeof(bool), typeof(bool) }, nameof(SetPausePrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -139,6 +144,19 @@ namespace DrivenRides
                 return false;
             }
             catch { return true; }
+        }
+
+        private static bool openingPhone;
+
+        private static void FullMenuTogglePrefix(bool show) => openingPhone = show;
+
+        private static void FullMenuTogglePostfix() => openingPhone = false;
+
+        private static bool SetPausePrefix(bool newPause)
+        {
+            if (!openingPhone || !newPause || !Ride.IsDriving) return true;
+            Log.Info("Phone opened during a ride: time goes on.");
+            return false;
         }
 
         private static bool WaypointRequestedPrefix(int index)

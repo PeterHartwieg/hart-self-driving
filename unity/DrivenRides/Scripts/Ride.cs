@@ -116,6 +116,7 @@ namespace DrivenRides
         // The car Gley must leave alone: PrivateDriverVehicle.Update is skipped for it.
         public static bool OwnsCarObject(GameObject car) => Active != null && !Active.finished && Active.OwnsCar && Active.car.gameObject == car;
         public static bool OwnsPlayer => Active != null && !Active.finished && Active.attached;
+        public static bool IsDriving => Active != null && !Active.finished && !Active.cancelled && Active.phase == Phase.Driving;
         public static Vector3 PickupPosition => Active!.pickupPosition;
         public static Quaternion PickupRotation => Active!.pickupRotation;
 
@@ -506,6 +507,13 @@ namespace DrivenRides
             // Also sets NavigationBlocker.Taxi, disables the capsule and the agent, and tells Gley the collider is gone.
             player.AttachToObject(anchor.transform, NavigationBlocker.Taxi);
             player.Character.ToggleVisibility(false);
+            // The driver's own Update keeps its "Private driver (… m)" guider up; the mod skips that Update while it
+            // drives, so the guider is taken down here (Peter: it stayed during the ride).
+            if (kind == Kind.PrivateDriver)
+            {
+                try { UI.Guiders.GuidersManager.ResetGuider(UI.Guiders.DirectionGuiderType.PrivateDriver); }
+                catch (Exception ex) { Log.Error("Guider: " + ex.Message); }
+            }
             InstanceBehavior<CityManager>.Instance.cityMap.Close();
             Log.Info($"Boarded at {pickupPosition}.");
         }
@@ -1181,10 +1189,9 @@ namespace DrivenRides
         {
             try
             {
-                var vehicleCamera = VehicleCameraField?.GetValue(manager);
-                var follow = CameraTarget(vehicleCamera, "Follow");
-                Log.Info($"Camera: vehicle camera follows '{follow?.name ?? "nothing"}', looks at '{CameraTarget(vehicleCamera, "LookAt")?.name ?? "nothing"}'.");
-                SetGameCamera(follow != null ? vehicleCamera : PedestrianCameraField?.GetValue(manager));
+                // The pedestrian camera, which follows the player riding along on the anchor: it zooms (wheel) and turns
+                // (right mouse button), so a passenger can look around; the vehicle camera does neither (Peter).
+                SetGameCamera(PedestrianCameraField?.GetValue(manager));
                 cameraSet = true;
             }
             catch (Exception ex) { Log.Error("Camera: " + ex.Message); }
