@@ -402,5 +402,10 @@ public sealed class RoutingTests
         // The inner +z lane (0..4) has a lane to its right; the outer +z lane and the opposite lane are both at a kerb.
         Assert.NotEmpty(kerb);
         Assert.DoesNotContain(kerb, goal => goal.Waypoint < 5);
+        // A destination east of the street (x > 3.5): only the +z lanes have it on their right, so the kerb goal is
+        // the outer +z lane, never the opposite lane across the street.
+        var sameSide = GoalPicker.Pick(graph, new Vec3(8, 0, 20), 0, new GoalOptions { KerbLane = true, TargetOnRight = true, MinStraightMetres = 10 });
+        Assert.NotEmpty(sameSide);
+        Assert.All(sameSide, goal => Assert.InRange(goal.Waypoint, 5, 9));
     }
 }

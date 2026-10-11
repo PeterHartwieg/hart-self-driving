@@ -14,6 +14,9 @@ namespace DrivenRides.Core.Routing
         // Prefer the lane at the kerb (no lane to its right), so the car stops beside the pavement. Falls back to
         // any lane when none qualifies.
         public bool KerbLane = false;
+        // Only lanes with the target on their right, so the passenger gets out on the destination's side of the
+        // street instead of across it. No fallback here: the caller plans again without it if no route is found.
+        public bool TargetOnRight = false;
     }
 
     public static class GoalPicker
@@ -33,6 +36,7 @@ namespace DrivenRides.Core.Routing
                     g.IsIntersection(i) || !g.Allows(i, vehicleType) || !HasStretch(g, i, options.MinStraightMetres)) continue;
                 result.Add(new Goal(i, Vec3.HorizontalDistance(g.Position(i), target) / options.WalkSpeedMs));
             }
+            if (options.TargetOnRight) result.RemoveAll(goal => g.SideOf(goal.Waypoint, target) <= 0);
             if (options.KerbLane)
             {
                 var kerb = result.FindAll(goal => IsKerbLane(g, goal.Waypoint));

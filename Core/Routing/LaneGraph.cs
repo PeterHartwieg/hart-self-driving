@@ -121,6 +121,14 @@ namespace DrivenRides.Core.Routing
             return ox * dz - oz * dx;
         }
 
+        // The same for a point: positive when p is to the right of i's lane.
+        public float SideOf(int i, Vec3 p)
+        {
+            if (!Heading(i, out float dx, out float dz)) return 0;
+            float ox = p.X - positions[i].X, oz = p.Z - positions[i].Z;
+            return ox * dz - oz * dx;
+        }
+
         public int GivenLaneChanges { get; }
         public int InferredLaneChanges { get; private set; }
 

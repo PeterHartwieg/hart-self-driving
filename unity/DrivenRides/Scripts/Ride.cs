@@ -197,9 +197,21 @@ namespace DrivenRides
                 }
 
                 var destination = target.GetNavMeshTargetPosition();
-                var goals = GoalPicker.Pick(graph, GleyGraph.ToVec(destination), vehicleType, new GoalOptions { KerbLane = true });
-                if (goals.Count == 0) return Vanilla("no lane waypoint near the destination");
-                var route = Plan(graph, start, goals, vehicleType, out var planMs, out var why);
+                // First the kerb on the destination's side of the street (a driver lets you out on your side), then
+                // any kerb if that side has no route.
+                var destinationPoint = GleyGraph.ToVec(destination);
+                var goals = GoalPicker.Pick(graph, destinationPoint, vehicleType, new GoalOptions { KerbLane = true, TargetOnRight = true });
+                long planMs = 0;
+                var why = "no goal on the destination's side";
+                Route? route = null;
+                if (goals.Count > 0) route = Plan(graph, start, goals, vehicleType, out planMs, out why);
+                if (route == null)
+                {
+                    goals = GoalPicker.Pick(graph, destinationPoint, vehicleType, new GoalOptions { KerbLane = true });
+                    if (goals.Count == 0) return Vanilla("no lane waypoint near the destination");
+                    route = Plan(graph, start, goals, vehicleType, out planMs, out why);
+                    if (route != null) Log.Info("No route to the destination's side of the street; dropping off on the other side.");
+                }
                 if (route == null && kind != Kind.Stand)
                 {
                     // The summoned driver stops at the waypoint nearest the player, whatever kind of lane it is; some are
