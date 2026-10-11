@@ -15,6 +15,7 @@ using Helpers;
 using Player.HUD.SmartphoneUI;
 using PlayerActivity;
 using UI;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 using Vehicles.Taxis;
@@ -91,8 +92,6 @@ namespace DrivenRides
         private bool boardFailed;
         private bool faded;
         private PlanJob? replanJob;
-        private int heldAt = -1;
-        private float heldSeconds;
         private float replanSeconds;
         private bool fakeSaveChange;
         private Phase phase = Phase.Boarding;
@@ -198,7 +197,7 @@ namespace DrivenRides
                 }
 
                 var destination = target.GetNavMeshTargetPosition();
-                var goals = GoalPicker.Pick(graph, GleyGraph.ToVec(destination), vehicleType);
+                var goals = GoalPicker.Pick(graph, GleyGraph.ToVec(destination), vehicleType, new GoalOptions { KerbLane = true });
                 if (goals.Count == 0) return Vanilla("no lane waypoint near the destination");
                 var route = Plan(graph, start, goals, vehicleType, out var planMs, out var why);
                 if (route == null && kind != Kind.Stand)
@@ -225,6 +224,7 @@ namespace DrivenRides
                     car = loaded;
                 }
 
+                GleyGraph.DumpRide(start, goals, route.Waypoints, destination);
                 var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car!, prefab, vehicleType, goals, route);
                 Log.Info($"Ride accepted: {kind}, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, drive {route.DriveSeconds:0} s, walk {route.WalkSeconds:0} s, planned in {planMs} ms, budget {minutes:0.0} game minutes.");
                 Active = ride;
@@ -365,11 +365,15 @@ namespace DrivenRides
                 phase = Phase.Finishing;
                 ApplyScale(false);
                 Log.Info($"Ride ending: {outcome} ({outcomeReason}), {NowMinutes() - startMinute:0.0} game minutes so far.");
-                faded = true;
-                // The game's fades are stepped here too, so an exception inside them runs this iterator's finally.
-                var fade = UiFader.Fade(1f);
-                while (fade.MoveNext()) yield return fade.Current;
-                if (cancelled) yield break;
+                // An arrival needs no fade: the player steps out beside the car (Peter). Skip and the vanilla finish
+                // fade, as vanilla does. The game's fades are stepped here, so an exception in them runs the finally.
+                if (outcome == Outcome.Vanilla)
+                {
+                    faded = true;
+                    var fade = UiFader.Fade(1f);
+                    while (fade.MoveNext()) yield return fade.Current;
+                    if (cancelled) yield break;
+                }
                 // Stepped here rather than yielded as a nested coroutine, so an exception inside it runs this
                 // iterator's finally block.
                 var steps = Bookkeeping();
@@ -378,9 +382,12 @@ namespace DrivenRides
                 if (outcome == Outcome.Complete) ReleaseComplete();
                 else ReleaseVanilla();
                 RestoreCamera();
-                var unfade = UiFader.UnFade();
-                while (unfade.MoveNext()) yield return unfade.Current;
-                faded = false;
+                if (faded)
+                {
+                    var unfade = UiFader.UnFade();
+                    while (unfade.MoveNext()) yield return unfade.Current;
+                    faded = false;
+                }
                 Finish();
             }
             finally
@@ -464,9 +471,9 @@ namespace DrivenRides
             {
                 if (replanJob != null) StepReplan();
                 else if (owned.Count <= 1 || progress.PointsLeft <= 1) StopAtEnd();
-                else if (HoldAtRed()) watch!.Waiting(unpausedSeconds);
                 else
                 {
+                    HandleStops();
                     if (IsWaiting()) watch!.Waiting(unpausedSeconds);
                     switch (watch!.Update(unpausedSeconds, along))
                     {
@@ -499,45 +506,41 @@ namespace DrivenRides
             traffic.VehicleUpdateWaypoint(car);
         }
 
-        private const float HoldMetres = 12f;
-        private const float HoldLimitSeconds = 90f;
+        private const float BumpSeconds = 1.5f;
+        private float stopNowSeconds;
+        private int loggedRed = -1;
 
-        // Red lights. Gley marks a red by "stop" on the waypoint at the stop line, but for a car with a preset path
-        // it moves on to the next waypoint once the car is within 5 m of it, stopped or not (the game's change for
-        // the summoned driver), so the car would run the red. The mod holds the car itself: a hard stop when the next
-        // stop-line waypoint on the route is red and near, released when it turns green. With the option off, the
-        // car drives through, including from a red that Gley stopped it at.
-        private bool HoldAtRed()
+        // Red lights are Gley's own: it stops a car whose target is a red stop line (StopInPoint) and lets it go on
+        // green. For a car with a preset path it would also move the target past the stop line once the car is within
+        // 5 m, stopped or not; the WaypointRequested prefix (HoldsAtRed) blocks that for the ride car. With the option
+        // off, a car stopped at a red is sent on. A bump leaves a StopNow that Gley never clears for a car on a path,
+        // so the car is sent on after a moment.
+        private void HandleStops()
         {
-            var all = GleyGraph.Waypoints!;
-            if (heldAt >= 0)
+            var traffic = TrafficManager.Instance;
+            var next = traffic.GetTargetWaypoint(carIndex);
+            var state = traffic.GetCurrentDrivingState(carIndex).Item2;
+            var red = next != null && next.stop;
+            if (red && state == SpecialDriveActionTypes.StopInPoint)
             {
-                heldSeconds += Time.unscaledDeltaTime;
-                if (all[heldAt].stop && heldSeconds < HoldLimitSeconds && Options.TrafficLights) return true;
-                Log.Info($"Light: go after {heldSeconds:0} s{(heldSeconds >= HoldLimitSeconds ? " (hold limit)" : "")}.");
-                heldAt = -1;
-                Go();
-                return false;
+                if (!Options.TrafficLights) { Go(); Log.Info("Light: red, driving through (option off)."); return; }
+                if (loggedRed != next!.listIndex) { loggedRed = next.listIndex; Log.Info($"Light: waiting at the red at waypoint {next.listIndex}."); }
             }
-            if (!Options.TrafficLights)
+            if (state == SpecialDriveActionTypes.StopNow)
             {
-                var next = TrafficManager.Instance.GetTargetWaypoint(carIndex);
-                if (next != null && next.stop && TrafficManager.Instance.GetCurrentDrivingState(carIndex).Item2 == SpecialDriveActionTypes.StopInPoint) Go();
-                return false;
+                stopNowSeconds += Time.unscaledDeltaTime;
+                if (stopNowSeconds >= BumpSeconds) { stopNowSeconds = 0f; Go(); Log.Info("Bump: going again."); }
             }
-            var here = car.transform.position;
-            for (var k = progress!.NextIndex; k < route.Waypoints.Count && k <= progress.NextIndex + 3; k++)
-            {
-                var index = route.Waypoints[k];
-                if (!all[index].stop) continue;
-                if (Vector3.Distance(here, all[index].position) > HoldMetres) return false;
-                heldAt = index;
-                heldSeconds = 0f;
-                AIEvents.TriggerChangeDrivingStateEvent(carIndex, SpecialDriveActionTypes.StopNow, 60f);
-                Log.Info($"Light: red at waypoint {index}, holding.");
-                return true;
-            }
-            return false;
+            else stopNowSeconds = 0f;
+        }
+
+        // The WaypointRequested prefix: true while the ride car's target is a red stop line and lights are obeyed.
+        public static bool HoldsAtRed(int vehicleIndex)
+        {
+            var ride = Active;
+            if (ride == null || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || !Options.TrafficLights || !ride.OwnsCar) return false;
+            var next = TrafficManager.Instance.GetTargetWaypoint(vehicleIndex);
+            return next != null && next.stop;
         }
 
         // Gley gives each car a random top speed between its model's minimum and maximum. The private driver drives
@@ -545,6 +548,8 @@ namespace DrivenRides
         // taxi gets its traffic model's maximum. Gley still caps it at the road's limit.
         private static readonly FieldInfo? DrivingAIField = AccessTools.Field(typeof(TrafficManager), "drivingAI");
         private static readonly MethodInfo? SetMaxSpeedMethod = AccessTools.Method(typeof(DrivingAI), "setVehMaxSpeed");
+        private static readonly FieldInfo? PowerStepField = AccessTools.Field(typeof(TrafficManager), "vehiclePowerStep");
+        private const float AccelerationSeconds = 5f;
 
         private void SetTopSpeed()
         {
@@ -554,6 +559,10 @@ namespace DrivenRides
                 if (ai == null || SetMaxSpeedMethod == null) { Log.Error("Top speed: Gley's DrivingAI not found."); return; }
                 var top = driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
                 SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, (float)top });
+                // Gley sets the acceleration so a car reaches its rolled top speed in its model's accelerationTime
+                // (10 s by default): slow off the line. The ride car reaches its top speed in AccelerationSeconds.
+                if (PowerStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> power && carIndex < power.Length)
+                    power[carIndex] = top / 3.6f / (AccelerationSeconds / Time.fixedDeltaTime);
                 Log.Info($"Top speed {top} km/h ({(driverTopSpeed > 0 ? $"vehicle type {driverVehicleType}" : "traffic model")}; Gley model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
             }
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
@@ -695,11 +704,26 @@ namespace DrivenRides
         private Vector3 PlacePlayer()
         {
             var destination = target != null ? target.GetNavMeshTargetPosition() : pickupPosition;
-            var place = NavMesh.SamplePosition(destination, out var hit, 5f, NavMesh.AllAreas) ? hit.position : destination;
+            // An arrival puts the player beside the car, kerb side first (Peter); the vanilla finish at the door.
+            var place = outcome == Outcome.Complete && BesideCar(out var beside) ? beside
+                : NavMesh.SamplePosition(destination, out var hit, 5f, NavMesh.AllAreas) ? hit.position : destination;
             Detach(place);
             player.Character.ToggleVisibility(true);
             player.Character.Reset();
             return place;
+        }
+
+        private bool BesideCar(out Vector3 place)
+        {
+            place = default;
+            if (car == null || !car.gameObject.activeInHierarchy) return false;
+            var t = car.transform;
+            var offset = Mathf.Max(1f, car.colliderWidth / 2f) + 0.8f;
+            foreach (var side in new[] { t.right, -t.right })
+            {
+                if (NavMesh.SamplePosition(t.position + side * offset, out var hit, 1.5f, NavMesh.AllAreas)) { place = hit.position; return true; }
+            }
+            return false;
         }
 
         // Moves the transform onto the NavMesh first: DeattachFromObject re-enables the agent at once.

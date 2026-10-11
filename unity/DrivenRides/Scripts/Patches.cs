@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Linq;
 using BigAmbitions.DayNightCycle;
+using GleyTrafficSystem;
 using Helpers;
 using HarmonyLib;
 using Player.HUD.SmartphoneUI;
@@ -35,6 +36,8 @@ namespace DrivenRides
             Patch(typeof(PlayerActivityUI), "CanStartActivity", new[] { typeof(bool), typeof(bool) }, nameof(ActivityPrefix), prefix: true);
             // A time machine the ride didn't start cancels the ride first. The one-argument overload forwards here.
             Patch(typeof(TimeMachine), "StartTimeMachine", new[] { typeof(Timestamp), typeof(bool), typeof(string), typeof(bool), typeof(bool) }, nameof(TimeMachinePrefix), prefix: true);
+            // Red lights: Gley would move the ride car's target past a red stop line once it is within 5 m.
+            Patch(typeof(DrivingAI), "WaypointRequested", new[] { typeof(int), typeof(VehicleTypes) }, nameof(WaypointRequestedPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -117,6 +120,12 @@ namespace DrivenRides
         {
             try { Ride.OnTimeMachineStarting(); }
             catch (Exception ex) { Log.Error("Time machine: " + ex.Message); }
+        }
+
+        private static bool WaypointRequestedPrefix(int index)
+        {
+            try { return !Ride.HoldsAtRed(index); }
+            catch { return true; }
         }
 
         private static void DriverCalledPostfix(VehicleInstance vehicleInstance)

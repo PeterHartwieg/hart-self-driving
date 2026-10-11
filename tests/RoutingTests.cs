@@ -375,4 +375,32 @@ public sealed class RoutingTests
         var graph = new LaneGraph(points, edges, masks, new bool[13], new float[13], otherLanes: lanes);
         Assert.Equal(new[] { 0, 11, 12 }, Found(graph, Request(0, new Goal(12, 0))).Waypoints);
     }
+
+    [Fact]
+    public void InfersParallelLanesWhereGleyHasNone()
+    {
+        // Two one-way lanes 3.5 m apart heading +z, plus an opposite lane 7 m away that must not count.
+        var points = new List<Vec3>();
+        var edges = new List<int[]>();
+        void Lane(float x, int count, int dir)
+        {
+            var first = points.Count;
+            for (var i = 0; i < count; i++)
+            {
+                points.Add(new Vec3(x, 0, dir > 0 ? i * 10 : (count - 1 - i) * 10));
+                edges.Add(i == count - 1 ? Array.Empty<int>() : new[] { first + i + 1 });
+            }
+        }
+        Lane(0, 5, 1); Lane(3.5f, 5, 1); Lane(-3.5f, 5, -1);
+        var n = points.Count;
+        var graph = new LaneGraph(points.ToArray(), edges.ToArray(), Enumerable.Repeat(1, n).ToArray(), new bool[n], new float[n], inferLanes: true);
+        Assert.Contains(5 + 1, graph.Lateral(1));
+        Assert.DoesNotContain(graph.Lateral(1), j => j >= 10);
+        Assert.True(graph.SideOf(1, 6) > 0);
+        Assert.True(graph.InferredLaneChanges > 0);
+        var kerb = GoalPicker.Pick(graph, new Vec3(1.75f, 0, 20), 0, new GoalOptions { KerbLane = true, MinStraightMetres = 10 });
+        // The inner +z lane (0..4) has a lane to its right; the outer +z lane and the opposite lane are both at a kerb.
+        Assert.NotEmpty(kerb);
+        Assert.DoesNotContain(kerb, goal => goal.Waypoint < 5);
+    }
 }

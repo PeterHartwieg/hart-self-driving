@@ -11,6 +11,9 @@ namespace DrivenRides.Core.Routing
         public float WalkSpeedMs = 1.4f;
         // No limit by default: a cut by walking distance alone can drop every reachable goal (one-way lanes).
         public int MaxGoals = int.MaxValue;
+        // Prefer the lane at the kerb (no lane to its right), so the car stops beside the pavement. Falls back to
+        // any lane when none qualifies.
+        public bool KerbLane = false;
     }
 
     public static class GoalPicker
@@ -30,6 +33,11 @@ namespace DrivenRides.Core.Routing
                     g.IsIntersection(i) || !g.Allows(i, vehicleType) || !HasStretch(g, i, options.MinStraightMetres)) continue;
                 result.Add(new Goal(i, Vec3.HorizontalDistance(g.Position(i), target) / options.WalkSpeedMs));
             }
+            if (options.KerbLane)
+            {
+                var kerb = result.FindAll(goal => IsKerbLane(g, goal.Waypoint));
+                if (kerb.Count > 0) result = kerb;
+            }
             result.Sort((a, b) =>
             {
                 int comparison = a.WalkSeconds.CompareTo(b.WalkSeconds);
@@ -37,6 +45,12 @@ namespace DrivenRides.Core.Routing
             });
             if (result.Count > options.MaxGoals) result.RemoveRange(options.MaxGoals, result.Count - options.MaxGoals);
             return result;
+        }
+
+        private static bool IsKerbLane(LaneGraph g, int i)
+        {
+            foreach (int j in g.Lateral(i)) if (g.SideOf(i, j) > 1f) return false;
+            return true;
         }
 
         private static bool HasStretch(LaneGraph g, int candidate, float minimum)

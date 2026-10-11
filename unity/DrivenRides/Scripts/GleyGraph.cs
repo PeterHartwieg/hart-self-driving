@@ -36,6 +36,52 @@ namespace DrivenRides
 
         public static Vec3 ToVec(Vector3 v) => new Vec3(v.x, v.y, v.z);
 
+        // Spike builds write the lane graph once per graph size to the game's data folder, for route analysis away
+        // from the game: <LocalLow>/Hovgaard Games/Big Ambitions/DrivenRides/lane-graph-<count>.json.
+        public static string DataFolder => System.IO.Path.Combine(Application.persistentDataPath, "DrivenRides");
+
+        private static void Dump(Waypoint[] all, int[][] otherLanes)
+        {
+            try
+            {
+                System.IO.Directory.CreateDirectory(DataFolder);
+                var path = System.IO.Path.Combine(DataFolder, $"lane-graph-{all.Length}.json");
+                if (System.IO.File.Exists(path)) return;
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                var sb = new System.Text.StringBuilder("[\n");
+                for (var i = 0; i < all.Length; i++)
+                {
+                    var w = all[i];
+                    if (w == null) { sb.Append("null,\n"); continue; }
+                    sb.Append("{\"p\":[").Append(w.position.x.ToString("0.##", inv)).Append(',').Append(w.position.y.ToString("0.##", inv)).Append(',').Append(w.position.z.ToString("0.##", inv))
+                      .Append("],\"n\":[").Append(string.Join(",", w.neighbors ?? new List<int>()))
+                      .Append("],\"o\":[").Append(string.Join(",", otherLanes[i]))
+                      .Append("],\"a\":[").Append(string.Join(",", w.allowedAgents ?? new List<int>()))
+                      .Append("],\"x\":").Append(TrafficManager.IsNotIntersection(w) ? 0 : 1)
+                      .Append(",\"s\":").Append(w.maxSpeed)
+                      .Append(i == all.Length - 1 ? "}\n" : "},\n");
+                }
+                sb.Append("]\n");
+                System.IO.File.WriteAllText(path, sb.ToString());
+                Log.Info("Lane graph written to " + path + ".");
+            }
+            catch (Exception ex) { Log.Error("Lane graph dump: " + ex.Message); }
+        }
+
+        // One line per accepted ride (rides.jsonl beside the graph): start, goals and route, for the same analysis.
+        public static void DumpRide(int start, IReadOnlyList<Goal> goals, IReadOnlyList<int> route, Vector3 destination)
+        {
+            try
+            {
+                System.IO.Directory.CreateDirectory(DataFolder);
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                var line = $"{{\"start\":{start},\"dest\":[{destination.x.ToString("0.##", inv)},{destination.y.ToString("0.##", inv)},{destination.z.ToString("0.##", inv)}]," +
+                           $"\"goals\":[{string.Join(",", System.Linq.Enumerable.Select(goals, g => g.Waypoint))}],\"route\":[{string.Join(",", route)}]}}\n";
+                System.IO.File.AppendAllText(System.IO.Path.Combine(DataFolder, "rides.jsonl"), line);
+            }
+            catch (Exception ex) { Log.Error("Ride dump: " + ex.Message); }
+        }
+
         // Why a plan found no route: what the start leads to, and how much of the graph and how many goals are
         // reachable with no filters, with only the disabled filter, and with only the vehicle filter.
         public static string Diagnose(LaneGraph g, int start, IReadOnlyList<Goal> goals, int vehicleType)
@@ -121,10 +167,11 @@ namespace DrivenRides
                 intersection[i] = !TrafficManager.IsNotIntersection(w);
                 speed[i] = w.maxSpeed;
             }
-            graph = new LaneGraph(positions, neighbors, allowed, intersection, speed, otherLanes: otherLanes);
+            graph = new LaneGraph(positions, neighbors, allowed, intersection, speed, otherLanes: otherLanes, inferLanes: true);
             waypoints = all;
             scene = current;
-            Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
+            Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, {graph.GivenLaneChanges} with Gley lane changes, {graph.InferredLaneChanges} with inferred ones, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
+            Dump(all, otherLanes);
             return true;
         }
     }
