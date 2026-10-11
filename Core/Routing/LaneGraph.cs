@@ -92,7 +92,8 @@ namespace DrivenRides.Core.Routing
                 // The turn starts only well inside the junction, past the nose of the median (spike 11: turning at
                 // the stop line hit the divider, and the median's nose stood 10 m past it): along the junction's own
                 // straight-ahead waypoints, 14 m in at least.
-                int straight = StraightInto(i, dx, dz, 14f, out float startAhead);
+                var chain = new List<int>();
+                int straight = StraightInto(i, dx, dz, 14f, out float startAhead, chain);
                 if (straight < 0) continue;
                 int best = -1;
                 float bestScore = float.MaxValue;
@@ -129,16 +130,22 @@ namespace DrivenRides.Core.Routing
                     float d = Vec3.HorizontalDistance(apex, positions[j]);
                     if (d < viaDistance) { viaDistance = d; via = j; }
                 }
-                turnVia[(i, best)] = via >= 0 ? new[] { straight, via } : new[] { straight };
+                // The whole straight way in, so a red light's stop line on it holds the car (spike 18 ran one).
+                if (via >= 0) chain.Add(via);
+                turnVia[(i, best)] = chain.ToArray();
             }
         }
 
         // The first junction waypoint at least `metres` ahead of entry i along the junction's straight-ahead
         // waypoints, or -1 if the straight way leaves the junction first.
-        private int StraightInto(int i, float dx, float dz, float metres, out float ahead)
+        private int StraightInto(int i, float dx, float dz, float metres, out float ahead) => StraightInto(i, dx, dz, metres, out ahead, null);
+
+        // The same, collecting every junction waypoint on the way in `chain`, so the car's path passes the stop line.
+        private int StraightInto(int i, float dx, float dz, float metres, out float ahead, List<int>? chain)
         {
             ahead = 0;
             int current = i;
+            chain?.Clear();
             for (int steps = 0; steps < 40; steps++)
             {
                 int next = -1;
@@ -153,6 +160,7 @@ namespace DrivenRides.Core.Routing
                 }
                 if (next < 0 || !intersections[next]) return -1;
                 current = next;
+                chain?.Add(current);
                 ahead = (positions[current].X - positions[i].X) * dx + (positions[current].Z - positions[i].Z) * dz;
                 if (ahead >= metres) return current;
             }
@@ -215,7 +223,8 @@ namespace DrivenRides.Core.Routing
                     // 5 m, about the car's turning circle: from 3 m short it turned past 90 degrees and corrected
                     // back (spike 13). The ride also aims the car further down the exit's lane (Ride.Expand).
                     float radius = right ? Math.Min(Math.Abs(side), 9f) : 5f;
-                    int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _) : -1;
+                    var chain = new List<int>();
+                    int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _, chain) : -1;
                     // A left turn needs the straight way into the junction; only a right turn may use a waypoint on
                     // its curve instead (a left turn at a T-junction guided by one curve waypoint ended on the
                     // pavement, spike 16).
@@ -224,7 +233,8 @@ namespace DrivenRides.Core.Routing
                     // the pavement at a T-junction (spike 16: into a pedestrian). Only a short turn goes without one.
                     if (via < 0 && (!right || distance > 15f)) continue;
                     (found ??= new List<int>()).Add(x);
-                    if (via >= 0) turnVia[(i, x)] = new[] { via };
+                    if (straight >= 0) turnVia[(i, x)] = chain.ToArray();
+                    else if (via >= 0) turnVia[(i, x)] = new[] { via };
                 }
                 if (found == null) continue;
                 turns[i] = found.AsReadOnly();
@@ -332,7 +342,9 @@ namespace DrivenRides.Core.Routing
                     if (dx * ex + dz * ez < 0.95f || Math.Abs(positions[j].Y - positions[i].Y) > 1f) continue;
                     float ox = positions[j].X - positions[i].X, oz = positions[j].Z - positions[i].Z;
                     float along = ox * dx + oz * dz, side = Math.Abs(ox * dz - oz * dx);
-                    if (Math.Abs(along) > 3f || side < 2f || side > 4.5f) continue;
+                    // Up to 7.5 m: a slip lane can stand that far from the next lane (spike 18: the lane for the right
+                    // turn after the bridge); the ride's world check guards a change across a barrier.
+                    if (Math.Abs(along) > 3f || side < 2f || side > 7.5f) continue;
                     (found ??= new List<int>()).Add(j);
                 }
                 if (found == null) continue;

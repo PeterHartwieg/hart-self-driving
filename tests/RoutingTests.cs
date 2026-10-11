@@ -458,7 +458,8 @@ public sealed class RoutingTests
         var route = Found(graph, Request(left[0], new Goal(wend, 0)));
         Assert.Equal(new[] { left[0], left[1], wj1, wj2, wj3, wj4, wexit, wend }, route.Waypoints);
         // The turn starts well inside the junction, at the eastbound junction waypoint 17 m past the entry.
-        Assert.Equal(left[1] + 2, graph.TurnVias(left[1], wj1)[0]);
+        // ... after every junction waypoint on the straight way in (5 m, then 17 m).
+        Assert.Equal(new[] { left[1] + 1, left[1] + 2 }, graph.TurnVias(left[1], wj1).Take(2).ToArray());
         var noUTurns = Request(left[0], new Goal(wend, 0));
         noUTurns.UTurnPenaltySeconds = float.PositiveInfinity;
         Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, noUTurns, int.MaxValue).Status);

@@ -77,6 +77,7 @@ namespace DrivenRides
         private RouteProgress? progress;
         private readonly RideTrace trace = new RideTrace();
         private CollisionProbe? probe;
+        private readonly List<AudioSource> muted = new List<AudioSource>();
         // Where each waypoint sits in the current route, for the HasReachedOrPassedWaypoint prefix.
         private readonly Dictionary<int, int> routeIndex = new Dictionary<int, int>();
         private RideWatch? watch;
@@ -372,9 +373,14 @@ namespace DrivenRides
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
                 points.Add(all[w[k + 1]].position);
+                // An added turn gets a wider sweep and its chord too: Gley cuts corners, and on spike 18 the car hit the
+                // fence on the inside of a ramp turn. A U-turn's chord crosses the median by design, so not that.
+                var turn = Contains(graph.MissingTurns(w[k]), w[k + 1]);
+                var radius = turn ? 1.2f : 0.8f;
+                if (turn) points.Add(all[w[k]].position);
                 for (var q = 0; q + 1 < points.Count; q++)
                 {
-                    var hits = Physics.OverlapCapsule(points[q] + Vector3.up * 1f, points[q + 1] + Vector3.up * 1f, 0.8f, ObstacleMask, QueryTriggerInteraction.Ignore);
+                    var hits = Physics.OverlapCapsule(points[q] + Vector3.up * 1f, points[q + 1] + Vector3.up * 1f, radius, ObstacleMask, QueryTriggerInteraction.Ignore);
                     if (hits.Length == 0) continue;
                     result.Add((w[k], w[k + 1], hits[0].name));
                     break;
@@ -523,6 +529,10 @@ namespace DrivenRides
             progress = new RouteProgress(Points(path));
             IndexRoute();
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds);
+            // The car's own traffic music (AiCarMusic, a one-in-ten chance per car) played at full volume with the
+            // camera on the car (spike 18). Muted for the ride.
+            foreach (var music in car.GetComponentsInChildren<AiCarMusic>(true))
+                if (music.musicPlayer != null && !music.musicPlayer.mute) { music.musicPlayer.mute = true; muted.Add(music.musicPlayer); }
             probe = car.gameObject.AddComponent<CollisionProbe>();
             probe.Trace = trace;
             SwitchCamera();
@@ -1229,6 +1239,8 @@ namespace DrivenRides
         {
             if (probe != null) Object.Destroy(probe);
             probe = null;
+            foreach (var source in muted) if (source != null) source.mute = false;
+            muted.Clear();
             trace.Save();
             if (anchor != null)
             {
