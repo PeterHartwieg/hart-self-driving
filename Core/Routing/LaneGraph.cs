@@ -7,7 +7,7 @@ namespace DrivenRides.Core.Routing
     {
         public const float DefaultSpeedMs = 13.9f;
         private readonly Vec3[] positions;
-        private readonly IReadOnlyList<int>[] successors, predecessors;
+        private readonly IReadOnlyList<int>[] successors, predecessors, lateral;
         private readonly int[] masks;
         private readonly bool[] intersections;
         private readonly float[] speeds;
@@ -15,7 +15,7 @@ namespace DrivenRides.Core.Routing
         private readonly Dictionary<(int, int), List<int>> grid = new Dictionary<(int, int), List<int>>();
 
         public LaneGraph(Vec3[] positions, int[][] neighbors, int[] allowedMask, bool[] intersection,
-            float[] maxSpeedKmh, float cellSize = 50f)
+            float[] maxSpeedKmh, float cellSize = 50f, int[][]? otherLanes = null)
         {
             if (positions == null || neighbors == null || allowedMask == null || intersection == null || maxSpeedKmh == null)
                 throw new ArgumentNullException("Graph arrays cannot be null.");
@@ -30,6 +30,8 @@ namespace DrivenRides.Core.Routing
             speeds = new float[n];
             successors = new IReadOnlyList<int>[n];
             predecessors = new IReadOnlyList<int>[n];
+            lateral = new IReadOnlyList<int>[n];
+            if (otherLanes != null && otherLanes.Length != n) throw new ArgumentException("Graph arrays must have equal lengths.");
             var incoming = new List<int>[n];
             for (int i = 0; i < n; i++) incoming[i] = new List<int>();
             float top = DefaultSpeedMs;
@@ -54,10 +56,22 @@ namespace DrivenRides.Core.Routing
                     incoming[j].Add(i);
                 }
                 successors[i] = outgoing.AsReadOnly();
+                var sideways = new List<int>();
+                if (otherLanes?[i] != null)
+                    foreach (int j in otherLanes[i])
+                    {
+                        if (j < 0 || j >= n) { DroppedEdges++; continue; }
+                        if (j != i && !seen.Contains(j) && !sideways.Contains(j)) sideways.Add(j);
+                    }
+                lateral[i] = sideways.AsReadOnly();
             }
             for (int i = 0; i < n; i++) predecessors[i] = incoming[i].AsReadOnly();
             TopSpeedMs = top;
         }
+
+        // Gley's otherLanes: the waypoints a car can change lanes to from i. Its AI also uses them to leave a lane
+        // that leads nowhere.
+        public IReadOnlyList<int> Lateral(int i) => lateral[i];
 
         public int Count => positions.Length;
         public int DroppedEdges { get; }

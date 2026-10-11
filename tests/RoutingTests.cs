@@ -335,4 +335,20 @@ public sealed class RoutingTests
         Assert.Equal(PlanStatus.Found, job.Step(int.MaxValue));
         Assert.Equal(200, job.Result!.Waypoints.Count);
     }
+
+    [Fact]
+    public void LaneChangeLeavesADeadEndLaneButCostsAPenalty()
+    {
+        // A pull-over lane (0 -> 1) ends; its only way on is a lane change to the road (1 -> 2 -> 3).
+        Vec3[] points = { new(0, 0, 0), new(10, 0, 0), new(10, 0, 3), new(30, 0, 3) };
+        int[][] edges = { new[] { 1 }, Array.Empty<int>(), new[] { 3 }, Array.Empty<int>() };
+        int[][] lanes = { Array.Empty<int>(), new[] { 2 }, Array.Empty<int>(), Array.Empty<int>() };
+        var graph = new LaneGraph(points, edges, new[] { 1, 1, 1, 1 }, new bool[4], new float[4], otherLanes: lanes);
+        var route = Found(graph, Request(0, new Goal(3, 0)));
+        Assert.Equal(new[] { 0, 1, 2, 3 }, route.Waypoints);
+        Assert.True(route.DriveSeconds >= 20);
+        var request = Request(0, new Goal(3, 0));
+        request.LaneChangePenaltySeconds = float.PositiveInfinity;
+        Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, request, int.MaxValue).Status);
+    }
 }

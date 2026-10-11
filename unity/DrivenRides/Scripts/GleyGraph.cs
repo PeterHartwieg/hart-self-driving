@@ -43,7 +43,7 @@ namespace DrivenRides
             foreach (var goal in goals) goalSet.Add(goal.Waypoint);
             var disabled = 0;
             for (var i = 0; i < g.Count; i++) if (IsDisabled(i)) disabled++;
-            string Reach(Func<int, bool> blocked)
+            string Reach(Func<int, bool> blocked, bool sideways = false)
             {
                 var seen = new bool[g.Count];
                 var queue = new Queue<int>();
@@ -57,13 +57,17 @@ namespace DrivenRides
                     if (goalSet.Contains(n)) goalsReached++;
                     foreach (var m in g.Successors(n))
                         if (!seen[m] && !blocked(m)) { seen[m] = true; queue.Enqueue(m); }
+                    if (sideways)
+                        foreach (var m in g.Lateral(n))
+                            if (!seen[m] && !blocked(m)) { seen[m] = true; queue.Enqueue(m); }
                 }
                 return $"{count} waypoints, {goalsReached}/{goalSet.Count} goals";
             }
             var successors = g.Successors(start);
-            return $"start {start} (mask {MaskOf(g, start)}, {successors.Count} successors: {string.Join(" ", successors)}), vehicle type {vehicleType}, " +
-                   $"{disabled} waypoints disabled; reachable with no filter: {Reach(_ => false)}; disabled filter only: {Reach(IsDisabled)}; " +
-                   $"vehicle filter only: {Reach(i => !g.Allows(i, vehicleType))}";
+            var p = g.Position(start);
+            return $"start {start} at ({p.X:0.0}, {p.Y:0.0}, {p.Z:0.0}) (mask {MaskOf(g, start)}, {successors.Count} successors: {string.Join(" ", successors)}, {g.Lateral(start).Count} lane changes), vehicle type {vehicleType}, " +
+                   $"{disabled} waypoints disabled; reachable along lanes: {Reach(_ => false)}; with lane changes: {Reach(_ => false, true)}; " +
+                   $"disabled filter only: {Reach(IsDisabled, true)}";
         }
 
         private static string MaskOf(LaneGraph g, int i)
@@ -84,6 +88,7 @@ namespace DrivenRides
             var n = all.Length;
             var positions = new Vec3[n];
             var neighbors = new int[n][];
+            var otherLanes = new int[n][];
             var allowed = new int[n];
             var intersection = new bool[n];
             var speed = new float[n];
@@ -93,10 +98,11 @@ namespace DrivenRides
             for (var i = 0; i < n; i++)
             {
                 var w = all[i];
-                if (w == null) { neighbors[i] = Array.Empty<int>(); continue; }
+                if (w == null) { neighbors[i] = Array.Empty<int>(); otherLanes[i] = Array.Empty<int>(); continue; }
                 if (w.listIndex != i) misplaced++;
                 positions[i] = ToVec(w.position);
                 neighbors[i] = w.neighbors != null ? w.neighbors.ToArray() : Array.Empty<int>();
+                otherLanes[i] = w.otherLanes != null ? w.otherLanes.ToArray() : Array.Empty<int>();
                 // Gley's AI reads allowedAgents; allowedCars is the same list as an enum. Both are read, in case the
                 // scene data filled only one of them.
                 var agents = 0;
@@ -111,7 +117,7 @@ namespace DrivenRides
                 intersection[i] = !TrafficManager.IsNotIntersection(w);
                 speed[i] = w.maxSpeed;
             }
-            graph = new LaneGraph(positions, neighbors, allowed, intersection, speed);
+            graph = new LaneGraph(positions, neighbors, allowed, intersection, speed, otherLanes: otherLanes);
             waypoints = all;
             scene = current;
             Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");

@@ -193,11 +193,16 @@ namespace DrivenRides
                 var goals = GoalPicker.Pick(graph, GleyGraph.ToVec(destination), vehicleType);
                 if (goals.Count == 0) return Vanilla("no lane waypoint near the destination");
                 var route = Plan(graph, start, goals, vehicleType, out var planMs, out var why);
-                if (route == null)
+                if (route == null && kind != Kind.Stand)
                 {
-                    Log.Info("No route: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
-                    return Vanilla($"no route ({why}, {planMs} ms)");
+                    // The summoned driver stops at the waypoint nearest the player, whatever kind of lane it is; some are
+                    // pockets with no lane out. Then the route starts from a proper traffic lane nearby, and Gley steers
+                    // the car straight to it.
+                    Log.Info("No route from the car's waypoint: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
+                    route = PlanFromNearby(graph, car!.transform, start, goals, vehicleType, ref planMs);
+                    if (route != null) Log.Info($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(car.transform.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
                 }
+                if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
 
                 if (kind == Kind.Stand)
                 {
@@ -254,6 +259,32 @@ namespace DrivenRides
             // Small steps keep the overshoot small; a route found after the budget counts as none.
             if (job.Status == PlanStatus.Found && ms > PlanBudgetMs) { why = "found after the time budget"; return null; }
             return job.Status == PlanStatus.Found ? job.Result : null;
+        }
+
+        // Up to six proper traffic lanes within 50 m of the car, in front of it first and nearest first, with nothing
+        // built in between; the first that reaches a goal wins.
+        private static Route? PlanFromNearby(LaneGraph graph, Transform car, int pocketStart, List<Goal> goals, int vehicleType, ref long planMs)
+        {
+            var here = car.position;
+            var candidates = new List<(int Index, float Score)>();
+            foreach (var i in graph.Near(GleyGraph.ToVec(here), 50f))
+            {
+                if (i == pocketStart || graph.IsIntersection(i) || !graph.Allows(i, vehicleType) || graph.Successors(i).Count == 0) continue;
+                var at = GleyGraph.Waypoints![i].position;
+                if (Mathf.Abs(at.y - here.y) > 3f) continue;
+                var to = at - here;
+                if (Physics.Raycast(here + Vector3.up, to, to.magnitude, LayerHelper.buildingsLayerMask, QueryTriggerInteraction.Ignore)) continue;
+                var ahead = Vector3.Dot(to.normalized, car.forward) > 0f;
+                candidates.Add((i, to.magnitude + (ahead ? 0f : 25f)));
+            }
+            candidates.Sort((a, b) => a.Score.CompareTo(b.Score));
+            for (var k = 0; k < candidates.Count && k < 6; k++)
+            {
+                var route = Plan(graph, candidates[k].Index, goals, vehicleType, out var ms, out _);
+                planMs += ms;
+                if (route != null) return route;
+            }
+            return null;
         }
 
         private static bool IsGoodStart(Waypoint w, float y) =>

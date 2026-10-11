@@ -20,6 +20,9 @@ namespace DrivenRides.Core.Routing
         // Entering a waypoint not allowed for the vehicle type costs this much instead of being impossible: Gley's
         // own AI falls back to such lanes when no allowed one leads on. PositiveInfinity makes the filter hard.
         public float DisallowedPenaltySeconds = 60f;
+        // A lane change (an otherLanes edge) costs this on top of its travel time, so routes use one only when it
+        // saves real time or is the only way out. PositiveInfinity turns lane changes off.
+        public float LaneChangePenaltySeconds = 20f;
     }
 
     public sealed class Route
@@ -59,6 +62,7 @@ namespace DrivenRides.Core.Routing
         private readonly int start, vehicleType;
         private readonly float penalty;
         private readonly float disallowedPenalty;
+        private readonly float laneChangePenalty;
         private readonly Func<int, bool>? disabled;
         private readonly Dictionary<int, (Goal Goal, int Index)> goals = new Dictionary<int, (Goal, int)>();
         private readonly List<Vec3> goalPositions = new List<Vec3>();
@@ -76,12 +80,14 @@ namespace DrivenRides.Core.Routing
             vehicleType = request.VehicleType;
             penalty = request.IntersectionPenaltySeconds;
             disallowedPenalty = request.DisallowedPenaltySeconds;
+            laneChangePenalty = request.LaneChangePenaltySeconds;
             disabled = request.IsDisabled;
             costs = new double[graph.Count];
             parents = new int[graph.Count];
             Status = PlanStatus.InvalidRequest;
             if (start < 0 || start >= graph.Count || request.Goals == null || vehicleType < 0 || vehicleType >= 32 ||
-                !FiniteNonnegative(penalty) || float.IsNaN(disallowedPenalty) || disallowedPenalty < 0) return;
+                !FiniteNonnegative(penalty) || float.IsNaN(disallowedPenalty) || disallowedPenalty < 0 ||
+                float.IsNaN(laneChangePenalty) || laneChangePenalty < 0) return;
             for (int i = 0; i < request.Goals.Count; i++)
             {
                 Goal goal = request.Goals[i];
@@ -138,24 +144,30 @@ namespace DrivenRides.Core.Routing
                     }
                 }
                 IReadOnlyList<int> successors = graph.Successors(i);
-                for (int k = 0; k < successors.Count; k++)
+                for (int k = 0; k < successors.Count; k++) Relax(i, successors[k], entry.Cost, 0);
+                if (!float.IsPositiveInfinity(laneChangePenalty))
                 {
-                    int j = successors[k];
-                    if (j != start && disabled?.Invoke(j) == true) continue;
-                    bool disallowed = j != start && !graph.Allows(j, vehicleType);
-                    if (disallowed && float.IsPositiveInfinity(disallowedPenalty)) continue;
-                    double cost = entry.Cost + Vec3.Distance(graph.Position(i), graph.Position(j)) /
-                        (((double)graph.SpeedMs(i) + graph.SpeedMs(j)) / 2);
-                    if (disallowed) cost += disallowedPenalty;
-                    if (!graph.IsIntersection(i) && graph.IsIntersection(j)) cost += penalty;
-                    if (cost >= costs[j]) continue;
-                    costs[j] = cost;
-                    parents[j] = i;
-                    open.Push(new Entry(j, cost, cost + Heuristic(j)));
+                    IReadOnlyList<int> sideways = graph.Lateral(i);
+                    for (int k = 0; k < sideways.Count; k++) Relax(i, sideways[k], entry.Cost, laneChangePenalty);
                 }
             }
             Status = PlanStatus.NoPath;
             return Status;
+        }
+
+        private void Relax(int i, int j, double from, double extra)
+        {
+            if (j != start && disabled?.Invoke(j) == true) return;
+            bool disallowed = j != start && !graph.Allows(j, vehicleType);
+            if (disallowed && float.IsPositiveInfinity(disallowedPenalty)) return;
+            double cost = from + extra + Vec3.Distance(graph.Position(i), graph.Position(j)) /
+                (((double)graph.SpeedMs(i) + graph.SpeedMs(j)) / 2);
+            if (disallowed) cost += disallowedPenalty;
+            if (!graph.IsIntersection(i) && graph.IsIntersection(j)) cost += penalty;
+            if (cost >= costs[j]) return;
+            costs[j] = cost;
+            parents[j] = i;
+            open.Push(new Entry(j, cost, cost + Heuristic(j)));
         }
 
         private double Heuristic(int node)
