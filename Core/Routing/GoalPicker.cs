@@ -17,6 +17,8 @@ namespace DrivenRides.Core.Routing
         // Only lanes with the target on their right, so the passenger gets out on the destination's side of the
         // street instead of across it. No fallback here: the caller plans again without it if no route is found.
         public bool TargetOnRight = false;
+        // Lanes not allowed for the vehicle type count too (the Hamptons' private roads allow none).
+        public bool AnyVehicleType = false;
     }
 
     public static class GoalPicker
@@ -33,7 +35,7 @@ namespace DrivenRides.Core.Routing
             foreach (int i in g.Near(target, options.Radius))
             {
                 if (Math.Abs((double)g.Position(i).Y - target.Y) > options.MaxHeightDiff ||
-                    g.IsIntersection(i) || !g.Allows(i, vehicleType) || !HasStretch(g, i, options.MinStraightMetres)) continue;
+                    g.IsIntersection(i) || (!options.AnyVehicleType && !g.Allows(i, vehicleType)) || !HasStretch(g, i, options.MinStraightMetres)) continue;
                 result.Add(new Goal(i, Vec3.HorizontalDistance(g.Position(i), target) / options.WalkSpeedMs));
             }
             if (options.TargetOnRight) result.RemoveAll(goal => g.SideOf(goal.Waypoint, target) <= 0);

@@ -100,6 +100,8 @@ namespace DrivenRides
         private bool throwNext;
         private bool boardFailed;
         private bool faded;
+        private bool farDrop;
+        private const float FarDropMetres = 50f;
         private PlanJob? replanJob;
         private float replanSeconds;
         private bool fakeSaveChange;
@@ -207,21 +209,35 @@ namespace DrivenRides
                 }
 
                 var destination = target.GetNavMeshTargetPosition();
-                // First the kerb on the destination's side of the street (a driver lets you out on your side), then
-                // any kerb if that side has no route.
+                // Goals in steps, each wider than the last, until one gives a route: the kerb on the destination's side
+                // of the street (a driver lets you out on your side), any kerb, any lane, then lanes of any type
+                // further out (Hamptons houses stand back on private roads; spike 15 found nothing within 60 m).
                 var destinationPoint = GleyGraph.ToVec(destination);
-                var goals = GoalPicker.Pick(graph, destinationPoint, vehicleType, new GoalOptions { KerbLane = true, TargetOnRight = true });
-                long planMs = 0;
-                var why = "no goal on the destination's side";
-                Route? route = null;
-                if (goals.Count > 0) route = Plan(graph, start, goals, vehicleType, out planMs, out why);
-                if (route == null)
+                var steps = new[]
                 {
-                    goals = GoalPicker.Pick(graph, destinationPoint, vehicleType, new GoalOptions { KerbLane = true });
-                    if (goals.Count == 0) return Vanilla("no lane waypoint near the destination");
-                    route = Plan(graph, start, goals, vehicleType, out planMs, out why);
-                    if (route != null) Log.Info("No route to the destination's side of the street; dropping off on the other side.");
+                    ("the destination's side", new GoalOptions { KerbLane = true, TargetOnRight = true }),
+                    ("the other side", new GoalOptions { KerbLane = true }),
+                    ("any lane", new GoalOptions { MinStraightMetres = 0f }),
+                    ("within 150 m", new GoalOptions { Radius = 150f, MinStraightMetres = 0f, MaxHeightDiff = 6f, AnyVehicleType = true }),
+                    ("within 300 m", new GoalOptions { Radius = 300f, MinStraightMetres = 0f, MaxHeightDiff = 10f, AnyVehicleType = true }),
+                };
+                long planMs = 0;
+                var why = "no goal";
+                Route? route = null;
+                List<Goal> goals = new List<Goal>();
+                foreach (var (label, options) in steps)
+                {
+                    goals = GoalPicker.Pick(graph, destinationPoint, vehicleType, options);
+                    if (goals.Count == 0) continue;
+                    route = Plan(graph, start, goals, vehicleType, out var ms, out why);
+                    planMs += ms;
+                    if (route != null)
+                    {
+                        if (label != "the destination's side") Log.Info($"Goal: {label} ({goals.Count} goals).");
+                        break;
+                    }
                 }
+                if (goals.Count == 0) return Vanilla($"no lane waypoint within 300 m of the destination at {destination}");
                 if (route == null && kind != Kind.Stand)
                 {
                     // The summoned driver stops at the waypoint nearest the player, whatever kind of lane it is; some are
@@ -395,7 +411,9 @@ namespace DrivenRides
                 Log.Info($"Ride ending: {outcome} ({outcomeReason}), {NowMinutes() - startMinute:0.0} game minutes so far.");
                 // An arrival needs no fade: the player steps out beside the car (Peter). Skip and the vanilla finish
                 // fade, as vanilla does. The game's fades are stepped here, so an exception in them runs the finally.
-                if (outcome == Outcome.Vanilla)
+                // A destination far from where the car stops (a house back from the road) gets the vanilla door.
+                farDrop = outcome == Outcome.Complete && target != null && car != null && Vector3.Distance(car.transform.position, target.GetNavMeshTargetPosition()) > FarDropMetres;
+                if (outcome == Outcome.Vanilla || farDrop)
                 {
                     faded = true;
                     var fade = UiFader.Fade(1f);
@@ -969,7 +987,7 @@ namespace DrivenRides
         {
             var destination = target != null ? target.GetNavMeshTargetPosition() : pickupPosition;
             // An arrival puts the player beside the car, kerb side first (Peter); the vanilla finish at the door.
-            var place = outcome == Outcome.Complete && BesideCar(out var beside) ? beside
+            var place = outcome == Outcome.Complete && !farDrop && BesideCar(out var beside) ? beside
                 : NavMesh.SamplePosition(destination, out var hit, 5f, NavMesh.AllAreas) ? hit.position : destination;
             Detach(place);
             player.Character.ToggleVisibility(true);
