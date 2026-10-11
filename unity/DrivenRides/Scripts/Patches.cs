@@ -38,6 +38,8 @@ namespace DrivenRides
             Patch(typeof(TimeMachine), "StartTimeMachine", new[] { typeof(Timestamp), typeof(bool), typeof(string), typeof(bool), typeof(bool) }, nameof(TimeMachinePrefix), prefix: true);
             // Red lights: Gley would move the ride car's target past a red stop line once it is within 5 m.
             Patch(typeof(DrivingAI), "WaypointRequested", new[] { typeof(int), typeof(VehicleTypes) }, nameof(WaypointRequestedPrefix), prefix: true);
+            // Gley's "passed" test pops every waypoint behind the car's nose; in a sharp turn that emptied the route.
+            Patch(typeof(DrivingAI), "HasReachedOrPassedWaypoint", new[] { typeof(int), typeof(int) }, nameof(PassedPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -120,6 +122,23 @@ namespace DrivenRides
         {
             try { Ride.OnTimeMachineStarting(); }
             catch (Exception ex) { Log.Error("Time machine: " + ex.Message); }
+        }
+
+        private static bool PassedPrefix(int index, int waypointIndex, ref bool __result)
+        {
+            try
+            {
+                // Every other car returns here at once.
+                var car = Ride.CarCentre(index);
+                if (car == null) return true;
+                var waypoint = TrafficManager.Instance.GetWaypoint(waypointIndex);
+                if (waypoint == null) return true;
+                var passed = Ride.HasPassed(index, waypointIndex, waypoint.position, car.Value);
+                if (passed == null) return true;
+                __result = passed.Value;
+                return false;
+            }
+            catch { return true; }
         }
 
         private static bool WaypointRequestedPrefix(int index)

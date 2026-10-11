@@ -70,6 +70,8 @@ namespace DrivenRides
 
         private Route route;
         private RouteProgress? progress;
+        // Where each waypoint sits in the current route, for the HasReachedOrPassedWaypoint prefix.
+        private readonly Dictionary<int, int> routeIndex = new Dictionary<int, int>();
         private RideWatch? watch;
         private double alongOffset;
         private double lastAlong;
@@ -451,6 +453,7 @@ namespace DrivenRides
             SetTopSpeed();
             Go();
             progress = new RouteProgress(Points(route));
+            IndexRoute();
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds);
             SwitchCamera();
             phase = Phase.Driving;
@@ -644,12 +647,40 @@ namespace DrivenRides
             owned.Clear();
             owned.AddRange(route.Waypoints);
             progress = new RouteProgress(Points(route));
+            IndexRoute();
             // Gley takes the new list at its next waypoint request. At a light or in a queue a restart would clear
             // the stop, so it only happens when the car isn't waiting.
             if (IsWaiting()) watch!.Waiting(unpausedSeconds);
             else Restart();
             watch!.Replanned(unpausedSeconds);
             Log.Info($"Watchdog: replanned, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, {job.Expanded} expanded.");
+        }
+
+        private void IndexRoute()
+        {
+            routeIndex.Clear();
+            for (var k = 0; k < route.Waypoints.Count; k++) routeIndex[route.Waypoints[k]] = k;
+        }
+
+        // The HasReachedOrPassedWaypoint prefix. Gley counts a waypoint as passed once it is behind the car's nose,
+        // and pops every such waypoint off the path at once; in a U-turn or a lane change, more so at 3x, the car
+        // faces sideways for a moment and Gley emptied the rest of the route (spike 8: stopped 272 m short after
+        // hitting a wall). For the ride car a waypoint counts as passed only when the car is within 5 m of it or
+        // the route progress, which follows the route and not the car's nose, is past it. Null for other cars.
+        public static bool? HasPassed(int vehicleIndex, int waypointIndex, Vector3 waypoint, Vector3 carCentre)
+        {
+            var ride = Active;
+            if (ride == null || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || ride.progress == null) return null;
+            if ((waypoint - carCentre).sqrMagnitude < 25f) return true;
+            return ride.routeIndex.TryGetValue(waypointIndex, out var k) && k < ride.progress.NextIndex;
+        }
+
+        // The ride car's centre of mass, as Gley measures from it; null for other cars.
+        public static Vector3? CarCentre(int vehicleIndex)
+        {
+            var ride = Active;
+            if (ride == null || ride.carIndex != vehicleIndex || ride.car == null || ride.car.rb == null) return null;
+            return ride.car.rb.worldCenterOfMass;
         }
 
         public void RequestSkip()
