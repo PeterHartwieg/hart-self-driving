@@ -1,0 +1,3 @@
+# Agent notes
+
+@AGENTS.md

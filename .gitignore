@@ -1,0 +1,19 @@
+bin/
+obj/
+build/
+*.user
+.vs/
+.idea/
+[Ll]ibrary/
+[Tt]emp/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Oo]utput/
+CLAUDE.local.md
+
+# Game and Harmony DLLs must never be committed.
+*.dll
+
+# Fetched or built at build time; the folder itself is recreated by tools/build-mod.sh.
+unity/DrivenRides/Dependencies/
+unity/DrivenRides/Dependencies.meta
