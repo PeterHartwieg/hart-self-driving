@@ -97,14 +97,31 @@ namespace DrivenRides.Core.Routing
                     if (Math.Abs(positions[j].Y - positions[i].Y) > 2f) continue;
                     float ox = positions[j].X - positions[i].X, oz = positions[j].Z - positions[i].Z;
                     float ahead = ox * dx + oz * dz, side = ox * dz - oz * dx;
-                    if (ahead < 6f || ahead > 35f || side > -6f || side < -30f) continue;
-                    // The lane nearest the median first, then the nearest point ahead.
-                    float score = -side * 10f + ahead;
+                    // A car can't turn round tighter than about 5 m, so the target is at least 8 m ahead and best about
+                    // 15 m across (a turning circle of about 7.5 m) and 10 m ahead (spike 10: 6 m ahead and 10 m
+                    // across sent the car into the median).
+                    if (ahead < 8f || ahead > 35f || side > -8f || side < -30f) continue;
+                    float score = Math.Abs(-side - 15f) * 2f + Math.Abs(ahead - 10f);
                     if (score < bestScore) { bestScore = score; best = j; }
                 }
                 if (best < 0) continue;
                 uTurns[i] = best;
                 InferredUTurns++;
+                // Through a junction waypoint near the far end of the U-turn's arc, so the car follows the curve.
+                float bx = positions[best].X - positions[i].X, bz = positions[best].Z - positions[i].Z;
+                float bAhead = bx * dx + bz * dz, bSide = bx * dz - bz * dx;
+                float lx = -dz, lz = dx; // left of the heading
+                float half = -bSide / 2f;
+                var apex = new Vec3(positions[i].X + dx * (bAhead + half) + lx * half, positions[i].Y, positions[i].Z + dz * (bAhead + half) + lz * half);
+                int via = -1;
+                float viaDistance = 5f;
+                foreach (int j in Near(apex, 5f))
+                {
+                    if (!intersections[j] || j == best || Math.Abs(positions[j].Y - positions[i].Y) > 2f) continue;
+                    float d = Vec3.HorizontalDistance(apex, positions[j]);
+                    if (d < viaDistance) { viaDistance = d; via = j; }
+                }
+                if (via >= 0) turnVia[(i, best)] = via;
             }
         }
 

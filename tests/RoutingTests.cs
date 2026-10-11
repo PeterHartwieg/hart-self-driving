@@ -439,7 +439,7 @@ public sealed class RoutingTests
     [Fact]
     public void UTurnsAtAJunctionIntoTheOtherCarriageway()
     {
-        // A divided street: eastbound lanes at z = 0 (left, by the median) and z = -4; westbound at z = 12 with its
+        // A divided street: eastbound lanes at z = 0 (left, by the median) and z = -4; westbound at z = 15 with its
         // junction waypoints at x = 20, 10, 0, -10 and its exit at x = -15. The eastbound junction only goes on east.
         var points = new List<Vec3>();
         var edges = new List<int[]>();
@@ -448,7 +448,7 @@ public sealed class RoutingTests
         void Link(params int[] chain) { for (var k = 0; k + 1 < chain.Length; k++) edges[chain[k]] = new[] { chain[k + 1] }; }
         int[] East(float z) { var a = Add(-30, z, false); var e = Add(-5, z, false); var j1 = Add(5, z, true); var j2 = Add(25, z, true); var o = Add(35, z, false); var o2 = Add(45, z, false); Link(a, e, j1, j2, o, o2); return new[] { a, e }; }
         var left = East(0); var outer = East(-4);
-        var w0 = Add(35, 12, false); var wj1 = Add(20, 12, true); var wj2 = Add(10, 12, true); var wj3 = Add(0, 12, true); var wj4 = Add(-10, 12, true); var wexit = Add(-15, 12, false); var wend = Add(-30, 12, false);
+        var w0 = Add(35, 15, false); var wj1 = Add(20, 15, true); var wj2 = Add(10, 15, true); var wj3 = Add(0, 15, true); var wj4 = Add(-10, 15, true); var wexit = Add(-15, 15, false); var wend = Add(-30, 15, false);
         Link(w0, wj1, wj2, wj3, wj4, wexit, wend);
         var n = points.Count;
         var graph = new LaneGraph(points.ToArray(), edges.ToArray(), Enumerable.Repeat(1, n).ToArray(), junction.ToArray(), new float[n], inferTurns: true);

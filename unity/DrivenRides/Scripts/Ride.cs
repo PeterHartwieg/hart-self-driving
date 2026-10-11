@@ -72,6 +72,8 @@ namespace DrivenRides
         // The route as Gley drives it: the planner's waypoints with each added turn's curve waypoint put in.
         private List<int> path;
         private RouteProgress? progress;
+        private readonly RideTrace trace = new RideTrace();
+        private CollisionProbe? probe;
         // Where each waypoint sits in the current route, for the HasReachedOrPassedWaypoint prefix.
         private readonly Dictionary<int, int> routeIndex = new Dictionary<int, int>();
         private RideWatch? watch;
@@ -458,6 +460,8 @@ namespace DrivenRides
             progress = new RouteProgress(Points(path));
             IndexRoute();
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds);
+            probe = car.gameObject.AddComponent<CollisionProbe>();
+            probe.Trace = trace;
             SwitchCamera();
             phase = Phase.Driving;
             Log.Info($"Departed: {owned.Count} waypoints for Gley, light cycle {GreenLightTime()} s.");
@@ -505,6 +509,9 @@ namespace DrivenRides
             if (throwNext) { throwNext = false; throw new InvalidOperationException("Debug: exception inside the ride's frame update."); }
             progress!.Update(GleyGraph.ToVec(car.transform.position));
             var along = alongOffset + progress.AlongMetres;
+            var traffic = TrafficManager.Instance;
+            trace.Sample(car.transform.position, car.transform.eulerAngles.y, car.rb != null ? car.rb.velocity.magnitude : 0f,
+                traffic.GetTargetWaypoint(carIndex)?.listIndex ?? -1, traffic.GetCurrentDrivingState(carIndex).Item2.ToString(), along, progress.LeftMetres, owned.Count);
             lastAlong = along;
 
             if (phase == Phase.Driving)
@@ -563,13 +570,13 @@ namespace DrivenRides
             var red = next != null && next.stop;
             if (red && state == SpecialDriveActionTypes.StopInPoint)
             {
-                if (!Options.TrafficLights) { Go(); Log.Info("Light: red, driving through (option off)."); return; }
+                if (!Options.TrafficLights) { Go(); Event("Light: red, driving through (option off)."); return; }
                 if (loggedRed != next!.listIndex) { loggedRed = next.listIndex; Log.Info($"Light: waiting at the red at waypoint {next.listIndex}."); }
             }
             if (state == SpecialDriveActionTypes.StopNow)
             {
                 stopNowSeconds += Time.unscaledDeltaTime;
-                if (stopNowSeconds >= BumpSeconds) { stopNowSeconds = 0f; Go(); Log.Info("Bump: going again."); }
+                if (stopNowSeconds >= BumpSeconds) { stopNowSeconds = 0f; Go(); Event("Bump: going again."); }
             }
             else stopNowSeconds = 0f;
         }
@@ -614,14 +621,14 @@ namespace DrivenRides
             // Cleared in place: presetPath stays this same non-null list, so Gley never despawns the car.
             owned.Clear();
             phase = Phase.Stopping;
-            Log.Info($"Stopping at the end of the route, {LeftMetres:0} m from its last waypoint.");
+            Event($"Stopping at the end of the route, {LeftMetres:0} m from its last waypoint.");
         }
 
         private void Restart()
         {
             Go();
             watch!.Restarted(unpausedSeconds);
-            Log.Info("Watchdog: restart (" + watch.LastReason + ").");
+            Event("Watchdog: restart (" + watch.LastReason + ").");
         }
 
         // Gley signals a red light by "stop" on the target waypoint and StopInPoint, the car in front by
@@ -673,6 +680,12 @@ namespace DrivenRides
             else Restart();
             watch!.Replanned(unpausedSeconds);
             Log.Info($"Watchdog: replanned, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, {job.Expanded} expanded.");
+        }
+
+        private void Event(string text)
+        {
+            Log.Info(text);
+            trace.Note(text);
         }
 
         private void IndexRoute()
@@ -924,6 +937,9 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
+            if (probe != null) Object.Destroy(probe);
+            probe = null;
+            trace.Save();
             if (anchor != null)
             {
                 // Destroying the anchor destroys its children; a player still under it must never go with it.
