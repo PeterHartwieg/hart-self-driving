@@ -152,12 +152,45 @@ namespace DrivenRides.Core.Routing
                     // Outermost lanes on the turn's side, at both ends.
                     if (HasParallel(i, right) || HasParallel(x, right)) continue;
                     (found ??= new List<int>()).Add(x);
+                    var via = ArcVia(i, dx, dz, x, ex, ez);
+                    if (via >= 0) turnVia[(i, x)] = via;
                 }
                 if (found == null) continue;
                 turns[i] = found.AsReadOnly();
                 InferredTurns++;
             }
         }
+
+        private readonly Dictionary<(int, int), int> turnVia = new Dictionary<(int, int), int>();
+
+        // A junction waypoint near the middle of the curve from i to its added-turn exit x, for the car to steer
+        // through so it doesn't cut the inside corner on a straight line (spike 9); -1 if none is near.
+        public int TurnVia(int i, int x) => turnVia.TryGetValue((i, x), out var via) ? via : -1;
+
+        private int ArcVia(int i, float dx, float dz, int x, float ex, float ez)
+        {
+            // Where the entry's line meets the exit lane's line; the curve's middle lies between there and the
+            // midpoint of the chord, about 0.59 of the way for a right angle.
+            float px = positions[i].X, pz = positions[i].Z, qx = positions[x].X, qz = positions[x].Z;
+            float denominator = dx * ez - dz * ex;
+            if (Math.Abs(denominator) < 0.2f) return -1;
+            float t = ((qx - px) * ez - (qz - pz) * ex) / denominator;
+            float cx = px + t * dx, cz = pz + t * dz;
+            float mx = (px + qx) / 2, mz = (pz + qz) / 2;
+            var arc = new Vec3(cx + (mx - cx) * 0.59f, positions[i].Y, cz + (mz - cz) * 0.59f);
+            int best = -1;
+            float bestDistance = 6f;
+            foreach (int j in Near(arc, 6f))
+            {
+                if (!intersections[j] || Math.Abs(positions[j].Y - positions[i].Y) > 2f) continue;
+                float d = Vec3.HorizontalDistance(arc, positions[j]);
+                if (d < bestDistance) { bestDistance = d; best = j; }
+            }
+            return best;
+        }
+
+        public bool IsJunctionExitWaypoint(int x) => IsJunctionExit(x);
+        public bool IsJunctionEntryWaypoint(int i) => IsJunctionEntry(i);
 
         private bool IsJunctionEntry(int i)
         {

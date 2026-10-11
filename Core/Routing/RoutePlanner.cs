@@ -155,10 +155,11 @@ namespace DrivenRides.Core.Routing
                 }
                 IReadOnlyList<int> successors = graph.Successors(i);
                 for (int k = 0; k < successors.Count; k++) Relax(i, successors[k], entry.Cost, 0);
-                if (!float.IsPositiveInfinity(laneChangePenalty) && !graph.IsIntersection(i))
+                if (!float.IsPositiveInfinity(laneChangePenalty) && !graph.IsIntersection(i) && !graph.IsJunctionExitWaypoint(i))
                 {
-                    // A lane change goes diagonally to the waypoint after the one beside i, so the car moves over
-                    // while driving on rather than steering sideways. Never inside a junction.
+                    // A lane change goes diagonally to the second waypoint after the one beside i, so the car moves
+                    // over gently while driving on. Never inside a junction, and never from the first waypoint after
+                    // one, where the car may still be coming out of a turn (spike 9: into a wall).
                     IReadOnlyList<int> sideways = graph.Lateral(i);
                     for (int k = 0; k < sideways.Count; k++)
                     {
@@ -166,7 +167,17 @@ namespace DrivenRides.Core.Routing
                         if (graph.IsIntersection(beside)) continue;
                         IReadOnlyList<int> ahead = graph.Successors(beside);
                         for (int m = 0; m < ahead.Count; m++)
-                            if (ahead[m] != i) Relax(i, ahead[m], entry.Cost, laneChangePenalty);
+                        {
+                            int first = ahead[m];
+                            if (first == i || graph.IsIntersection(first)) continue;
+                            IReadOnlyList<int> further = graph.Successors(first);
+                            // Nor may it end on a junction entry: the car should be straight in its lane before it turns.
+                            // The quicker change to the first waypoint costs a little more, for short blocks only.
+                            if (!graph.IsJunctionEntryWaypoint(first)) Relax(i, first, entry.Cost, laneChangePenalty + SharpChangeSeconds);
+                            for (int f = 0; f < further.Count; f++)
+                                if (further[f] != i && !graph.IsIntersection(further[f]) && !graph.IsJunctionEntryWaypoint(further[f]))
+                                    Relax(i, further[f], entry.Cost, laneChangePenalty);
+                        }
                     }
                 }
                 if (!float.IsPositiveInfinity(missingTurnPenalty))
@@ -183,6 +194,8 @@ namespace DrivenRides.Core.Routing
             Status = PlanStatus.NoPath;
             return Status;
         }
+
+        private const double SharpChangeSeconds = 2;
 
         private void Relax(int i, int j, double from, double extra)
         {

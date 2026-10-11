@@ -373,7 +373,7 @@ public sealed class RoutingTests
         lanes[0] = new[] { 10 };
         var masks = Enumerable.Repeat(1, 13).ToArray();
         var graph = new LaneGraph(points, edges, masks, new bool[13], new float[13], otherLanes: lanes);
-        Assert.Equal(new[] { 0, 11, 12 }, Found(graph, Request(0, new Goal(12, 0))).Waypoints);
+        Assert.Equal(new[] { 0, 12 }, Found(graph, Request(0, new Goal(12, 0))).Waypoints);
     }
 
     [Fact]
@@ -428,6 +428,8 @@ public sealed class RoutingTests
         Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(Make(false), request, int.MaxValue).Status);
         var graph = Make(true);
         Assert.Equal(new[] { eastRight[1] }, graph.MissingTurns(right[1]));
+        var via = graph.TurnVia(right[1], eastRight[1]);
+        Assert.True(via >= 0 && graph.IsIntersection(via));
         Assert.Empty(graph.MissingTurns(left[1]));
         var route = Found(graph, request);
         Assert.Contains(eastRight[1], route.Waypoints);

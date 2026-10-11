@@ -69,6 +69,8 @@ namespace DrivenRides
         private readonly int carIndex;
 
         private Route route;
+        // The route as Gley drives it: the planner's waypoints with each added turn's curve waypoint put in.
+        private List<int> path;
         private RouteProgress? progress;
         // Where each waypoint sits in the current route, for the HasReachedOrPassedWaypoint prefix.
         private readonly Dictionary<int, int> routeIndex = new Dictionary<int, int>();
@@ -122,6 +124,7 @@ namespace DrivenRides
             this.vehicleType = vehicleType;
             this.goals = goals;
             this.route = route;
+            path = Expand(route);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
             player = manager.playerController;
@@ -447,12 +450,12 @@ namespace DrivenRides
             if (kind == Kind.Taxi) taxi.DriveAway();
             owned.Clear();
             // A stand's car sits on its spawn waypoint; the route starts there.
-            for (var i = kind == Kind.Stand ? 1 : 0; i < route.Waypoints.Count; i++) owned.Add(route.Waypoints[i]);
+            for (var i = kind == Kind.Stand ? 1 : 0; i < path.Count; i++) owned.Add(path[i]);
             car.presetPath = owned;
             departed = true;
             SetTopSpeed();
             Go();
-            progress = new RouteProgress(Points(route));
+            progress = new RouteProgress(Points(path));
             IndexRoute();
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds);
             SwitchCamera();
@@ -460,12 +463,27 @@ namespace DrivenRides
             Log.Info($"Departed: {owned.Count} waypoints for Gley, light cycle {GreenLightTime()} s.");
         }
 
-        private static List<Vec3> Points(Route r)
+        private static List<Vec3> Points(List<int> waypoints)
         {
             var all = GleyGraph.Waypoints!;
-            var points = new List<Vec3>(r.Waypoints.Count);
-            foreach (var i in r.Waypoints) points.Add(GleyGraph.ToVec(all[i].position));
+            var points = new List<Vec3>(waypoints.Count);
+            foreach (var i in waypoints) points.Add(GleyGraph.ToVec(all[i].position));
             return points;
+        }
+
+        // Puts each added turn's curve waypoint between its entry and exit, so the car follows the curve.
+        private static List<int> Expand(Route r)
+        {
+            var graph = GleyGraph.Graph;
+            var result = new List<int>(r.Waypoints.Count + 4);
+            for (var k = 0; k < r.Waypoints.Count; k++)
+            {
+                result.Add(r.Waypoints[k]);
+                if (graph == null || k + 1 >= r.Waypoints.Count) continue;
+                var via = graph.TurnVia(r.Waypoints[k], r.Waypoints[k + 1]);
+                if (via >= 0) result.Add(via);
+            }
+            return result;
         }
 
         private static string GreenLightTime()
@@ -644,9 +662,10 @@ namespace DrivenRides
             if (job.Status != PlanStatus.Found || job.Result == null) { EndWith(Outcome.Vanilla, $"replan found no route ({job.Status})"); return; }
             alongOffset += progress!.AlongMetres;
             route = job.Result;
+            path = Expand(route);
             owned.Clear();
-            owned.AddRange(route.Waypoints);
-            progress = new RouteProgress(Points(route));
+            owned.AddRange(path);
+            progress = new RouteProgress(Points(path));
             IndexRoute();
             // Gley takes the new list at its next waypoint request. At a light or in a queue a restart would clear
             // the stop, so it only happens when the car isn't waiting.
@@ -659,7 +678,7 @@ namespace DrivenRides
         private void IndexRoute()
         {
             routeIndex.Clear();
-            for (var k = 0; k < route.Waypoints.Count; k++) routeIndex[route.Waypoints[k]] = k;
+            for (var k = 0; k < path.Count; k++) routeIndex[path[k]] = k;
         }
 
         // The HasReachedOrPassedWaypoint prefix. Gley counts a waypoint as passed once it is behind the car's nose,
