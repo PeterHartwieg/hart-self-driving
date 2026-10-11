@@ -433,4 +433,29 @@ public sealed class RoutingTests
         Assert.Contains(eastRight[1], route.Waypoints);
         Assert.True(route.DriveSeconds >= 8);
     }
+
+    [Fact]
+    public void UTurnsAtAJunctionIntoTheOtherCarriageway()
+    {
+        // A divided street: eastbound lanes at z = 0 (left, by the median) and z = -4; westbound at z = 12 with its
+        // junction waypoints at x = 20, 10, 0, -10 and its exit at x = -15. The eastbound junction only goes on east.
+        var points = new List<Vec3>();
+        var edges = new List<int[]>();
+        var junction = new List<bool>();
+        int Add(float x, float z, bool inJunction) { points.Add(new Vec3(x, 0, z)); edges.Add(Array.Empty<int>()); junction.Add(inJunction); return points.Count - 1; }
+        void Link(params int[] chain) { for (var k = 0; k + 1 < chain.Length; k++) edges[chain[k]] = new[] { chain[k + 1] }; }
+        int[] East(float z) { var a = Add(-30, z, false); var e = Add(-5, z, false); var j1 = Add(5, z, true); var j2 = Add(25, z, true); var o = Add(35, z, false); var o2 = Add(45, z, false); Link(a, e, j1, j2, o, o2); return new[] { a, e }; }
+        var left = East(0); var outer = East(-4);
+        var w0 = Add(35, 12, false); var wj1 = Add(20, 12, true); var wj2 = Add(10, 12, true); var wj3 = Add(0, 12, true); var wj4 = Add(-10, 12, true); var wexit = Add(-15, 12, false); var wend = Add(-30, 12, false);
+        Link(w0, wj1, wj2, wj3, wj4, wexit, wend);
+        var n = points.Count;
+        var graph = new LaneGraph(points.ToArray(), edges.ToArray(), Enumerable.Repeat(1, n).ToArray(), junction.ToArray(), new float[n], inferTurns: true);
+        Assert.Equal(wj2, graph.UTurn(left[1]));
+        Assert.Equal(-1, graph.UTurn(outer[1]));
+        var route = Found(graph, Request(left[0], new Goal(wend, 0)));
+        Assert.Equal(new[] { left[0], left[1], wj2, wj3, wj4, wexit, wend }, route.Waypoints);
+        var noUTurns = Request(left[0], new Goal(wend, 0));
+        noUTurns.UTurnPenaltySeconds = float.PositiveInfinity;
+        Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, noUTurns, int.MaxValue).Status);
+    }
 }

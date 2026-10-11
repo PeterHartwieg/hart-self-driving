@@ -239,8 +239,11 @@ namespace DrivenRides
                 GleyGraph.DumpRide(start, goals, route.Waypoints, destination);
                 var addedTurns = 0;
                 for (var k = 0; k + 1 < route.Waypoints.Count; k++)
+                {
                     foreach (var t in graph.MissingTurns(route.Waypoints[k])) if (t == route.Waypoints[k + 1]) addedTurns++;
-                if (addedTurns > 0) Log.Info($"Route uses {addedTurns} turn{(addedTurns == 1 ? "" : "s")} the game's traffic data doesn't have.");
+                    if (graph.UTurn(route.Waypoints[k]) == route.Waypoints[k + 1]) addedTurns++;
+                }
+                if (addedTurns > 0) Log.Info($"Route uses {addedTurns} turn{(addedTurns == 1 ? "" : "s")} or U-turn{(addedTurns == 1 ? "" : "s")} the game's traffic data doesn't have.");
                 var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car!, prefab, vehicleType, goals, route);
                 Log.Info($"Ride accepted: {kind}, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, drive {route.DriveSeconds:0} s, walk {route.WalkSeconds:0} s, planned in {planMs} ms, budget {minutes:0.0} game minutes.");
                 Active = ride;

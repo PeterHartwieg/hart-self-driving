@@ -26,6 +26,8 @@ namespace DrivenRides.Core.Routing
         // A turn the game's data doesn't have (LaneGraph.MissingTurns) costs this on top, so the data's own turns
         // come first. PositiveInfinity turns them off.
         public float MissingTurnPenaltySeconds = 8f;
+        // A U-turn at a junction (LaneGraph.UTurn) costs this on top. PositiveInfinity turns them off.
+        public float UTurnPenaltySeconds = 12f;
     }
 
     public sealed class Route
@@ -67,6 +69,7 @@ namespace DrivenRides.Core.Routing
         private readonly float disallowedPenalty;
         private readonly float laneChangePenalty;
         private readonly float missingTurnPenalty;
+        private readonly float uTurnPenalty;
         private readonly Func<int, bool>? disabled;
         private readonly Dictionary<int, (Goal Goal, int Index)> goals = new Dictionary<int, (Goal, int)>();
         private readonly List<Vec3> goalPositions = new List<Vec3>();
@@ -86,13 +89,15 @@ namespace DrivenRides.Core.Routing
             disallowedPenalty = request.DisallowedPenaltySeconds;
             laneChangePenalty = request.LaneChangePenaltySeconds;
             missingTurnPenalty = request.MissingTurnPenaltySeconds;
+            uTurnPenalty = request.UTurnPenaltySeconds;
             disabled = request.IsDisabled;
             costs = new double[graph.Count];
             parents = new int[graph.Count];
             Status = PlanStatus.InvalidRequest;
             if (start < 0 || start >= graph.Count || request.Goals == null || vehicleType < 0 || vehicleType >= 32 ||
                 !FiniteNonnegative(penalty) || float.IsNaN(disallowedPenalty) || disallowedPenalty < 0 ||
-                float.IsNaN(laneChangePenalty) || laneChangePenalty < 0 || float.IsNaN(missingTurnPenalty) || missingTurnPenalty < 0) return;
+                float.IsNaN(laneChangePenalty) || laneChangePenalty < 0 || float.IsNaN(missingTurnPenalty) || missingTurnPenalty < 0 ||
+                float.IsNaN(uTurnPenalty) || uTurnPenalty < 0) return;
             for (int i = 0; i < request.Goals.Count; i++)
             {
                 Goal goal = request.Goals[i];
@@ -171,6 +176,9 @@ namespace DrivenRides.Core.Routing
                     for (int k = 0; k < added.Count; k++)
                         Relax(i, added[k], entry.Cost, missingTurnPenalty + 0.2 * Vec3.Distance(graph.Position(i), graph.Position(added[k])) / graph.SpeedMs(i));
                 }
+                int uTurn = graph.UTurn(i);
+                if (uTurn >= 0 && !float.IsPositiveInfinity(uTurnPenalty))
+                    Relax(i, uTurn, entry.Cost, uTurnPenalty + 0.6 * Vec3.Distance(graph.Position(i), graph.Position(uTurn)) / graph.SpeedMs(i));
             }
             Status = PlanStatus.NoPath;
             return Status;

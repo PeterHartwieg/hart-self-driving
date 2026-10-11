@@ -70,11 +70,56 @@ namespace DrivenRides.Core.Routing
             TopSpeedMs = top;
             if (inferLanes) InferLanes();
             turns = new IReadOnlyList<int>[n];
-            for (int i = 0; i < n; i++) turns[i] = Array.Empty<int>();
-            if (inferTurns) InferTurns();
+            uTurns = new int[n];
+            for (int i = 0; i < n; i++) { turns[i] = Array.Empty<int>(); uTurns[i] = -1; }
+            if (inferTurns) { InferTurns(); InferUTurns(); }
         }
 
         private readonly IReadOnlyList<int>[] turns;
+        private readonly int[] uTurns;
+
+        // A U-turn at a junction into the other carriageway of a divided street (Peter: a player cuts across there,
+        // waiting for a gap), or -1. The target is a waypoint inside the junction on the far carriageway, ahead of
+        // the car: Gley skips a target behind the car as passed, and the far carriageway's exit is behind the entry.
+        public int UTurn(int i) => uTurns[i];
+        public int InferredUTurns { get; private set; }
+
+        private void InferUTurns()
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                if (!IsJunctionEntry(i) || !Heading(i, out float dx, out float dz) || HasParallel(i, false)) continue;
+                int best = -1;
+                float bestScore = float.MaxValue;
+                foreach (int j in Near(positions[i], 40f))
+                {
+                    if (!intersections[j] || !AnyHeading(j, out float ex, out float ez) || ex * dx + ez * dz > -0.9f) continue;
+                    if (Math.Abs(positions[j].Y - positions[i].Y) > 2f) continue;
+                    float ox = positions[j].X - positions[i].X, oz = positions[j].Z - positions[i].Z;
+                    float ahead = ox * dx + oz * dz, side = ox * dz - oz * dx;
+                    if (ahead < 6f || ahead > 35f || side > -6f || side < -30f) continue;
+                    // The lane nearest the median first, then the nearest point ahead.
+                    float score = -side * 10f + ahead;
+                    if (score < bestScore) { bestScore = score; best = j; }
+                }
+                if (best < 0) continue;
+                uTurns[i] = best;
+                InferredUTurns++;
+            }
+        }
+
+        // The heading of any waypoint with one successor, junction waypoints included.
+        private bool AnyHeading(int i, out float dx, out float dz)
+        {
+            dx = dz = 0;
+            if (successors[i].Count != 1) return false;
+            Vec3 a = positions[i], b = positions[successors[i][0]];
+            float x = b.X - a.X, z = b.Z - a.Z, length = (float)Math.Sqrt(x * x + z * z);
+            if (length < 0.5f) return false;
+            dx = x / length;
+            dz = z / length;
+            return true;
+        }
 
         // Turns the game's traffic data leaves out at a junction (spike 7: four lanes going straight on only at
         // three junctions in a row). From a junction entry i, the exits of the same junction it can't reach.
@@ -83,7 +128,8 @@ namespace DrivenRides.Core.Routing
 
         // A right turn goes from the rightmost lane into the rightmost lane of the cross street, a left turn from the
         // leftmost lane into the leftmost one. The exit must be ahead, at roughly a right angle, on the turn's side,
-        // and within 25 m (right) or 45 m (left) of the entry.
+        // and within 25 m (right) or 60 m (left, which may cross the other carriageway of a divided street) of the
+        // entry.
         private void InferTurns()
         {
             for (int i = 0; i < Count; i++)
@@ -102,7 +148,7 @@ namespace DrivenRides.Core.Routing
                     bool right = turn > 0;
                     if (right != side > 0) continue;
                     float distance = (float)Math.Sqrt(ox * ox + oz * oz);
-                    if (distance > (right ? 25f : 45f)) continue;
+                    if (distance > (right ? 25f : 60f)) continue;
                     // Outermost lanes on the turn's side, at both ends.
                     if (HasParallel(i, right) || HasParallel(x, right)) continue;
                     (found ??= new List<int>()).Add(x);
