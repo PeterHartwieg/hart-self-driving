@@ -45,6 +45,8 @@ namespace DrivenRides
             Patch(typeof(UI.Smartphone.FullMenu), "Toggle", new[] { typeof(bool) }, nameof(FullMenuTogglePrefix), prefix: true);
             Patch(typeof(UI.Smartphone.FullMenu), "Toggle", new[] { typeof(bool) }, nameof(FullMenuTogglePostfix));
             Patch(typeof(GameSpeedController), "SetPause", new[] { typeof(bool), typeof(bool) }, nameof(SetPausePrefix), prefix: true);
+            // ... and the street stays audible: the phone's UI-only sound mix is normally undone by the unpause.
+            Patch(typeof(SfxManager), "SetSoundSnapshotCityMap", new[] { typeof(bool), typeof(float) }, nameof(PhoneSoundPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -158,6 +160,8 @@ namespace DrivenRides
             Log.Info("Phone opened during a ride: time goes on.");
             return false;
         }
+
+        private static bool PhoneSoundPrefix(bool onlyUISound) => !(openingPhone && onlyUISound && Ride.IsDriving);
 
         private static bool WaypointRequestedPrefix(int index)
         {

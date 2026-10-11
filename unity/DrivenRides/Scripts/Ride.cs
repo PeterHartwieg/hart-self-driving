@@ -102,7 +102,9 @@ namespace DrivenRides
         private bool boardFailed;
         private bool faded;
         private bool farDrop;
-        private const float FarDropMetres = 50f;
+        // The door only for a destination far from where the car can stop; otherwise the player gets out by the car and
+        // walks (Peter: a 100 m teleport at a Hamptons house felt wrong).
+        private const float FarDropMetres = 200f;
         private PlanJob? replanJob;
         private float replanSeconds;
         private bool fakeSaveChange;
@@ -611,6 +613,7 @@ namespace DrivenRides
             var paused = InstanceBehavior<UIs>.Instance.gameSpeed.Paused;
             if (!paused) unpausedSeconds += Time.unscaledDeltaTime;
             if (phase != Phase.Driving && phase != Phase.Stopping) return;
+            RefreshPhoneClock();
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car is no longer the ride's"); return; }
 
             if (throwNext) { throwNext = false; throw new InvalidOperationException("Debug: exception inside the ride's frame update."); }
@@ -662,6 +665,19 @@ namespace DrivenRides
         private static readonly MethodInfo? ApplyActionMethod = AccessTools.Method(typeof(DrivingAI), "ApplyAction");
         private static readonly FieldInfo? CurrentActionField = AccessTools.Field(typeof(DrivingAI), "currentActiveAction");
 
+        // Takes one action off the car and reapplies the AI's top action to the driving state.
+        private void ClearAction(SpecialDriveActionTypes action)
+        {
+            var ai = DrivingAIField?.GetValue(TrafficManager.Instance);
+            if (ai == null || NewActionMethod == null || ApplyActionMethod == null || CurrentActionField == null) return;
+            NewActionMethod.Invoke(ai, new object[] { carIndex, action, false });
+            if (CurrentActionField.GetValue(ai) is SpecialDriveActionTypes[] current && carIndex < current.Length)
+            {
+                current[carIndex] = SpecialDriveActionTypes.Destroyed;
+                ApplyActionMethod.Invoke(ai, new object[] { carIndex });
+            }
+        }
+
         private void Go()
         {
             var traffic = TrafficManager.Instance;
@@ -690,6 +706,7 @@ namespace DrivenRides
         // Long enough not to keep pushing into a person or car that stopped it (spike 16).
         private const float BumpSeconds = 3f;
         private float stopNowSeconds;
+        private float giveWaySeconds;
         private int loggedRed = -1;
 
         // Red lights are Gley's own: it stops a car whose target is a red stop line (StopInPoint) and lets it go on
@@ -708,6 +725,14 @@ namespace DrivenRides
                 if (!Options.TrafficLights) { Go(); Event("Light: red, driving through (option off)."); return; }
                 if (loggedRed != next!.listIndex) { loggedRed = next.listIndex; Log.Info($"Light: waiting at the red at waypoint {next.listIndex}."); }
             }
+            // Gley's give-way mode, set at a give-way waypoint, isn't taken off a car on a preset path: on spike 20 the
+            // car crawled at 5 m/s through the Hamptons. Off again once the car's target isn't a give-way point.
+            if (state == SpecialDriveActionTypes.GiveWay && next != null && !next.giveWay)
+            {
+                giveWaySeconds += Time.unscaledDeltaTime;
+                if (giveWaySeconds >= 3f) { giveWaySeconds = 0f; ClearAction(SpecialDriveActionTypes.GiveWay); Event("Give way: off again."); }
+            }
+            else giveWaySeconds = 0f;
             if (state == SpecialDriveActionTypes.StopNow)
             {
                 stopNowSeconds += Time.unscaledDeltaTime;
@@ -1014,6 +1039,26 @@ namespace DrivenRides
             var ride = Active;
             if (ride == null || ride.carIndex != vehicleIndex || ride.car == null || ride.car.rb == null) return null;
             return ride.car.rb.worldCenterOfMass;
+        }
+
+        // The phone sets its clock once when it opens, the game being paused while it is up; during a ride time goes
+        // on, so the clock is set again every second while the phone is open.
+        private static readonly FieldInfo? PhoneTimeLabelField = AccessTools.Field(typeof(UI.Smartphone.FullMenu), "timeLabel");
+        private static readonly MethodInfo? SetFormattedTimeMethod = AccessTools.Method(typeof(TimeHelper), "SetCurrentFormattedTime");
+        private UI.Smartphone.FullMenu? phone;
+        private float nextPhoneClock;
+
+        private void RefreshPhoneClock()
+        {
+            if (!UI.Smartphone.FullMenu.IsOpen || Time.unscaledTime < nextPhoneClock) return;
+            nextPhoneClock = Time.unscaledTime + 1f;
+            try
+            {
+                phone ??= Object.FindObjectOfType<UI.Smartphone.FullMenu>();
+                var label = phone != null ? PhoneTimeLabelField?.GetValue(phone) : null;
+                if (label != null) SetFormattedTimeMethod?.Invoke(null, new[] { label });
+            }
+            catch (Exception ex) { Log.Error("Phone clock: " + ex.Message); nextPhoneClock = float.MaxValue; }
         }
 
         public void RequestSkip()
