@@ -20,9 +20,9 @@ namespace DrivenRides.Core.Routing
         // Entering a waypoint not allowed for the vehicle type costs this much instead of being impossible: Gley's
         // own AI falls back to such lanes when no allowed one leads on. PositiveInfinity makes the filter hard.
         public float DisallowedPenaltySeconds = 60f;
-        // A lane change (an otherLanes edge) costs this on top of its travel time, so routes use one only when it
-        // saves real time or is the only way out. PositiveInfinity turns lane changes off.
-        public float LaneChangePenaltySeconds = 20f;
+        // A lane change costs this on top of its travel time, so a route changes lanes when that saves time (to be in
+        // the turning lane at a junction) but doesn't weave. PositiveInfinity turns lane changes off.
+        public float LaneChangePenaltySeconds = 5f;
     }
 
     public sealed class Route
@@ -145,10 +145,19 @@ namespace DrivenRides.Core.Routing
                 }
                 IReadOnlyList<int> successors = graph.Successors(i);
                 for (int k = 0; k < successors.Count; k++) Relax(i, successors[k], entry.Cost, 0);
-                if (!float.IsPositiveInfinity(laneChangePenalty))
+                if (!float.IsPositiveInfinity(laneChangePenalty) && !graph.IsIntersection(i))
                 {
+                    // A lane change goes diagonally to the waypoint after the one beside i, so the car moves over
+                    // while driving on rather than steering sideways. Never inside a junction.
                     IReadOnlyList<int> sideways = graph.Lateral(i);
-                    for (int k = 0; k < sideways.Count; k++) Relax(i, sideways[k], entry.Cost, laneChangePenalty);
+                    for (int k = 0; k < sideways.Count; k++)
+                    {
+                        int beside = sideways[k];
+                        if (graph.IsIntersection(beside)) continue;
+                        IReadOnlyList<int> ahead = graph.Successors(beside);
+                        for (int m = 0; m < ahead.Count; m++)
+                            if (ahead[m] != i) Relax(i, ahead[m], entry.Cost, laneChangePenalty);
+                    }
                 }
             }
             Status = PlanStatus.NoPath;

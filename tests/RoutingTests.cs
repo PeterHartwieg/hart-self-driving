@@ -339,16 +339,40 @@ public sealed class RoutingTests
     [Fact]
     public void LaneChangeLeavesADeadEndLaneButCostsAPenalty()
     {
-        // A pull-over lane (0 -> 1) ends; its only way on is a lane change to the road (1 -> 2 -> 3).
+        // A pull-over lane (0 -> 1) ends; its only way on is a lane change to the road beside it (2 -> 3). The change
+        // goes diagonally from 1 to 3, the waypoint after the one beside 1.
         Vec3[] points = { new(0, 0, 0), new(10, 0, 0), new(10, 0, 3), new(30, 0, 3) };
         int[][] edges = { new[] { 1 }, Array.Empty<int>(), new[] { 3 }, Array.Empty<int>() };
         int[][] lanes = { Array.Empty<int>(), new[] { 2 }, Array.Empty<int>(), Array.Empty<int>() };
         var graph = new LaneGraph(points, edges, new[] { 1, 1, 1, 1 }, new bool[4], new float[4], otherLanes: lanes);
         var route = Found(graph, Request(0, new Goal(3, 0)));
-        Assert.Equal(new[] { 0, 1, 2, 3 }, route.Waypoints);
-        Assert.True(route.DriveSeconds >= 20);
+        Assert.Equal(new[] { 0, 1, 3 }, route.Waypoints);
+        Assert.True(route.DriveSeconds >= 5);
         var request = Request(0, new Goal(3, 0));
         request.LaneChangePenaltySeconds = float.PositiveInfinity;
         Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, request, int.MaxValue).Status);
+    }
+
+    [Fact]
+    public void ChangesLanesBeforeATurnInsteadOfDetouring()
+    {
+        // Two parallel lanes; only the left lane (10 -> 11) has the turn to the goal (12). The car starts in the right
+        // lane (0 -> 1 -> 2), whose way on is a 1 km loop (2 -> 3 -> 12).
+        var points = new Vec3[13];
+        for (var i = 0; i < 3; i++) points[i] = new Vec3(i * 20, 0, 0);
+        points[3] = new Vec3(500, 0, 500);
+        points[10] = new Vec3(20, 0, 4);
+        points[11] = new Vec3(40, 0, 4);
+        points[12] = new Vec3(40, 0, 30);
+        var edges = new int[13][];
+        for (var i = 0; i < 13; i++) edges[i] = Array.Empty<int>();
+        edges[0] = new[] { 1 }; edges[1] = new[] { 2 }; edges[2] = new[] { 3 }; edges[3] = new[] { 12 };
+        edges[10] = new[] { 11 }; edges[11] = new[] { 12 };
+        var lanes = new int[13][];
+        for (var i = 0; i < 13; i++) lanes[i] = Array.Empty<int>();
+        lanes[0] = new[] { 10 };
+        var masks = Enumerable.Repeat(1, 13).ToArray();
+        var graph = new LaneGraph(points, edges, masks, new bool[13], new float[13], otherLanes: lanes);
+        Assert.Equal(new[] { 0, 11, 12 }, Found(graph, Request(0, new Goal(12, 0))).Waypoints);
     }
 }

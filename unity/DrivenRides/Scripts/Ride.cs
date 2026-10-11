@@ -90,6 +90,8 @@ namespace DrivenRides
         private bool boardFailed;
         private bool faded;
         private PlanJob? replanJob;
+        private int heldAt = -1;
+        private float heldSeconds;
         private float replanSeconds;
         private bool fakeSaveChange;
         private Phase phase = Phase.Boarding;
@@ -418,6 +420,7 @@ namespace DrivenRides
             for (var i = kind == Kind.Stand ? 1 : 0; i < route.Waypoints.Count; i++) owned.Add(route.Waypoints[i]);
             car.presetPath = owned;
             departed = true;
+            SetTopSpeed();
             Go();
             progress = new RouteProgress(Points(route));
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds);
@@ -459,6 +462,7 @@ namespace DrivenRides
             {
                 if (replanJob != null) StepReplan();
                 else if (owned.Count <= 1 || progress.PointsLeft <= 1) StopAtEnd();
+                else if (HoldAtRed()) watch!.Waiting(unpausedSeconds);
                 else
                 {
                     if (IsWaiting()) watch!.Waiting(unpausedSeconds);
@@ -491,6 +495,64 @@ namespace DrivenRides
             traffic.ForceSetVehicleActiveAction(car, SpecialDriveActionTypes.Forward);
             AIEvents.TriggerChangeDrivingStateEvent(carIndex, SpecialDriveActionTypes.Forward, 0f);
             traffic.VehicleUpdateWaypoint(car);
+        }
+
+        private const float HoldMetres = 12f;
+        private const float HoldLimitSeconds = 90f;
+
+        // Red lights. Gley marks a red by "stop" on the waypoint at the stop line, but for a car with a preset path
+        // it moves on to the next waypoint once the car is within 5 m of it, stopped or not (the game's change for
+        // the summoned driver), so the car would run the red. The mod holds the car itself: a hard stop when the next
+        // stop-line waypoint on the route is red and near, released when it turns green. With the option off, the
+        // car drives through, including from a red that Gley stopped it at.
+        private bool HoldAtRed()
+        {
+            var all = GleyGraph.Waypoints!;
+            if (heldAt >= 0)
+            {
+                heldSeconds += Time.unscaledDeltaTime;
+                if (all[heldAt].stop && heldSeconds < HoldLimitSeconds && Options.TrafficLights) return true;
+                Log.Info($"Light: go after {heldSeconds:0} s{(heldSeconds >= HoldLimitSeconds ? " (hold limit)" : "")}.");
+                heldAt = -1;
+                Go();
+                return false;
+            }
+            if (!Options.TrafficLights)
+            {
+                var next = TrafficManager.Instance.GetTargetWaypoint(carIndex);
+                if (next != null && next.stop && TrafficManager.Instance.GetCurrentDrivingState(carIndex).Item2 == SpecialDriveActionTypes.StopInPoint) Go();
+                return false;
+            }
+            var here = car.transform.position;
+            for (var k = progress!.NextIndex; k < route.Waypoints.Count && k <= progress.NextIndex + 3; k++)
+            {
+                var index = route.Waypoints[k];
+                if (!all[index].stop) continue;
+                if (Vector3.Distance(here, all[index].position) > HoldMetres) return false;
+                heldAt = index;
+                heldSeconds = 0f;
+                AIEvents.TriggerChangeDrivingStateEvent(carIndex, SpecialDriveActionTypes.StopNow, 60f);
+                Log.Info($"Light: red at waypoint {index}, holding.");
+                return true;
+            }
+            return false;
+        }
+
+        // Gley gives each car a random top speed between its model's minimum and maximum; the ride car gets the
+        // maximum, so it keeps up with traffic. The road's limit still caps it.
+        private static readonly FieldInfo? DrivingAIField = AccessTools.Field(typeof(TrafficManager), "drivingAI");
+        private static readonly MethodInfo? SetMaxSpeedMethod = AccessTools.Method(typeof(DrivingAI), "setVehMaxSpeed");
+
+        private void SetTopSpeed()
+        {
+            try
+            {
+                var ai = DrivingAIField?.GetValue(TrafficManager.Instance);
+                if (ai == null || SetMaxSpeedMethod == null) { Log.Error("Top speed: Gley's DrivingAI not found."); return; }
+                SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, (float)car.maxPossibleSpeed });
+                Log.Info($"Top speed {car.maxPossibleSpeed} km/h (was {car.GetMaxSpeed()}).");
+            }
+            catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
         }
 
         private void StopAtEnd()
@@ -600,7 +662,20 @@ namespace DrivenRides
             if (kind == Kind.PrivateDriver) game.achievementsData.privateDriverRides++;
             else game.achievementsData.taxiRides++;
             GameEvent.Invoke(string.Empty);
-            PlacePlayer();
+            var place = PlacePlayer();
+            // The agent counts as on the NavMesh only from the next frame on, so the check waits one.
+            yield return null;
+            if (!player.Character.navmeshAgent.isOnNavMesh)
+            {
+                Log.Info($"Player not on the NavMesh at {place} after one frame; warping there again.");
+                player.Character.WarpSafely(place);
+                yield return null;
+                if (!player.Character.navmeshAgent.isOnNavMesh)
+                {
+                    Log.Error($"Player still not on the NavMesh at {place}; back to the pickup point.");
+                    player.Character.WarpSafely(pickupPosition);
+                }
+            }
             GameEvent.Invoke("ba:gameevent_completedtaxiride");
             if (taxi is Object alive && alive != null) taxi.OnTravelFinished();
             else if (driverVehicleType == "ba:vehicletype_limo")
@@ -613,18 +688,14 @@ namespace DrivenRides
             Log.Info($"Ride done: {NowMinutes() - startMinute:0.0} game minutes in all.");
         }
 
-        private void PlacePlayer()
+        private Vector3 PlacePlayer()
         {
             var destination = target != null ? target.GetNavMeshTargetPosition() : pickupPosition;
-            var place = NavMesh.SamplePosition(destination, out var hit, 5f, NavMesh.AllAreas) ? hit.position : pickupPosition;
+            var place = NavMesh.SamplePosition(destination, out var hit, 5f, NavMesh.AllAreas) ? hit.position : destination;
             Detach(place);
-            if (!player.Character.navmeshAgent.isOnNavMesh)
-            {
-                Log.Error($"Player not on the NavMesh at {place}; back to the pickup point.");
-                player.Character.WarpSafely(pickupPosition);
-            }
             player.Character.ToggleVisibility(true);
             player.Character.Reset();
+            return place;
         }
 
         // Moves the transform onto the NavMesh first: DeattachFromObject re-enables the agent at once.

@@ -6,5 +6,6 @@
     "drivenrides:options_speed_1": "1x",
     "drivenrides:options_speed_2": "2x",
     "drivenrides:options_speed_3": "3x",
-    "drivenrides:options_shortcut": "L calls the private driver"
+    "drivenrides:options_shortcut": "L calls the private driver",
+    "drivenrides:options_lights": "Rides stop at red lights"
 }
