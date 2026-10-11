@@ -408,17 +408,13 @@ namespace DrivenRides
         private void Depart()
         {
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car was gone before departure"); return; }
-            var traffic = TrafficManager.Instance;
             if (kind == Kind.Taxi) taxi.DriveAway();
             owned.Clear();
             // A stand's car sits on its spawn waypoint; the route starts there.
             for (var i = kind == Kind.Stand ? 1 : 0; i < route.Waypoints.Count; i++) owned.Add(route.Waypoints[i]);
             car.presetPath = owned;
             departed = true;
-            // Clears StopInPoint and any StopNow (a hard stop or a crash), which a car on a path never clears itself.
-            traffic.SetVehicleAction(car, SpecialDriveActionTypes.Forward, true);
-            traffic.ForceSetVehicleActiveAction(car, SpecialDriveActionTypes.Forward);
-            traffic.VehicleUpdateWaypoint(car);
+            Go();
             progress = new RouteProgress(Points(route));
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds);
             SwitchCamera();
@@ -481,6 +477,19 @@ namespace DrivenRides
             PanelText = $"  Ride: {LeftMetres / 1000.0:0.0} km to go  ({Options.RideSpeed:0}x)";
         }
 
+        // Sets the car driving forward in both of Gley's records. The AI keeps a list of actions; the physics keeps a
+        // driving state per car. A hard stop (the summon's StopNow, a crash) writes the physics state directly, and
+        // ForceSetVehicleActiveAction only tells the physics when the AI's action changes, which it doesn't if the AI
+        // already says Forward. So the state event goes out explicitly, as vanilla's DriveAway does.
+        private void Go()
+        {
+            var traffic = TrafficManager.Instance;
+            traffic.SetVehicleAction(car, SpecialDriveActionTypes.Forward, true);
+            traffic.ForceSetVehicleActiveAction(car, SpecialDriveActionTypes.Forward);
+            AIEvents.TriggerChangeDrivingStateEvent(carIndex, SpecialDriveActionTypes.Forward, 0f);
+            traffic.VehicleUpdateWaypoint(car);
+        }
+
         private void StopAtEnd()
         {
             TrafficManager.Instance.SetVehicleAction(car, SpecialDriveActionTypes.StopInPoint, true);
@@ -492,10 +501,7 @@ namespace DrivenRides
 
         private void Restart()
         {
-            var traffic = TrafficManager.Instance;
-            traffic.SetVehicleAction(car, SpecialDriveActionTypes.Forward, true);
-            traffic.ForceSetVehicleActiveAction(car, SpecialDriveActionTypes.Forward);
-            traffic.VehicleUpdateWaypoint(car);
+            Go();
             watch!.Restarted(unpausedSeconds);
             Log.Info("Watchdog: restart (" + watch.LastReason + ").");
         }
@@ -629,10 +635,9 @@ namespace DrivenRides
 
         private void ReleaseComplete()
         {
-            var traffic = TrafficManager.Instance;
             if (kind == Kind.PrivateDriver)
             {
-                if (OwnsCar) traffic.SetVehicleAction(car, SpecialDriveActionTypes.Forward, true);
+                if (OwnsCar) Go();
                 // As after a vanilla ride, the driver leaves the phone; non-instant, so the car drives off.
                 if (taxi is PrivateDriverVehicle pd && SmartphonePrivateDriverUI.CurrentVehicle == pd)
                     InstanceBehavior<UIs>.Instance.smartphoneUI.DismissPrivateDriver(true, null, false);
@@ -643,11 +648,8 @@ namespace DrivenRides
 
         private void ReleaseToTraffic()
         {
-            var traffic = TrafficManager.Instance;
-            traffic.SetVehicleAction(car, SpecialDriveActionTypes.Forward, true);
-            traffic.ForceSetVehicleActiveAction(car, SpecialDriveActionTypes.Forward);
             car.presetPath = null;
-            traffic.VehicleUpdateWaypoint(car);
+            Go();
         }
 
         private void ReleaseVanilla()
@@ -706,6 +708,7 @@ namespace DrivenRides
         {
             if (!cameraSet) return;
             cameraSet = false;
+            if (manager == null) return;
             try { SetGameCamera(PedestrianCameraField?.GetValue(manager)); }
             catch (Exception ex) { Log.Error("Camera restore: " + ex.Message); }
         }
@@ -725,6 +728,7 @@ namespace DrivenRides
         private void RestoreScale()
         {
             if (!scaleSet) return;
+            if (InstanceBehavior<UIs>.Instance == null || InstanceBehavior<UIs>.Instance.gameSpeed == null) { Time.timeScale = 1f; scaleSet = false; return; }
             // While paused the game's own tween owns the scale and sets it back on unpause.
             if (InstanceBehavior<UIs>.Instance.gameSpeed.Paused) return;
             Time.timeScale = 1f;
