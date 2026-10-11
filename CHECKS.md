@@ -1,5 +1,41 @@
-# In-game checks: Milestone 0 (spike)
+# In-game checks: Milestone 0 (spike, 0.1.0)
 
-Disposable save only. Food Trucks parked, other gameplay mods off. Copy the log with `tools/fetch-log-remote.sh <label>` after the session.
+Disposable save only, never the series save. Food Trucks parked (`tools/park-remote.sh park` in the Food Trucks repo), other gameplay mods off, so the log is clean. You need a private driver contract with at least one vehicle and some money for taxis. After the session, copy the log with `tools/fetch-log-remote.sh spike` before starting the game again.
 
-To be written when the spike is built (see `docs/implementation-plan.md`, Milestone 0).
+Every line in the log starts with `[Mod:Driven Rides]`. At startup it should list six `Patch ...: Active` lines and the options; at city load, `City ready` and `Debug keys ready`.
+
+## 1. Lifecycle (private driver)
+
+Call the driver with **L** (outdoors), then **L** again: you walk to the car and the map opens. Pick a destination 1 to 2 km away.
+
+1. A normal ride. You ride hidden in the car, the camera follows it, a panel at the top shows the distance left and **Skip**. At the end the screen fades and you stand at the destination's door, on foot, with controls. The driver leaves the phone, as after a vanilla ride.
+2. Skip in the middle of a ride: fade, you're at the door, the clock has moved to the vanilla arrival time.
+3. Pause (Esc) and unpause during a ride: the car stops and goes on; the speed returns to 3x after unpausing.
+4. Save during a ride, then load that save: you stand where you got in, on foot.
+5. **Ctrl+Alt+Shift+K** during a ride (removes the car): the ride finishes the vanilla way.
+6. **Ctrl+Alt+Shift+V** during a ride (hospital): the ride is cancelled and the hospital takes over as usual.
+7. Click a cargo item's Read during a ride: refused with "Not during a ride."
+8. **Ctrl+Alt+Shift+U** during a ride (exception): you get out where the car is, on foot, and taxis still work.
+9. Quit to the main menu during a ride and load again: you're on foot; the log says `Ride cancelled: game unloaded`.
+10. **Ctrl+Alt+Shift+J** during a ride (fake save change): the log says `Ride cancelled: the save changed`; you get out on foot with controls.
+11. A second ride straight after any of the above works.
+
+After each: you can walk, the clock runs at normal speed, the game speed isn't stuck at 3x, and the log shows `Ride finished` or `Ride cancelled`.
+
+## 2. Routes
+
+Press **Ctrl+Alt+Shift+G** once outdoors (graph stats and ten planning times into the log). Then ten driver rides of 1 to 4 km across Manhattan. For each, note whether it arrived on its own or ended through the watchdog (`Ride ending: Vanilla (watchdog...)`), and anything odd (car turning off the route, stopping in the middle of a junction, driving into things).
+
+## 3. Speed
+
+Three of the rides at 1x and 2x as well (Mods options, Driven Rides, Ride speed). Note the frame rate at 3x compared with 1x.
+
+## 4. Camera
+
+Which camera follows (the log's `Camera: vehicle camera follows ...` line), and whether it's smooth at 3x.
+
+## 5. Shortcut
+
+L calls the driver outdoors and inside a building; L again (outdoors) walks to it; L does nothing while typing in a text field and during a ride.
+
+Pass: lifecycle all clean, at least 9 of 10 routes arrive, every failed route ends through the vanilla finish.

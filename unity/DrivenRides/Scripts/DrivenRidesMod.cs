@@ -1,14 +1,17 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BAModAPI;
+using UI.Notification;
 using UnityEngine;
 
 [assembly: RegisterModClass(typeof(DrivenRides.DrivenRidesMod))]
+[assembly: RegisterModClass(typeof(DrivenRides.DrivenRidesCity))]
 
 namespace DrivenRides
 {
-    // Loads once at game start.
+    // Loads once at game start: the options page and the Harmony patches.
     [ModEntryOnInitializationLoad]
     public sealed class DrivenRidesMod : IModBigAmbitions
     {
@@ -20,10 +23,19 @@ namespace DrivenRides
         {
             Log.Init(context.Logger);
             Log.Info($"Version {Version} loading.");
+            try { Options.Register(context.ModId); }
+            catch (Exception ex) { Log.Error("Options: " + ex); }
+            Patches.Apply();
             return Task.CompletedTask;
         }
 
-        public Task OnUnloadAsync() => Task.CompletedTask;
+        public Task OnUnloadAsync()
+        {
+            Ride.CancelActive("mod unload");
+            Patches.Remove();
+            Options.Unregister();
+            return Task.CompletedTask;
+        }
     }
 
     internal static class Log
@@ -46,5 +58,18 @@ namespace DrivenRides
         }
 
         public static void Error(Exception exception) => Error(exception.ToString());
+    }
+
+    internal static class Notice
+    {
+        public static void Show(string message)
+        {
+            try
+            {
+                Notifications.Show(NotificationType.Info, "drivenrides:notification",
+                    new Dictionary<string, string> { { "message", message } }, 5f, trackOnSaveGame: false);
+            }
+            catch (Exception ex) { Log.Error("Notice: " + ex.Message); }
+        }
     }
 }

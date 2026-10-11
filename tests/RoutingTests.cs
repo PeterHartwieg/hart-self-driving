@@ -1,0 +1,309 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using DrivenRides.Core.Routing;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace DrivenRides.Core.Tests;
+
+public sealed class RoutingTests
+{
+    private readonly ITestOutputHelper output;
+    public RoutingTests(ITestOutputHelper output) => this.output = output;
+
+    internal static LaneGraph Graph(Vec3[] points, int[][] edges, float[]? speeds = null, bool[]? intersections = null, int[]? masks = null, float cellSize = 50)
+        => new(points, edges, masks ?? Enumerable.Repeat(1, points.Length).ToArray(),
+            intersections ?? new bool[points.Length], speeds ?? Enumerable.Repeat(36f, points.Length).ToArray(), cellSize);
+
+    private static readonly Vec3[] ForkPoints = { new(0, 0, 0), new(10, 0, 0), new(10, 0, 10), new(20, 0, 0) };
+    private static readonly int[][] ForkEdges = { new[] { 1, 2 }, new[] { 3 }, new[] { 3 }, Array.Empty<int>() };
+    private static RouteRequest Request(int start, params Goal[] goals) => new() { Start = start, Goals = goals };
+    private static Route Found(LaneGraph graph, RouteRequest request)
+    {
+        var job = RoutePlanner.Plan(graph, request, int.MaxValue);
+        Assert.Equal(PlanStatus.Found, job.Status);
+        return Assert.IsType<Route>(job.Result);
+    }
+
+    [Fact]
+    public void VectorDistancesAndOperators()
+    {
+        var a = new Vec3(1, 2, 3);
+        var b = new Vec3(4, 6, 3);
+        Assert.Equal(5, Vec3.Distance(a, b));
+        Assert.Equal(3, Vec3.HorizontalDistance(a, b));
+        Assert.Equal(new Vec3(3, 4, 0), b - a);
+        Assert.Equal(new Vec3(5, 8, 6), a + b);
+        Assert.Equal(new Vec3(2, 4, 6), a * 2);
+        Assert.Equal(a * 2, 2 * a);
+    }
+
+    [Fact]
+    public void GraphCleansEdgesBuildsIncomingAndCopiesInputs()
+    {
+        var points = (Vec3[])ForkPoints.Clone();
+        int[][] edges = { new[] { -1, 4, 0, 1, 1, 2 }, new[] { 3 }, new[] { 3 }, new[] { 3 } };
+        int[] masks = { 1, 1, int.MinValue, 0 };
+        bool[] intersections = { false, true, false, false };
+        float[] speeds = { 0, -10, 72, 36 };
+        var graph = Graph(points, edges, speeds, intersections, masks);
+        points[0] = new Vec3(999, 0, 0);
+        edges[0][3] = 3;
+        masks[0] = 0;
+        intersections[1] = false;
+        speeds[2] = 1;
+        Assert.Equal(2, graph.DroppedEdges);
+        Assert.Equal(new[] { 1, 2 }, graph.Successors(0));
+        Assert.Equal(new[] { 1, 2 }, graph.Predecessors(3));
+        Assert.Empty(graph.Successors(3));
+        Assert.Equal(ForkPoints[0], graph.Position(0));
+        Assert.True(graph.IsIntersection(1));
+        Assert.Equal(LaneGraph.DefaultSpeedMs, graph.SpeedMs(0));
+        Assert.Equal(LaneGraph.DefaultSpeedMs, graph.SpeedMs(1));
+        Assert.Equal(20, graph.TopSpeedMs);
+        Assert.True(graph.Allows(0, 0));
+        Assert.True(graph.Allows(2, 31));
+        Assert.False(graph.Allows(2, 32));
+        Assert.False(graph.Allows(0, -1));
+    }
+
+    [Fact]
+    public void GraphValidatesArrayLengthsCellsAndEmptyGraph()
+    {
+        Assert.Throws<ArgumentException>(() => new LaneGraph(new Vec3[1], Array.Empty<int[]>(), new int[1], new bool[1], new float[1]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Graph(ForkPoints, ForkEdges, cellSize: 0));
+        Assert.Throws<ArgumentException>(() => Graph(ForkPoints, new int[][] { null!, new[] { 3 }, new[] { 3 }, Array.Empty<int>() }));
+        var empty = Graph(Array.Empty<Vec3>(), Array.Empty<int[]>());
+        Assert.Equal(0, empty.Count);
+        Assert.Equal(LaneGraph.DefaultSpeedMs, empty.TopSpeedMs);
+        Assert.Equal(-1, empty.Nearest(default, 10));
+    }
+
+    [Fact]
+    public void GridQueriesUseHorizontalRadiusIncludingCellBoundariesAndNegativeCoordinates()
+    {
+        Vec3[] points = { new(-50, 100, -50), new(-49, 0, -50), new(0, 0, 0), new(50, 0, 0) };
+        var graph = Graph(points, Enumerable.Range(0, 4).Select(_ => Array.Empty<int>()).ToArray());
+        Assert.Equal(new[] { 0, 1 }, graph.Near(new Vec3(-50, 0, -50), 1).OrderBy(i => i));
+        Assert.Equal(new[] { 2, 3 }, graph.Near(default, 50).OrderBy(i => i));
+        Assert.Equal(0, graph.Nearest(new Vec3(-50, 0, -50), 0));
+        Assert.Equal(1, graph.Nearest(new Vec3(-50, 0, -50), 2, i => i != 0));
+        Assert.Equal(-1, graph.Nearest(new Vec3(100, 0, 0), 10));
+        Assert.Equal(4, graph.Near(default, 1_000_000).Count());
+        Assert.Throws<ArgumentOutOfRangeException>(() => graph.Near(default, -1).ToList());
+    }
+
+    [Fact]
+    public void PlannerChoosesShortestAtEqualSpeedsAndFasterWhenSpeedsDiffer()
+    {
+        var request = Request(0, new Goal(3, 0));
+        var shortest = Found(Graph(ForkPoints, ForkEdges), request);
+        Assert.Equal(new[] { 0, 1, 3 }, shortest.Waypoints);
+        Assert.Equal(20, shortest.LengthMetres);
+        Assert.Equal(2, shortest.DriveSeconds, 5);
+        var faster = Found(Graph(ForkPoints, ForkEdges, new float[] { 36, 3.6f, 108, 36 }), request);
+        Assert.Equal(new[] { 0, 2, 3 }, faster.Waypoints);
+        Assert.True(faster.LengthMetres > shortest.LengthMetres);
+        Assert.Equal((float)(2 * Math.Sqrt(200) / 20), faster.DriveSeconds, 5);
+    }
+
+    [Fact]
+    public void IntersectionPenaltyOnlyAppliesOnEntryFromOutside()
+    {
+        var graph = Graph(ForkPoints, ForkEdges, intersections: new[] { false, true, false, false });
+        var request = Request(0, new Goal(3, 0));
+        request.IntersectionPenaltySeconds = 0;
+        Assert.Equal(new[] { 0, 1, 3 }, Found(graph, request).Waypoints);
+        request.IntersectionPenaltySeconds = 4;
+        Assert.Equal(new[] { 0, 2, 3 }, Found(graph, request).Waypoints);
+        Vec3[] chain = { new(0, 0, 0), new(10, 0, 0), new(20, 0, 0), new(30, 0, 0) };
+        var through = Graph(chain, new[] { new[] { 1 }, new[] { 2 }, new[] { 3 }, Array.Empty<int>() }, intersections: new[] { false, true, true, false });
+        Assert.Equal(7, Found(through, Request(0, new Goal(3, 0))).DriveSeconds, 5);
+    }
+
+    [Fact]
+    public void DisabledAndVehicleFiltersDetourAndExemptStart()
+    {
+        var request = Request(0, new Goal(3, 0));
+        var checkedNodes = new List<int>();
+        request.IsDisabled = i => { checkedNodes.Add(i); return i == 0 || i == 1; };
+        var graph = Graph(ForkPoints, ForkEdges, masks: new[] { 0, 1, 1, 1 });
+        Assert.Equal(new[] { 0, 2, 3 }, Found(graph, request).Waypoints);
+        Assert.DoesNotContain(0, checkedNodes);
+        request.IsDisabled = null;
+        graph = Graph(ForkPoints, ForkEdges, masks: new[] { 0, 2, 1, 3 });
+        Assert.Equal(new[] { 0, 2, 3 }, Found(graph, request).Waypoints);
+        request.VehicleType = 1;
+        Assert.Equal(new[] { 0, 1, 3 }, Found(graph, request).Waypoints);
+    }
+
+    [Fact]
+    public void LiveDisableCallbackIsReadDuringLaterSteps()
+    {
+        Vec3[] points = { new(0, 0, 0), new(10, 0, 0), new(20, 0, 0) };
+        var graph = Graph(points, new[] { new[] { 1 }, new[] { 2 }, Array.Empty<int>() });
+        bool disabled = false;
+        var request = Request(0, new Goal(2, 0));
+        request.IsDisabled = i => disabled && i == 2;
+        var job = RoutePlanner.Plan(graph, request, 1);
+        Assert.Equal(PlanStatus.Running, job.Status);
+        disabled = true;
+        Assert.Equal(PlanStatus.NoPath, job.Step(10));
+    }
+
+    [Fact]
+    public void DirectedLanesAndBlockedGoalReturnNoPath()
+    {
+        var graph = Graph(ForkPoints, ForkEdges);
+        var job = RoutePlanner.Plan(graph, Request(3, new Goal(0, 0)), 100);
+        Assert.Equal(PlanStatus.NoPath, job.Status);
+        Assert.Null(job.Result);
+        var request = Request(0, new Goal(3, 0));
+        request.IsDisabled = i => i == 3;
+        Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, request, 100).Status);
+    }
+
+    [Fact]
+    public void VirtualTerminalMinimizesDrivePlusWalkAndDeduplicatesGoals()
+    {
+        Vec3[] points = { new(0, 0, 0), new(10, 0, 0), new(100, 0, 0) };
+        var graph = Graph(points, new[] { new[] { 1, 2 }, Array.Empty<int>(), Array.Empty<int>() });
+        var route = Found(graph, Request(0, new Goal(1, 20), new Goal(2, 3), new Goal(2, 0), new Goal(99, 0)));
+        Assert.Equal(new[] { 0, 2 }, route.Waypoints);
+        Assert.Equal(2, route.GoalIndex);
+        Assert.Equal(10, route.DriveSeconds);
+        Assert.Equal(0, route.WalkSeconds);
+        var startGoal = Found(graph, Request(0, new Goal(0, 100), new Goal(1, 0)));
+        Assert.Equal(1, startGoal.GoalIndex);
+        var justStart = Found(graph, Request(0, new Goal(0, 2)));
+        Assert.Equal(new[] { 0 }, justStart.Waypoints);
+        Assert.Equal(0, justStart.DriveSeconds);
+        Assert.Equal(0, justStart.LengthMetres);
+        Assert.Equal(2, justStart.WalkSeconds);
+    }
+
+    [Fact]
+    public void StartGoalIsAllowedDespiteVehicleAndDisabledFilters()
+    {
+        var graph = Graph(new[] { new Vec3(0, 0, 0) }, new[] { Array.Empty<int>() }, masks: new[] { 0 });
+        var request = Request(0, new Goal(0, 0));
+        request.IsDisabled = _ => throw new InvalidOperationException("Start must not be checked");
+        Assert.Equal(new[] { 0 }, Found(graph, request).Waypoints);
+    }
+
+    [Fact]
+    public void InvalidRequestsAndDiscardedGoalIndices()
+    {
+        var graph = Graph(ForkPoints, ForkEdges);
+        Assert.Equal(PlanStatus.InvalidRequest, RoutePlanner.Begin(graph, Request(-1, new Goal(3, 0))).Status);
+        Assert.Equal(PlanStatus.InvalidRequest, RoutePlanner.Begin(graph, Request(4, new Goal(3, 0))).Status);
+        Assert.Equal(PlanStatus.InvalidRequest, RoutePlanner.Begin(graph, Request(0)).Status);
+        Assert.Equal(PlanStatus.InvalidRequest, RoutePlanner.Begin(graph, Request(0, new Goal(-1, 0), new Goal(4, 0))).Status);
+        Assert.Equal(1, Found(graph, Request(0, new Goal(-1, 0), new Goal(3, 0))).GoalIndex);
+        Assert.Equal(PlanStatus.InvalidRequest, RoutePlanner.Begin(graph, Request(0, new Goal(3, -1))).Status);
+        var invalidPenalty = Request(0, new Goal(3, 0));
+        invalidPenalty.IntersectionPenaltySeconds = float.NaN;
+        Assert.Equal(PlanStatus.InvalidRequest, RoutePlanner.Begin(graph, invalidPenalty).Status);
+    }
+
+    [Fact]
+    public void SteppingMatchesOneShotAndPreservesExpansionBudget()
+    {
+        var graph = Grid(20, 20, 7);
+        var request = Request(0, new Goal(399, 1), new Goal(380, 30));
+        var whole = RoutePlanner.Plan(graph, request, int.MaxValue);
+        var stepped = RoutePlanner.Begin(graph, request);
+        Assert.Equal(PlanStatus.Running, stepped.Step(0));
+        Assert.Equal(0, stepped.Expanded);
+        while (stepped.Status == PlanStatus.Running)
+        {
+            int before = stepped.Expanded;
+            stepped.Step(3);
+            Assert.InRange(stepped.Expanded - before, 0, 3);
+        }
+        Assert.Equal(PlanStatus.Found, stepped.Status);
+        Assert.Equal(whole.Result!.Waypoints, stepped.Result!.Waypoints);
+        Assert.Equal(whole.Result.GoalIndex, stepped.Result.GoalIndex);
+        Assert.Equal(whole.Result.DriveSeconds, stepped.Result.DriveSeconds);
+        Assert.Equal(whole.Expanded, stepped.Expanded);
+        Assert.Equal(PlanStatus.Found, stepped.Step(1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => stepped.Step(-1));
+    }
+
+    [Fact]
+    public void PlannerMatchesIndependentDijkstraOnRandomDirectedStreets()
+    {
+        for (int seed = 0; seed < 12; seed++)
+        {
+            var graph = Grid(10, 10, seed);
+            var request = Request(seed, new Goal(99, 0), new Goal(89, 4), new Goal(90, 8));
+            var route = Found(graph, request);
+            double expected = Dijkstra(graph, request);
+            Assert.InRange(Math.Abs(route.DriveSeconds + route.WalkSeconds - expected), 0, 0.0001);
+        }
+    }
+
+    [Theory]
+    [InlineData(100, 100, 9999)]
+    [InlineData(316, 317, 31700)]
+    public void LargeRandomGridPerformanceSmoke(int width, int height, int goal)
+    {
+        var graph = Grid(width, height, 42);
+        var request = Request(0, new Goal(goal, 0));
+        var watch = Stopwatch.StartNew();
+        var route = Found(graph, request);
+        watch.Stop();
+        output.WriteLine($"{graph.Count:N0} waypoints, {route.LengthMetres:N0} m route: {watch.Elapsed.TotalMilliseconds:F2} ms");
+        Assert.Equal(0, route.Waypoints[0]);
+        Assert.Equal(goal, route.Waypoints[route.Waypoints.Count - 1]);
+    }
+
+    private static LaneGraph Grid(int width, int height, int seed)
+    {
+        int count = width * height;
+        var random = new Random(seed);
+        var positions = new Vec3[count];
+        var edges = new int[count][];
+        var speeds = new float[count];
+        var intersections = new bool[count];
+        for (int z = 0; z < height; z++)
+            for (int x = 0; x < width; x++)
+            {
+                int i = z * width + x;
+                positions[i] = new Vec3(x * 20, 0, z * 20);
+                speeds[i] = 30 + random.Next(50);
+                intersections[i] = x % 5 == 0 && z % 5 == 0;
+                var next = new List<int>();
+                if (x + 1 < width) next.Add(i + 1);
+                if (z + 1 < height) next.Add(i + width);
+                if (x > 0 && random.Next(2) == 0) next.Add(i - 1);
+                if (z > 0 && random.Next(2) == 0) next.Add(i - width);
+                edges[i] = next.ToArray();
+            }
+        return Graph(positions, edges, speeds, intersections);
+    }
+
+    private static double Dijkstra(LaneGraph graph, RouteRequest request)
+    {
+        var cost = Enumerable.Repeat(double.PositiveInfinity, graph.Count).ToArray();
+        var queue = new PriorityQueue<int, double>();
+        cost[request.Start] = 0;
+        queue.Enqueue(request.Start, 0);
+        while (queue.TryDequeue(out int i, out double current))
+        {
+            if (current != cost[i]) continue;
+            foreach (int j in graph.Successors(i))
+            {
+                double next = current + Vec3.Distance(graph.Position(i), graph.Position(j)) /
+                    (((double)graph.SpeedMs(i) + graph.SpeedMs(j)) / 2);
+                if (!graph.IsIntersection(i) && graph.IsIntersection(j)) next += request.IntersectionPenaltySeconds;
+                if (next >= cost[j]) continue;
+                cost[j] = next;
+                queue.Enqueue(j, next);
+            }
+        }
+        return request.Goals.Min(goal => cost[goal.Waypoint] + goal.WalkSeconds);
+    }
+}

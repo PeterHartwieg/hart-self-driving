@@ -1,0 +1,127 @@
+#nullable enable
+using System;
+using System.Collections;
+using System.Linq;
+using BigAmbitions.DayNightCycle;
+using Helpers;
+using HarmonyLib;
+using Player.HUD.SmartphoneUI;
+using PlayerActivity;
+using Timemachine;
+
+namespace DrivenRides
+{
+    // Harmony patches. Each one logs an Active or Not active line at startup.
+    internal static class Patches
+    {
+        private const string HarmonyId = "drivenrides.mod";
+        private static Harmony? harmony;
+
+        public static void Apply()
+        {
+            if (harmony != null) return;
+            harmony = new Harmony(HarmonyId);
+            Log.Info($"Harmony {typeof(Harmony).Assembly.GetName().Version}.");
+
+            // The ride itself: replaces the iterator vanilla's TravelTo starts, after its checks and payment.
+            Patch(typeof(TaxiSystem), "TravelCoroutine", new[] { typeof(EntityController), typeof(float) }, nameof(TravelPrefix), prefix: true);
+            // The private driver's own Update would stop the car every frame while the mod drives it.
+            Patch(typeof(PrivateDriverVehicle), "Update", Type.EmptyTypes, nameof(DriverUpdatePrefix), prefix: true);
+            // No tick passes vanilla's ride time while a ride owns the clock.
+            Patch(typeof(GameManager), "RunMainGameTick", new[] { typeof(float) }, nameof(TickPrefix), prefix: true);
+            // A save during a ride puts the player back where they got in.
+            Patch(typeof(PlayerHelper), "SaveCurrentPosition", Type.EmptyTypes, nameof(SavePositionPostfix));
+            // No activities (reading, and with it fast-forward and the activity time machine) during a ride.
+            Patch(typeof(PlayerActivityUI), "CanStartActivity", new[] { typeof(bool), typeof(bool) }, nameof(ActivityPrefix), prefix: true);
+            // A time machine the ride didn't start cancels the ride first. The one-argument overload forwards here.
+            Patch(typeof(TimeMachine), "StartTimeMachine", new[] { typeof(Timestamp), typeof(bool), typeof(string), typeof(bool), typeof(bool) }, nameof(TimeMachinePrefix), prefix: true);
+            // The driver shortcut remembers the vehicle called from the phone too.
+            Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
+        }
+
+        public static void Remove()
+        {
+            harmony?.UnpatchAll(HarmonyId);
+            harmony = null;
+        }
+
+        private static void Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false)
+        {
+            // Overloads need their arguments in the log line to tell them apart.
+            var name = $"{type?.Name ?? "(type not found)"}.{method}{(args != null && args.Length > 0 ? "(" + string.Join(", ", args.Select(a => a.Name)) + ")" : "")}";
+            if (type == null)
+            {
+                Log.Error($"Patch {name}: Not active, type not found.");
+                return;
+            }
+            try
+            {
+                var original = AccessTools.Method(type, method, args);
+                if (original == null)
+                {
+                    Log.Error($"Patch {name}: Not active, method not found.");
+                    return;
+                }
+                var patch = new HarmonyMethod(typeof(Patches), handler);
+                harmony!.Patch(original, prefix: prefix ? patch : null, postfix: prefix ? null : patch);
+                Log.Info($"Patch {name}: Active.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Patch {name}: Not active, {ex.Message}");
+            }
+        }
+
+        private static bool TravelPrefix(TaxiSystem __instance, EntityController target, float minutes, ref IEnumerator __result)
+        {
+            var ride = Ride.TryCreate(__instance, target, minutes);
+            if (ride == null) return true;
+            __result = ride;
+            return false;
+        }
+
+        private static bool DriverUpdatePrefix(PrivateDriverVehicle __instance)
+        {
+            try { return !Ride.OwnsCarObject(__instance.gameObject); }
+            catch { return true; }
+        }
+
+        private static void TickPrefix(ref float deltaTimeWithMultiplier)
+        {
+            try { Ride.CapTick(ref deltaTimeWithMultiplier); }
+            catch (Exception ex) { Log.Error("Tick cap: " + ex.Message); }
+        }
+
+        private static void SavePositionPostfix()
+        {
+            try
+            {
+                if (!Ride.OwnsPlayer || SaveGameManager.Current == null) return;
+                SaveGameManager.Current.LastPlayerPosition = Ride.PickupPosition;
+                SaveGameManager.Current.LastPlayerRotation = Ride.PickupRotation;
+                Log.Info("Saved during a ride: the save has the pickup point.");
+            }
+            catch (Exception ex) { Log.Error("Save position: " + ex.Message); }
+        }
+
+        private static bool ActivityPrefix(bool showNotification, ref bool __result)
+        {
+            if (!Ride.OwnsPlayer) return true;
+            // Skipping the method also skips vanilla's notice, so show one, or the click looks dead.
+            if (showNotification) Notice.Show("Not during a ride.");
+            __result = false;
+            return false;
+        }
+
+        private static void TimeMachinePrefix()
+        {
+            try { Ride.OnTimeMachineStarting(); }
+            catch (Exception ex) { Log.Error("Time machine: " + ex.Message); }
+        }
+
+        private static void DriverCalledPostfix(VehicleInstance vehicleInstance)
+        {
+            if (SmartphonePrivateDriverUI.CurrentVehicle != null) DriverShortcut.Remember(vehicleInstance);
+        }
+    }
+}
