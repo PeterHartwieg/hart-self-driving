@@ -193,7 +193,11 @@ namespace DrivenRides
                 var goals = GoalPicker.Pick(graph, GleyGraph.ToVec(destination), vehicleType);
                 if (goals.Count == 0) return Vanilla("no lane waypoint near the destination");
                 var route = Plan(graph, start, goals, vehicleType, out var planMs, out var why);
-                if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
+                if (route == null)
+                {
+                    Log.Info("No route: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
+                    return Vanilla($"no route ({why}, {planMs} ms)");
+                }
 
                 if (kind == Kind.Stand)
                 {
@@ -228,6 +232,8 @@ namespace DrivenRides
         private static IEnumerator? Vanilla(string reason)
         {
             Log.Info("Vanilla ride: " + reason + ".");
+            // Spike builds say why on screen too.
+            Notice.Show("Driven Rides: vanilla ride, " + reason + ".");
             return null;
         }
 

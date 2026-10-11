@@ -140,6 +140,20 @@ public sealed class RoutingTests
     }
 
     [Fact]
+    public void DisallowedWaypointsAreAPenaltyNotAWall()
+    {
+        // Only a lane not allowed for the vehicle leads on: Gley would drive it, so the planner must too.
+        Vec3[] chain = { new(0, 0, 0), new(10, 0, 0), new(20, 0, 0) };
+        var graph = Graph(chain, new[] { new[] { 1 }, new[] { 2 }, Array.Empty<int>() }, masks: new[] { 1, 2, 1 });
+        var request = Request(0, new Goal(2, 0));
+        var route = Found(graph, request);
+        Assert.Equal(new[] { 0, 1, 2 }, route.Waypoints);
+        Assert.True(route.DriveSeconds >= 60);
+        request.DisallowedPenaltySeconds = float.PositiveInfinity;
+        Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, request, int.MaxValue).Status);
+    }
+
+    [Fact]
     public void LiveDisableCallbackIsReadDuringLaterSteps()
     {
         Vec3[] points = { new(0, 0, 0), new(10, 0, 0), new(20, 0, 0) };

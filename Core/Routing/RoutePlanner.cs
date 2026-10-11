@@ -17,6 +17,9 @@ namespace DrivenRides.Core.Routing
         public int VehicleType;
         public Func<int, bool>? IsDisabled;
         public float IntersectionPenaltySeconds = 4f;
+        // Entering a waypoint not allowed for the vehicle type costs this much instead of being impossible: Gley's
+        // own AI falls back to such lanes when no allowed one leads on. PositiveInfinity makes the filter hard.
+        public float DisallowedPenaltySeconds = 60f;
     }
 
     public sealed class Route
@@ -55,6 +58,7 @@ namespace DrivenRides.Core.Routing
         private readonly LaneGraph graph;
         private readonly int start, vehicleType;
         private readonly float penalty;
+        private readonly float disallowedPenalty;
         private readonly Func<int, bool>? disabled;
         private readonly Dictionary<int, (Goal Goal, int Index)> goals = new Dictionary<int, (Goal, int)>();
         private readonly List<Vec3> goalPositions = new List<Vec3>();
@@ -71,12 +75,13 @@ namespace DrivenRides.Core.Routing
             start = request.Start;
             vehicleType = request.VehicleType;
             penalty = request.IntersectionPenaltySeconds;
+            disallowedPenalty = request.DisallowedPenaltySeconds;
             disabled = request.IsDisabled;
             costs = new double[graph.Count];
             parents = new int[graph.Count];
             Status = PlanStatus.InvalidRequest;
             if (start < 0 || start >= graph.Count || request.Goals == null || vehicleType < 0 || vehicleType >= 32 ||
-                !FiniteNonnegative(penalty)) return;
+                !FiniteNonnegative(penalty) || float.IsNaN(disallowedPenalty) || disallowedPenalty < 0) return;
             for (int i = 0; i < request.Goals.Count; i++)
             {
                 Goal goal = request.Goals[i];
@@ -136,9 +141,12 @@ namespace DrivenRides.Core.Routing
                 for (int k = 0; k < successors.Count; k++)
                 {
                     int j = successors[k];
-                    if (j != start && (!graph.Allows(j, vehicleType) || disabled?.Invoke(j) == true)) continue;
+                    if (j != start && disabled?.Invoke(j) == true) continue;
+                    bool disallowed = j != start && !graph.Allows(j, vehicleType);
+                    if (disallowed && float.IsPositiveInfinity(disallowedPenalty)) continue;
                     double cost = entry.Cost + Vec3.Distance(graph.Position(i), graph.Position(j)) /
                         (((double)graph.SpeedMs(i) + graph.SpeedMs(j)) / 2);
+                    if (disallowed) cost += disallowedPenalty;
                     if (!graph.IsIntersection(i) && graph.IsIntersection(j)) cost += penalty;
                     if (cost >= costs[j]) continue;
                     costs[j] = cost;

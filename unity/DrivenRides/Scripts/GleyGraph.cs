@@ -35,6 +35,44 @@ namespace DrivenRides
 
         public static Vec3 ToVec(Vector3 v) => new Vec3(v.x, v.y, v.z);
 
+        // Why a plan found no route: what the start leads to, and how much of the graph and how many goals are
+        // reachable with no filters, with only the disabled filter, and with only the vehicle filter.
+        public static string Diagnose(LaneGraph g, int start, IReadOnlyList<Goal> goals, int vehicleType)
+        {
+            var goalSet = new HashSet<int>();
+            foreach (var goal in goals) goalSet.Add(goal.Waypoint);
+            var disabled = 0;
+            for (var i = 0; i < g.Count; i++) if (IsDisabled(i)) disabled++;
+            string Reach(Func<int, bool> blocked)
+            {
+                var seen = new bool[g.Count];
+                var queue = new Queue<int>();
+                seen[start] = true;
+                queue.Enqueue(start);
+                int count = 0, goalsReached = 0;
+                while (queue.Count > 0)
+                {
+                    var n = queue.Dequeue();
+                    count++;
+                    if (goalSet.Contains(n)) goalsReached++;
+                    foreach (var m in g.Successors(n))
+                        if (!seen[m] && !blocked(m)) { seen[m] = true; queue.Enqueue(m); }
+                }
+                return $"{count} waypoints, {goalsReached}/{goalSet.Count} goals";
+            }
+            var successors = g.Successors(start);
+            return $"start {start} (mask {MaskOf(g, start)}, {successors.Count} successors: {string.Join(" ", successors)}), vehicle type {vehicleType}, " +
+                   $"{disabled} waypoints disabled; reachable with no filter: {Reach(_ => false)}; disabled filter only: {Reach(IsDisabled)}; " +
+                   $"vehicle filter only: {Reach(i => !g.Allows(i, vehicleType))}";
+        }
+
+        private static string MaskOf(LaneGraph g, int i)
+        {
+            var bits = new List<string>();
+            for (var t = 0; t < 4; t++) if (g.Allows(i, t)) bits.Add(t.ToString());
+            return bits.Count == 0 ? "none" : string.Join("+", bits);
+        }
+
         private static bool Ensure()
         {
             var current = CurrentSceneData.GetSceneInstance();
@@ -50,6 +88,8 @@ namespace DrivenRides
             var intersection = new bool[n];
             var speed = new float[n];
             var misplaced = 0;
+            var noType = 0;
+            var listsDiffer = 0;
             for (var i = 0; i < n; i++)
             {
                 var w = all[i];
@@ -57,17 +97,24 @@ namespace DrivenRides
                 if (w.listIndex != i) misplaced++;
                 positions[i] = ToVec(w.position);
                 neighbors[i] = w.neighbors != null ? w.neighbors.ToArray() : Array.Empty<int>();
-                var mask = 0;
+                // Gley's AI reads allowedAgents; allowedCars is the same list as an enum. Both are read, in case the
+                // scene data filled only one of them.
+                var agents = 0;
+                if (w.allowedAgents != null)
+                    foreach (var type in w.allowedAgents) if (type >= 0 && type < 32) agents |= 1 << type;
+                var cars = 0;
                 if (w.allowedCars != null)
-                    foreach (var type in w.allowedCars) mask |= 1 << (int)type;
-                allowed[i] = mask;
+                    foreach (var type in w.allowedCars) cars |= 1 << (int)type;
+                if (agents != cars) listsDiffer++;
+                allowed[i] = agents | cars;
+                if (allowed[i] == 0) noType++;
                 intersection[i] = !TrafficManager.IsNotIntersection(w);
                 speed[i] = w.maxSpeed;
             }
             graph = new LaneGraph(positions, neighbors, allowed, intersection, speed);
             waypoints = all;
             scene = current;
-            Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
+            Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
             return true;
         }
     }
