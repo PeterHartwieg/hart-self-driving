@@ -73,6 +73,7 @@ namespace DrivenRides
         private List<int> path;
         // Path positions of added turns (entry to exit, U-turns not included), driven at TurnSpeed.
         private readonly HashSet<int> slowPath = new HashSet<int>();
+
         private float appliedTop = -1f;
         private const float TurnSpeed = 25f;
         private RouteProgress? progress;
@@ -485,23 +486,39 @@ namespace DrivenRides
         {
             var graph = GleyGraph.Graph;
             slowPath.Clear();
-            var result = new List<int>(r.Waypoints.Count + 4);
-            for (var k = 0; k < r.Waypoints.Count; k++)
+            var w = r.Waypoints;
+            var result = new List<int>(w.Count + 4);
+            for (var k = 0; k < w.Count; k++)
             {
-                result.Add(r.Waypoints[k]);
-                if (graph == null || k + 1 >= r.Waypoints.Count) continue;
-                var vias = graph.TurnVias(r.Waypoints[k], r.Waypoints[k + 1]);
-                if (vias.Count > 0 && graph.UTurn(r.Waypoints[k]) != r.Waypoints[k + 1])
+                result.Add(w[k]);
+                if (graph == null || k + 1 >= w.Count) continue;
+                var vias = graph.TurnVias(w[k], w[k + 1]);
+                var uTurn = graph.UTurn(w[k]) == w[k + 1];
+                if (vias.Count > 0 && !uTurn)
                 {
                     // Spike 12's trace: an added left turn at 50 km/h came out 2.5 m wide, on the centre line.
                     for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);
                     foreach (var via in vias) { slowPath.Add(result.Count); result.Add(via); }
+                    // The car aims down the exit's lane, past its first two waypoints, so it comes out of the arc in
+                    // line with the lane instead of turning past 90 degrees towards the first one (spike 13).
+                    if (k + 3 < w.Count && Contains(graph.Successors(w[k + 1]), w[k + 2]) && Contains(graph.Successors(w[k + 2]), w[k + 3]))
+                    {
+                        slowPath.Add(result.Count);
+                        k += 2;
+                        continue;
+                    }
                     slowPath.Add(result.Count);
                     continue;
                 }
                 foreach (var via in vias) result.Add(via);
             }
             return result;
+        }
+
+        private static bool Contains(IReadOnlyList<int> list, int value)
+        {
+            for (var k = 0; k < list.Count; k++) if (list[k] == value) return true;
+            return false;
         }
 
         private static string GreenLightTime()
@@ -557,16 +574,38 @@ namespace DrivenRides
             PanelText = $"  {LeftMetres / 1000.0:0.0} km to go";
         }
 
-        // Sets the car driving forward in both of Gley's records. The AI keeps a list of actions; the physics keeps a
-        // driving state per car. A hard stop (the summon's StopNow, a crash) writes the physics state directly, and
-        // ForceSetVehicleActiveAction only tells the physics when the AI's action changes, which it doesn't if the AI
-        // already says Forward. So the state event goes out explicitly, as vanilla's DriveAway does.
+        // Takes off the stops that the summon, the arrival, a crash or the hold put on the car, and nothing else: a
+        // car ahead (StopInDistance, Follow) and a red light being obeyed stay, or the car drives into what is in front
+        // of it (spike 13: into the car ahead in its own lane right after boarding, when this cleared every action).
+        // Gley keeps two records: the AI's list of actions and the physics' driving state. A hard stop writes the
+        // driving state directly, and Gley only updates it when the AI's top action changes, so the top action is
+        // applied again explicitly.
+        private static readonly MethodInfo? NewActionMethod = AccessTools.Method(typeof(DrivingAI), "NewDriveActionArrived");
+        private static readonly MethodInfo? ApplyActionMethod = AccessTools.Method(typeof(DrivingAI), "ApplyAction");
+        private static readonly FieldInfo? CurrentActionField = AccessTools.Field(typeof(DrivingAI), "currentActiveAction");
+
         private void Go()
         {
             var traffic = TrafficManager.Instance;
-            traffic.SetVehicleAction(car, SpecialDriveActionTypes.Forward, true);
-            traffic.ForceSetVehicleActiveAction(car, SpecialDriveActionTypes.Forward);
-            AIEvents.TriggerChangeDrivingStateEvent(carIndex, SpecialDriveActionTypes.Forward, 0f);
+            var ai = DrivingAIField?.GetValue(traffic);
+            if (ai == null || NewActionMethod == null || ApplyActionMethod == null || CurrentActionField == null)
+            {
+                Log.Error("Go: Gley's DrivingAI methods not found.");
+                return;
+            }
+            var next = traffic.GetTargetWaypoint(carIndex);
+            var atRed = Options.TrafficLights && next != null && next.stop;
+            foreach (var action in new[] { SpecialDriveActionTypes.StopNow, SpecialDriveActionTypes.TempStop, SpecialDriveActionTypes.StopInPoint })
+            {
+                if (action == SpecialDriveActionTypes.StopInPoint && atRed) continue;
+                NewActionMethod.Invoke(ai, new object[] { carIndex, action, false });
+            }
+            if (CurrentActionField.GetValue(ai) is SpecialDriveActionTypes[] current && carIndex < current.Length)
+            {
+                // A value the AI never picks, so ApplyAction sees a change and sends the driving state.
+                current[carIndex] = SpecialDriveActionTypes.Destroyed;
+                ApplyActionMethod.Invoke(ai, new object[] { carIndex });
+            }
             traffic.VehicleUpdateWaypoint(car);
         }
 
@@ -858,10 +897,17 @@ namespace DrivenRides
         {
             if (kind == Kind.PrivateDriver)
             {
-                if (OwnsCar) Go();
+                var mine = OwnsCar;
                 // As after a vanilla ride, the driver leaves the phone; non-instant, so the car drives off.
                 if (taxi is PrivateDriverVehicle pd && SmartphonePrivateDriverUI.CurrentVehicle == pd)
                     InstanceBehavior<UIs>.Instance.smartphoneUI.DismissPrivateDriver(true, null, false);
+                // DriveAway restores the state saved when the player called the driver, a stop, so it stayed put
+                // (spike 13); vanilla never shows this because it removes the car. Send it on.
+                if (mine && car != null && car.gameObject.activeInHierarchy && car.GetIndex() == carIndex)
+                {
+                    car.presetPath = null;
+                    Go();
+                }
                 return;
             }
             if (OwnsCar) ReleaseToTraffic();

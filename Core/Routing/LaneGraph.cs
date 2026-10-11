@@ -210,7 +210,9 @@ namespace DrivenRides.Core.Routing
                     // A left turn goes on until almost level with the exit's lane (3 m short), past the oncoming lanes
                     // of the street it turns into: a swing wide then carries the car into lanes going its own way, not
                     // into the oncoming ones (spike 12: it corrected at the end of a left turn, just short of them).
-                    float radius = right ? Math.Min(Math.Abs(side), 9f) : 3f;
+                    // 5 m, about the car's turning circle: from 3 m short it turned past 90 degrees and corrected
+                    // back (spike 13). The ride also aims the car further down the exit's lane (Ride.Expand).
+                    float radius = right ? Math.Min(Math.Abs(side), 9f) : 5f;
                     int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _) : -1;
                     var via = straight >= 0 ? straight : ArcVia(i, dx, dz, x, ex, ez);
                     if (via >= 0) turnVia[(i, x)] = new[] { via };
