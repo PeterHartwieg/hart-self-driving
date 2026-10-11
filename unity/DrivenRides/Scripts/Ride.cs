@@ -625,7 +625,8 @@ namespace DrivenRides
             traffic.VehicleUpdateWaypoint(car);
         }
 
-        private const float BumpSeconds = 1.5f;
+        // Long enough not to keep pushing into a person or car that stopped it (spike 16).
+        private const float BumpSeconds = 3f;
         private float stopNowSeconds;
         private int loggedRed = -1;
 
@@ -712,6 +713,7 @@ namespace DrivenRides
         private (Transform Target, int PathIndex)? bridgeSkip;
         private readonly HashSet<Streets.BridgeTriggerController> skipped = new HashSet<Streets.BridgeTriggerController>();
         private Streets.BridgeTriggerController[]? bridges;
+        private const float MinBridgeSkipMetres = 200f;
 
         private bool OnBridge()
         {
@@ -745,6 +747,9 @@ namespace DrivenRides
                     if (d < nearest) { nearest = d; at = k; }
                 }
                 if (at < 0) { Event("Bridge: the route doesn't pass the far side; driving on."); return false; }
+                // Only a real crossing: the far end's own trigger, met just after landing, is no bridge to skip (spike
+                // 16 skipped twice, the second time 41 m).
+                if (Vector3.Distance(here, all[path[at]].position) < MinBridgeSkipMetres) return false;
                 bridgeSkip = (best, at);
                 phase = Phase.Bridging;
                 return true;
@@ -776,6 +781,10 @@ namespace DrivenRides
                 car.rb.rotation = rotation;
             }
             car.transform.SetPositionAndRotation(to + Vector3.up * 0.3f, rotation);
+            // Every bridge trigger near the landing is done with too.
+            if (bridges != null)
+                foreach (var other in bridges)
+                    if (other != null && Vector3.Distance(other.transform.position, to) < 300f) skipped.Add(other);
             alongOffset += progress!.AlongMetres;
             var rest = path.GetRange(at, path.Count - at);
             var shifted = new HashSet<int>();

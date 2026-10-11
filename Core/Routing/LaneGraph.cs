@@ -202,7 +202,6 @@ namespace DrivenRides.Core.Routing
                     if (distance > (right ? 25f : 60f)) continue;
                     // Outermost lanes on the turn's side, at both ends.
                     if (HasParallel(i, right) || HasParallel(x, right)) continue;
-                    (found ??= new List<int>()).Add(x);
                     // Straight on into the junction until about a turning radius short of the exit's lane, then the
                     // turn, as a driver does. Turning at the stop line and cutting across drove a left turn through
                     // the oncoming lanes of the street it turned into (spike 11). A short turn, such as a right turn
@@ -214,7 +213,14 @@ namespace DrivenRides.Core.Routing
                     // back (spike 13). The ride also aims the car further down the exit's lane (Ride.Expand).
                     float radius = right ? Math.Min(Math.Abs(side), 9f) : 5f;
                     int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _) : -1;
-                    var via = straight >= 0 ? straight : ArcVia(i, dx, dz, x, ex, ez);
+                    // A left turn needs the straight way into the junction; only a right turn may use a waypoint on
+                    // its curve instead (a left turn at a T-junction guided by one curve waypoint ended on the
+                    // pavement, spike 16).
+                    var via = straight >= 0 ? straight : right ? ArcVia(i, dx, dz, x, ex, ez) : -1;
+                    // Without a waypoint to steer through, a longer turn would cut the corner in a straight line, over
+                    // the pavement at a T-junction (spike 16: into a pedestrian). Only a short turn goes without one.
+                    if (via < 0 && (!right || distance > 15f)) continue;
+                    (found ??= new List<int>()).Add(x);
                     if (via >= 0) turnVia[(i, x)] = new[] { via };
                 }
                 if (found == null) continue;

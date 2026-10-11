@@ -39,7 +39,7 @@ namespace DrivenRides
         }
     }
 
-    // On the ride car while it carries the player: logs what it hits, vehicles excepted.
+    // On the ride car while it carries the player: logs what it hits, at most once a second.
     internal sealed class CollisionProbe : MonoBehaviour
     {
         public RideTrace? Trace;
@@ -48,9 +48,11 @@ namespace DrivenRides
         private void OnCollisionEnter(Collision collision)
         {
             if (Time.unscaledTime < quietUntil || collision.collider == null) return;
-            if (collision.collider.attachedRigidbody != null && collision.collider.attachedRigidbody.GetComponent<GleyTrafficSystem.VehicleComponent>() != null) return;
             quietUntil = Time.unscaledTime + 1f;
-            var text = $"Collision with '{collision.collider.name}' (layer {LayerMask.LayerToName(collision.collider.gameObject.layer)}) at {transform.position}, {collision.relativeVelocity.magnitude:0.0} m/s.";
+            var body = collision.collider.attachedRigidbody;
+            var vehicle = body != null ? body.GetComponent<GleyTrafficSystem.VehicleComponent>() : null;
+            var what = vehicle != null ? $"vehicle '{body!.name}'" : $"'{collision.collider.name}' (layer {LayerMask.LayerToName(collision.collider.gameObject.layer)})";
+            var text = $"Collision with {what} at {transform.position}, {collision.relativeVelocity.magnitude:0.0} m/s.";
             Log.Info(text);
             Trace?.Note(text);
         }
