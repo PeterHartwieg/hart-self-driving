@@ -17,9 +17,12 @@ namespace DrivenRides.Core.Routing
         public int VehicleType;
         public Func<int, bool>? IsDisabled;
         public float IntersectionPenaltySeconds = 4f;
-        // Entering a waypoint not allowed for the vehicle type costs this much instead of being impossible: Gley's
+        // Turning into lanes not allowed for the vehicle type costs this much instead of being impossible: Gley's
         // own AI falls back to such lanes when no allowed one leads on. PositiveInfinity makes the filter hard.
-        public float DisallowedPenaltySeconds = 60f;
+        public float DisallowedPenaltySeconds = 20f;
+        // A second of walking counts this much against a second of driving: a passenger would rather be driven on
+        // (spike 21: the car stopped 100 m from a garage its private road leads into).
+        public float WalkWeight = 2f;
         // A lane change costs this on top of its travel time, so a route changes lanes when that saves time (to be in
         // the turning lane at a junction) but doesn't weave. PositiveInfinity turns lane changes off.
         public float LaneChangePenaltySeconds = 5f;
@@ -73,6 +76,7 @@ namespace DrivenRides.Core.Routing
         private readonly float laneChangePenalty;
         private readonly float missingTurnPenalty;
         private readonly float uTurnPenalty;
+        private readonly float walkWeight;
         private readonly Func<int, int, bool>? blockedStep;
         private readonly Func<int, bool>? disabled;
         private readonly Dictionary<int, (Goal Goal, int Index)> goals = new Dictionary<int, (Goal, int)>();
@@ -94,6 +98,7 @@ namespace DrivenRides.Core.Routing
             laneChangePenalty = request.LaneChangePenaltySeconds;
             missingTurnPenalty = request.MissingTurnPenaltySeconds;
             uTurnPenalty = request.UTurnPenaltySeconds;
+            walkWeight = request.WalkWeight;
             blockedStep = request.IsBlockedStep;
             disabled = request.IsDisabled;
             costs = new double[graph.Count];
@@ -150,7 +155,7 @@ namespace DrivenRides.Core.Routing
                 int i = entry.Node;
                 if (goals.TryGetValue(i, out var goal))
                 {
-                    double total = entry.Cost + goal.Goal.WalkSeconds;
+                    double total = entry.Cost + goal.Goal.WalkSeconds * walkWeight;
                     if (total < terminalCost)
                     {
                         terminalCost = total;
@@ -215,7 +220,9 @@ namespace DrivenRides.Core.Routing
             if (disallowed && float.IsPositiveInfinity(disallowedPenalty)) return;
             double cost = from + extra + Vec3.Distance(graph.Position(i), graph.Position(j)) /
                 (((double)graph.SpeedMs(i) + graph.SpeedMs(j)) / 2);
-            if (disallowed) cost += disallowedPenalty;
+            // Once, on turning into such a lane, not per waypoint: a Hamptons driveway allows no vehicle type, and
+            // 60 s for each of its waypoints kept the car on the street 100 m from the garage it leads to (spike 21).
+            if (disallowed && (i == start || graph.Allows(i, vehicleType))) cost += disallowedPenalty;
             if (!graph.IsIntersection(i) && graph.IsIntersection(j)) cost += penalty;
             if (cost >= costs[j]) return;
             costs[j] = cost;

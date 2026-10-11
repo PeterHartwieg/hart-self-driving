@@ -152,7 +152,17 @@ namespace DrivenRides
 
         private static void FullMenuTogglePrefix(bool show) => openingPhone = show;
 
-        private static void FullMenuTogglePostfix() => openingPhone = false;
+        private static readonly System.Reflection.FieldInfo? MixerField = AccessTools.Field(typeof(SfxManager), "audioMixer");
+
+        // Opening the phone also turns the traffic engines (the street's sound) down to silence; during a ride they
+        // are turned back up so the passenger hears the road.
+        private static void FullMenuTogglePostfix(bool show)
+        {
+            openingPhone = false;
+            if (!show || !Ride.IsDriving) return;
+            try { (MixerField?.GetValue(InstanceBehavior<SfxManager>.Instance) as UnityEngine.Audio.AudioMixer)?.ClearFloat("engine"); }
+            catch (Exception ex) { Log.Error("Phone sound: " + ex.Message); }
+        }
 
         private static bool SetPausePrefix(bool newPause)
         {

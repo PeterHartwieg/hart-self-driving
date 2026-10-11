@@ -148,7 +148,7 @@ public sealed class RoutingTests
         var request = Request(0, new Goal(2, 0));
         var route = Found(graph, request);
         Assert.Equal(new[] { 0, 1, 2 }, route.Waypoints);
-        Assert.True(route.DriveSeconds >= 60);
+        Assert.True(route.DriveSeconds >= 20);
         request.DisallowedPenaltySeconds = float.PositiveInfinity;
         Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, request, int.MaxValue).Status);
     }
@@ -463,5 +463,17 @@ public sealed class RoutingTests
         var noUTurns = Request(left[0], new Goal(wend, 0));
         noUTurns.UTurnPenaltySeconds = float.PositiveInfinity;
         Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(graph, noUTurns, int.MaxValue).Status);
+    }
+
+    [Fact]
+    public void ARestrictedLaneCostsItsPenaltyOnceNotPerWaypoint()
+    {
+        // A driveway of ten restricted waypoints (mask 2) off a street (mask 1): one 20 s penalty, not ten.
+        var points = Enumerable.Range(0, 12).Select(i => new Vec3(i * 5, 0, 0)).ToArray();
+        var edges = Enumerable.Range(0, 12).Select(i => i == 11 ? Array.Empty<int>() : new[] { i + 1 }).ToArray();
+        var masks = Enumerable.Range(0, 12).Select(i => i < 2 ? 1 : 2).ToArray();
+        var graph = Graph(points, edges, masks: masks);
+        var route = Found(graph, Request(0, new Goal(11, 0)));
+        Assert.InRange(route.DriveSeconds, 20, 40);
     }
 }
