@@ -167,10 +167,10 @@ namespace DrivenRides
                 intersection[i] = !TrafficManager.IsNotIntersection(w);
                 speed[i] = w.maxSpeed;
             }
-            graph = new LaneGraph(positions, neighbors, allowed, intersection, speed, otherLanes: otherLanes, inferLanes: true);
+            graph = new LaneGraph(positions, neighbors, allowed, intersection, speed, otherLanes: otherLanes, inferLanes: true, inferTurns: true);
             waypoints = all;
             scene = current;
-            Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, {graph.GivenLaneChanges} with Gley lane changes, {graph.InferredLaneChanges} with inferred ones, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
+            Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, {graph.GivenLaneChanges} with Gley lane changes, {graph.InferredLaneChanges} with inferred ones, {graph.InferredTurns} junction entries with added turns, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
             Dump(all, otherLanes);
             return true;
         }

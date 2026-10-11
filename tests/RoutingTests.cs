@@ -408,4 +408,29 @@ public sealed class RoutingTests
         Assert.NotEmpty(sameSide);
         Assert.All(sameSide, goal => Assert.InRange(goal.Waypoint, 5, 9));
     }
+
+    [Fact]
+    public void AddsAMissingRightTurnFromTheOutermostLaneOnly()
+    {
+        // A junction whose data only goes straight on. Northbound lanes at x = 2 (right) and x = -2 (left); an
+        // eastbound street with lanes at z = -2 (right) and z = 2 (left) leaving the junction at x = 10.
+        var points = new List<Vec3>();
+        var edges = new List<int[]>();
+        var junction = new List<bool>();
+        int Add(float x, float z, bool inJunction) { points.Add(new Vec3(x, 0, z)); edges.Add(Array.Empty<int>()); junction.Add(inJunction); return points.Count - 1; }
+        void Link(params int[] chain) { for (var k = 0; k + 1 < chain.Length; k++) edges[chain[k]] = new[] { chain[k + 1] }; }
+        int[] North(float x) { var a = Add(x, -30, false); var b = Add(x, -20, false); var e = Add(x, -10, false); var j1 = Add(x, -5, true); var j2 = Add(x, 5, true); var o = Add(x, 10, false); var o2 = Add(x, 20, false); Link(a, b, e, j1, j2, o, o2); return new[] { a, e, o }; }
+        int[] East(float z) { var w = Add(-20, z, false); var e = Add(-10, z, false); var j1 = Add(-5, z, true); var j2 = Add(5, z, true); var x1 = Add(10, z, false); var x2 = Add(20, z, false); Link(w, e, j1, j2, x1, x2); return new[] { w, x1, x2 }; }
+        var right = North(2); var left = North(-2); var eastRight = East(-2); var eastLeft = East(2);
+        var n = points.Count;
+        LaneGraph Make(bool infer) => new LaneGraph(points.ToArray(), edges.ToArray(), Enumerable.Repeat(1, n).ToArray(), junction.ToArray(), new float[n], inferTurns: infer);
+        var request = Request(right[0], new Goal(eastRight[2], 0));
+        Assert.Equal(PlanStatus.NoPath, RoutePlanner.Plan(Make(false), request, int.MaxValue).Status);
+        var graph = Make(true);
+        Assert.Equal(new[] { eastRight[1] }, graph.MissingTurns(right[1]));
+        Assert.Empty(graph.MissingTurns(left[1]));
+        var route = Found(graph, request);
+        Assert.Contains(eastRight[1], route.Waypoints);
+        Assert.True(route.DriveSeconds >= 8);
+    }
 }

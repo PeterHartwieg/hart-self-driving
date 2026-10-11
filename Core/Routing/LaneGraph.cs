@@ -15,7 +15,7 @@ namespace DrivenRides.Core.Routing
         private readonly Dictionary<(int, int), List<int>> grid = new Dictionary<(int, int), List<int>>();
 
         public LaneGraph(Vec3[] positions, int[][] neighbors, int[] allowedMask, bool[] intersection,
-            float[] maxSpeedKmh, float cellSize = 50f, int[][]? otherLanes = null, bool inferLanes = false)
+            float[] maxSpeedKmh, float cellSize = 50f, int[][]? otherLanes = null, bool inferLanes = false, bool inferTurns = false)
         {
             if (positions == null || neighbors == null || allowedMask == null || intersection == null || maxSpeedKmh == null)
                 throw new ArgumentNullException("Graph arrays cannot be null.");
@@ -69,6 +69,96 @@ namespace DrivenRides.Core.Routing
             for (int i = 0; i < n; i++) predecessors[i] = incoming[i].AsReadOnly();
             TopSpeedMs = top;
             if (inferLanes) InferLanes();
+            turns = new IReadOnlyList<int>[n];
+            for (int i = 0; i < n; i++) turns[i] = Array.Empty<int>();
+            if (inferTurns) InferTurns();
+        }
+
+        private readonly IReadOnlyList<int>[] turns;
+
+        // Turns the game's traffic data leaves out at a junction (spike 7: four lanes going straight on only at
+        // three junctions in a row). From a junction entry i, the exits of the same junction it can't reach.
+        public IReadOnlyList<int> MissingTurns(int i) => turns[i];
+        public int InferredTurns { get; private set; }
+
+        // A right turn goes from the rightmost lane into the rightmost lane of the cross street, a left turn from the
+        // leftmost lane into the leftmost one. The exit must be ahead, at roughly a right angle, on the turn's side,
+        // and within 25 m (right) or 45 m (left) of the entry.
+        private void InferTurns()
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                if (!IsJunctionEntry(i) || !Heading(i, out float dx, out float dz)) continue;
+                var reached = JunctionExits(i);
+                List<int>? found = null;
+                foreach (int x in Near(positions[i], 45f))
+                {
+                    if (reached.Contains(x) || !IsJunctionExit(x) || !Heading(x, out float ex, out float ez)) continue;
+                    if (Math.Abs(positions[x].Y - positions[i].Y) > 2f) continue;
+                    float ox = positions[x].X - positions[i].X, oz = positions[x].Z - positions[i].Z;
+                    float ahead = ox * dx + oz * dz, side = ox * dz - oz * dx;
+                    float turn = ex * dz - ez * dx; // > 0: the exit heads to the entry's right
+                    if (ahead < 2f || Math.Abs(ex * dx + ez * dz) > 0.4f) continue;
+                    bool right = turn > 0;
+                    if (right != side > 0) continue;
+                    float distance = (float)Math.Sqrt(ox * ox + oz * oz);
+                    if (distance > (right ? 25f : 45f)) continue;
+                    // Outermost lanes on the turn's side, at both ends.
+                    if (HasParallel(i, right) || HasParallel(x, right)) continue;
+                    (found ??= new List<int>()).Add(x);
+                }
+                if (found == null) continue;
+                turns[i] = found.AsReadOnly();
+                InferredTurns++;
+            }
+        }
+
+        private bool IsJunctionEntry(int i)
+        {
+            if (intersections[i] || successors[i].Count == 0) return false;
+            foreach (int j in successors[i]) if (!intersections[j]) return false;
+            return true;
+        }
+
+        private bool IsJunctionExit(int x)
+        {
+            if (intersections[x] || successors[x].Count == 0) return false;
+            foreach (int j in predecessors[x]) if (intersections[j]) return true;
+            return false;
+        }
+
+        // The plain waypoints reachable from a junction entry through the junction's own waypoints.
+        private HashSet<int> JunctionExits(int entry)
+        {
+            var exits = new HashSet<int>();
+            var seen = new HashSet<int> { entry };
+            var stack = new Stack<int>();
+            stack.Push(entry);
+            while (stack.Count > 0)
+            {
+                int u = stack.Pop();
+                foreach (int v in successors[u])
+                {
+                    if (!seen.Add(v)) continue;
+                    if (intersections[v]) { if (seen.Count < 400) stack.Push(v); }
+                    else exits.Add(v);
+                }
+            }
+            return exits;
+        }
+
+        // A lane in the same direction beside i on the given side (2 to 4.5 m), from the waypoint layout itself.
+        private bool HasParallel(int i, bool right)
+        {
+            if (!Heading(i, out float dx, out float dz)) return false;
+            foreach (int j in Near(positions[i], 6f))
+            {
+                if (j == i || !Heading(j, out float ex, out float ez) || dx * ex + dz * ez < 0.95f) continue;
+                float ox = positions[j].X - positions[i].X, oz = positions[j].Z - positions[i].Z;
+                float along = ox * dx + oz * dz, side = ox * dz - oz * dx;
+                if (Math.Abs(along) <= 4f && Math.Abs(side) >= 2f && Math.Abs(side) <= 4.5f && (side > 0) == right) return true;
+            }
+            return false;
         }
 
         // Lane changes Gley's data leaves out: for each waypoint on a plain stretch without one, the waypoints of a
