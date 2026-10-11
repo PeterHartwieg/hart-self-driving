@@ -373,11 +373,11 @@ namespace DrivenRides
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
                 points.Add(all[w[k + 1]].position);
-                // An added turn gets a wider sweep and its chord too: Gley cuts corners, and on spike 18 the car hit the
-                // fence on the inside of a ramp turn. A U-turn's chord crosses the median by design, so not that.
+                // A turn with guide waypoints is checked along them, 1.5 m wide; a short one without, along its chord
+                // back as well, since the car cuts that corner.
                 var turn = Contains(graph.MissingTurns(w[k]), w[k + 1]);
-                var radius = turn ? 1.2f : 0.8f;
-                if (turn) points.Add(all[w[k]].position);
+                var radius = turn ? 1.5f : 0.8f;
+                if (turn && points.Count == 2) points.Add(all[w[k]].position);
                 for (var q = 0; q + 1 < points.Count; q++)
                 {
                     var hits = Physics.OverlapCapsule(points[q] + Vector3.up * 1f, points[q + 1] + Vector3.up * 1f, radius, ObstacleMask, QueryTriggerInteraction.Ignore);

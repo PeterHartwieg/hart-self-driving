@@ -225,10 +225,8 @@ namespace DrivenRides.Core.Routing
                     float radius = right ? Math.Min(Math.Abs(side), 9f) : 5f;
                     var chain = new List<int>();
                     int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _, chain) : -1;
-                    // A left turn needs the straight way into the junction; only a right turn may use a waypoint on
-                    // its curve instead (a left turn at a T-junction guided by one curve waypoint ended on the
-                    // pavement, spike 16).
-                    var via = straight >= 0 ? straight : right ? ArcVia(i, dx, dz, x, ex, ez) : -1;
+                    // Without a straight way in (a T-junction), a guide waypoint on the turn's line (ArcVia).
+                    var via = straight >= 0 ? straight : ArcVia(i, dx, dz, x, ex, ez, right);
                     // Without a waypoint to steer through, a longer turn would cut the corner in a straight line, over
                     // the pavement at a T-junction (spike 16: into a pedestrian). Only a short turn goes without one.
                     if (via < 0 && (!right || distance > 15f)) continue;
@@ -248,17 +246,22 @@ namespace DrivenRides.Core.Routing
         // through so it doesn't cut the inside corner on a straight line (spike 9); -1 if none is near.
         public IReadOnlyList<int> TurnVias(int i, int x) => turnVia.TryGetValue((i, x), out var vias) ? vias : Array.Empty<int>();
 
-        private int ArcVia(int i, float dx, float dz, int x, float ex, float ez)
+        // A guide waypoint for a turn without a straight way into the junction. Where the entry's line meets the exit
+        // lane's line is the turn's corner. A right turn aims close to the corner, on the outer, squarer line (the
+        // chord cut the inside corner, where poles and tree pits stand: spike 19); a left turn at a T-junction aims at
+        // the exit lane 5 m past the corner, so the car crosses to it gently instead of overshooting into the kerb
+        // at the top of the T.
+        private int ArcVia(int i, float dx, float dz, int x, float ex, float ez, bool right = true)
         {
-            // Where the entry's line meets the exit lane's line; the curve's middle lies between there and the
-            // midpoint of the chord, about 0.59 of the way for a right angle.
             float px = positions[i].X, pz = positions[i].Z, qx = positions[x].X, qz = positions[x].Z;
             float denominator = dx * ez - dz * ex;
             if (Math.Abs(denominator) < 0.2f) return -1;
             float t = ((qx - px) * ez - (qz - pz) * ex) / denominator;
             float cx = px + t * dx, cz = pz + t * dz;
             float mx = (px + qx) / 2, mz = (pz + qz) / 2;
-            var arc = new Vec3(cx + (mx - cx) * 0.59f, positions[i].Y, cz + (mz - cz) * 0.59f);
+            var arc = right
+                ? new Vec3(cx + (mx - cx) * 0.3f, positions[i].Y, cz + (mz - cz) * 0.3f)
+                : new Vec3(cx + ex * 5f, positions[i].Y, cz + ez * 5f);
             // Only a waypoint of a lane heading between the entry's and the exit's directions: one of the oncoming
             // lanes would steer the car onto the wrong side of the street (spike 11).
             float bx = dx + ex, bz = dz + ez, bl = (float)Math.Sqrt(bx * bx + bz * bz);
