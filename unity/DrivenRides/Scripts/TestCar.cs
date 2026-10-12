@@ -19,6 +19,10 @@ namespace DrivenRides
         public Vector3[]? FailureOutline { get; private set; }
         public Vector3 FailureCentre { get; private set; }
         public bool PictureDue { get; set; }
+        // Every third sample, every near miss and every hit, for judging the run again away from the game
+        // (tools/rejudge): S lines are samples, C contacts, I incidents.
+        public readonly System.Text.StringBuilder Samples = new System.Text.StringBuilder();
+        private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
 
         private VehicleComponent? car;
         private Vector3 boxCenter, boxHalf;
@@ -128,7 +132,7 @@ namespace DrivenRides
             for (var i = 0; i < outline.Length; i++) footprint[i] = GleyGraph.ToVec(outline[i]);
             var centre = transform.TransformPoint(boxCenter);
             var failedBefore = Judge.Failed;
-            Judge.Add(new Sample
+            var sample = new Sample
             {
                 Step = Step,
                 Time = time,
@@ -139,10 +143,27 @@ namespace DrivenRides
                 SpeedMs = car.rb != null ? car.rb.velocity.magnitude : 0f,
                 Waiting = Waiting?.Invoke() ?? false,
                 NearMiss = NearMiss(),
-            });
+            };
+            Judge.Add(sample);
             if (Step % 5 == 0) Track.Add(centre);
             if (!failedBefore && Judge.Failed) Latch(outline, centre);
+            if (Step % 3 == 0 || sample.NearMiss > 0 || (!failedBefore && Judge.Failed)) Record(sample);
         }
+
+        private void Record(Sample s)
+        {
+            var b = Samples;
+            b.Append("S,").Append(s.Step).Append(',').Append(s.Time.ToString("0.###", Inv));
+            Add(b, s.Centre);
+            Add(b, s.FrontAxle);
+            b.Append(',').Append(s.HeadingDegrees.ToString("0.#", Inv)).Append(',').Append(s.SpeedMs.ToString("0.##", Inv))
+             .Append(',').Append(s.Waiting ? 1 : 0).Append(',').Append(s.NearMiss.ToString("0.#", Inv));
+            foreach (var p in s.Footprint) Add(b, p);
+            b.Append('\n');
+        }
+
+        private static void Add(System.Text.StringBuilder b, Core.Routing.Vec3 v) =>
+            b.Append(',').Append(v.X.ToString("0.##", Inv)).Append(',').Append(v.Y.ToString("0.##", Inv)).Append(',').Append(v.Z.ToString("0.##", Inv));
 
         private void Latch(Vector3[] outline, Vector3 centre)
         {
@@ -162,9 +183,9 @@ namespace DrivenRides
             var layer = c.gameObject.layer;
             var what = $"'{c.name}' (layer {LayerMask.LayerToName(layer)}) at {collision.GetContact(0).point}, {collision.relativeVelocity.magnitude:0.0} m/s";
             var failedBefore = Judge.Failed;
-            if ((ObstacleMask & (1 << layer)) != 0) Judge.Contact(Step, what);
-            else if (c.attachedRigidbody != null && c.attachedRigidbody.GetComponent<VehicleComponent>() != null) Judge.Incident(Step, "vehicle " + what);
-            else if (LayerMask.LayerToName(layer) == "Human") Judge.Incident(Step, "pedestrian " + what);
+            if ((ObstacleMask & (1 << layer)) != 0) { Judge.Contact(Step, what); Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n'); }
+            else if (c.attachedRigidbody != null && c.attachedRigidbody.GetComponent<VehicleComponent>() != null) { Judge.Incident(Step, "vehicle " + what); Samples.Append("I,").Append(Step).Append(",vehicle ").Append(what.Replace(',', ';')).Append('\n'); }
+            else if (LayerMask.LayerToName(layer) == "Human") { Judge.Incident(Step, "pedestrian " + what); Samples.Append("I,").Append(Step).Append(",pedestrian ").Append(what.Replace(',', ';')).Append('\n'); }
             if (!failedBefore && Judge.Failed) Latch(Outline(), transform.TransformPoint(boxCenter));
         }
     }

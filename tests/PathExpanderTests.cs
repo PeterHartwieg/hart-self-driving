@@ -24,13 +24,15 @@ public sealed class PathExpanderTests
     }
 
     [Fact]
-    public void UTurnKeepsAllExitWaypointsAndDoesNotSlowThePath()
+    public void UTurnKeepsAllExitWaypointsAndIsDrivenAtTurnSpeed()
     {
         var (graph, entry, exit) = TurnTestGraph.UTurn();
         var route = new[] { 0, entry, graph.UTurn(entry), graph.UTurn(entry) + 1, exit };
         var expanded = PathExpander.Expand(graph, route);
         Assert.Equal(route.Take(2).Concat(graph.TurnVias(entry, graph.UTurn(entry))).Concat(route.Skip(2)), expanded.Path);
-        Assert.Empty(expanded.SlowPath);
+        // Two positions before the entry, the entry, the vias and the U-turn's target.
+        var vias = graph.TurnVias(entry, graph.UTurn(entry)).Count;
+        Assert.Equal(Enumerable.Range(0, 2 + vias + 1), expanded.SlowPath.OrderBy(x => x));
         Assert.Equal(entry + 2, graph.UTurnStart(entry));
         Assert.Equal(-1, graph.UTurnStart(0));
     }

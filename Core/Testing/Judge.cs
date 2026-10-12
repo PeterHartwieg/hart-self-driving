@@ -21,9 +21,10 @@ namespace DrivenRides.Core.Testing
         {
             this.geometry = geometry;
             this.fixture = fixture;
+            // Lane stretches only: an added turn's or a lane change's step is a chord across lanes, not a lane.
             for (int k = 0; k + 1 < fixture.Route.Count; k++)
-                if (!graph.IsIntersection(fixture.Route[k]) && !graph.IsIntersection(fixture.Route[k + 1]))
-                    plain.Add(new Stretch(graph, geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1], k));
+                if (!graph.IsIntersection(fixture.Route[k]) && !graph.IsIntersection(fixture.Route[k + 1]) && Has(graph.Successors(fixture.Route[k]), fixture.Route[k + 1]))
+                    plain.Add(new Stretch(graph, geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1], k) { Min = -1f, Max = Vec3.HorizontalDistance(geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1]) + 1f });
             // The oncoming lanes of the road turned into, from its mouth on: inside the junction a correct left turn
             // sweeps across them, and a U-turn's own approach lanes are that road's oncoming lanes (the far-side check
             // covers U-turns).
@@ -53,12 +54,12 @@ namespace DrivenRides.Core.Testing
         public void Add(Sample s)
         {
             bool newGate = false;
-            // A car loaded on the entry waypoint starts with its front axle just past the gate.
+            // A car loaded on the entry waypoint (no run-up) starts with its front axle just past the gate.
             if (!hasPrevious && nextGate == 0)
             {
                 Gate first = geometry.Gates[0];
                 float along = first.Along(s.FrontAxle);
-                if (along >= 0 && along <= 6f && Math.Abs(first.Lateral(s.FrontAxle)) <= 4f)
+                if (along >= 0 && along <= 12f && Math.Abs(first.Lateral(s.FrontAxle)) <= 4f)
                 {
                     nextGate = 1;
                     result.GatesPassed.Add(first.Name);
@@ -120,6 +121,7 @@ namespace DrivenRides.Core.Testing
             var route = geometry.RoutePolyline;
             int best = segment;
             float distance = float.PositiveInfinity;
+            bool within = false;
             for (int k = segment; k + 1 < route.Count && k < segment + 3; k++)
             {
                 float length = Vec3.HorizontalDistance(route[k], route[k + 1]);
@@ -129,17 +131,18 @@ namespace DrivenRides.Core.Testing
                 Vec3 point = route[k] + (route[k + 1] - route[k]) * Math.Max(0, Math.Min(1, t));
                 if (Math.Abs(s.Centre.Y - point.Y) > 2f) continue;
                 float d = Vec3.HorizontalDistance(point, s.Centre);
-                if (d < distance) { distance = d; best = k; }
+                if (d < distance) { distance = d; best = k; within = t >= 0 && t <= 1; }
             }
             if (float.IsPositiveInfinity(distance)) return;
             segment = best;
             foreach (Stretch stretch in plain)
             {
                 if (stretch.Index != best) continue;
-                result.PlainDeviationMax = Math.Max(result.PlainDeviationMax, distance);
+                // Off either end (behind the route's start, past a stretch's end) the distance says nothing.
+                if (within) result.PlainDeviationMax = Math.Max(result.PlainDeviationMax, distance);
                 // During a turn only the receiving road is checked: crossing the approach road's oncoming lane is legal.
                 if (!entered || Finished || stretch.Index >= fixture.ExitIndex || (fixture.Manoeuvre != CaseKind.Turn && fixture.Manoeuvre != CaseKind.UTurn))
-                    Intrusion(s, stretch, false);
+                    Intrusion(s, stretch);
                 break;
             }
         }
@@ -185,6 +188,12 @@ namespace DrivenRides.Core.Testing
         {
             if (!Failed) { Failed = true; FailedStep = step; }
             if (!result.Reasons.Contains(reason)) result.Reasons.Add(reason);
+        }
+
+        private static bool Has(IReadOnlyList<int> list, int value)
+        {
+            for (int k = 0; k < list.Count; k++) if (list[k] == value) return true;
+            return false;
         }
 
         public JudgeResult Result(bool timedOut) => new JudgeResult

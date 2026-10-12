@@ -504,6 +504,13 @@ namespace DrivenRides
             yield return null;
 
             var result = judge.Result(timedOut);
+            try
+            {
+                if (ride.Ended && ride.EndReason.StartsWith("replanned", StringComparison.Ordinal)) testCar.Samples.Append("R,").Append(ride.EndReason.Replace(',', ';')).Append('\n');
+                File.WriteAllText(Path.Combine(Folder, s.RunId + "-samples.csv"), testCar.Samples.ToString());
+                line["samples"] = s.RunId + "-samples.csv";
+            }
+            catch (Exception ex) { Log.Error("Turn tests samples: " + ex.Message); }
             line["end"] = ride.Ended ? ride.EndReason : timedOut ? "time limit" : s.StopRequested ? "stopped" : judge.Finished ? "last gate" : "failed";
             line["restarts"] = ride.Restarts;
             line["trace"] = Path.GetFileName(trace);

@@ -41,6 +41,15 @@ namespace DrivenRides.Core.Ride
                     slowPath.Add(result.Count);
                     continue;
                 }
+                // A U-turn is driven at turn speed too: a 6.7 m car entering one at 50 km/h swung wide into the far
+                // kerb (turn test 0.1.30).
+                if (uTurn)
+                {
+                    for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);
+                    foreach (var via in vias) { slowPath.Add(result.Count); result.Add(via); }
+                    slowPath.Add(result.Count);
+                    continue;
+                }
                 foreach (var via in vias) result.Add(via);
             }
             return expanded;
