@@ -47,6 +47,8 @@ namespace DrivenRides
             Patch(typeof(GameSpeedController), "SetPause", new[] { typeof(bool), typeof(bool) }, nameof(SetPausePrefix), prefix: true);
             // ... and the street stays audible: the phone's UI-only sound mix is normally undone by the unpause.
             Patch(typeof(SfxManager), "SetSoundSnapshotCityMap", new[] { typeof(bool), typeof(float) }, nameof(PhoneSoundPrefix), prefix: true);
+            // No taxi or driver ride while turn tests run, before the fare is taken.
+            Patch(typeof(TaxiSystem), "TravelTo", new[] { typeof(EntityController) }, nameof(TravelToPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -118,10 +120,17 @@ namespace DrivenRides
 
         private static bool ActivityPrefix(bool showNotification, ref bool __result)
         {
-            if (!Ride.OwnsPlayer) return true;
+            if (!Ride.OwnsPlayer && !TurnTests.Running) return true;
             // Skipping the method also skips vanilla's notice, so show one, or the click looks dead.
             if (showNotification) Notice.Show("Not during a ride.");
             __result = false;
+            return false;
+        }
+
+        private static bool TravelToPrefix()
+        {
+            if (!TurnTests.Running) return true;
+            Notice.Show("Not while turn tests run.");
             return false;
         }
 

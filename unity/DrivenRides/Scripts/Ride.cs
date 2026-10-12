@@ -27,7 +27,7 @@ namespace DrivenRides
     // vanilla way, or is cancelled. Plan: docs/implementation-plan.md, "How the mod hooks in" and "The ride".
     internal sealed class Ride
     {
-        private enum Kind { Taxi, Stand, PrivateDriver }
+        private enum Kind { Taxi, Stand, PrivateDriver, Test }
         private enum Phase { Boarding, Driving, Bridging, Stopping, Finishing, Done }
         private enum Outcome { None, Complete, Vanilla }
 
@@ -46,10 +46,10 @@ namespace DrivenRides
         public static Ride? Active { get; private set; }
 
         // Captured when the prefix accepts the ride; nothing needed for finishing lives only on a pooled component.
-        private readonly TaxiSystem taxiSystem;
-        private readonly ITaxi taxi;
+        private readonly TaxiSystem? taxiSystem;
+        private readonly ITaxi? taxi;
         private readonly Kind kind;
-        private readonly EntityController target;
+        private readonly EntityController? target;
         private readonly GameInstance save;
         private readonly PlayerController player;
         private readonly GameManager manager;
@@ -124,7 +124,7 @@ namespace DrivenRides
         public static Vector3 PickupPosition => Active!.pickupPosition;
         public static Quaternion PickupRotation => Active!.pickupRotation;
 
-        private Ride(TaxiSystem taxiSystem, ITaxi taxi, Kind kind, EntityController target, float minutes, VehicleComponent car,
+        private Ride(TaxiSystem? taxiSystem, ITaxi? taxi, Kind kind, EntityController? target, float minutes, VehicleComponent car,
             VehicleComponent prefab, int vehicleType, List<Goal> goals, Route route, bool onFirstWaypoint)
         {
             this.onFirstWaypoint = onFirstWaypoint;
@@ -142,12 +142,60 @@ namespace DrivenRides
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
             player = manager.playerController;
-            happinessModifier = taxi.GetHappinessModifierName() ?? "";
+            happinessModifier = taxi?.GetHappinessModifierName() ?? "";
             driverVehicleType = taxi is PrivateDriverVehicle pd ? pd.vehicleInstance?.vehicleTypeName : null;
             driverTopSpeed = taxi is PrivateDriverVehicle driver ? driver.vehicleInstance?.VehicleType?.maxSpeed ?? 0 : 0;
             startMinute = NowMinutes();
-            timeMultiplier = taxi.GetTimeMultiplier();
+            timeMultiplier = taxi?.GetTimeMultiplier() ?? 1f;
             rideSpeed = Options.RideSpeed;
+        }
+
+        // Test rides (docs/turn-tests.md): the real driving code on a car the test session loaded, with no passenger,
+        // camera, clock or bookkeeping. The session's anchor follows the car; the session owns the player.
+        public static Ride StartTest(VehicleComponent car, VehicleComponent prefab, Route route, List<int>? path, IEnumerable<int>? slow,
+            int topSpeedKmh, float speed, RideAnchor anchor, string traceFile)
+        {
+            if (Active != null) throw new InvalidOperationException("a ride is active");
+            var ride = new Ride(null, null, Kind.Test, null, 0f, car, prefab, (int)car.vehicleType, new List<Goal>(), route, true)
+            {
+                testTopSpeed = topSpeedKmh,
+                TraceFile = traceFile,
+            };
+            ride.rideSpeed = speed;
+            if (path != null)
+            {
+                ride.path = path;
+                ride.slowPath.Clear();
+                if (slow != null) ride.slowPath.UnionWith(slow);
+            }
+            ride.anchorComponent = anchor;
+            anchor.Target = car.transform;
+            anchor.Valid = () => ride.OwnsCar;
+            ride.mapClosed = true;
+            Active = ride;
+            ride.Depart();
+            return ride;
+        }
+
+        private int testTopSpeed;
+        public string? TraceFile { get; private set; }
+        public bool Ended => outcome != Outcome.None || finished;
+        public string EndReason => outcomeReason;
+        public bool Arrived => outcome == Outcome.Complete;
+        public bool WaitingNow => departed && OwnsCar && IsWaiting();
+        public IReadOnlyList<int> DrivenPath => path;
+
+        // Ends a test ride: the car goes, the anchor stays where it is, nothing touches the player.
+        public void EndTest()
+        {
+            if (finished) return;
+            finished = true;
+            phase = Phase.Done;
+            try { ApplyScale(false); } catch (Exception ex) { Log.Error("Test end, time scale: " + ex.Message); }
+            try { if (OwnsCar) TrafficManager.Instance.RemoveVehicle(carIndex); } catch (Exception ex) { Log.Error("Test end, car: " + ex.Message); }
+            if (anchorComponent != null) { anchorComponent.Target = null; anchorComponent.Valid = null; }
+            anchorComponent = null;
+            DropState();
         }
 
         // The TravelCoroutine prefix. Returns the ride's iterator, or null for a vanilla ride. Vanilla's TravelTo has
@@ -594,7 +642,7 @@ namespace DrivenRides
         private void Depart()
         {
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car was gone before departure"); return; }
-            if (kind == Kind.Taxi) taxi.DriveAway();
+            if (kind == Kind.Taxi) taxi!.DriveAway();
             owned.Clear();
             // A loaded car sits on its spawn waypoint; the route starts there.
             for (var i = onFirstWaypoint ? 1 : 0; i < path.Count; i++) owned.Add(path[i]);
@@ -609,9 +657,12 @@ namespace DrivenRides
             // camera on the car (spike 18). Muted for the ride.
             foreach (var music in car.GetComponentsInChildren<AiCarMusic>(true))
                 if (music.musicPlayer != null && !music.musicPlayer.mute) { music.musicPlayer.mute = true; muted.Add(music.musicPlayer); }
-            probe = car.gameObject.AddComponent<CollisionProbe>();
-            probe.Trace = trace;
-            SwitchCamera();
+            if (kind != Kind.Test)
+            {
+                probe = car.gameObject.AddComponent<CollisionProbe>();
+                probe.Trace = trace;
+                SwitchCamera();
+            }
             phase = Phase.Driving;
             Log.Info($"Departed: {owned.Count} waypoints for Gley, light cycle {GreenLightTime()} s.");
         }
@@ -624,39 +675,13 @@ namespace DrivenRides
             return points;
         }
 
-        // Puts each added turn's and U-turn's waypoints (straight into the junction, then the curve) between its
-        // entry and exit, so the car drives them as a driver would.
+        // Puts each added turn's and U-turn's waypoints between its entry and exit (Core's PathExpander).
         private List<int> Expand(Route r)
         {
-            var graph = GleyGraph.Graph;
+            var expanded = PathExpander.Expand(GleyGraph.Graph, r.Waypoints);
             slowPath.Clear();
-            var w = r.Waypoints;
-            var result = new List<int>(w.Count + 4);
-            for (var k = 0; k < w.Count; k++)
-            {
-                result.Add(w[k]);
-                if (graph == null || k + 1 >= w.Count) continue;
-                var vias = graph.TurnVias(w[k], w[k + 1]);
-                var uTurn = graph.UTurn(w[k]) == w[k + 1];
-                if (vias.Count > 0 && !uTurn)
-                {
-                    // Spike 12's trace: an added left turn at 50 km/h came out 2.5 m wide, on the centre line.
-                    for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);
-                    foreach (var via in vias) { slowPath.Add(result.Count); result.Add(via); }
-                    // The car aims down the exit's lane, past its first two waypoints, so it comes out of the arc in
-                    // line with the lane instead of turning past 90 degrees towards the first one (spike 13).
-                    if (k + 3 < w.Count && Contains(graph.Successors(w[k + 1]), w[k + 2]) && Contains(graph.Successors(w[k + 2]), w[k + 3]))
-                    {
-                        slowPath.Add(result.Count);
-                        k += 2;
-                        continue;
-                    }
-                    slowPath.Add(result.Count);
-                    continue;
-                }
-                foreach (var via in vias) result.Add(via);
-            }
-            return result;
+            slowPath.UnionWith(expanded.SlowPath);
+            return expanded.Path;
         }
 
         private static bool Contains(IReadOnlyList<int> list, int value)
@@ -675,7 +700,7 @@ namespace DrivenRides
         public void Tick()
         {
             if (finished || cancelled) return;
-            if (SaveChanged) { Dispose(); return; }
+            if (SaveChanged) { if (kind == Kind.Test) { EndWith(Outcome.Vanilla, "the save changed"); return; } Dispose(); return; }
             var paused = InstanceBehavior<UIs>.Instance.gameSpeed.Paused;
             if (!paused) unpausedSeconds += Time.unscaledDeltaTime;
             if (phase != Phase.Driving && phase != Phase.Stopping) return;
@@ -824,7 +849,7 @@ namespace DrivenRides
         private static readonly FieldInfo? PowerStepField = AccessTools.Field(typeof(TrafficManager), "vehiclePowerStep");
         private const float AccelerationSeconds = 5f;
 
-        private float TopSpeed => driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
+        private float TopSpeed => testTopSpeed > 0 ? testTopSpeed : driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
 
         // Changes the car's top speed in Gley when it differs from the last one set; Gley reads it at the next waypoint.
         private void ApplyTopSpeed(float speed)
@@ -880,6 +905,8 @@ namespace DrivenRides
                 var trigger = bridge.GetComponent<Collider>();
                 if (trigger == null || !trigger.bounds.Contains(here)) continue;
                 skipped.Add(bridge);
+                // A test never crosses a bridge (its cases stay clear of the triggers); if one does, it ends here.
+                if (kind == Kind.Test) { EndWith(Outcome.Vanilla, "bridge"); return true; }
                 if (!(SkipTargetsField?.GetValue(bridge) is Transform[] targets) || targets.Length == 0) { Event("Bridge: no skip targets."); return false; }
                 // As SkipBridgeHelper.FindTarget: the target facing most nearly the car's way, here also ahead of it.
                 Transform? best = null;
@@ -999,6 +1026,8 @@ namespace DrivenRides
                 checkedNear.Add((w[k], w[k + 1]));
                 var blocked = FindBlockedSteps(graph, new[] { w[k], w[k + 1] });
                 if (blocked.Count == 0) continue;
+                // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
+                if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
                 GleyGraph.BlockStep(w[k], w[k + 1]);
                 Event($"Step {w[k]} -> {w[k + 1]} ahead blocked by '{blocked[0].What}'; replanning.");
                 return true;
@@ -1015,8 +1044,11 @@ namespace DrivenRides
             Event($"Stopping at the end of the route, {LeftMetres:0} m from its last waypoint.");
         }
 
+        public int Restarts { get; private set; }
+
         private void Restart()
         {
+            Restarts++;
             Go();
             watch!.Restarted(unpausedSeconds);
             Event("Watchdog: restart (" + watch.LastReason + ").");
@@ -1036,6 +1068,7 @@ namespace DrivenRides
         // Starts a replan; StepReplan advances it over the next frames.
         private void Replan()
         {
+            if (kind == Kind.Test) { EndWith(Outcome.Vanilla, "replanned: watchdog, " + (watch?.LastReason ?? "")); return; }
             var graph = GleyGraph.Graph;
             var next = TrafficManager.Instance.GetTargetWaypoint(carIndex);
             if (graph == null || next == null) { EndWith(Outcome.Vanilla, "replan had no start"); return; }
@@ -1094,7 +1127,7 @@ namespace DrivenRides
         public static bool? HasPassed(int vehicleIndex, int waypointIndex, Vector3 waypoint, Vector3 carCentre)
         {
             var ride = Active;
-            if (ride == null || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || ride.progress == null) return null;
+            if (ride == null || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || ride.progress == null || !ride.OwnsCar) return null;
             if ((waypoint - carCentre).sqrMagnitude < 25f) return true;
             return ride.routeIndex.TryGetValue(waypointIndex, out var k) && k < ride.progress.NextIndex;
         }
@@ -1266,17 +1299,17 @@ namespace DrivenRides
             {
                 case Kind.Taxi:
                     if (!ours) break;
-                    if (leave != null) { car.presetPath = null; taxi.InstantiateVehicle(leave); }
+                    if (leave != null) { car.presetPath = null; taxi!.InstantiateVehicle(leave); }
                     else ReleaseToTraffic();
                     break;
                 case Kind.PrivateDriver:
-                    if (ours && leave != null) { car.presetPath = null; taxi.InstantiateVehicle(leave); }
+                    if (ours && leave != null) { car.presetPath = null; taxi!.InstantiateVehicle(leave); }
                     else if (taxi is PrivateDriverVehicle pd && SmartphonePrivateDriverUI.CurrentVehicle == pd)
                         InstanceBehavior<UIs>.Instance.smartphoneUI.DismissPrivateDriver(true, null, true);
                     break;
                 case Kind.Stand:
                     if (ours) ReleaseToTraffic();
-                    if (leave != null && HasInactivePooledCar(prefab)) taxi.InstantiateVehicle(leave);
+                    if (leave != null && HasInactivePooledCar(prefab)) taxi!.InstantiateVehicle(leave);
                     break;
             }
         }
@@ -1359,7 +1392,7 @@ namespace DrivenRides
             probe = null;
             foreach (var source in muted) if (source != null) source.mute = false;
             muted.Clear();
-            trace.Save();
+            trace.Save(TraceFile);
             if (anchor != null)
             {
                 // Destroying the anchor destroys its children; a player still under it must never go with it.
@@ -1398,7 +1431,7 @@ namespace DrivenRides
             try { RestoreCamera(); } catch (Exception ex) { Log.Error("Cancel, camera: " + ex.Message); }
             try { RestoreScale(); } catch (Exception ex) { Log.Error("Cancel, time scale: " + ex.Message); }
             // A loaded car was held before departure, so it is released even if the ride never left.
-            try { if (OwnsCar && (departed || onFirstWaypoint)) ReleaseToTraffic(); } catch (Exception ex) { Log.Error("Cancel, car: " + ex.Message); }
+            try { if (OwnsCar && (departed || onFirstWaypoint)) { if (kind == Kind.Test) TrafficManager.Instance.RemoveVehicle(carIndex); else ReleaseToTraffic(); } } catch (Exception ex) { Log.Error("Cancel, car: " + ex.Message); }
             if (faded && !handedOver)
             {
                 faded = false;
@@ -1444,6 +1477,8 @@ namespace DrivenRides
 
         public static void CapTick(ref float minutes)
         {
+            // A test session holds the clock (docs/turn-tests.md); a time machine that slips past its guards still ends.
+            if (TurnTests.Running) { if (!TimeMachineRunning) minutes = 0f; return; }
             var ride = Active;
             if (ride == null || ride.finished || ride.cancelled) return;
             if (ride.SaveChanged) { ride.Dispose(); return; }
@@ -1470,6 +1505,7 @@ namespace DrivenRides
         // The StartTimeMachine prefix: a time machine the ride didn't start cancels it first.
         public static void OnTimeMachineStarting()
         {
+            TurnTests.OnForeignTimeMachine();
             var ride = Active;
             if (ride != null && !ride.ownTimeMachine) ride.Cancel("another time machine started");
         }

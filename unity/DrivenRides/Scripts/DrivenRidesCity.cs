@@ -35,6 +35,7 @@ namespace DrivenRides
             runtimeObject.AddComponent<RideHost>();
             runtimeObject.AddComponent<DriverShortcut>();
             runtimeObject.AddComponent<DebugKeys>();
+            runtimeObject.AddComponent<TurnTests>();
             // Built now, so the first ride's planning time doesn't include it.
             try { _ = GleyGraph.Graph; }
             catch (Exception ex) { Log.Error("Lane graph: " + ex); }
@@ -44,13 +45,18 @@ namespace DrivenRides
         // Fires before the city scene goes, so the ride's player and managers still exist (LoadScene.cs:27-31).
         private static void OnGameUnloaded()
         {
+            TurnTests.Abort("game unloaded");
             Ride.CancelActive("game unloaded", handedOver: true);
             GleyGraph.Drop();
             if (runtimeObject != null) Object.Destroy(runtimeObject);
             runtimeObject = null;
         }
 
-        private static void OnHospital() => Ride.CancelActive("hospital", handedOver: true);
+        private static void OnHospital()
+        {
+            TurnTests.Abort("hospital");
+            Ride.CancelActive("hospital", handedOver: true);
+        }
 
         public Task OnUnloadAsync()
         {

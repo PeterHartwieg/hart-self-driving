@@ -30,7 +30,7 @@ namespace DrivenRides
 
         private static void Press()
         {
-            if (TaxiSystem.IsTraveling || Ride.Active != null || CityMap.IsOpen || PlayerActivityUI.IsPanelOpen || VehicleHelper.IsInsideVehicle()) return;
+            if (TurnTests.Running || TaxiSystem.IsTraveling || Ride.Active != null || CityMap.IsOpen || PlayerActivityUI.IsPanelOpen || VehicleHelper.IsInsideVehicle()) return;
             var waiting = SmartphonePrivateDriverUI.CurrentVehicle;
             if (waiting != null)
             {

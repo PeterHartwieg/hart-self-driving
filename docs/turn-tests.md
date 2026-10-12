@@ -41,7 +41,7 @@ A run fails on:
 - `contact`: a hit on a building or street prop;
 - `near-miss`: the car's body box, inflated by 0.1 m, overlapping a building or street prop;
 - `missed-gate`, `exit-lane`, `exit-heading`;
-- `intrusion`: on plain stretches, the car's footprint more than 0.3 m past the midline between the route's lane side and the nearest oncoming lane; from the entry gate on, more than 0.3 m into the oncoming lanes of the road being turned into;
+- `intrusion`: on plain stretches, the car's footprint more than 0.3 m past the midline between the route's lane side and the nearest oncoming lane; past the mouth of the road being turned into (its first 25 m), more than 0.3 m into its oncoming lanes. Inside the junction a left turn sweeps across them, and a U-turn's approach lanes are that road's oncoming lanes, so neither is checked there;
 - `far-side-early`: a U-turn's footprint on the far carriageway before the front axle crosses the turn gate (the end of the straight way into the junction, `LaneGraph.UTurnStart`);
 - `stuck`: 20 s without progress while not waiting at a light;
 - `replanned`: the ride code wanted to re-route (a blocked step ahead, the watchdog).

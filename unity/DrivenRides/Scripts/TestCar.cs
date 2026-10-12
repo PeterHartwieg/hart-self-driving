@@ -1,0 +1,171 @@
+#nullable enable
+using System.Collections.Generic;
+using DrivenRides.Core.Testing;
+using GleyTrafficSystem;
+using Helpers;
+using UnityEngine;
+
+namespace DrivenRides
+{
+    // On a turn test's car while it drives (docs/turn-tests.md): each physics step it measures the car's body box,
+    // front axle, speed and near misses for the judge, and reports hits. The first failure latches the car's outline
+    // for the failure picture. Removed before the car goes back to Gley's pool.
+    internal sealed class TestCar : MonoBehaviour
+    {
+        public Judge? Judge;
+        public System.Func<bool>? Waiting;
+        public int Step { get; private set; }
+        public readonly List<Vector3> Track = new List<Vector3>();
+        public Vector3[]? FailureOutline { get; private set; }
+        public Vector3 FailureCentre { get; private set; }
+        public bool PictureDue { get; set; }
+
+        private VehicleComponent? car;
+        private Vector3 boxCenter, boxHalf;
+        private readonly Collider[] hits = new Collider[32];
+        private static readonly float[] Inflations = { 0.3f, 0.2f, 0.1f };
+        private float time;
+
+        // Buildings and street props: what a car must never touch (the ride's own obstacle mask).
+        public static readonly int ObstacleMask = LayerMask.GetMask("StreetProps") | LayerHelper.buildingsLayerMask;
+
+        private void Awake()
+        {
+            car = GetComponent<VehicleComponent>();
+            MeasureBody();
+        }
+
+        // The body box in the car's own space, from its solid colliders; the triggers and Gley's sensors are left out.
+        private void MeasureBody()
+        {
+            var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            var max = -min;
+            var found = false;
+            foreach (var c in GetComponentsInChildren<Collider>(true))
+            {
+                if (c.isTrigger || (car != null && c.attachedRigidbody != car.rb)) continue;
+                foreach (var corner in LocalCorners(c))
+                {
+                    var local = transform.InverseTransformPoint(corner);
+                    min = Vector3.Min(min, local);
+                    max = Vector3.Max(max, local);
+                    found = true;
+                }
+            }
+            if (!found && car != null)
+            {
+                min = new Vector3(-car.colliderWidth / 2f, 0f, -car.length / 2f);
+                max = new Vector3(car.colliderWidth / 2f, car.coliderHeight, car.length / 2f);
+            }
+            boxCenter = (min + max) / 2f;
+            boxHalf = (max - min) / 2f;
+        }
+
+        private static IEnumerable<Vector3> LocalCorners(Collider c)
+        {
+            Bounds b;
+            if (c is BoxCollider box) b = new Bounds(box.center, box.size);
+            else if (c is MeshCollider mesh && mesh.sharedMesh != null) b = mesh.sharedMesh.bounds;
+            else { var w = c.bounds; for (var i = 0; i < 8; i++) yield return Corner(w.center, w.extents, i); yield break; }
+            for (var i = 0; i < 8; i++) yield return c.transform.TransformPoint(Corner(b.center, b.extents, i));
+        }
+
+        private static Vector3 Corner(Vector3 center, Vector3 extents, int i) =>
+            center + new Vector3((i & 1) == 0 ? -extents.x : extents.x, (i & 2) == 0 ? -extents.y : extents.y, (i & 4) == 0 ? -extents.z : extents.z);
+
+        public float HalfWidth => boxHalf.x;
+
+        // The footprint at the bottom of the body box: four corners, then four edge midpoints.
+        public Vector3[] Outline()
+        {
+            var t = transform;
+            var bottom = boxCenter.y - boxHalf.y;
+            var x = boxHalf.x;
+            var z = boxHalf.z;
+            var c = boxCenter;
+            return new[]
+            {
+                t.TransformPoint(new Vector3(c.x - x, bottom, c.z + z)), t.TransformPoint(new Vector3(c.x + x, bottom, c.z + z)),
+                t.TransformPoint(new Vector3(c.x + x, bottom, c.z - z)), t.TransformPoint(new Vector3(c.x - x, bottom, c.z - z)),
+                t.TransformPoint(new Vector3(c.x, bottom, c.z + z)), t.TransformPoint(new Vector3(c.x + x, bottom, c.z)),
+                t.TransformPoint(new Vector3(c.x, bottom, c.z - z)), t.TransformPoint(new Vector3(c.x - x, bottom, c.z)),
+            };
+        }
+
+        private Vector3 FrontAxle()
+        {
+            if (car != null && car.allWheels != null)
+            {
+                var sum = Vector3.zero;
+                var n = 0;
+                foreach (var wheel in car.allWheels)
+                    if (wheel != null && wheel.wheelPosition == Wheel.WheelPosition.Front && wheel.wheelTransform != null) { sum += wheel.wheelTransform.position; n++; }
+                if (n > 0) return sum / n;
+            }
+            return transform.TransformPoint(boxCenter + new Vector3(0f, 0f, boxHalf.z * 0.6f));
+        }
+
+        private float NearMiss()
+        {
+            var smallest = 0f;
+            var centre = transform.TransformPoint(boxCenter);
+            foreach (var inflate in Inflations)
+            {
+                var n = Physics.OverlapBoxNonAlloc(centre, boxHalf + new Vector3(inflate, 0f, inflate), hits, transform.rotation, ObstacleMask, QueryTriggerInteraction.Ignore);
+                if (n == 0) break;
+                smallest = inflate;
+            }
+            return smallest;
+        }
+
+        private void FixedUpdate()
+        {
+            if (Judge == null || car == null) return;
+            Step++;
+            time += Time.fixedDeltaTime;
+            var outline = Outline();
+            var footprint = new Core.Routing.Vec3[outline.Length];
+            for (var i = 0; i < outline.Length; i++) footprint[i] = GleyGraph.ToVec(outline[i]);
+            var centre = transform.TransformPoint(boxCenter);
+            var failedBefore = Judge.Failed;
+            Judge.Add(new Sample
+            {
+                Step = Step,
+                Time = time,
+                Centre = GleyGraph.ToVec(centre),
+                FrontAxle = GleyGraph.ToVec(FrontAxle()),
+                HeadingDegrees = transform.eulerAngles.y,
+                Footprint = footprint,
+                SpeedMs = car.rb != null ? car.rb.velocity.magnitude : 0f,
+                Waiting = Waiting?.Invoke() ?? false,
+                NearMiss = NearMiss(),
+            });
+            if (Step % 5 == 0) Track.Add(centre);
+            if (!failedBefore && Judge.Failed) Latch(outline, centre);
+        }
+
+        private void Latch(Vector3[] outline, Vector3 centre)
+        {
+            FailureOutline = outline;
+            FailureCentre = centre;
+            PictureDue = true;
+        }
+
+        private void OnCollisionEnter(Collision collision) => Hit(collision);
+
+        private readonly HashSet<Collider> reported = new HashSet<Collider>();
+
+        private void Hit(Collision collision)
+        {
+            if (Judge == null || collision.collider == null || !reported.Add(collision.collider)) return;
+            var c = collision.collider;
+            var layer = c.gameObject.layer;
+            var what = $"'{c.name}' (layer {LayerMask.LayerToName(layer)}) at {collision.GetContact(0).point}, {collision.relativeVelocity.magnitude:0.0} m/s";
+            var failedBefore = Judge.Failed;
+            if ((ObstacleMask & (1 << layer)) != 0) Judge.Contact(Step, what);
+            else if (c.attachedRigidbody != null && c.attachedRigidbody.GetComponent<VehicleComponent>() != null) Judge.Incident(Step, "vehicle " + what);
+            else if (LayerMask.LayerToName(layer) == "Human") Judge.Incident(Step, "pedestrian " + what);
+            if (!failedBefore && Judge.Failed) Latch(Outline(), transform.TransformPoint(boxCenter));
+        }
+    }
+}

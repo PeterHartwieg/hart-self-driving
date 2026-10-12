@@ -28,12 +28,14 @@ namespace DrivenRides
 
         public void Note(string text) => lines.Append("# ").Append(time.ToString("0.00", CultureInfo.InvariantCulture)).Append(' ').Append(text).Append('\n');
 
-        public void Save()
+        // A ride's trace goes to ride-trace.csv (the latest only); a test ride's to the file it names.
+        public void Save(string? file = null)
         {
             try
             {
-                Directory.CreateDirectory(GleyGraph.DataFolder);
-                File.WriteAllText(Path.Combine(GleyGraph.DataFolder, "ride-trace.csv"), lines.ToString());
+                var path = file ?? Path.Combine(GleyGraph.DataFolder, "ride-trace.csv");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, lines.ToString());
             }
             catch (System.Exception ex) { Log.Error("Ride trace: " + ex.Message); }
         }

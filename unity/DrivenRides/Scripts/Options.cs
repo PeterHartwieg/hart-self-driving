@@ -22,7 +22,10 @@ namespace DrivenRides
         public static bool DrivenRides { get; private set; } = true;
         public static float RideSpeed { get; private set; } = 1f;
         public static bool Shortcut { get; private set; } = true;
-        public static bool TrafficLights { get; private set; } = true;
+        public static bool TrafficLights { get => LightsOverride ?? lights; private set => lights = value; }
+        private static bool lights = true;
+        // Set by a test session (lights obeyed), never written to PlayerPrefs, so the options page can't undo it.
+        public static bool? LightsOverride;
 
         public static void Register(string id)
         {

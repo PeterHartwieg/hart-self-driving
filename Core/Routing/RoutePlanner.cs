@@ -44,6 +44,26 @@ namespace DrivenRides.Core.Routing
         public float WalkSeconds { get; }
         public float LengthMetres { get; }
 
+        public static Route Fixed(LaneGraph graph, IReadOnlyList<int> waypoints)
+        {
+            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            if (waypoints == null) throw new ArgumentNullException(nameof(waypoints));
+            if (waypoints.Count == 0) throw new ArgumentException("A route needs a waypoint.", nameof(waypoints));
+            var copy = new int[waypoints.Count];
+            double length = 0, drive = 0;
+            for (int i = 0; i < copy.Length; i++)
+            {
+                int w = waypoints[i];
+                if (w < 0 || w >= graph.Count) throw new ArgumentOutOfRangeException(nameof(waypoints));
+                copy[i] = w;
+                if (i == 0) continue;
+                float segment = Vec3.HorizontalDistance(graph.Position(copy[i - 1]), graph.Position(w));
+                length += segment;
+                drive += segment / (((double)graph.SpeedMs(copy[i - 1]) + graph.SpeedMs(w)) / 2);
+            }
+            return new Route(copy, copy[copy.Length - 1], drive, 0, length);
+        }
+
         internal Route(int[] waypoints, int goalIndex, double drive, float walk, double length)
         {
             Waypoints = Array.AsReadOnly(waypoints);

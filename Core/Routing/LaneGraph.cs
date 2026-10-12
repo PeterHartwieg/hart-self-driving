@@ -71,17 +71,20 @@ namespace DrivenRides.Core.Routing
             if (inferLanes) InferLanes();
             turns = new IReadOnlyList<int>[n];
             uTurns = new int[n];
-            for (int i = 0; i < n; i++) { turns[i] = Array.Empty<int>(); uTurns[i] = -1; }
+            uTurnStarts = new int[n];
+            for (int i = 0; i < n; i++) { turns[i] = Array.Empty<int>(); uTurns[i] = -1; uTurnStarts[i] = -1; }
             if (inferTurns) { InferTurns(); InferUTurns(); }
         }
 
         private readonly IReadOnlyList<int>[] turns;
-        private readonly int[] uTurns;
+        private readonly int[] uTurns, uTurnStarts;
 
         // A U-turn at a junction into the other carriageway of a divided street (Peter: a player cuts across there,
         // waiting for a gap), or -1. The target is a waypoint inside the junction on the far carriageway, ahead of
         // the car: Gley skips a target behind the car as passed, and the far carriageway's exit is behind the entry.
         public int UTurn(int i) => uTurns[i];
+        public int UTurnStart(int i) => uTurnStarts[i];
+        public bool PlainHeading(int i, out float dx, out float dz) => Heading(i, out dx, out dz);
         public int InferredUTurns { get; private set; }
 
         private void InferUTurns()
@@ -111,6 +114,7 @@ namespace DrivenRides.Core.Routing
                 }
                 if (best < 0) continue;
                 uTurns[i] = best;
+                uTurnStarts[i] = straight;
                 InferredUTurns++;
                 // Then through a junction waypoint near the far end of the arc, so the car follows the curve.
                 float bx = positions[best].X - positions[i].X, bz = positions[best].Z - positions[i].Z;
