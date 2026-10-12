@@ -397,7 +397,8 @@ namespace DrivenRides
                     if (route != null && ownCar != null)
                     {
                         var first = route.Waypoints[0];
-                        spawn = manager.GetClosestWaypoint(GleyGraph.Waypoints![first].position, 1f, w => w.listIndex == first, prefab);
+                        // The car's own colliders off for the free check, as in SpawnBeside: it may stand in that lane.
+                        spawn = WithCollidersOff(ownCar.transform, () => manager.GetClosestWaypoint(GleyGraph.Waypoints![first].position, 1f, w => w.listIndex == first, prefab));
                         if (spawn == null) return Vanilla("the nearby lane the route starts on isn't free");
                         start = first;
                     }
@@ -706,16 +707,20 @@ namespace DrivenRides
         // Hamptons driver parks on a waypoint by the house).
         private static Waypoint? SpawnBeside(TrafficManager manager, Transform parkedCar, VehicleComponent prefab)
         {
-            var colliders = parkedCar.GetComponentsInChildren<Collider>();
+            var y = parkedCar.position.y;
+            var forward = parkedCar.forward;
+            return WithCollidersOff(parkedCar, () =>
+                manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y) && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f, prefab)
+                ?? manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y), prefab));
+        }
+
+        // Gley's free check sees every collider; a car's own must not make its lane look taken.
+        private static T WithCollidersOff<T>(Transform car, Func<T> check)
+        {
+            var colliders = car.GetComponentsInChildren<Collider>();
             var wasOn = new bool[colliders.Length];
             for (var k = 0; k < colliders.Length; k++) { wasOn[k] = colliders[k].enabled; colliders[k].enabled = false; }
-            try
-            {
-                var y = parkedCar.position.y;
-                var forward = parkedCar.forward;
-                return manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y) && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f, prefab)
-                    ?? manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y), prefab);
-            }
+            try { return check(); }
             finally
             {
                 for (var k = 0; k < colliders.Length; k++) if (colliders[k] != null) colliders[k].enabled = wasOn[k];
@@ -835,13 +840,17 @@ namespace DrivenRides
                 {
                     faded = true;
                     Func<bool> stop = () => cancelled || SaveChanged || ownCar == null || !ownCar.controlledByPlayer;
+                    var parkBody = ownCar.GetComponent<Rigidbody>();
+                    var before = parkBody != null ? parkBody.position : ownCar.transform.position;
                     var park = Flatten(OwnCarTaxi.Autopark(ownCar, stop));
                     while (park.MoveNext())
                     {
                         yield return park.Current;
                         if (cancelled) yield break;
-                        // Checked between every step, so the teleport after the fade never runs on a car the player left.
-                        if (stop()) { Log.Info("Own car: autopark stopped (the player got out or the save changed)."); break; }
+                        // Checked between steps until the teleport, so it never runs on a car the player left. Once the car
+                        // has moved, autopark runs to its end: its unfade and the parking state that follow it.
+                        var moved = parkBody != null && Vector3.Distance(parkBody.position, before) > 0.5f;
+                        if (!moved && stop()) { Log.Info("Own car: autopark stopped before parking (the player got out or the save changed)."); break; }
                     }
                     // Autopark stopped between its fade and its unfade (the player got out): the screen comes back.
                     if (InstanceBehavior<UIs>.Instance.blackOverlay.color.a > 0.01f)
@@ -959,7 +968,27 @@ namespace DrivenRides
                 if (SaveGameManager.Current?.ActiveVehicleId == real.vehicleInstance.id)
                 {
                     RefuseReEntryFor(real);
-                    try { real.ExitVehicle(); } catch (Exception exitEx) { Log.Error("Own car: undoing the half entry: " + exitEx.Message); }
+                    try { real.ExitVehicle(); }
+                    catch (Exception exitEx)
+                    {
+                        // Vanilla's exit failed too: undo by hand what EnterVehicle had set, so the game doesn't think the
+                        // player is driving.
+                        Log.Error("Own car: undoing the half entry: " + exitEx.Message);
+                        try
+                        {
+                            SaveGameManager.Current!.ActiveVehicleId = null;
+                            real.controlledByPlayer = false;
+                            // As vanilla's exit: the player back under the game manager, the figure under the player.
+                            if (player.transform.IsChildOf(real.transform)) player.transform.SetParent(manager.transform, true);
+                            var figure = player.Character.transform;
+                            if (figure.IsChildOf(real.transform)) { figure.SetParent(player.transform, false); figure.localPosition = Vector3.zero; figure.localRotation = Quaternion.identity; }
+                            player.UnsetNavigationBlocker(NavigationBlocker.Vehicle);
+                            try { AccessTools.Method(typeof(CarController), "StopEngine")?.Invoke(real, null); } catch (Exception engineEx) { Log.Error("Own car: engine: " + engineEx.Message); }
+                            player.Character.WarpSafely(BesideOwnCar());
+                            SetGameCamera(PedestrianCameraField?.GetValue(manager));
+                        }
+                        catch (Exception handEx) { Log.Error("Own car: undoing the half entry by hand: " + handEx.Message); }
+                    }
                 }
             }
             real.SavePosition();
