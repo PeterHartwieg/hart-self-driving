@@ -157,7 +157,12 @@ namespace DrivenRides.Core.Testing
                 float side = stretch.Side(point);
                 float depth = Math.Max(0, Math.Max(stretch.Left - side, side - stretch.Right));
                 result.MaxIntrusion = Math.Max(result.MaxIntrusion, depth);
-                if (depth > 0.3f) Fail(s.Step, "intrusion");
+                if (depth > 0.3f)
+                {
+                    result.IntrusionDetail ??= FormattableString.Invariant(
+                        $"step {s.Step}, route segment {stretch.Index}, point ({point.X:0.0}, {point.Z:0.0}) {side:0.00} m across, boundaries {stretch.Left:0.00} / {stretch.Right:0.00}, {along:0.0} m along");
+                    Fail(s.Step, "intrusion");
+                }
             }
         }
 
@@ -201,7 +206,7 @@ namespace DrivenRides.Core.Testing
             Verdict = Failed ? "fail" : timedOut || !Finished ? "incomplete" : "pass",
             Reasons = new List<string>(result.Reasons), GatesPassed = new List<string>(result.GatesPassed), Incidents = new List<string>(result.Incidents),
             EntrySpeed = result.EntrySpeed, MaxIntrusion = result.MaxIntrusion, NearMiss = result.NearMiss, PlainDeviationMax = result.PlainDeviationMax,
-            LastGateLateral = result.LastGateLateral, LastGateHeadingError = result.LastGateHeadingError
+            LastGateLateral = result.LastGateLateral, LastGateHeadingError = result.LastGateHeadingError, IntrusionDetail = result.IntrusionDetail
         };
 
         private sealed class Stretch
@@ -229,7 +234,9 @@ namespace DrivenRides.Core.Testing
                     if (Math.Abs(p.Y - start.Y) > 1f || !graph.PlainHeading(w, out float x, out float z)) continue;
                     float dot = dx * x + dz * z, side = Side(p);
                     if (dot > 0.5f) same.Add(side);
-                    else if (dot < -0.5f)
+                    // An oncoming waypoint less than 2.5 m to the side is no lane beside: the game reuses a lane both
+                    // ways in places, and a Hamptons lane road is too narrow for any car to keep to its half.
+                    else if (dot < -0.5f && Math.Abs(side) >= 2.5f)
                     {
                         if (side < 0) left = Math.Max(left, side);
                         else if (side > 0) right = Math.Min(right, side);

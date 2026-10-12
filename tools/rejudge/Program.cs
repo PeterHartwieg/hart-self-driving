@@ -7,6 +7,26 @@ using DrivenRides.Core.Routing;
 using DrivenRides.Core.Testing;
 
 var graph = LoadGraph(args[0]);
+if (args[1] == "show")
+{
+    // show <entry> <exit> [next exit-lane waypoints...]: the turn's vias and where each exit waypoint lies along the
+    // exit lane, measured from the last via.
+    int entry = int.Parse(args[2]), exit = int.Parse(args[3]);
+    var vias = graph.TurnVias(entry, exit);
+    string At(int w) => $"{w} ({graph.Position(w).X:0.0}, {graph.Position(w).Z:0.0})";
+    Console.WriteLine($"entry {At(entry)}, vias {string.Join(", ", vias.Select(At))}, exit {At(exit)}");
+    graph.PlainHeading(exit, out var ex, out var ez);
+    var v = graph.Position(vias.Count > 0 ? vias[^1] : entry);
+    var lane = new List<int> { exit };
+    while (lane.Count < 6 && graph.Successors(lane[^1]).Count == 1) lane.Add(graph.Successors(lane[^1])[0]);
+    foreach (var w in lane)
+    {
+        var p = graph.Position(w);
+        float along = (p.X - v.X) * ex + (p.Z - v.Z) * ez, side = (p.X - v.X) * ez - (p.Z - v.Z) * ex;
+        Console.WriteLine($"  {At(w)}: {along:0.0} m along the exit lane from the last via, via is {-side:0.0} m to its side");
+    }
+    return;
+}
 var resultsPath = args[1];
 var folder = args.Length > 2 ? args[2] : Path.GetDirectoryName(Path.GetFullPath(resultsPath))!;
 int same = 0, changed = 0, missing = 0;
@@ -40,7 +60,8 @@ foreach (var line in File.ReadLines(resultsPath))
     var differs = oldVerdict != result.Verdict || oldReasons != newReasons;
     if (differs) changed++; else same++;
     Console.WriteLine($"{run.GetProperty("run").GetString()} {fixture.Id,-36} {(differs ? "*" : " ")} {oldVerdict} [{oldReasons}] -> {result.Verdict} [{newReasons}] " +
-        $"intrusion {result.MaxIntrusion:0.00} dev {result.PlainDeviationMax:0.00} gates {string.Join(",", result.GatesPassed)}");
+        $"intrusion {result.MaxIntrusion:0.00} dev {result.PlainDeviationMax:0.00} gates {string.Join(",", result.GatesPassed)}" +
+        (result.IntrusionDetail != null ? $"\n      {result.IntrusionDetail}" : ""));
 }
 Console.WriteLine($"\n{same} unchanged, {changed} changed, {missing} without samples; now: {string.Join(", ", verdicts.Select(v => $"{v.Key} {v.Value}"))}");
 

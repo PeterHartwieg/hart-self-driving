@@ -19,8 +19,8 @@ namespace DrivenRides
         public Vector3[]? FailureOutline { get; private set; }
         public Vector3 FailureCentre { get; private set; }
         public bool PictureDue { get; set; }
-        // Every third sample, every near miss and every hit, for judging the run again away from the game
-        // (tools/rejudge): S lines are samples, C contacts, I incidents.
+        // Every sample and every hit, for judging the run again away from the game (tools/rejudge): S lines are
+        // samples, C contacts, I incidents, R a replan.
         public readonly System.Text.StringBuilder Samples = new System.Text.StringBuilder();
         private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
 
@@ -147,7 +147,7 @@ namespace DrivenRides
             Judge.Add(sample);
             if (Step % 5 == 0) Track.Add(centre);
             if (!failedBefore && Judge.Failed) Latch(outline, centre);
-            if (Step % 3 == 0 || sample.NearMiss > 0 || (!failedBefore && Judge.Failed)) Record(sample);
+            Record(sample);
         }
 
         private void Record(Sample s)

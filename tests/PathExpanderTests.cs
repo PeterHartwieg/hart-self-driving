@@ -11,16 +11,35 @@ public sealed class PathExpanderTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AddedTurnKeepsViasAndSkipsTwoExitWaypointsOnlyWhenStraight(bool longExit)
+    public void AddedTurnKeepsViasAndAimsAtAnExitWaypointTenMetresOn(bool longExit)
     {
+        // The exit lies 10 m along its lane from the last via, so the car aims at it directly.
         var (graph, entry, exit) = TurnTestGraph.Turn();
         int[] route = longExit ? new[] { 0, 1, entry, exit, exit + 1, exit + 2, exit + 3 } : new[] { 0, 1, entry, exit, exit + 1 };
         var expanded = PathExpander.Expand(graph, route);
         int[] vias = graph.TurnVias(entry, exit).ToArray();
         Assert.NotEmpty(vias);
-        int[] expected = new[] { 0, 1, entry }.Concat(vias).Concat(longExit ? new[] { exit + 2, exit + 3 } : new[] { exit, exit + 1 }).ToArray();
+        int[] expected = new[] { 0, 1, entry }.Concat(vias).Concat(route.Skip(3)).ToArray();
         Assert.Equal(expected, expanded.Path);
         Assert.Equal(Enumerable.Range(0, 4 + vias.Length), expanded.SlowPath.OrderBy(i => i));
+    }
+
+    [Fact]
+    public void AddedTurnSkipsAtMostTwoExitWaypointsThatAreTooNear()
+    {
+        // A right turn whose exit lane starts 3 m past the via: the 3 m and 8 m waypoints are too near to aim at.
+        var b = new TurnTestGraph();
+        int a = b.Add(0, -30), run = b.Add(0, -20), entry = b.Add(0, -10);
+        int j1 = b.Add(0, -5, true), j2 = b.Add(0, 5, true), straight = b.Add(0, 10), end = b.Add(0, 20);
+        b.Link(a, run, entry, j1, j2, straight, end);
+        int west = b.Add(-20, -2), crossEntry = b.Add(-10, -2), cj1 = b.Add(-5, -2, true), cj2 = b.Add(-1, -2, true);
+        int exit = b.Add(3, -2), x2 = b.Add(8, -2), x3 = b.Add(13, -2), x4 = b.Add(18, -2);
+        b.Link(west, crossEntry, cj1, cj2, exit, x2, x3, x4);
+        var graph = b.Build(true);
+        var vias = graph.TurnVias(entry, exit).ToArray();
+        Assert.NotEmpty(vias);
+        var expanded = PathExpander.Expand(graph, new[] { a, run, entry, exit, x2, x3, x4 });
+        Assert.Equal(new[] { a, run, entry }.Concat(vias).Concat(new[] { x3, x4 }), expanded.Path);
     }
 
     [Fact]

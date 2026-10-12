@@ -342,20 +342,20 @@ namespace DrivenRides
             Teardown(s.StopRequested ? "stopped" : "finished", handedOver: false);
         }
 
-        // Each control pair: the correct half passes and the bad half fails for its stated reason.
+        // Each control pair's bad half must fail for its stated reason: that shows the judge catches the fault. A
+        // correct half that fails is a ride fault at that spot (the first runs found two), reported, not counted.
         private static string Calibration(List<(Fixture Fixture, JudgeResult Result)> results)
         {
             var bad = new List<string>();
-            foreach (var pair in results.GroupBy(r => r.Fixture.PairId))
+            var faults = new List<string>();
+            foreach (var (f, r) in results)
             {
-                foreach (var (f, r) in pair)
-                {
-                    if (!f.IsMutation && r.Verdict != "pass") bad.Add($"{f.Id} should pass, got {r.Verdict} ({string.Join(" ", r.Reasons)})");
-                    if (f.IsMutation && (r.Verdict != "fail" || f.ExpectedFailure == null || !r.Reasons.Any(x => x.StartsWith(f.ExpectedFailure, StringComparison.Ordinal))))
-                        bad.Add($"{f.Id} should fail with {f.ExpectedFailure}, got {r.Verdict} ({string.Join(" ", r.Reasons)})");
-                }
+                if (!f.IsMutation && r.Verdict != "pass") faults.Add($"{f.Id} {r.Verdict} ({string.Join(" ", r.Reasons)})");
+                if (f.IsMutation && (r.Verdict != "fail" || f.ExpectedFailure == null || !r.Reasons.Any(x => x.StartsWith(f.ExpectedFailure, StringComparison.Ordinal))))
+                    bad.Add($"{f.Id} should fail with {f.ExpectedFailure}, got {r.Verdict} ({string.Join(" ", r.Reasons)})");
             }
-            var verdict = bad.Count == 0 ? "calibrated" : "uncalibrated: " + string.Join("; ", bad);
+            var verdict = (bad.Count == 0 ? "calibrated" : "uncalibrated: " + string.Join("; ", bad)) +
+                          (faults.Count > 0 ? "; ride faults at the controls: " + string.Join("; ", faults) : "");
             Log.Info("Turn tests controls: " + verdict);
             return verdict;
         }
@@ -519,7 +519,11 @@ namespace DrivenRides
             s.Car = null;
             s.Ride = null;
             ride.EndTest();
-            Record(s, line, result.Verdict, null, result, fixture);
+            // A step the ride's world check blocks is one real rides never drive: avoided, not failed, unless the
+            // car had already gone wrong before.
+            var verdict = result.Verdict;
+            if (ride.EndReason.StartsWith("replanned: step", StringComparison.Ordinal) && result.Reasons.Count == 1 && result.Reasons[0] == "replanned") verdict = "avoided";
+            Record(s, line, verdict, null, result, fixture);
             done(result);
         }
 

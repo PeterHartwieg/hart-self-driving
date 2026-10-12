@@ -11,6 +11,8 @@ namespace DrivenRides.Core.Ride
 
     public static class PathExpander
     {
+        private const float MinAimMetres = 10f;
+
         // Puts each added turn's and U-turn's waypoints (straight into the junction, then the curve) between its
         // entry and exit, so the car drives them as a driver would.
         public static ExpandedPath Expand(LaneGraph? graph, IReadOnlyList<int> route)
@@ -30,15 +32,21 @@ namespace DrivenRides.Core.Ride
                     // Spike 12's trace: an added left turn at 50 km/h came out 2.5 m wide, on the centre line.
                     for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);
                     foreach (var via in vias) { slowPath.Add(result.Count); result.Add(via); }
-                    // The car aims down the exit's lane, past its first two waypoints, so it comes out of the arc in
-                    // line with the lane instead of turning past 90 degrees towards the first one (spike 13).
-                    if (k + 3 < w.Count && Contains(graph.Successors(w[k + 1]), w[k + 2]) && Contains(graph.Successors(w[k + 2]), w[k + 3]))
+                    // The car aims down the exit's lane, at its first waypoint at least 10 m past the last via, so it
+                    // comes out of the arc in line with the lane instead of turning past 90 degrees towards a near one
+                    // (spike 13). Never further than the third: at an angled junction, where the exit lane starts
+                    // far from the via, aiming 30 m down the lane drew the car through the oncoming lanes on a
+                    // shallow diagonal (turn test 0.1.31, onto Broadway).
+                    var skip = 0;
+                    if (graph.PlainHeading(w[k + 1], out var ex, out var ez))
                     {
-                        slowPath.Add(result.Count);
-                        k += 2;
-                        continue;
+                        var last = graph.Position(vias[vias.Count - 1]);
+                        float Along(int i) => (graph.Position(i).X - last.X) * ex + (graph.Position(i).Z - last.Z) * ez;
+                        while (skip < 2 && k + 2 + skip < w.Count && Contains(graph.Successors(w[k + 1 + skip]), w[k + 2 + skip]) && Along(w[k + 1 + skip]) < MinAimMetres)
+                            skip++;
                     }
                     slowPath.Add(result.Count);
+                    k += skip;
                     continue;
                 }
                 // A U-turn is driven at turn speed too: a 6.7 m car entering one at 50 km/h swung wide into the far
