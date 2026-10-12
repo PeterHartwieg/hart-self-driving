@@ -127,6 +127,10 @@ namespace DrivenRides.Core.Testing
             {
                 int next = Geometry.Next(graph, current, backwards, dx, dz);
                 if (next < 0 || !seen.Add(next)) break;
+                // Never round a bend of more than 60 degrees: at a dead end the only successor is the lane back
+                // (turn test 0.1.33: a Hamptons case's run-out turned round and the car got stuck there).
+                Geometry.Direction(graph.Position(backwards ? next : current), graph.Position(backwards ? current : next), out float nx, out float nz);
+                if (nx * dx + nz * dz < 0.5f) break;
                 float segment = Vec3.HorizontalDistance(graph.Position(current), graph.Position(next));
                 if (length + segment > limit) break;
                 length += segment;

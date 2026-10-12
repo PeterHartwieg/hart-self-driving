@@ -73,9 +73,15 @@ namespace DrivenRides
         private List<int> path;
         // Path positions of added turns (entry to exit, U-turns not included), driven at TurnSpeed.
         private readonly HashSet<int> slowPath = new HashSet<int>();
+        // Path positions of U-turns, driven at UTurnSpeed in a long car.
+        private readonly HashSet<int> uTurnPath = new HashSet<int>();
 
         private float appliedTop = -1f;
         private const float TurnSpeed = 25f;
+        // A long car takes a U-turn slower: at 25 km/h a 6.7 m car went wide into the far kerb (turn tests); shorter
+        // cars made the same U-turns at 25 (Peter: only for big cars).
+        private const float UTurnSpeed = 15f;
+        private const float LongCarMetres = 5.5f;
         private RouteProgress? progress;
         private readonly RideTrace trace = new RideTrace();
         private CollisionProbe? probe;
@@ -140,6 +146,7 @@ namespace DrivenRides
             this.route = route;
             path = Expand(route);
             carLength = LengthOf(prefab);
+            carHalfWidth = HalfWidthOf(prefab);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
             player = manager.playerController;
@@ -167,6 +174,7 @@ namespace DrivenRides
             {
                 ride.path = path;
                 ride.slowPath.Clear();
+                ride.uTurnPath.Clear();
                 if (slow != null) ride.slowPath.UnionWith(slow);
             }
             ride.anchorComponent = anchor;
@@ -247,6 +255,7 @@ namespace DrivenRides
                 if (kind != Kind.Stand && parked == null && (car == null || car.GetIndex() < 0)) return Vanilla("the taxi has no traffic car");
                 if (prefab == null) return Vanilla("no vehicle prefab");
                 planLength = LengthOf(prefab);
+                planHalfWidth = HalfWidthOf(prefab);
 
                 var graph = GleyGraph.Graph;
                 var manager = TrafficManager.HasInstance && TrafficManager.IsInitialized ? TrafficManager.Instance : null;
@@ -319,7 +328,7 @@ namespace DrivenRides
                 // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
                 for (var attempt = 0; route != null && attempt < 6; attempt++)
                 {
-                    var blocked = FindBlockedSteps(graph, route.Waypoints);
+                    var blocked = FindBlockedSteps(graph, route.Waypoints, planHalfWidth);
                     if (blocked.Count == 0) break;
                     foreach (var (from, to, what) in blocked)
                     {
@@ -395,16 +404,21 @@ namespace DrivenRides
 
         // The length of the car a route is planned for: manoeuvres that failed in turn tests for cars this long are
         // left out (TestedSteps).
-        private static float planLength;
-        private float carLength;
+        private static float planLength, planHalfWidth;
+        private float carLength, carHalfWidth;
 
-        private static float LengthOf(VehicleComponent prefab)
+        // A pooled copy's measurements: Gley fills length and width in when it builds the pool.
+        private static VehicleComponent PooledCopy(VehicleComponent prefab)
         {
             if (TrafficVehiclesField?.GetValue(TrafficManager.Instance) is TrafficVehicles vehicles)
                 foreach (var v in vehicles.GetVehicleList())
-                    if (v != null && v.prefab == prefab.gameObject && v.length > 0f) return v.length;
-            return prefab.length;
+                    if (v != null && v.prefab == prefab.gameObject && v.length > 0f) return v;
+            return prefab;
         }
+
+        private static float LengthOf(VehicleComponent prefab) => PooledCopy(prefab).length;
+
+        private static float HalfWidthOf(VehicleComponent prefab) => PooledCopy(prefab).colliderWidth / 2f;
 
         private static Route? Plan(LaneGraph graph, int start, List<Goal> goals, int vehicleType, out long ms, out string why)
         {
@@ -457,7 +471,7 @@ namespace DrivenRides
 
         // The steps of a route the game's data doesn't have, swept with a car-wide capsule against street props and
         // buildings, along the waypoints the car will steer through.
-        private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w)
+        private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w, float halfWidth)
         {
             var result = new List<(int, int, string)>();
             var all = GleyGraph.Waypoints!;
@@ -472,7 +486,9 @@ namespace DrivenRides
                 // A turn with guide waypoints is checked along them, 1.5 m wide; a short one without, along its chord
                 // back as well, since the car cuts that corner.
                 var turn = Contains(graph.MissingTurns(w[k]), w[k + 1]);
-                var radius = turn ? 1.5f : 0.8f;
+                // A lane change's sweep is as wide as the car: 0.8 m let a 2.3 m car change lanes into a lamp post by
+                // the kerb (turn test 0.1.33).
+                var radius = turn ? 1.5f : Mathf.Max(0.8f, halfWidth + 0.1f);
                 if (turn && points.Count == 2) points.Add(all[w[k]].position);
                 for (var q = 0; q + 1 < points.Count; q++)
                 {
@@ -696,6 +712,8 @@ namespace DrivenRides
             var expanded = PathExpander.Expand(GleyGraph.Graph, r.Waypoints);
             slowPath.Clear();
             slowPath.UnionWith(expanded.SlowPath);
+            uTurnPath.Clear();
+            uTurnPath.UnionWith(expanded.UTurnPath);
             return expanded.Path;
         }
 
@@ -729,8 +747,9 @@ namespace DrivenRides
             trace.Sample(car.transform.position, car.transform.eulerAngles.y, car.rb != null ? car.rb.velocity.magnitude : 0f,
                 traffic.GetTargetWaypoint(carIndex)?.listIndex ?? -1, traffic.GetCurrentDrivingState(carIndex).Item2.ToString(), along, progress.LeftMetres, owned.Count);
             var slow = false;
-            for (var k = progress.NextIndex - 1; k <= progress.NextIndex + 1 && !slow; k++) slow = slowPath.Contains(k);
-            ApplyTopSpeed(slow ? TurnSpeed : TopSpeed);
+            var crawl = false;
+            for (var k = progress.NextIndex - 1; k <= progress.NextIndex + 1; k++) { slow |= slowPath.Contains(k); crawl |= uTurnPath.Contains(k); }
+            ApplyTopSpeed(crawl && carLength >= LongCarMetres ? UTurnSpeed : slow ? TurnSpeed : TopSpeed);
             lastAlong = along;
 
             if (phase == Phase.Driving)
@@ -862,6 +881,12 @@ namespace DrivenRides
         private static readonly FieldInfo? DrivingAIField = AccessTools.Field(typeof(TrafficManager), "drivingAI");
         private static readonly MethodInfo? SetMaxSpeedMethod = AccessTools.Method(typeof(DrivingAI), "setVehMaxSpeed");
         private static readonly FieldInfo? PowerStepField = AccessTools.Field(typeof(TrafficManager), "vehiclePowerStep");
+        // Gley turns the wheel to full lock in one second (VehicleComponent.GetSteeringStep); at 25 km/h that is 7 m of
+        // an 8 m U-turn. The ride car's driver turns it three times as fast, as a driver does at low speed. The pool
+        // slot gets its own step back when the ride lets the car go.
+        private static readonly FieldInfo? SteeringStepField = AccessTools.Field(typeof(TrafficManager), "vehicleSteeringStep");
+        private const float SteeringFactor = 3f;
+        private float steeringWas = -1f;
         private const float AccelerationSeconds = 5f;
 
         private float TopSpeed => testTopSpeed > 0 ? testTopSpeed : driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
@@ -894,6 +919,11 @@ namespace DrivenRides
                 // (10 s by default): slow off the line. The ride car reaches its top speed in AccelerationSeconds.
                 if (PowerStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> power && carIndex < power.Length)
                     power[carIndex] = top / 3.6f / (AccelerationSeconds / Time.fixedDeltaTime);
+                if (SteeringStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> steering && carIndex < steering.Length && steeringWas < 0f)
+                {
+                    steeringWas = steering[carIndex];
+                    steering[carIndex] = steeringWas * SteeringFactor;
+                }
                 Log.Info($"Top speed {top} km/h ({(driverTopSpeed > 0 ? $"vehicle type {driverVehicleType}" : "traffic model")}; Gley model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
             }
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
@@ -986,6 +1016,10 @@ namespace DrivenRides
             foreach (var k in slowPath) if (k >= at) shifted.Add(k - at);
             slowPath.Clear();
             slowPath.UnionWith(shifted);
+            shifted.Clear();
+            foreach (var k in uTurnPath) if (k >= at) shifted.Add(k - at);
+            uTurnPath.Clear();
+            uTurnPath.UnionWith(shifted);
             path = rest;
             owned.Clear();
             for (var k = 1; k < path.Count; k++) owned.Add(path[k]);
@@ -1039,7 +1073,7 @@ namespace DrivenRides
                 if (!routeIndex.TryGetValue(w[k], out var at) || at < progress!.NextIndex - 1) continue;
                 if (Vector3.Distance(here, all[w[k]].position) > 80f) continue;
                 checkedNear.Add((w[k], w[k + 1]));
-                var blocked = FindBlockedSteps(graph, new[] { w[k], w[k + 1] });
+                var blocked = FindBlockedSteps(graph, new[] { w[k], w[k + 1] }, carHalfWidth);
                 if (blocked.Count == 0) continue;
                 // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
@@ -1403,6 +1437,16 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
+            if (steeringWas >= 0f)
+            {
+                try
+                {
+                    if (TrafficManager.HasInstance && SteeringStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> steering && steering.IsCreated && carIndex < steering.Length)
+                        steering[carIndex] = steeringWas;
+                }
+                catch (Exception ex) { Log.Error("Steering restore: " + ex.Message); }
+                steeringWas = -1f;
+            }
             if (probe != null) Object.Destroy(probe);
             probe = null;
             foreach (var source in muted) if (source != null) source.mute = false;

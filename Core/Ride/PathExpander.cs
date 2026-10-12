@@ -7,6 +7,8 @@ namespace DrivenRides.Core.Ride
     {
         public List<int> Path { get; } = new List<int>();
         public HashSet<int> SlowPath { get; } = new HashSet<int>();
+        // The U-turns' own positions (vias and target), driven slower still.
+        public HashSet<int> UTurnPath { get; } = new HashSet<int>();
     }
 
     public static class PathExpander
@@ -54,8 +56,9 @@ namespace DrivenRides.Core.Ride
                 if (uTurn)
                 {
                     for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);
-                    foreach (var via in vias) { slowPath.Add(result.Count); result.Add(via); }
+                    foreach (var via in vias) { slowPath.Add(result.Count); expanded.UTurnPath.Add(result.Count); result.Add(via); }
                     slowPath.Add(result.Count);
+                    expanded.UTurnPath.Add(result.Count);
                     continue;
                 }
                 foreach (var via in vias) result.Add(via);

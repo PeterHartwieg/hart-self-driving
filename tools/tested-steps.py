@@ -23,6 +23,26 @@ for cars in [pathlib.Path(p).parent / "cars.jsonl" for p, _ in files] + [repo / 
             car = json.loads(line)
             lengths.setdefault(car["name"], car["length"])
 
+# Cases from builds before 0.1.34 could run out round a dead end (the lane back): their failures there are the
+# case's, not the manoeuvre's. The lane graph dump tells them apart.
+graph_file = repo / "build/sol-tests/lane-graph.json"
+positions = [w["p"] for w in json.load(open(graph_file))] if graph_file.exists() else None
+
+
+def doubles_back(route, start):
+    if positions is None:
+        return False
+    import math
+    for k in range(max(start, 1), len(route) - 1):
+        a, b, c = positions[route[k - 1]], positions[route[k]], positions[route[k + 1]]
+        u = (b[0] - a[0], b[2] - a[2])
+        v = (c[0] - b[0], c[2] - b[2])
+        lu, lv = math.hypot(*u), math.hypot(*v)
+        if lu > 0.1 and lv > 0.1 and (u[0] * v[0] + u[1] * v[1]) / (lu * lv) < 0.5:
+            return True
+    return False
+
+
 shortest = {}
 why = {}
 for path, kinds in files:
@@ -40,6 +60,8 @@ for path, kinds in files:
         if not reasons or "entry" not in run["judge"]["GatesPassed"]:
             continue
         route, entry = fixture["Route"], fixture["EntryIndex"]
+        if doubles_back(route, fixture["ExitIndex"] + 1):
+            continue
         step = (route[entry], route[entry + 1])
         length = lengths.get(run["car"])
         if length is None:

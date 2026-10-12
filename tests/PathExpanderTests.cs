@@ -52,6 +52,8 @@ public sealed class PathExpanderTests
         // Two positions before the entry, the entry, the vias and the U-turn's target.
         var vias = graph.TurnVias(entry, graph.UTurn(entry)).Count;
         Assert.Equal(Enumerable.Range(0, 2 + vias + 1), expanded.SlowPath.OrderBy(x => x));
+        // The U-turn itself (its vias and target) is driven slower still.
+        Assert.Equal(Enumerable.Range(2, vias + 1), expanded.UTurnPath.OrderBy(x => x));
         Assert.Equal(entry + 2, graph.UTurnStart(entry));
         Assert.Equal(-1, graph.UTurnStart(0));
     }
