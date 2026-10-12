@@ -144,9 +144,9 @@ namespace DrivenRides
             this.vehicleType = vehicleType;
             this.goals = goals;
             this.route = route;
-            path = Expand(route);
             carLength = LengthOf(prefab);
             carHalfWidth = HalfWidthOf(prefab);
+            path = Expand(route);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
             player = manager.playerController;
@@ -471,8 +471,19 @@ namespace DrivenRides
 
         // The steps of a route the game's data doesn't have, swept with a car-wide capsule against street props and
         // buildings, along the waypoints the car will steer through.
+        // Whether a car this wide can drive the straight line between two waypoints without touching a building or a
+        // street prop.
+        private static bool LineClear(int from, int to, float halfWidth)
+        {
+            var all = GleyGraph.Waypoints;
+            if (all == null) return true;
+            return !Physics.CheckCapsule(all[from].position + Vector3.up, all[to].position + Vector3.up, Mathf.Max(0.8f, halfWidth + 0.1f), ObstacleMask, QueryTriggerInteraction.Ignore);
+        }
+
         private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w, float halfWidth)
         {
+            // The line out of each added turn ends where the car aims, which may be past the exit (PathExpander).
+            var aims = PathExpander.Expand(graph, w, (a, b) => LineClear(a, b, halfWidth)).Aims;
             var result = new List<(int, int, string)>();
             var all = GleyGraph.Waypoints!;
             var points = new List<Vector3>();
@@ -482,7 +493,7 @@ namespace DrivenRides
                 points.Clear();
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
-                points.Add(all[w[k + 1]].position);
+                points.Add(all[aims.TryGetValue((w[k], w[k + 1]), out var aim) ? aim.Aim : w[k + 1]].position);
                 // A turn with guide waypoints is checked along them, 1.5 m wide; a short one without, along its chord
                 // back as well, since the car cuts that corner.
                 var turn = Contains(graph.MissingTurns(w[k]), w[k + 1]);
@@ -709,7 +720,7 @@ namespace DrivenRides
         // Puts each added turn's and U-turn's waypoints between its entry and exit (Core's PathExpander).
         private List<int> Expand(Route r)
         {
-            var expanded = PathExpander.Expand(GleyGraph.Graph, r.Waypoints);
+            var expanded = PathExpander.Expand(GleyGraph.Graph, r.Waypoints, (a, b) => LineClear(a, b, carHalfWidth));
             slowPath.Clear();
             slowPath.UnionWith(expanded.SlowPath);
             uTurnPath.Clear();

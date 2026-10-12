@@ -9,6 +9,9 @@ namespace DrivenRides.Core.Ride
         public HashSet<int> SlowPath { get; } = new HashSet<int>();
         // The U-turns' own positions (vias and target), driven slower still.
         public HashSet<int> UTurnPath { get; } = new HashSet<int>();
+        // For each added turn (entry, exit): its last via and the exit-lane waypoint the car aims at from there, the
+        // straight line the car actually drives out of the turn.
+        public Dictionary<(int, int), (int Via, int Aim)> Aims { get; } = new Dictionary<(int, int), (int, int)>();
     }
 
     public static class PathExpander
@@ -17,7 +20,9 @@ namespace DrivenRides.Core.Ride
 
         // Puts each added turn's and U-turn's waypoints (straight into the junction, then the curve) between its
         // entry and exit, so the car drives them as a driver would.
-        public static ExpandedPath Expand(LaneGraph? graph, IReadOnlyList<int> route)
+        // clear(from, to), if given, says whether the straight line between two waypoints is free of obstacles (the
+        // game checks the world); the aim avoids a line that cuts a kerb corner.
+        public static ExpandedPath Expand(LaneGraph? graph, IReadOnlyList<int> route, System.Func<int, int, bool>? clear = null)
         {
             var expanded = new ExpandedPath();
             var result = expanded.Path;
@@ -39,14 +44,31 @@ namespace DrivenRides.Core.Ride
                     // (spike 13). Never further than the third: at an angled junction, where the exit lane starts
                     // far from the via, aiming 30 m down the lane drew the car through the oncoming lanes on a
                     // shallow diagonal (turn test 0.1.31, onto Broadway).
-                    var skip = 0;
+                    // The line from the last via to the aim must be clear too: with quicker steering the car follows it
+                    // closely, and one cut a kerb corner (turn test 0.1.34). The first waypoint at least 10 m on (at
+                    // most the third) whose line is clear; failing that, the furthest clear one short of it; failing
+                    // that, the 10 m one as without a world check.
+                    var lastVia = vias[vias.Count - 1];
+                    var candidates = 1;
+                    while (candidates < 3 && k + 1 + candidates < w.Count && Contains(graph.Successors(w[k + candidates]), w[k + 1 + candidates])) candidates++;
+                    var plain = 0;
                     if (graph.PlainHeading(w[k + 1], out var ex, out var ez))
                     {
-                        var last = graph.Position(vias[vias.Count - 1]);
+                        var last = graph.Position(lastVia);
                         float Along(int i) => (graph.Position(i).X - last.X) * ex + (graph.Position(i).Z - last.Z) * ez;
-                        while (skip < 2 && k + 2 + skip < w.Count && Contains(graph.Successors(w[k + 1 + skip]), w[k + 2 + skip]) && Along(w[k + 1 + skip]) < MinAimMetres)
-                            skip++;
+                        while (plain + 1 < candidates && Along(w[k + 1 + plain]) < MinAimMetres) plain++;
                     }
+                    bool Clear(int c) => clear == null || clear(lastVia, w[k + 1 + c]);
+                    var skip = plain;
+                    if (!Clear(plain))
+                    {
+                        var further = plain + 1;
+                        while (further < candidates && !Clear(further)) further++;
+                        var nearer = plain - 1;
+                        while (nearer >= 0 && !Clear(nearer)) nearer--;
+                        skip = further < candidates ? further : nearer >= 0 ? nearer : plain;
+                    }
+                    expanded.Aims[(w[k], w[k + 1])] = (lastVia, w[k + 1 + skip]);
                     slowPath.Add(result.Count);
                     k += skip;
                     continue;
