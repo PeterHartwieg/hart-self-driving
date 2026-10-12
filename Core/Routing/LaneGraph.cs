@@ -188,6 +188,8 @@ namespace DrivenRides.Core.Routing
         // three junctions in a row). From a junction entry i, the exits of the same junction it can't reach.
         public IReadOnlyList<int> MissingTurns(int i) => turns[i];
         public int InferredTurns { get; private set; }
+        // Added turns whose straight way in was cut back so it doesn't run past the exit's lane.
+        public int TrimmedChains { get; private set; }
 
         // A right turn goes from the rightmost lane into the rightmost lane of the cross street, a left turn from the
         // leftmost lane into the leftmost one. The exit must be ahead, at roughly a right angle, on the turn's side,
@@ -229,6 +231,16 @@ namespace DrivenRides.Core.Routing
                     float radius = right ? Math.Min(Math.Abs(side), 9f) : 5f;
                     var chain = new List<int>();
                     int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _, chain) : -1;
+                    // StraightInto stops at the first waypoint at least that far in; where a junction's waypoints are
+                    // sparse that one can lie well past the exit's lane, and the car overshot the corner and came back
+                    // over the kerb (turn test 0.1.36: 12 m past, at a T-junction). The chain ends at most 2 m past.
+                    if (straight >= 0)
+                    {
+                        while (chain.Count > 0 && (positions[chain[chain.Count - 1]].X - positions[i].X) * dx + (positions[chain[chain.Count - 1]].Z - positions[i].Z) * dz > ahead - radius + 2f)
+                            chain.RemoveAt(chain.Count - 1);
+                        if (chain.Count == 0 || chain[chain.Count - 1] != straight) TrimmedChains++;
+                        straight = chain.Count > 0 ? chain[chain.Count - 1] : -1;
+                    }
                     // Without a straight way in (a T-junction), a guide waypoint on the turn's line (ArcVia).
                     var via = straight >= 0 ? straight : ArcVia(i, dx, dz, x, ex, ez, right);
                     // Without a waypoint to steer through, a longer turn would cut the corner in a straight line, over

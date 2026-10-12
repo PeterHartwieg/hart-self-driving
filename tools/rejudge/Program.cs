@@ -7,6 +7,11 @@ using DrivenRides.Core.Routing;
 using DrivenRides.Core.Testing;
 
 var graph = LoadGraph(args[0]);
+if (args[1] == "stats")
+{
+    Console.WriteLine($"{graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} U-turns, {graph.TrimmedChains} straight ways in cut back");
+    return;
+}
 if (args[1] == "show")
 {
     // show <entry> <exit> [next exit-lane waypoints...]: the turn's vias and where each exit waypoint lies along the
