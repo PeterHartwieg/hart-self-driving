@@ -75,6 +75,12 @@ namespace DrivenRides
         private readonly HashSet<int> slowPath = new HashSet<int>();
         // Path positions of U-turns, driven at UTurnSpeed in a long car.
         private readonly HashSet<int> uTurnPath = new HashSet<int>();
+        // The added turns driven along a driver's arc, in route order; the next one, and how far along it the front
+        // axle is once the ride steers it.
+        private readonly List<(int Entry, int Exit, Polyline Line)> arcs = new List<(int, int, Polyline)>();
+        private int arcAt;
+        private float arcAlong = -1f;
+        private bool arcHeld;
 
         private float appliedTop = -1f;
         private const float TurnSpeed = 25f;
@@ -173,6 +179,7 @@ namespace DrivenRides
             if (path != null)
             {
                 ride.path = path;
+                ride.arcs.Clear();
                 ride.slowPath.Clear();
                 ride.uTurnPath.Clear();
                 if (slow != null) ride.slowPath.UnionWith(slow);
@@ -471,90 +478,135 @@ namespace DrivenRides
         // Street props and buildings a car can hit: barricades, medians, posts.
         private static readonly int ObstacleMask = LayerMask.GetMask("StreetProps") | LayerHelper.buildingsLayerMask;
 
-        // The steps of a route the game's data doesn't have, swept with a car-wide capsule against street props and
-        // buildings, along the waypoints the car will steer through.
-        // The way a car drives out of an added turn, from its last via to where it aims, as Gley steers it: it leaves
-        // the via heading as it came in, turns at its tightest radius towards the aim until it points at it, then
-        // drives straight (DriveJob steers at the target waypoint; with the ride's quick steering the turn starts at
-        // once). A straight line missed nothing it should, a curve through the corner missed a median nose the car
-        // then got stuck on (turn test 0.1.37).
-        private static List<Vector3> WayOut(LaneGraph graph, int entry, int via, int aim, Steering car)
-        {
-            var all = GleyGraph.Waypoints!;
-            Vector3 p = all[via].position, b = all[aim].position;
-            var points = new List<Vector3> { p };
-            if (!graph.PlainHeading(entry, out var dx, out var dz)) { points.Add(b); return points; }
-            var heading = Mathf.Atan2(dx, dz);
-            const float step = 0.5f;
-            // The wheel turns at maxSteer x SteeringFactor degrees a second; at turn speed a step takes this long.
-            var stepSeconds = step / (TurnSpeed / 3.6f);
-            var steer = 0f;
-            for (var n = 0; n < 200; n++)
-            {
-                var to = b - p;
-                to.y = 0f;
-                if (to.magnitude < 1f) break;
-                var wanted = Mathf.Clamp(Mathf.DeltaAngle(heading * Mathf.Rad2Deg, Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg), -car.MaxSteer, car.MaxSteer);
-                steer = Mathf.MoveTowards(steer, wanted, car.MaxSteer * SteeringFactor * stepSeconds);
-                heading += step * Mathf.Tan(steer * Mathf.Deg2Rad) / Mathf.Max(0.5f, car.WheelDistance);
-                p += new Vector3(Mathf.Sin(heading), 0f, Mathf.Cos(heading)) * step;
-                p.y = Mathf.Lerp(p.y, b.y, 0.1f);
-                if (n % 2 == 1) points.Add(p);
-            }
-            points.Add(b);
-            return points;
-        }
-
-        // What WayOut needs of a car, from a pooled copy (Gley fills them in when it builds the pool).
+        // What the world check needs of a car, from a pooled copy (Gley fills them in when it builds the pool): its
+        // steering, and its body box in its own space, as the turn tests measure it.
         private readonly struct Steering
         {
-            public readonly float HalfWidth, WheelDistance, MaxSteer;
+            public readonly CarShape Shape;
+            public readonly float HalfWidth;
+            public readonly Vector3 BodyCentre, BodyHalf;
+
             public Steering(VehicleComponent copy)
             {
                 HalfWidth = copy.colliderWidth / 2f;
-                WheelDistance = copy.wheelDistance;
-                MaxSteer = Mathf.Clamp(copy.maxSteer, 5f, 60f);
+                var front = copy.frontTrigger != null ? copy.transform.InverseTransformPoint(copy.frontTrigger.position).z : copy.length / 2f;
+                TestCar.BodyBox(copy, out BodyCentre, out BodyHalf);
+                // Gley puts the centre of mass between the wheels when it builds the pool.
+                var mass = copy.rb != null ? copy.rb.centerOfMass : BodyCentre;
+                Shape = new CarShape(copy.wheelDistance, copy.maxSteer, front, mass.y, mass.z);
+                if (Logged.Add(copy.name))
+                    Log.Info($"Steering for {copy.name}: wheel distance {Shape.WheelDistance:0.00} m, max steer {Shape.MaxSteerDegrees:0.0}, front axle {Shape.FrontAxle:0.00} m ahead, centre of mass {Shape.CentreAhead:0.00} m ahead and {Shape.CentreHeight:0.00} m up, body {BodyHalf * 2f} at {BodyCentre}.");
             }
+
+            private static readonly HashSet<string> Logged = new HashSet<string>();
+
+            public float MinRadius => Shape.WheelDistance / Mathf.Tan(Shape.MaxSteerDegrees * Mathf.Deg2Rad);
         }
 
-        private static bool SweepClear(List<Vector3> points, float radius, out string what)
+        // Room kept around the body box on an added turn: the drive model was up to 0.15 m off the recorded track,
+        // and the turn tests fail a car that comes within 0.1 m of anything.
+        private const float TurnMargin = 0.2f;
+        private static readonly Collider[] turnHits = new Collider[8];
+        private static readonly int RoadsMask = LayerMask.GetMask("Roads");
+        // A turn's way is checked against the road's own colliders from this height above the lane up: a slope or a
+        // crown stays under it, the divider a car got stuck on (0.7 m, turn test 0.1.41) does not.
+        private const float RoadClearance = 0.35f;
+
+        // An added turn driven as Gley will drive it (Core's TurnDrive), from its entry through its vias to the aim,
+        // with the car's body box checked against street props and buildings every half metre.
+        private static bool TurnClear(LaneGraph graph, int entry, int exit, int aim, Steering car, out string what)
         {
             what = "";
-            for (var q = 0; q + 1 < points.Count; q++)
+            if (car.Shape.WheelDistance <= 0f || !graph.PlainHeading(entry, out var dx, out var dz)) return true;
+            var targets = new List<Vec3>();
+            foreach (var via in graph.TurnVias(entry, exit)) targets.Add(graph.Position(via));
+            targets.Add(graph.Position(aim));
+            // Gley moves on from the aim while the car is still turning; the rest of the swing, 6 m down the lane.
+            if (graph.PlainHeading(aim, out var ax, out var az)) targets.Add(graph.Position(aim) + new Vec3(ax, 0f, az) * 6f);
+            return BodyClear(TurnDrive.Drive(graph.Position(entry), dx, dz, targets, car.Shape, TurnSpeed / 3.6f, SteeringFactor), car, out what);
+        }
+
+        // The car's body box, TurnMargin larger, at each pose of a modelled drive; null poses: the car never got there.
+        private static bool BodyClear(List<Core.Ride.Pose>? poses, Steering car, out string what)
+        {
+            what = "";
+            if (poses == null) { what = "a turn the car can't make"; return false; }
+            var half = car.BodyHalf + new Vector3(TurnMargin, 0f, TurnMargin);
+            // Against the road's own colliders only from RoadClearance up, so the road surface is left out but a divider
+            // built into the road is not.
+            var bottom = Mathf.Max(car.BodyCentre.y - car.BodyHalf.y, RoadClearance);
+            var top = car.BodyCentre.y + car.BodyHalf.y;
+            var roadHalf = new Vector3(half.x, Mathf.Max(0.05f, (top - bottom) / 2f), half.z);
+            var roadCentre = new Vector3(car.BodyCentre.x, (top + bottom) / 2f, car.BodyCentre.z);
+            foreach (var pose in poses)
             {
-                var hits = Physics.OverlapCapsule(points[q] + Vector3.up, points[q + 1] + Vector3.up, radius, ObstacleMask, QueryTriggerInteraction.Ignore);
-                if (hits.Length == 0) continue;
-                what = hits[0].name;
-                return false;
+                var rotation = Quaternion.Euler(0f, pose.Heading * Mathf.Rad2Deg, 0f);
+                var at = new Vector3(pose.X, pose.Y, pose.Z);
+                if (Physics.OverlapBoxNonAlloc(at + rotation * car.BodyCentre, half, turnHits, rotation, ObstacleMask, QueryTriggerInteraction.Ignore) > 0
+                    || Physics.OverlapBoxNonAlloc(at + rotation * roadCentre, roadHalf, turnHits, rotation, RoadsMask, QueryTriggerInteraction.Ignore) > 0)
+                {
+                    what = turnHits[0].name;
+                    return false;
+                }
             }
             return true;
         }
 
-        private static bool WayOutClear(int entry, int via, int aim, Steering car)
+        // How far ahead of the car's pivot, along a turn's arc, the ride puts Gley's target: with 3.5 m the modelled
+        // Dash kept its front axle, middle and rear axle within 0.3 m of every catalogue arc (TurnDrive.Pursue).
+        private const float ArcLookahead = 3.5f;
+
+        // An added turn's driver's arc, if the junction has room for one this car can follow and the car, pursuing it
+        // as Gley will, touches nothing.
+        private static Polyline? ClearArc(LaneGraph graph, int entry, int exit, Steering car)
         {
-            var graph = GleyGraph.Graph;
-            return graph == null || SweepClear(WayOut(graph, entry, via, aim, car), Mathf.Max(0.8f, car.HalfWidth + 0.1f), out _);
+            if (car.Shape.WheelDistance <= 0f) return null;
+            var line = TurnArc.Fit(graph, entry, exit, car.MinRadius);
+            if (line == null) return null;
+            var poses = TurnDrive.Pursue(line, car.Shape, TurnSpeed / 3.6f, SteeringFactor, ArcLookahead);
+            if (poses == null) return null;
+            // The lead-in is the entry lane, driven as any lane is; the check starts where the car's nose reaches the
+            // entry waypoint.
+            var turning = new List<Core.Ride.Pose>();
+            var along = 0f;
+            foreach (var p in poses)
+            {
+                along = line.Project(p.X + car.Shape.FrontAxle * Mathf.Sin(p.Heading), p.Z + car.Shape.FrontAxle * Mathf.Cos(p.Heading), along);
+                if (along >= TurnArc.LeadIn) turning.Add(p);
+            }
+            return BodyClear(turning, car, out _) ? line : null;
         }
 
+        private static bool ArcClear(int entry, int exit, Steering car)
+        {
+            var graph = GleyGraph.Graph;
+            return graph != null && ClearArc(graph, entry, exit, car) != null;
+        }
+
+        private static bool TurnClear(int entry, int exit, int aim, Steering car)
+        {
+            var graph = GleyGraph.Graph;
+            return graph == null || TurnClear(graph, entry, exit, aim, car, out _);
+        }
+
+        // The steps of a route the game's data doesn't have, checked against street props and buildings.
         private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w, Steering car)
         {
-            // The line out of each added turn ends where the car aims, which may be past the exit (PathExpander).
             var halfWidth = car.HalfWidth;
-            var aims = PathExpander.Expand(graph, w, (e, a, b) => WayOutClear(e, a, b, car)).Aims;
+            var expanded = PathExpander.Expand(graph, w, (e, x, a) => TurnClear(e, x, a, car), (e, x) => ArcClear(e, x, car));
+            var aims = expanded.Aims;
             var result = new List<(int, int, string)>();
             var all = GleyGraph.Waypoints!;
             var points = new List<Vector3>();
             for (var k = 0; k + 1 < w.Count; k++)
             {
-                if (Contains(graph.Successors(w[k]), w[k + 1])) continue;
+                if (Contains(graph.Successors(w[k]), w[k + 1]) || expanded.Arcs.Contains((w[k], w[k + 1]))) continue;
                 points.Clear();
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
-                // An added turn's way out is the curve the car drives, as wide as the car.
                 if (aims.TryGetValue((w[k], w[k + 1]), out var aim))
                 {
-                    if (!SweepClear(points, Mathf.Max(0.8f, halfWidth + 0.1f), out var inWay)) { result.Add((w[k], w[k + 1], inWay)); continue; }
-                    if (!SweepClear(WayOut(graph, w[k], aim.Via, aim.Aim, car), Mathf.Max(0.8f, halfWidth + 0.1f), out var outWay)) result.Add((w[k], w[k + 1], outWay));
+                    if (!TurnClear(graph, w[k], w[k + 1], aim.Aim, car, out var what)) result.Add((w[k], w[k + 1], what));
                     continue;
                 }
                 points.Add(all[w[k + 1]].position);
@@ -785,7 +837,14 @@ namespace DrivenRides
         private List<int> Expand(Route r)
         {
             var steering = carSteering;
-            var expanded = PathExpander.Expand(GleyGraph.Graph, r.Waypoints, (e, a, b) => WayOutClear(e, a, b, steering));
+            var graph = GleyGraph.Graph;
+            var expanded = PathExpander.Expand(graph, r.Waypoints, (e, x, a) => TurnClear(e, x, a, steering), (e, x) => ArcClear(e, x, steering));
+            arcs.Clear();
+            arcAt = 0;
+            arcAlong = -1f;
+            if (graph != null)
+                foreach (var (entry, exit) in expanded.Arcs)
+                    if (ClearArc(graph, entry, exit, steering) is Polyline line) arcs.Add((entry, exit, line));
             slowPath.Clear();
             slowPath.UnionWith(expanded.SlowPath);
             uTurnPath.Clear();
@@ -818,6 +877,8 @@ namespace DrivenRides
 
             if (throwNext) { throwNext = false; throw new InvalidOperationException("Debug: exception inside the ride's frame update."); }
             progress!.Update(GleyGraph.ToVec(car.transform.position));
+            // An arc turn the car is past without having started it (a bridge skip, a replan) is done with.
+            while (arcAlong < 0f && arcAt < arcs.Count && (!routeIndex.TryGetValue(arcs[arcAt].Exit, out var exitAt) || exitAt < progress.NextIndex - 1)) arcAt++;
             var along = alongOffset + progress.AlongMetres;
             var traffic = TrafficManager.Instance;
             trace.Sample(car.transform.position, car.transform.eulerAngles.y, car.rb != null ? car.rb.velocity.magnitude : 0f,
@@ -1005,6 +1066,81 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
         }
 
+        // Each physics step, before Gley's drive job: while the front axle is on an arc turn, Gley's target for the car
+        // is the point ArcLookahead on along the arc. TrafficManager keeps the target positions in an array it only
+        // rewrites when the car's waypoint changes, and DriveJob steers the front axle at it. After the arc the real
+        // target goes back. Gley still pops the exit lane's waypoints as the car passes them.
+        internal static void SteerArcs() => Active?.SteerArc();
+
+        private void SteerArc()
+        {
+            if (!departed || finished || cancelled || arcAt >= arcs.Count || car == null || progress == null || !OwnsCar) return;
+            var (entry, exit, line) = arcs[arcAt];
+            // Stopping at a light or giving way, Gley brakes by the distance to its real target.
+            if (TrafficManager.Instance.GetCurrentDrivingState(carIndex).Item2 != SpecialDriveActionTypes.Forward)
+            {
+                if (arcAlong >= 0f && !arcHeld) { arcHeld = true; RestoreTarget(); }
+                return;
+            }
+            arcHeld = false;
+            var front = car.GetFrontAxle().position;
+            if (arcAlong < 0f)
+            {
+                // It starts with the front axle on the lead-in, by its lane, before Gley lets go of the entry.
+                if (!routeIndex.TryGetValue(entry, out var k) || k > progress.NextIndex + 2) return;
+                var start = line.At(0f);
+                var on = line.At(1f);
+                var dir = new Vector3(on.X - start.X, 0f, on.Z - start.Z).normalized;
+                var offset = new Vector3(front.x - start.X, 0f, front.z - start.Z);
+                var ahead = Vector3.Dot(offset, dir);
+                if (ahead < 0f || ahead > TurnArc.LeadIn + 6f || (offset - dir * ahead).magnitude > 2.5f) return;
+                arcAlong = 0f;
+                Event($"Turn {entry} -> {exit}: steering along its {line.Length:0} m arc.");
+            }
+            var pivot = car.transform.position;
+            arcAlong = line.Project(pivot.x, pivot.z, arcAlong);
+            if (arcAlong + ArcLookahead >= line.Length) { EndArc(); return; }
+            var carrot = line.At(arcAlong + ArcLookahead);
+            SetTarget(new Vector3(carrot.X, carrot.Y, carrot.Z));
+        }
+
+        private void EndArc()
+        {
+            arcAt++;
+            arcAlong = -1f;
+            arcHeld = false;
+            RestoreTarget();
+        }
+
+        private void RestoreTarget()
+        {
+            var target = TrafficManager.Instance.GetTargetWaypoint(carIndex);
+            if (target != null) SetTarget(target.position);
+        }
+
+        // Gley's float3 array, written by reflection: the mod doesn't reference Unity.Mathematics. The boxed copy
+        // shares the native buffer.
+        private static readonly FieldInfo? TargetPositionField = AccessTools.Field(typeof(TrafficManager), "vehicleTargetWaypointPosition");
+        private static MethodInfo? targetSetter;
+        private static ConstructorInfo? float3Constructor;
+
+        private void SetTarget(Vector3 at)
+        {
+            try
+            {
+                var array = TargetPositionField?.GetValue(TrafficManager.Instance);
+                if (array == null) return;
+                if (targetSetter == null || float3Constructor == null)
+                {
+                    var type = array.GetType();
+                    targetSetter = type.GetMethod("set_Item");
+                    float3Constructor = type.GetGenericArguments()[0].GetConstructor(new[] { typeof(float), typeof(float), typeof(float) });
+                }
+                targetSetter!.Invoke(array, new[] { carIndex, float3Constructor!.Invoke(new object[] { at.x, at.y, at.z }) });
+            }
+            catch (Exception ex) { Log.Error("Arc target: " + ex.Message); arcAt = arcs.Count; arcAlong = -1f; }
+        }
+
         // The bridge to the Hamptons is skipped as the game skips it for the player's own car (SkipBridgeHelper):
         // entering a bridge trigger, the car is moved behind a fade to the trigger's far-side target facing its way,
         // and the clock runs the game's own bridge time (Peter).
@@ -1149,7 +1285,12 @@ namespace DrivenRides
                 if (!routeIndex.TryGetValue(w[k], out var at) || at < progress!.NextIndex - 1) continue;
                 if (Vector3.Distance(here, all[w[k]].position) > 80f) continue;
                 checkedNear.Add((w[k], w[k + 1]));
-                var blocked = FindBlockedSteps(graph, new[] { w[k], w[k + 1] }, carSteering);
+                // The next few waypoints too, so an added turn aims where the ride's path aims (PathExpander).
+                var ahead = new List<int>();
+                for (var q = k; q < w.Count && q <= k + 4; q++) ahead.Add(w[q]);
+                var from = w[k];
+                var to = w[k + 1];
+                var blocked = FindBlockedSteps(graph, ahead, carSteering).FindAll(b => b.From == from && b.To == to);
                 if (blocked.Count == 0) continue;
                 // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
@@ -1513,6 +1654,7 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
+            if (arcAlong >= 0f && TrafficManager.HasInstance) EndArc();
             if (steeringWas >= 0f)
             {
                 try

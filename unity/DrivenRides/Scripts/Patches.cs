@@ -49,8 +49,16 @@ namespace DrivenRides
             Patch(typeof(SfxManager), "SetSoundSnapshotCityMap", new[] { typeof(bool), typeof(float) }, nameof(PhoneSoundPrefix), prefix: true);
             // No taxi or driver ride while turn tests run, before the fare is taken.
             Patch(typeof(TaxiSystem), "TravelTo", new[] { typeof(EntityController) }, nameof(TravelToPrefix), prefix: true);
+            // The ride steers an arc turn by moving Gley's target for its car each physics step, before the drive job.
+            Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
+        }
+
+        private static void TrafficFixedPrefix()
+        {
+            try { Ride.SteerArcs(); }
+            catch (Exception ex) { Log.Error("Arc steering: " + ex.Message); }
         }
 
         public static void Remove()

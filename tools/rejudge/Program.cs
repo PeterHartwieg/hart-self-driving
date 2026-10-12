@@ -32,6 +32,94 @@ if (args[1] == "show")
     }
     return;
 }
+if (args[1] == "drive")
+{
+    // drive <entry> <exit> <aim> [samples.csv]: the turn as the ride's world check models it (Core's TurnDrive, the
+    // 6.7 m Dash at turn speed), and how far each pose lies from the recorded track's middle.
+    int entry = int.Parse(args[2]), exit = int.Parse(args[3]), aim = int.Parse(args[4]);
+    var targets = graph.TurnVias(entry, exit).Select(graph.Position).Append(graph.Position(aim)).ToList();
+    if (graph.PlainHeading(aim, out var ax, out var az)) targets.Add(graph.Position(aim) + new Vec3(ax, 0f, az) * 6f);
+    graph.PlainHeading(entry, out var dx, out var dz);
+    var poses = DrivenRides.Core.Ride.TurnDrive.Drive(graph.Position(entry), dx, dz, targets,
+        new DrivenRides.Core.Ride.CarShape(4.02f, 35f, 2.4f, Env("COM_UP", 0.6f), Env("COM_AHEAD", 0.39f)), 25 / 3.6f, 3f, 1f) ?? new();
+    var track = new List<(float X, float Z)>();
+    if (args.Length > 5)
+        foreach (var line in File.ReadLines(args[5]).Where(l => l.StartsWith("S,")))
+        {
+            var c = line.Split(',');
+            track.Add((float.Parse(c[3], CultureInfo.InvariantCulture), float.Parse(c[5], CultureInfo.InvariantCulture)));
+        }
+    var worst = 0.0;
+    foreach (var p in poses)
+    {
+        var off = track.Count == 0 ? 0 : track.Min(t => Math.Sqrt((t.X - p.X) * (t.X - p.X) + (t.Z - p.Z) * (t.Z - p.Z)));
+        worst = Math.Max(worst, off);
+        Console.WriteLine($"  ({p.X:0.00}, {p.Z:0.00}) heading {p.Heading * 180 / Math.PI:0}" + (track.Count > 0 ? $", {off:0.00} m from the track" : ""));
+    }
+    if (track.Count > 0) Console.WriteLine($"worst {worst:0.00} m");
+    return;
+}
+if (args[1] == "arcline")
+{
+    // arcline <entry> <exit>: the driver's arc for the 6.7 m Dash, one point per line.
+    var line = DrivenRides.Core.Ride.TurnArc.Fit(graph, int.Parse(args[2]), int.Parse(args[3]), 5.74f);
+    if (line != null) foreach (var p in line.Points) Console.WriteLine(FormattableString.Invariant($"{p.X:0.00} {p.Z:0.00}"));
+    return;
+}
+if (args[1] == "arcs")
+{
+    // arcs [lookahead] [entry exit]: which catalogue turns get a driver's arc for the 6.7 m Dash, and how closely
+    // the car follows it (front axle off the line, the middle of the car off it when it comes out).
+    var look = args.Length > 2 ? float.Parse(args[2], CultureInfo.InvariantCulture) : 3f;
+    var dash = new DrivenRides.Core.Ride.CarShape(4.02f, 35f, 2.4f, 0.6f, 0.39f);
+    var fixtures = Catalogue.Build(graph).Where(f => f.Kind == CaseKind.Turn);
+    if (args.Length > 4) fixtures = fixtures.Where(f => f.Id == $"turn-{args[3]}-{args[4]}");
+    int fitted = 0, total = 0;
+    var worstAll = new List<double>();
+    var rearAll = new List<double>();
+    var middleAll = new List<double>();
+    var radii = new List<double>();
+    foreach (var f in fixtures)
+    {
+        total++;
+        int entry = f.Route[f.EntryIndex], exit = f.Route[f.ExitIndex];
+        var line = DrivenRides.Core.Ride.TurnArc.Fit(graph, entry, exit, 5.74f);
+        if (line == null) continue;
+        fitted++;
+        var poses = DrivenRides.Core.Ride.TurnDrive.Pursue(line, dash, 25 / 3.6f, 3f, look, 0.25f, Environment.GetEnvironmentVariable("FROM_FRONT") == "1");
+        if (poses == null) { Console.WriteLine($"{f.Id}: the car never gets round"); continue; }
+        double Off(double x, double z)
+        {
+            var best = double.MaxValue;
+            for (var i = 1; i < line.Points.Count; i++)
+            {
+                var a = line.Points[i - 1]; var b = line.Points[i];
+                double dx = b.X - a.X, dz = b.Z - a.Z, span = dx * dx + dz * dz;
+                var f = span > 0 ? Math.Clamp(((x - a.X) * dx + (z - a.Z) * dz) / span, 0, 1) : 0;
+                best = Math.Min(best, Math.Sqrt(Math.Pow(a.X + dx * f - x, 2) + Math.Pow(a.Z + dz * f - z, 2)));
+            }
+            return best;
+        }
+        // From where the rear axle passes the entry waypoint.
+        var at = 0f;
+        poses = poses.Where(p => (at = line.Project((float)(p.X - 1.62 * Math.Sin(p.Heading)), (float)(p.Z - 1.62 * Math.Cos(p.Heading)), at)) >= DrivenRides.Core.Ride.TurnArc.LeadIn).ToList();
+        if (poses.Count == 0) continue;
+        var worst = poses.Max(p => Off(p.X + 2.4 * Math.Sin(p.Heading), p.Z + 2.4 * Math.Cos(p.Heading)));
+        // The rear axle, 1.62 m behind the pivot: how far the back of the car cuts inside.
+        var rear = poses.Max(p => Off(p.X - 1.62 * Math.Sin(p.Heading), p.Z - 1.62 * Math.Cos(p.Heading)));
+        var middle = poses.Max(p => Off(p.X, p.Z));
+        rearAll.Add(rear); middleAll.Add(middle); radii.Add(line.Radius);
+        var last = poses[^1];
+        var outLine = line.Points.Min(q => Math.Sqrt(Math.Pow(q.X - last.X, 2) + Math.Pow(q.Z - last.Z, 2)));
+        worstAll.Add(worst);
+        if (args.Length > 4 || worst > 0.6) Console.WriteLine($"{f.Id}: {f.SharpnessDegrees:0} degrees, line {line.Length:0} m, front axle up to {worst:0.00} m off, middle {outLine:0.00} m off at the end");
+    }
+    string Spread(List<double> v) { v.Sort(); return v.Count == 0 ? "-" : $"median {v[v.Count / 2]:0.00} m, worst {v[^1]:0.00} m"; }
+    radii.Sort();
+    Console.WriteLine($"radius: min {radii[0]:0.0}, quartiles {radii[radii.Count / 4]:0.0} / {radii[radii.Count / 2]:0.0} / {radii[radii.Count * 3 / 4]:0.0}, max {radii[^1]:0.0} m");
+    Console.WriteLine($"{fitted} of {total} turns get an arc; off the line: front axle {Spread(worstAll)}; middle {Spread(middleAll)}; rear axle {Spread(rearAll)}");
+    return;
+}
 var resultsPath = args[1];
 // --write <file>: also writes the results again with the new verdicts (for tools/tested-steps.py).
 var writeAt = Array.IndexOf(args, "--write");
@@ -106,6 +194,9 @@ static Fixture ToFixture(JsonElement j)
         RideLine = j.GetProperty("RideLine").GetInt32(),
     };
 }
+
+static float Env(string name, float fallback) =>
+    float.TryParse(Environment.GetEnvironmentVariable(name), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : fallback;
 
 static LaneGraph LoadGraph(string path)
 {

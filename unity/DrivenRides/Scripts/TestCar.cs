@@ -20,7 +20,7 @@ namespace DrivenRides
         public Vector3 FailureCentre { get; private set; }
         public bool PictureDue { get; set; }
         // Every sample and every hit, for judging the run again away from the game (tools/rejudge): S lines are
-        // samples, C contacts, I incidents, R a replan.
+        // samples, C contacts, I incidents, O other collisions, R a replan.
         public readonly System.Text.StringBuilder Samples = new System.Text.StringBuilder();
         private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
 
@@ -32,6 +32,7 @@ namespace DrivenRides
 
         // Buildings and street props: what a car must never touch (the ride's own obstacle mask).
         public static readonly int ObstacleMask = LayerMask.GetMask("StreetProps") | LayerHelper.buildingsLayerMask;
+        private static readonly int RoadsLayer = LayerMask.NameToLayer("Roads");
 
         private void Awake()
         {
@@ -39,30 +40,38 @@ namespace DrivenRides
             MeasureBody();
         }
 
-        // The body box in the car's own space, from its solid colliders; the triggers and Gley's sensors are left out.
         private void MeasureBody()
+        {
+            if (car != null) BodyBox(car, out boxCenter, out boxHalf);
+        }
+
+        // The body box in the car's own space, from its solid colliders; the triggers and Gley's sensors are left out.
+        // Also for the ride's world check, on a pooled copy that may be inactive.
+        public static void BodyBox(VehicleComponent car, out Vector3 centre, out Vector3 half)
         {
             var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             var max = -min;
             var found = false;
-            foreach (var c in GetComponentsInChildren<Collider>(true))
+            var body = car.rb != null ? car.rb : car.GetComponent<Rigidbody>();
+            var root = car.transform;
+            foreach (var c in car.GetComponentsInChildren<Collider>(true))
             {
-                if (c.isTrigger || (car != null && c.attachedRigidbody != car.rb)) continue;
+                if (c.isTrigger || c.GetComponentInParent<Rigidbody>(true) != body) continue;
                 foreach (var corner in LocalCorners(c))
                 {
-                    var local = transform.InverseTransformPoint(corner);
+                    var local = root.InverseTransformPoint(corner);
                     min = Vector3.Min(min, local);
                     max = Vector3.Max(max, local);
                     found = true;
                 }
             }
-            if (!found && car != null)
+            if (!found)
             {
                 min = new Vector3(-car.colliderWidth / 2f, 0f, -car.length / 2f);
                 max = new Vector3(car.colliderWidth / 2f, car.coliderHeight, car.length / 2f);
             }
-            boxCenter = (min + max) / 2f;
-            boxHalf = (max - min) / 2f;
+            centre = (min + max) / 2f;
+            half = (max - min) / 2f;
         }
 
         private static IEnumerable<Vector3> LocalCorners(Collider c)
@@ -70,6 +79,8 @@ namespace DrivenRides
             Bounds b;
             if (c is BoxCollider box) b = new Bounds(box.center, box.size);
             else if (c is MeshCollider mesh && mesh.sharedMesh != null) b = mesh.sharedMesh.bounds;
+            // World bounds are empty while the car is inactive.
+            else if (!c.gameObject.activeInHierarchy) yield break;
             else { var w = c.bounds; for (var i = 0; i < 8; i++) yield return Corner(w.center, w.extents, i); yield break; }
             for (var i = 0; i < 8; i++) yield return c.transform.TransformPoint(Corner(b.center, b.extents, i));
         }
@@ -186,6 +197,11 @@ namespace DrivenRides
             if ((ObstacleMask & (1 << layer)) != 0) { Judge.Contact(Step, what); Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n'); }
             else if (c.attachedRigidbody != null && c.attachedRigidbody.GetComponent<VehicleComponent>() != null) { Judge.Incident(Step, "vehicle " + what); Samples.Append("I,").Append(Step).Append(",vehicle ").Append(what.Replace(',', ';')).Append('\n'); }
             else if (LayerMask.LayerToName(layer) == "Human") { Judge.Incident(Step, "pedestrian " + what); Samples.Append("I,").Append(Step).Append(",pedestrian ").Append(what.Replace(',', ';')).Append('\n'); }
+            // A road collider's upright face is a divider or a kerb wall built into the road (Peter: a car stuck on a
+            // divider by Vantander Bank, turn test 0.1.41); its top is the road.
+            else if (layer == RoadsLayer && Mathf.Abs(collision.GetContact(0).normal.y) < 0.5f) { Judge.Contact(Step, "road edge " + what); Samples.Append("C,").Append(Step).Append(",road edge ").Append(what.Replace(',', ';')).Append('\n'); }
+            // Anything else (the road, terrain): recorded, not judged.
+            else Samples.Append("O,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n');
             if (!failedBefore && Judge.Failed) Latch(Outline(), transform.TransformPoint(boxCenter));
         }
     }

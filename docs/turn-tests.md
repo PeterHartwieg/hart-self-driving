@@ -38,7 +38,7 @@ Each case is a fixed route: up to 120 m of run-up through straight predecessors,
 Gates are directed lines across the lane (4 m each side) at the entry waypoint, the first plain waypoint after the manoeuvre, and 30 m further down the exit lane; the car's front axle must cross them in order. At the last gate the car's centre must be within 1 m of the lane's centre and its heading within 10 degrees.
 
 A run fails on:
-- `contact`: a hit on a building or street prop;
+- `contact`: a hit on a building or street prop, or on an upright face of a road collider (a divider or kerb wall built into the road);
 - `near-miss`: the car's body box, inflated by 0.1 m, overlapping a building or street prop;
 - `missed-gate`, `exit-lane`, `exit-heading`;
 - `intrusion`: on plain stretches, the car's footprint more than 0.3 m past the midline between the route's lane side and the nearest oncoming lane; past the mouth of the road being turned into (its first 25 m), more than 0.3 m into its oncoming lanes. Inside the junction a left turn sweeps across them, and a U-turn's approach lanes are that road's oncoming lanes, so neither is checked there;
@@ -75,3 +75,8 @@ Cases are short (50 m run-up, 40 m run-out: the car reaches its top speed in abo
 - `Core/Testing/`: `Fixture`, `Catalogue`, `Gate`, `Judge`, `Controls`, `Json`. Pure C#, unit-tested, runnable against a dumped lane graph.
 - `unity/DrivenRides/Scripts/Testing/`: `TurnTests` (session, commands, files), `TestCar` (sampling, contacts, overlaps, picture), and the test mode in `Ride.cs`.
 - `tools/turn-tests.sh`, `tools/summarise-tests.py`.
+- `tools/rejudge` also checks the ride's turn model away from the game: `drive <entry> <exit> <aim> [samples.csv]` (a turn driven through its vias, against a recorded track), `arcs [lookahead]` (which catalogue turns get a driver's arc for the 6.7 m car, and how closely the car follows it), `arcline <entry> <exit>` (one arc's points).
+
+## Turn lines
+
+An added turn is driven along a driver's arc where one fits (Core `TurnArc`): on along the entry lane, one circular arc, out in line with the exit lane. The arc should start no earlier than the kerb line of the first lane crossing the entry lane and end by the far side of the junction; where that is tighter than the car can follow (its turning circle plus 15%), it is the car's widest followable arc and starts a little earlier. The ride steers it by moving Gley's target for the car to 3.5 m ahead of its pivot along the arc each physics step, from 12 m before the entry waypoint (Gley lets go of the entry 5 m before it). The world check drives the same pursuit in Core's `TurnDrive` (Gley's steering: front-axle target, 5 m centre-of-mass reach, quickened wheel) and tests the car's body box, 0.2 m larger, against street props, buildings and, from 0.35 m up, the road's own colliders. A turn with no clear arc falls back to its vias and an aim down the exit lane.

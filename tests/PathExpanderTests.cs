@@ -49,7 +49,7 @@ public sealed class PathExpanderTests
         var route = new[] { 0, 1, entry, exit, exit + 1, exit + 2, exit + 3 };
         var vias = graph.TurnVias(entry, exit).ToArray();
         // The exit itself is 10 m on; its line is blocked, the next one's is clear.
-        var expanded = PathExpander.Expand(graph, route, (entry, from, to) => to != exit);
+        var expanded = PathExpander.Expand(graph, route, (entry, turnExit, to) => to != exit);
         Assert.Equal(new[] { 0, 1, entry }.Concat(vias).Concat(new[] { exit + 1, exit + 2, exit + 3 }), expanded.Path);
         Assert.Equal((vias[^1], exit + 1), expanded.Aims[(entry, exit)]);
         // Nothing clear: as without a world check.
@@ -104,5 +104,16 @@ public sealed class PathExpanderTests
         Assert.Equal(0.8f, dz, 5);
         Assert.False(graph.PlainHeading(2, out _, out _));
         Assert.Throws<ArgumentException>(() => Route.Fixed(graph, Array.Empty<int>()));
+    }
+
+    [Fact]
+    public void AnArcTurnGetsNoVias()
+    {
+        var (graph, entry, exit) = TurnTestGraph.Turn();
+        int[] route = { 0, 1, entry, exit, exit + 1 };
+        var expanded = PathExpander.Expand(graph, route, arc: (e, x) => true);
+        Assert.Equal(route, expanded.Path);
+        Assert.Equal(new[] { (entry, exit) }, expanded.Arcs);
+        Assert.Equal(new[] { 0, 1, 2, 3 }, expanded.SlowPath.OrderBy(i => i));
     }
 }
