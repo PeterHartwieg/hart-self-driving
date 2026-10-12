@@ -926,10 +926,7 @@ namespace DrivenRides
             RemoveStandIn();
             OwnCarTaxi.Show(real);
             ownCarPlaced = true;
-            VehicleHelper.TeleportVehicleToGround(real, position, rotation);
-            // The teleport writes the rigidbody; its transform follows only at the next physics step, and the clearing,
-            // the save and the NavMesh point below read the transform.
-            if (real.TryGetComponent<Rigidbody>(out var body)) { real.transform.SetPositionAndRotation(body.position, body.rotation); Physics.SyncTransforms(); }
+            OwnCarTaxi.Teleport(real, position, rotation);
             VehicleHelper.DestroyBlockingVehicles(real.gameObject, real.vehicleType, real.transform);
             real.SavePosition();
             OwnCarTaxi.ChargeFuel(real, (float)plannedMetres);

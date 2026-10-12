@@ -177,17 +177,28 @@ namespace DrivenRides
             var parked = false;
             if (!stop() && car != null && car.controlledByPlayer && !IsOccupied(helper, spot))
             {
-                VehicleHelper.TeleportVehicleToGround(car, position, rotation);
+                Teleport(car, position, rotation);
                 car.vehicleInstance.parkingState = ParkingState.Legal;
                 if (car.poi != null) car.poi.SetBackground(InstanceBehavior<GlobalReferences>.Instance.vehiclePOIBackgroundColor);
                 car.UpdateParkingZone();
                 car.SavePosition();
+                // As vanilla: no new spot is offered while the car stays where it was parked.
+                LastParkField?.SetValue(helper, position);
                 parked = true;
             }
             yield return UiFader.UnFade();
             Log.Info(parked ? "Own car: autoparked." : "Own car: autopark called off (the player got out, or the spot was taken).");
         }
 
+        // The game's teleport writes the rigidbody; its transform follows only at the next physics step, and the parking
+        // check, the save and anything placed by the car read the transform, so it is brought along at once.
+        public static void Teleport(CarController car, Vector3 position, Quaternion rotation)
+        {
+            VehicleHelper.TeleportVehicleToGround(car, position, rotation);
+            if (car.TryGetComponent<Rigidbody>(out var body)) { car.transform.SetPositionAndRotation(body.position, body.rotation); Physics.SyncTransforms(); }
+        }
+
+        private static readonly FieldInfo? LastParkField = AccessTools.Field(typeof(VehicleParkingHelper), "_lastAutoParkPosition");
         private static readonly MethodInfo? OccupiedMethod = AccessTools.Method(typeof(VehicleParkingHelper), "IsSpotOccupied", new[] { typeof(AutoParkSpot) });
 
         private static bool IsOccupied(VehicleParkingHelper helper, AutoParkSpot spot)
