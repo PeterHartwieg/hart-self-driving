@@ -137,6 +137,8 @@ namespace DrivenRides
             if (!File.Exists(file)) return;
             var lines = File.ReadAllLines(file).Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
             if (lines.Count == 0 || lines[lines.Count - 1] != "end") return;
+            // A run sent while one is going waits in its file until the session ends.
+            if ((session != null || routine != null) && (lines[0].StartsWith("run", StringComparison.Ordinal) || lines[0].StartsWith("rerun", StringComparison.Ordinal))) return;
             File.Delete(file);
             var words = lines[0].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (words.Length == 0) return;
