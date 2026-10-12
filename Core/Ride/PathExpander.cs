@@ -20,9 +20,9 @@ namespace DrivenRides.Core.Ride
 
         // Puts each added turn's and U-turn's waypoints (straight into the junction, then the curve) between its
         // entry and exit, so the car drives them as a driver would.
-        // clear(from, to), if given, says whether the straight line between two waypoints is free of obstacles (the
-        // game checks the world); the aim avoids a line that cuts a kerb corner.
-        public static ExpandedPath Expand(LaneGraph? graph, IReadOnlyList<int> route, System.Func<int, int, bool>? clear = null)
+        // clear(entry, via, aim), if given, says whether the car can drive out of a turn from its last via to an aim
+        // without touching anything (the game checks the world); the aim avoids a way out that cuts a kerb corner.
+        public static ExpandedPath Expand(LaneGraph? graph, IReadOnlyList<int> route, System.Func<int, int, int, bool>? clear = null)
         {
             var expanded = new ExpandedPath();
             var result = expanded.Path;
@@ -58,7 +58,7 @@ namespace DrivenRides.Core.Ride
                         float Along(int i) => (graph.Position(i).X - last.X) * ex + (graph.Position(i).Z - last.Z) * ez;
                         while (plain + 1 < candidates && Along(w[k + 1 + plain]) < MinAimMetres) plain++;
                     }
-                    bool Clear(int c) => clear == null || clear(lastVia, w[k + 1 + c]);
+                    bool Clear(int c) => clear == null || clear(w[k], lastVia, w[k + 1 + c]);
                     var skip = plain;
                     if (!Clear(plain))
                     {

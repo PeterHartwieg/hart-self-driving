@@ -49,11 +49,11 @@ public sealed class PathExpanderTests
         var route = new[] { 0, 1, entry, exit, exit + 1, exit + 2, exit + 3 };
         var vias = graph.TurnVias(entry, exit).ToArray();
         // The exit itself is 10 m on; its line is blocked, the next one's is clear.
-        var expanded = PathExpander.Expand(graph, route, (from, to) => to != exit);
+        var expanded = PathExpander.Expand(graph, route, (entry, from, to) => to != exit);
         Assert.Equal(new[] { 0, 1, entry }.Concat(vias).Concat(new[] { exit + 1, exit + 2, exit + 3 }), expanded.Path);
         Assert.Equal((vias[^1], exit + 1), expanded.Aims[(entry, exit)]);
         // Nothing clear: as without a world check.
-        Assert.Equal(PathExpander.Expand(graph, route).Path, PathExpander.Expand(graph, route, (a, b) => false).Path);
+        Assert.Equal(PathExpander.Expand(graph, route).Path, PathExpander.Expand(graph, route, (e, a, b) => false).Path);
     }
 
     [Fact]

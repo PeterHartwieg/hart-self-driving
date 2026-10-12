@@ -145,7 +145,7 @@ namespace DrivenRides
             this.goals = goals;
             this.route = route;
             carLength = LengthOf(prefab);
-            carHalfWidth = HalfWidthOf(prefab);
+            carSteering = new Steering(PooledCopy(prefab));
             path = Expand(route);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
@@ -255,7 +255,7 @@ namespace DrivenRides
                 if (kind != Kind.Stand && parked == null && (car == null || car.GetIndex() < 0)) return Vanilla("the taxi has no traffic car");
                 if (prefab == null) return Vanilla("no vehicle prefab");
                 planLength = LengthOf(prefab);
-                planHalfWidth = HalfWidthOf(prefab);
+                planSteering = new Steering(PooledCopy(prefab));
 
                 var graph = GleyGraph.Graph;
                 var manager = TrafficManager.HasInstance && TrafficManager.IsInitialized ? TrafficManager.Instance : null;
@@ -328,7 +328,7 @@ namespace DrivenRides
                 // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
                 for (var attempt = 0; route != null && attempt < 6; attempt++)
                 {
-                    var blocked = FindBlockedSteps(graph, route.Waypoints, planHalfWidth);
+                    var blocked = FindBlockedSteps(graph, route.Waypoints, planSteering);
                     if (blocked.Count == 0) break;
                     foreach (var (from, to, what) in blocked)
                     {
@@ -404,8 +404,10 @@ namespace DrivenRides
 
         // The length of the car a route is planned for: manoeuvres that failed in turn tests for cars this long are
         // left out (TestedSteps).
-        private static float planLength, planHalfWidth;
-        private float carLength, carHalfWidth;
+        private static float planLength;
+        private static Steering planSteering;
+        private float carLength;
+        private Steering carSteering;
 
         // A pooled copy's measurements: Gley fills length and width in when it builds the pool.
         private static VehicleComponent PooledCopy(VehicleComponent prefab)
@@ -418,7 +420,7 @@ namespace DrivenRides
 
         private static float LengthOf(VehicleComponent prefab) => PooledCopy(prefab).length;
 
-        private static float HalfWidthOf(VehicleComponent prefab) => PooledCopy(prefab).colliderWidth / 2f;
+
 
         private static Route? Plan(LaneGraph graph, int start, List<Goal> goals, int vehicleType, out long ms, out string why)
         {
@@ -471,19 +473,74 @@ namespace DrivenRides
 
         // The steps of a route the game's data doesn't have, swept with a car-wide capsule against street props and
         // buildings, along the waypoints the car will steer through.
-        // Whether a car this wide can drive the straight line between two waypoints without touching a building or a
-        // street prop.
-        private static bool LineClear(int from, int to, float halfWidth)
+        // The way a car drives out of an added turn, from its last via to where it aims, as Gley steers it: it leaves
+        // the via heading as it came in, turns at its tightest radius towards the aim until it points at it, then
+        // drives straight (DriveJob steers at the target waypoint; with the ride's quick steering the turn starts at
+        // once). A straight line missed nothing it should, a curve through the corner missed a median nose the car
+        // then got stuck on (turn test 0.1.37).
+        private static List<Vector3> WayOut(LaneGraph graph, int entry, int via, int aim, Steering car)
         {
-            var all = GleyGraph.Waypoints;
-            if (all == null) return true;
-            return !Physics.CheckCapsule(all[from].position + Vector3.up, all[to].position + Vector3.up, Mathf.Max(0.8f, halfWidth + 0.1f), ObstacleMask, QueryTriggerInteraction.Ignore);
+            var all = GleyGraph.Waypoints!;
+            Vector3 p = all[via].position, b = all[aim].position;
+            var points = new List<Vector3> { p };
+            if (!graph.PlainHeading(entry, out var dx, out var dz)) { points.Add(b); return points; }
+            var heading = Mathf.Atan2(dx, dz);
+            const float step = 0.5f;
+            // The wheel turns at maxSteer x SteeringFactor degrees a second; at turn speed a step takes this long.
+            var stepSeconds = step / (TurnSpeed / 3.6f);
+            var steer = 0f;
+            for (var n = 0; n < 200; n++)
+            {
+                var to = b - p;
+                to.y = 0f;
+                if (to.magnitude < 1f) break;
+                var wanted = Mathf.Clamp(Mathf.DeltaAngle(heading * Mathf.Rad2Deg, Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg), -car.MaxSteer, car.MaxSteer);
+                steer = Mathf.MoveTowards(steer, wanted, car.MaxSteer * SteeringFactor * stepSeconds);
+                heading += step * Mathf.Tan(steer * Mathf.Deg2Rad) / Mathf.Max(0.5f, car.WheelDistance);
+                p += new Vector3(Mathf.Sin(heading), 0f, Mathf.Cos(heading)) * step;
+                p.y = Mathf.Lerp(p.y, b.y, 0.1f);
+                if (n % 2 == 1) points.Add(p);
+            }
+            points.Add(b);
+            return points;
         }
 
-        private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w, float halfWidth)
+        // What WayOut needs of a car, from a pooled copy (Gley fills them in when it builds the pool).
+        private readonly struct Steering
+        {
+            public readonly float HalfWidth, WheelDistance, MaxSteer;
+            public Steering(VehicleComponent copy)
+            {
+                HalfWidth = copy.colliderWidth / 2f;
+                WheelDistance = copy.wheelDistance;
+                MaxSteer = Mathf.Clamp(copy.maxSteer, 5f, 60f);
+            }
+        }
+
+        private static bool SweepClear(List<Vector3> points, float radius, out string what)
+        {
+            what = "";
+            for (var q = 0; q + 1 < points.Count; q++)
+            {
+                var hits = Physics.OverlapCapsule(points[q] + Vector3.up, points[q + 1] + Vector3.up, radius, ObstacleMask, QueryTriggerInteraction.Ignore);
+                if (hits.Length == 0) continue;
+                what = hits[0].name;
+                return false;
+            }
+            return true;
+        }
+
+        private static bool WayOutClear(int entry, int via, int aim, Steering car)
+        {
+            var graph = GleyGraph.Graph;
+            return graph == null || SweepClear(WayOut(graph, entry, via, aim, car), Mathf.Max(0.8f, car.HalfWidth + 0.1f), out _);
+        }
+
+        private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w, Steering car)
         {
             // The line out of each added turn ends where the car aims, which may be past the exit (PathExpander).
-            var aims = PathExpander.Expand(graph, w, (a, b) => LineClear(a, b, halfWidth)).Aims;
+            var halfWidth = car.HalfWidth;
+            var aims = PathExpander.Expand(graph, w, (e, a, b) => WayOutClear(e, a, b, car)).Aims;
             var result = new List<(int, int, string)>();
             var all = GleyGraph.Waypoints!;
             var points = new List<Vector3>();
@@ -493,7 +550,14 @@ namespace DrivenRides
                 points.Clear();
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
-                points.Add(all[aims.TryGetValue((w[k], w[k + 1]), out var aim) ? aim.Aim : w[k + 1]].position);
+                // An added turn's way out is the curve the car drives, as wide as the car.
+                if (aims.TryGetValue((w[k], w[k + 1]), out var aim))
+                {
+                    if (!SweepClear(points, Mathf.Max(0.8f, halfWidth + 0.1f), out var inWay)) { result.Add((w[k], w[k + 1], inWay)); continue; }
+                    if (!SweepClear(WayOut(graph, w[k], aim.Via, aim.Aim, car), Mathf.Max(0.8f, halfWidth + 0.1f), out var outWay)) result.Add((w[k], w[k + 1], outWay));
+                    continue;
+                }
+                points.Add(all[w[k + 1]].position);
                 // A turn with guide waypoints is checked along them, 1.5 m wide; a short one without, along its chord
                 // back as well, since the car cuts that corner.
                 var turn = Contains(graph.MissingTurns(w[k]), w[k + 1]);
@@ -720,7 +784,8 @@ namespace DrivenRides
         // Puts each added turn's and U-turn's waypoints between its entry and exit (Core's PathExpander).
         private List<int> Expand(Route r)
         {
-            var expanded = PathExpander.Expand(GleyGraph.Graph, r.Waypoints, (a, b) => LineClear(a, b, carHalfWidth));
+            var steering = carSteering;
+            var expanded = PathExpander.Expand(GleyGraph.Graph, r.Waypoints, (e, a, b) => WayOutClear(e, a, b, steering));
             slowPath.Clear();
             slowPath.UnionWith(expanded.SlowPath);
             uTurnPath.Clear();
@@ -1084,7 +1149,7 @@ namespace DrivenRides
                 if (!routeIndex.TryGetValue(w[k], out var at) || at < progress!.NextIndex - 1) continue;
                 if (Vector3.Distance(here, all[w[k]].position) > 80f) continue;
                 checkedNear.Add((w[k], w[k + 1]));
-                var blocked = FindBlockedSteps(graph, new[] { w[k], w[k + 1] }, carHalfWidth);
+                var blocked = FindBlockedSteps(graph, new[] { w[k], w[k + 1] }, carSteering);
                 if (blocked.Count == 0) continue;
                 // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
