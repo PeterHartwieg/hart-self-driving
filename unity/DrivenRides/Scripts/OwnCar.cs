@@ -147,6 +147,11 @@ namespace DrivenRides
             yield return null;
             yield return null;
             if (stop() || car == null || !car.controlledByPlayer) yield break;
+            // As vanilla, which only offers a spot below 10 km/h (VehicleParkingHelper.Update): a player already
+            // driving off isn't pulled into a spot.
+            if (car.CurrentSpeed >= 10f) { Log.Info("Own car: no autopark, the car is moving."); yield break; }
+            // As vanilla: a wrecked car doesn't autopark.
+            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Log.Info("Own car: no autopark, the car is wrecked."); yield break; }
             if (!(ParkingHelperField?.GetValue(car) is VehicleParkingHelper helper) || helper == null || FindSpotMethod == null)
             {
                 Log.Error("Own car autopark: the car has no parking helper.");
@@ -161,12 +166,34 @@ namespace DrivenRides
                 Log.Info("Own car: no free autopark spot nearby.");
                 yield break;
             }
-            helper.availableAutoParkSpot = spot;
             Log.Info($"Own car: autoparking {Vector3.Distance(car.transform.position, spot.transform.position):0.0} m away{(supported ? "" : " (the car has no autopark of its own)")}.");
-            // Its fades are stepped by the ride (Ride.Flatten); the ride stops stepping when stop says so, which it
-            // checks between steps, so getting out during the fade leaves the car where it is.
-            yield return helper.ParkInClosestSpot();
-            if (car != null && !stop()) car.SavePosition();
+            // The steps of the game's ParkInClosestSpot, done here so each stage is known: the fade, a last check (the
+            // player still in the car, the spot still free), the teleport and the legal parking state, and the
+            // unfade, which always runs once the fade has.
+            var position = spot.transform.position;
+            var rotation = spot.transform.parent.rotation;
+            if (spot.visuals != null) spot.visuals.enabled = false;
+            yield return UiFader.Fade();
+            var parked = false;
+            if (!stop() && car != null && car.controlledByPlayer && !IsOccupied(helper, spot))
+            {
+                VehicleHelper.TeleportVehicleToGround(car, position, rotation);
+                car.vehicleInstance.parkingState = ParkingState.Legal;
+                if (car.poi != null) car.poi.SetBackground(InstanceBehavior<GlobalReferences>.Instance.vehiclePOIBackgroundColor);
+                car.UpdateParkingZone();
+                car.SavePosition();
+                parked = true;
+            }
+            yield return UiFader.UnFade();
+            Log.Info(parked ? "Own car: autoparked." : "Own car: autopark called off (the player got out, or the spot was taken).");
+        }
+
+        private static readonly MethodInfo? OccupiedMethod = AccessTools.Method(typeof(VehicleParkingHelper), "IsSpotOccupied", new[] { typeof(AutoParkSpot) });
+
+        private static bool IsOccupied(VehicleParkingHelper helper, AutoParkSpot spot)
+        {
+            try { return OccupiedMethod?.Invoke(helper, new object[] { spot }) is bool taken && taken; }
+            catch (Exception ex) { Log.Error("Own car autopark, spot check: " + ex.Message); return true; }
         }
     }
 

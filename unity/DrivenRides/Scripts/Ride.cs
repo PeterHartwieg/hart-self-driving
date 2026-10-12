@@ -839,25 +839,9 @@ namespace DrivenRides
                 if (kind == Kind.OwnCar && ownCarEntered && ownCar != null)
                 {
                     faded = true;
-                    Func<bool> stop = () => cancelled || SaveChanged || ownCar == null || !ownCar.controlledByPlayer;
-                    var parkBody = ownCar.GetComponent<Rigidbody>();
-                    var before = parkBody != null ? parkBody.position : ownCar.transform.position;
-                    var park = Flatten(OwnCarTaxi.Autopark(ownCar, stop));
-                    while (park.MoveNext())
-                    {
-                        yield return park.Current;
-                        if (cancelled) yield break;
-                        // Checked between steps until the teleport, so it never runs on a car the player left. Once the car
-                        // has moved, autopark runs to its end: its unfade and the parking state that follow it.
-                        var moved = parkBody != null && Vector3.Distance(parkBody.position, before) > 0.5f;
-                        if (!moved && stop()) { Log.Info("Own car: autopark stopped before parking (the player got out or the save changed)."); break; }
-                    }
-                    // Autopark stopped between its fade and its unfade (the player got out): the screen comes back.
-                    if (InstanceBehavior<UIs>.Instance.blackOverlay.color.a > 0.01f)
-                    {
-                        var unfade = UiFader.UnFade();
-                        while (unfade.MoveNext()) yield return unfade.Current;
-                    }
+                    // Autopark checks the player is still in the car before it moves it, and always unfades after its fade.
+                    var park = Flatten(OwnCarTaxi.Autopark(ownCar, () => cancelled || SaveChanged));
+                    while (park.MoveNext()) { yield return park.Current; if (cancelled) yield break; }
                     faded = false;
                 }
                 Finish();
@@ -985,6 +969,10 @@ namespace DrivenRides
                             player.UnsetNavigationBlocker(NavigationBlocker.Vehicle);
                             try { AccessTools.Method(typeof(CarController), "StopEngine")?.Invoke(real, null); } catch (Exception engineEx) { Log.Error("Own car: engine: " + engineEx.Message); }
                             player.Character.WarpSafely(BesideOwnCar());
+                            // Walking on foot needs no selected vehicle (PlayerController.Update); the HUD panel's close
+                            // clears it, and so does this if the close fails.
+                            try { InstanceBehavior<UIs>.Instance.playerHUD.itemPanelUI.Toggle(false); } catch (Exception panelEx) { Log.Error("Own car: vehicle panel: " + panelEx.Message); }
+                            manager.selectedVehicle = null;
                             SetGameCamera(PedestrianCameraField?.GetValue(manager));
                         }
                         catch (Exception handEx) { Log.Error("Own car: undoing the half entry by hand: " + handEx.Message); }
