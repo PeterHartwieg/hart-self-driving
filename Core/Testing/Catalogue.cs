@@ -6,6 +6,7 @@ namespace DrivenRides.Core.Testing
 {
     public static class Catalogue
     {
+
         public static List<Fixture> Build(LaneGraph graph) => Build(graph, new CatalogueOptions());
 
         public static List<Fixture> Build(LaneGraph graph, CatalogueOptions options)
@@ -15,7 +16,7 @@ namespace DrivenRides.Core.Testing
             var junctions = new List<int>();
             for (int i = 0; i < graph.Count; i++)
                 if (graph.IsJunctionEntryWaypoint(i) || graph.IsJunctionExitWaypoint(i)) junctions.Add(i);
-            var changes = new Dictionary<(int, int), (Fixture Fixture, float Distance)>();
+            var changes = new Dictionary<(int, int), (Fixture Fixture, float Distance, bool Wide)>();
             for (int i = 0; i < graph.Count; i++)
             {
                 if (graph.IsJunctionEntryWaypoint(i))
@@ -58,12 +59,15 @@ namespace DrivenRides.Core.Testing
                             if (NearBridge(graph, options, fixture.Route)) continue;
                             var key = (lanes[i], lanes[beside]);
                             if (!changes.TryGetValue(key, out var old) || distance < old.Distance)
-                                changes[key] = (fixture, distance);
+                                changes[key] = (fixture, distance, Math.Abs(graph.SideOf(i, beside)) > 4.5f);
                         }
                     }
                 }
             }
-            foreach (var item in changes.Values) cases.Add(item.Fixture);
+            // Every lane change across a wide gap (slip lanes, ramps: the one lane change that crashed); of the plain
+            // ones, a fixed sample, since none has failed.
+            foreach (var item in changes.Values)
+                if (item.Wide || Sampled(item.Fixture.Id, options.LaneChangeSample)) cases.Add(item.Fixture);
             Ramps(graph, options, cases);
             cases.Sort((a, b) => { int order = b.SharpnessDegrees.CompareTo(a.SharpnessDegrees); return order != 0 ? order : string.CompareOrdinal(a.Id, b.Id); });
             return cases;
@@ -152,6 +156,15 @@ namespace DrivenRides.Core.Testing
                 for (int b = a + 1; b < headings.Count; b++)
                     largest = Math.Max(largest, Geometry.Angle(headings[a].X, headings[a].Z, headings[b].X, headings[b].Z));
             return largest;
+        }
+
+        // A stable pick of one in n by id (string.GetHashCode differs between runs).
+        private static bool Sampled(string id, int n)
+        {
+            if (n <= 1) return true;
+            uint hash = 2166136261;
+            foreach (char c in id) hash = (hash ^ c) * 16777619;
+            return hash % (uint)n == 0;
         }
 
         private static float JunctionDistance(LaneGraph graph, int i, List<int> junctions)

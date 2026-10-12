@@ -28,16 +28,20 @@ if (args[1] == "show")
     return;
 }
 var resultsPath = args[1];
-var folder = args.Length > 2 ? args[2] : Path.GetDirectoryName(Path.GetFullPath(resultsPath))!;
+// --write <file>: also writes the results again with the new verdicts (for tools/tested-steps.py).
+var writeAt = Array.IndexOf(args, "--write");
+var writePath = writeAt > 0 && writeAt + 1 < args.Length ? args[writeAt + 1] : null;
+var folder = args.Length > 2 && !args[2].StartsWith("--") ? args[2] : Path.GetDirectoryName(Path.GetFullPath(resultsPath))!;
+var written = new List<string>();
 int same = 0, changed = 0, missing = 0;
 var verdicts = new Dictionary<string, int>();
 foreach (var line in File.ReadLines(resultsPath))
 {
     if (string.IsNullOrWhiteSpace(line)) continue;
     var run = JsonDocument.Parse(line).RootElement;
-    if (!run.TryGetProperty("fixture", out var fx) || !run.TryGetProperty("samples", out var samplesName)) { missing++; continue; }
+    if (!run.TryGetProperty("fixture", out var fx) || !run.TryGetProperty("samples", out var samplesName)) { missing++; written.Add(line); continue; }
     var samplesPath = Path.Combine(folder, samplesName.GetString()!);
-    if (!File.Exists(samplesPath)) { missing++; continue; }
+    if (!File.Exists(samplesPath)) { missing++; written.Add(line); continue; }
     var fixture = ToFixture(fx);
     var judge = new Judge(graph, CaseGeometry.Build(graph, fixture), fixture);
     foreach (var row in File.ReadLines(samplesPath))
@@ -58,11 +62,16 @@ foreach (var line in File.ReadLines(resultsPath))
     var newReasons = string.Join(" ", result.Reasons);
     verdicts[result.Verdict] = verdicts.GetValueOrDefault(result.Verdict) + 1;
     var differs = oldVerdict != result.Verdict || oldReasons != newReasons;
+    var node = System.Text.Json.Nodes.JsonNode.Parse(line)!.AsObject();
+    // An "avoided" run stays avoided; otherwise the new verdict, and the old one kept beside it.
+    if (oldVerdict != "avoided") { node["gameVerdict"] = oldVerdict; node["verdict"] = result.Verdict; node["judge"] = System.Text.Json.Nodes.JsonNode.Parse(result.ToJson()); }
+    written.Add(node.ToJsonString());
     if (differs) changed++; else same++;
     Console.WriteLine($"{run.GetProperty("run").GetString()} {fixture.Id,-36} {(differs ? "*" : " ")} {oldVerdict} [{oldReasons}] -> {result.Verdict} [{newReasons}] " +
         $"intrusion {result.MaxIntrusion:0.00} dev {result.PlainDeviationMax:0.00} gates {string.Join(",", result.GatesPassed)}" +
         (result.IntrusionDetail != null ? $"\n      {result.IntrusionDetail}" : ""));
 }
+if (writePath != null) File.WriteAllLines(writePath, written);
 Console.WriteLine($"\n{same} unchanged, {changed} changed, {missing} without samples; now: {string.Join(", ", verdicts.Select(v => $"{v.Key} {v.Value}"))}");
 
 static Sample ToSample(string[] f)

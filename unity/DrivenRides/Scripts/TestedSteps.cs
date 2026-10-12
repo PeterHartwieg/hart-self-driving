@@ -11,10 +11,18 @@ namespace DrivenRides
     {
         private static readonly Dictionary<(int, int), float> Shortest = new Dictionary<(int, int), float>
         {
-
+            { (2553, 14970), 6.66f }, // uturn-2553-9288 ba:vehicletype_mersaididash near-miss (run 20261012-185045-0092)
+            { (8667, 14401), 6.66f }, // uturn-8667-5292 ba:vehicletype_mersaididash near-miss contact (run 20261012-191421-0056)
+            { (10123, 15903), 6.66f }, // uturn-10123-2497-ok ba:vehicletype_mersaididash near-miss contact (run 20261012-191421-0001)
+            { (13475, 13022), 4.91f }, // uturn-13475-5501 taxi stuck (run 20261012-183926-0019)
+            { (14337, 2118), 6.66f }, // uturn-14337-7989 ba:vehicletype_mersaididash near-miss (run 20261012-191421-0064)
+            { (15147, 2273), 6.66f }, // uturn-15147-2357 ba:vehicletype_mersaididash near-miss contact (run 20261012-191421-0065)
+            { (17269, 6608), 6.66f }, // uturn-17269-12908 ba:vehicletype_mersaididash near-miss contact (run 20261012-191421-0071)
         };
 
         public static int Count => Shortest.Count;
+
+        public static bool Has(int from, int to) => Shortest.ContainsKey((from, to));
 
         public static bool Blocks(int from, int to, float carLength) =>
             Shortest.TryGetValue((from, to), out var length) && carLength >= length - 0.01f;

@@ -56,7 +56,16 @@ Recorded too: entry speed, the closest near-miss level (0.3, 0.2, 0.1 m), the ma
 
 In `<persistentDataPath>/DrivenRides/tests/`. The Mac script `tools/turn-tests.sh` writes `command.tmp` and renames it to `command.txt`; the mod reads and deletes it. A `stop.txt` file stops a run. The mod writes `status.json` (heartbeat, current case, counts), `results-<session>.jsonl` (one line per run) and pictures `<run id>.png`.
 
-Commands: `cars`; `catalogue`; `run [kinds=turn,uturn,lanechange,ramp,ride,control] [cars=default|all|<names>] [speed=3] [limit=N] [ids=...] [rides=<lines>]`; `rerun <results file>` (the failed ones); `stop`.
+Commands: `cars`; `catalogue`; `run tier=quick|full`; `run [kinds=turn,uturn,lanechange,ramp,ride,control] [cars=default|all|<names>] [speed=3] [limit=N] [ids=...] [rides=<lines>]`; `rerun <results file>` (the failed ones); `stop`.
+
+## Tiers and the avoid list
+
+- **Quick** (`run tier=quick`, about 10 minutes, after any update): the controls, every manoeuvre on the avoid list, and a fixed sample of 30 cases per kind, with the car with the largest turning circle.
+- **Full** (`run tier=full`, about 40 minutes, after changes to the turning code or a game update): the controls and every case with that car, then the other default cars on the cases it failed or passed within 0.2 m.
+
+Cases are short (50 m run-up, 40 m run-out: the car reaches its top speed in about 40 m). Lane changes are all the ones across a wide gap (slip lanes, ramps) and a fixed one-in-eight sample of the rest. Traffic is off, so a case waits only 1 s after moving the anchor.
+
+**The avoid list.** `tools/tested-steps.py` turns results into `unity/DrivenRides/Scripts/TestedSteps.cs`: each manoeuvre that failed after its entry gate, with the shortest car that failed it. The ride planner leaves those manoeuvres out for cars at least that long. Re-judge older results first (`tools/rejudge --write`); pass only the kinds a later build hasn't changed (`file:UTurn,LaneChange`). Waypoint indices belong to one game build: regenerate after a game update. Results mark failures already on the list as `known`.
 
 ## Code layout
 

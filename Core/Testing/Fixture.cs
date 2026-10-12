@@ -33,7 +33,10 @@ namespace DrivenRides.Core.Testing
 
     public sealed class CatalogueOptions
     {
-        public float RunUpMetres = 120f, RunOutMetres = 60f;
+        // The car reaches its top speed in about 40 m (Ride.AccelerationSeconds), so 50 m of run-up is enough.
+        public float RunUpMetres = 50f, RunOutMetres = 40f;
+        // Plain lane changes kept: one in this many (1 keeps all).
+        public int LaneChangeSample = 8;
         public Func<Vec3, bool>? NearBridge;
     }
 }

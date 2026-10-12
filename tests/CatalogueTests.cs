@@ -83,9 +83,10 @@ public sealed class CatalogueTests
         int[] a = Enumerable.Range(0, 5).Select(i => b.Add(0, i * 10)).ToArray();
         int[] c = Enumerable.Range(0, 5).Select(i => b.Add(3, i * 10)).ToArray();
         b.Link(a); b.Link(c); b.Beside(a[0], c[0]);
-        Assert.DoesNotContain(Catalogue.Build(b.Build()), f => f.Kind == CaseKind.LaneChange);
+        var all = new CatalogueOptions { LaneChangeSample = 1 };
+        Assert.DoesNotContain(Catalogue.Build(b.Build(), all), f => f.Kind == CaseKind.LaneChange);
         int j = b.Add(0, 45, true); b.Link(a[4], j);
-        Assert.Contains(Catalogue.Build(b.Build()), f => f.Kind == CaseKind.LaneChange);
+        Assert.Contains(Catalogue.Build(b.Build(), all), f => f.Kind == CaseKind.LaneChange);
     }
 
     [Fact]

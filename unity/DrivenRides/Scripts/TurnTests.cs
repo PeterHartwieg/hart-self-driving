@@ -292,6 +292,8 @@ namespace DrivenRides
             var catalogue = Catalogue.Build(graph, options);
             var models = Models();
             var plan = new List<(Fixture Fixture, CarModel Car)>();
+            List<CarModel>? followUp = null;
+            static IEnumerable<string> followUpNames(List<(Fixture Fixture, CarModel Car)> p, int from) => p.Skip(from).Select(x => x.Car.Name).Distinct();
             if (rerunFile != null)
             {
                 var path = Path.Combine(Folder, Path.GetFileName(rerunFile));
@@ -308,6 +310,24 @@ namespace DrivenRides
                     else if ((string?)o["kind"] == "Ride" && o["rideLine"] != null)
                         foreach (var r in RideCases(graph, ((int)o["rideLine"]!).ToString(), options).Where(r => r.Id == id)) plan.Add((r, car));
                 }
+            }
+            else if (args.TryGetValue("tier", out var tier))
+            {
+                // The tiers (docs/turn-tests.md): quick after any update, full after changes to the turning code or a
+                // game update. Both drive the first default car (the largest turning circle); full then drives the
+                // other default cars where it failed or came within 0.2 m.
+                var cars = Choose(models, "default");
+                if (cars.Count == 0) { Refuse("no car models found"); yield break; }
+                var cases = catalogue.ToList();
+                if (tier == "quick")
+                {
+                    var known = cases.Where(f => TestedSteps.Has(f.Route[f.EntryIndex], f.Route[f.EntryIndex + 1]));
+                    var sample = cases.GroupBy(f => f.Kind).SelectMany(g => g.OrderBy(f => StableHash(f.Id)).Take(QuickSample));
+                    cases = known.Concat(sample).Distinct().ToList();
+                }
+                foreach (var f in Controls.Build(graph, catalogue)) plan.Add((f, cars[0]));
+                foreach (var f in cases) plan.Add((f, cars[0]));
+                if (tier == "full") followUp = cars.Skip(1).ToList();
             }
             else
             {
@@ -329,9 +349,11 @@ namespace DrivenRides
             Log.Info($"Turn tests {s.Id}: {plan.Count} runs at {speed:0}x, cars {string.Join(", ", plan.Select(p => p.Car.Name).Distinct())}.");
 
             var controlResults = new List<(Fixture Fixture, JudgeResult Result)>();
+            var close = new List<Fixture>();
             var n = 0;
-            foreach (var (fixture, car) in plan)
+            for (var index = 0; index < plan.Count; index++)
             {
+                var (fixture, car) = plan[index];
                 if (s.StopRequested || session != s) break;
                 n++;
                 JudgeResult? result = null;
@@ -339,6 +361,15 @@ namespace DrivenRides
                 while (run.MoveNext()) yield return null;
                 if (fixture.Kind == CaseKind.Control && result != null) controlResults.Add((fixture, result));
                 if (controlResults.Count > 0 && fixture.Kind != CaseKind.Control && s.Calibrated == null) s.Calibrated = Calibration(controlResults);
+                if (fixture.Kind != CaseKind.Control && result != null && (result.Verdict == "fail" || (result.NearMiss > 0 && result.NearMiss <= 0.2f))) close.Add(fixture);
+                // The full tier's second pass: the other cars where the first one failed or came close.
+                if (index == plan.Count - 1 && followUp != null)
+                {
+                    foreach (var other in followUp) foreach (var f in close) plan.Add((f, other));
+                    s.Total = plan.Count;
+                    followUp = null;
+                    Log.Info($"Turn tests {s.Id}: {close.Count} cases failed or came within 0.2 m; driving them with {string.Join(", ", followUpNames(plan, n))}.");
+                }
             }
             if (s.Calibrated == null && controlResults.Count > 0) s.Calibrated = Calibration(controlResults);
             Teardown(s.StopRequested ? "stopped" : "finished", handedOver: false);
@@ -346,6 +377,16 @@ namespace DrivenRides
 
         // Each control pair's bad half must fail for its stated reason: that shows the judge catches the fault. A
         // correct half that fails is a ride fault at that spot (the first runs found two), reported, not counted.
+        private const int QuickSample = 30;
+
+        // A stable order by id (string.GetHashCode differs between runs).
+        private static uint StableHash(string id)
+        {
+            uint hash = 2166136261;
+            foreach (var c in id) hash = (hash ^ c) * 16777619;
+            return hash;
+        }
+
         private static string Calibration(List<(Fixture Fixture, JudgeResult Result)> results)
         {
             var bad = new List<string>();
@@ -432,12 +473,15 @@ namespace DrivenRides
                 ["car"] = model.Name, ["speed"] = speed, ["version"] = DrivenRidesMod.Version,
             };
             if (fixture.RideLine >= 0) line["rideLine"] = fixture.RideLine;
+            // On the avoid list already: rides don't drive it with cars this long.
+            if (fixture.Route.Count > fixture.EntryIndex + 1 && TestedSteps.Has(fixture.Route[fixture.EntryIndex], fixture.Route[fixture.EntryIndex + 1])) line["known"] = true;
 
             // Over to the case: the anchor (and with it Gley's camera, the player) stands at the start.
             s.Anchor!.Target = null;
             s.Anchor.Valid = null;
             s.AnchorObject!.transform.position = start.position + Vector3.up;
-            var until = Time.unscaledTime + 3f;
+            // Traffic is off, so only the anchor (Gley's camera) has to arrive; a second is plenty.
+            var until = Time.unscaledTime + 1f;
             while (Time.unscaledTime < until) { if (s.StopRequested) yield break; yield return null; }
 
             var driven = fixture.Path ?? PathExpander.Expand(graph, route).Path;

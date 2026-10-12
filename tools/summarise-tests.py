@@ -36,9 +36,12 @@ def main(path):
     if reasons:
         print("\nFailure reasons: " + ", ".join(f"{k} {v}" for k, v in reasons.most_common()))
 
-    print("\nFailures and other outcomes:")
+    known = [r for r in runs if r["verdict"] == "fail" and r.get("known")]
+    if known:
+        print(f"\nKnown failures (on the avoid list): {len(known)}")
+    print("\nNew failures and other outcomes:")
     for r in runs:
-        if r["verdict"] == "pass" or r["kind"] == "Control":
+        if r["verdict"] == "pass" or r["kind"] == "Control" or (r["verdict"] == "fail" and r.get("known")):
             continue
         j = r.get("judge", {})
         detail = " ".join(j.get("Reasons", [])) or r.get("why", "") or r.get("end", "")
