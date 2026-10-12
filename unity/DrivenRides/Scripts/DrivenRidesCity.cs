@@ -47,6 +47,7 @@ namespace DrivenRides
         {
             TurnTests.Abort("game unloaded");
             Ride.CancelActive("game unloaded", handedOver: true);
+            OwnCarTaxi.Drop();
             GleyGraph.Drop();
             if (runtimeObject != null) Object.Destroy(runtimeObject);
             runtimeObject = null;

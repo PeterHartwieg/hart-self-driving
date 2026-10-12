@@ -4,11 +4,13 @@ A mod for Big Ambitions. Taxi and private-driver rides drive through Manhattan i
 
 Press **L** to call your private driver. Press **L** again once it waits, and you walk to it and choose where to go.
 
+In the driver's seat of your own car, stopped on the street, press **L** to choose a destination: the car drives itself there and you stay in the driver's seat. Depending on the options it then autoparks or leaves the parking to you. The trip costs fuel, no fare.
+
 Status: in development (Milestone 0, the spike). Not on the Workshop yet.
 
 ## Options
 
-In the game's Mods options: driven taxi rides and private-driver rides, each on or off; the ride speed (1×, 2× or 3×; default 1×); the clock's speed during a ride (a slider from 0 %, a stopped clock, to 100 %, normal; default 33 %); stopping at red lights; and the driver shortcut. The ride panel's speed buttons and clock slider change the same settings, so the next ride starts with the last choice.
+In the game's Mods options: driven taxi rides, private-driver rides and your own car driving itself, each on or off; what happens at the end of a self-driven trip (park yourself, autopark cars that have autopark, or autopark every car; default the second); the ride speed (1×, 2× or 3×; default 1×); the clock's speed during a ride (a slider from 0 %, a stopped clock, to 100 %, normal; default 33 %); stopping at red lights; and the driver shortcut. The ride panel's speed buttons and clock slider change the same settings, so the next ride starts with the last choice.
 
 ## Evidence
 

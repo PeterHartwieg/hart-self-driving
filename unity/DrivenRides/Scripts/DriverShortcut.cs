@@ -9,7 +9,8 @@ using UnityEngine.InputSystem;
 
 namespace DrivenRides
 {
-    // L calls the private driver; once it waits, L walks the player to it and opens the destination map.
+    // L calls the private driver; once it waits, L walks the player to it and opens the destination map. In the
+    // driver's seat of the player's own car, L opens the destination map for the car to drive itself.
     // Vanilla needs the phone, the driver app and a vehicle each time. The game's bindings ignore modifiers and
     // leave L unbound; with any modifier held the key does nothing, so Ctrl+L and the like stay free.
     internal sealed class DriverShortcut : MonoBehaviour
@@ -30,7 +31,8 @@ namespace DrivenRides
 
         private static void Press()
         {
-            if (TurnTests.Running || TaxiSystem.IsTraveling || Ride.Active != null || CityMap.IsOpen || PlayerActivityUI.IsPanelOpen || VehicleHelper.IsInsideVehicle()) return;
+            if (TurnTests.Running || TaxiSystem.IsTraveling || Ride.Active != null || CityMap.IsOpen || PlayerActivityUI.IsPanelOpen) return;
+            if (VehicleHelper.IsInsideVehicle()) { OwnCarTaxi.Open(); return; }
             var waiting = SmartphonePrivateDriverUI.CurrentVehicle;
             if (waiting != null)
             {

@@ -49,6 +49,12 @@ namespace DrivenRides
             Patch(typeof(SfxManager), "SetSoundSnapshotCityMap", new[] { typeof(bool), typeof(float) }, nameof(PhoneSoundPrefix), prefix: true);
             // No taxi or driver ride while turn tests run, before the fare is taken.
             Patch(typeof(TaxiSystem), "TravelTo", new[] { typeof(EntityController) }, nameof(TravelToPrefix), prefix: true);
+            // An own-car ride costs no fare.
+            Patch(typeof(TaxiSystem), "GetPrice", new[] { typeof(float) }, nameof(PricePrefix), prefix: true);
+            // No hourly parking ticket or fee for the own car while it is hidden at the start of a ride: the game skips
+            // the car the player sits in, so for that hour the hidden car counts as that car.
+            Patch(typeof(ParkingSimulator), "RunHourly", Type.EmptyTypes, nameof(HourlyPrefix), prefix: true);
+            Patch(typeof(ParkingSimulator), "RunHourly", Type.EmptyTypes, nameof(HourlyPostfix));
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -125,6 +131,36 @@ namespace DrivenRides
             if (showNotification) Notice.Show("Not during a ride.");
             __result = false;
             return false;
+        }
+
+        private static bool PricePrefix(ref float __result)
+        {
+            if (!(InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi)) return true;
+            __result = 0f;
+            return false;
+        }
+
+        private static bool hourlySwapped;
+
+        private static void HourlyPrefix()
+        {
+            hourlySwapped = false;
+            try
+            {
+                var game = SaveGameManager.Current;
+                var hidden = OwnCarTaxi.HiddenId();
+                if (game == null || hidden == null || game.ActiveVehicleId != null) return;
+                game.ActiveVehicleId = hidden;
+                hourlySwapped = true;
+            }
+            catch (Exception ex) { Log.Error("Hourly parking: " + ex.Message); }
+        }
+
+        private static void HourlyPostfix()
+        {
+            if (!hourlySwapped) return;
+            hourlySwapped = false;
+            if (SaveGameManager.Current != null) SaveGameManager.Current.ActiveVehicleId = null;
         }
 
         private static bool TravelToPrefix()

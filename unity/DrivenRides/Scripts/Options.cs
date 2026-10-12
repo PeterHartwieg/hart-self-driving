@@ -13,6 +13,9 @@ namespace DrivenRides
     {
         private const string TaxisId = "taxis";
         private const string DriverId = "driver";
+        private const string OwnCarId = "owncar";
+        private const string AutoparkId = "autopark";
+        private const int DefaultAutopark = (int)AutoparkMode.CarsWithIt;
         // A new id: the first spike builds defaulted to 3x under "speed".
         private const string SpeedId = "startspeed";
         // A new id: the first settings build stored a dropdown index under "clock".
@@ -27,6 +30,8 @@ namespace DrivenRides
 
         public static bool Taxis { get; private set; } = true;
         public static bool PrivateDriver { get; private set; } = true;
+        public static bool OwnCar { get; private set; } = true;
+        public static AutoparkMode Autopark { get; private set; } = AutoparkMode.CarsWithIt;
         public static float RideSpeed { get; private set; } = 1f;
         public static int ClockPercent { get; private set; } = DefaultClockPercent;
         public static float ClockFactor => ClockPercent / 100f;
@@ -41,6 +46,8 @@ namespace DrivenRides
             modId = id;
             Taxis = UnityEngine.PlayerPrefs.GetInt(Key(TaxisId), 1) != 0;
             PrivateDriver = UnityEngine.PlayerPrefs.GetInt(Key(DriverId), 1) != 0;
+            OwnCar = UnityEngine.PlayerPrefs.GetInt(Key(OwnCarId), 1) != 0;
+            Autopark = AutoparkAt(UnityEngine.PlayerPrefs.GetInt(Key(AutoparkId), DefaultAutopark));
             RideSpeed = SpeedAt(UnityEngine.PlayerPrefs.GetInt(Key(SpeedId), DefaultSpeedIndex));
             ClockPercent = ClampClock(UnityEngine.PlayerPrefs.GetInt(Key(ClockId), DefaultClockPercent));
             Shortcut = UnityEngine.PlayerPrefs.GetInt(Key(ShortcutId), 1) != 0;
@@ -50,6 +57,10 @@ namespace DrivenRides
                 .AddHeader("drivenrides:options_header")
                 .AddToggle(TaxisId, "drivenrides:options_taxis", true, value => { Taxis = value; Log.Info($"Option: driven taxis {(value ? "on" : "off")}."); })
                 .AddToggle(DriverId, "drivenrides:options_driver", true, value => { PrivateDriver = value; Log.Info($"Option: driven private driver {(value ? "on" : "off")}."); })
+                .AddToggle(OwnCarId, "drivenrides:options_owncar", true, value => { OwnCar = value; Log.Info($"Option: own car self driving {(value ? "on" : "off")}."); })
+                .AddDropdown(AutoparkId, "drivenrides:options_autopark",
+                    new[] { "drivenrides:options_autopark_off", "drivenrides:options_autopark_cars", "drivenrides:options_autopark_every" },
+                    DefaultAutopark, index => { Autopark = AutoparkAt(index); Log.Info($"Option: autopark {Autopark}."); })
                 .AddDropdown(SpeedId, "drivenrides:options_speed",
                     new[] { "drivenrides:options_speed_1", "drivenrides:options_speed_2", "drivenrides:options_speed_3" },
                     DefaultSpeedIndex, index => { RideSpeed = SpeedAt(index); Log.Info($"Option: ride speed {RideSpeed}x."); })
@@ -59,7 +70,7 @@ namespace DrivenRides
                 .AddToggle(LightsId, "drivenrides:options_lights", true, value => { TrafficLights = value; Log.Info($"Option: stop at red lights {(value ? "on" : "off")}."); })
                 .AddToggle(ShortcutId, "drivenrides:options_shortcut", true, value => { Shortcut = value; Log.Info($"Option: driver shortcut {(value ? "on" : "off")}."); });
             OptionsService.Register(id, options);
-            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}.");
+            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, own car {(OwnCar ? "on" : "off")}, autopark {Autopark}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}.");
         }
 
         public static void Unregister()
@@ -100,6 +111,8 @@ namespace DrivenRides
         private static string Key(string optionId) => "m:" + modId + ":" + optionId;
 
         private static float SpeedAt(int index) => Speeds[index >= 0 && index < Speeds.Length ? index : DefaultSpeedIndex];
+
+        private static AutoparkMode AutoparkAt(int index) => index >= 0 && index <= 2 ? (AutoparkMode)index : (AutoparkMode)DefaultAutopark;
 
         private static int ClampClock(int percent) => Mathf.Clamp(percent, 0, 100);
     }
