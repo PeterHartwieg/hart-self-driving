@@ -32,7 +32,8 @@ for path in sys.argv[1:]:
         if run.get("verdict") != "fail" or not fixture or fixture.get("IsMutation") or fixture["Kind"] == "Ride":
             continue
         reasons = [r for r in run["judge"]["Reasons"] if r.split(":")[0] in FAULTS]
-        if not reasons:
+        # Only a fault in the manoeuvre itself: one before its entry gate belongs to the run-up's own lanes.
+        if not reasons or "entry" not in run["judge"]["GatesPassed"]:
             continue
         route, entry = fixture["Route"], fixture["EntryIndex"]
         step = (route[entry], route[entry + 1])

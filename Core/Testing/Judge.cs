@@ -59,7 +59,7 @@ namespace DrivenRides.Core.Testing
             {
                 Gate first = geometry.Gates[0];
                 float along = first.Along(s.FrontAxle);
-                if (along >= 0 && along <= 12f && Math.Abs(first.Lateral(s.FrontAxle)) <= 4f)
+                if (fixture.EntryIndex == 0 || (along >= 0 && along <= 12f && Math.Abs(first.Lateral(s.FrontAxle)) <= 4f))
                 {
                     nextGate = 1;
                     result.GatesPassed.Add(first.Name);

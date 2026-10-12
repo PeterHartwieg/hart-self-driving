@@ -26,24 +26,23 @@ namespace DrivenRides.Core.Testing
                 if (!graph.PlainHeading(entry, out float dx, out float dz) || !graph.PlainHeading(exit, out float ex, out float ez) || ex * dz - ez * dx >= 0) continue;
                 var vias = graph.TurnVias(entry, exit);
                 if (vias.Count == 0) continue;
-                var replacements = new Dictionary<int, int>();
-                foreach (int via in vias)
-                {
-                    int nearest = -1;
-                    float distance = float.PositiveInfinity;
-                    foreach (int w in graph.Near(graph.Position(via), 12f))
-                    {
-                        if (!Direction(graph, w, out float wx, out float wz) || wx * ex + wz * ez >= -0.5f) continue;
-                        float d = Vec3.HorizontalDistance(graph.Position(via), graph.Position(w));
-                        if (d < distance || (d == distance && w < nearest)) { distance = d; nearest = w; }
-                    }
-                    if (nearest < 0) break;
-                    replacements[via] = nearest;
-                }
-                if (replacements.Count != vias.Count) continue;
+                // The bad half aims into the oncoming lane of the road it turns into, past its mouth, as the turns of
+                // spikes 11 and 12 came out on the centre line: the waypoint after the vias (where the car aims) is
+                // swapped for the nearest plain waypoint of a lane heading the other way.
                 var correct = PathExpander.Expand(graph, fixture.Route);
+                int aim = correct.Path.IndexOf(vias[vias.Count - 1]) + 1;
+                if (aim <= 0 || aim >= correct.Path.Count) continue;
+                int target = correct.Path[aim], nearest = -1;
+                float distance = float.PositiveInfinity;
+                foreach (int w in graph.Near(graph.Position(target), 12f))
+                {
+                    if (graph.IsIntersection(w) || !Direction(graph, w, out float wx, out float wz) || wx * ex + wz * ez >= -0.5f) continue;
+                    float d = Vec3.HorizontalDistance(graph.Position(target), graph.Position(w));
+                    if (d < distance || (d == distance && w < nearest)) { distance = d; nearest = w; }
+                }
+                if (nearest < 0) continue;
                 var bad = new List<int>(correct.Path);
-                for (int k = 0; k < bad.Count; k++) if (replacements.TryGetValue(bad[k], out int replacement)) bad[k] = replacement;
+                bad[aim] = nearest;
                 Pair(result, fixture, bad, correct.SlowPath, "intrusion");
                 left = true;
             }
