@@ -302,6 +302,8 @@ namespace DrivenRides
                         ownCar = own.Car;
                         if (ownCar == null || !ownCar.gameObject.activeInHierarchy) return Vanilla("the car is gone");
                         if (!ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), ownCar)) return Vanilla("you're not in the car");
+                    // Vanilla's exit warps to this point and, if it can't, puts the player back in (CarController.cs:640-650).
+                    if (!NavMesh.SamplePosition(ownCar.GetNavMeshTargetPosition(), out _, 1f, NavMesh.AllAreas)) return Vanilla("there's no room to get out of the car");
                         var pick = StandIn.Pick(ownCar, out var standInWhy);
                         if (pick == null) return Vanilla(standInWhy);
                         Log.Info("Own car: the stand-in is " + standInWhy + ".");
@@ -390,6 +392,15 @@ namespace DrivenRides
                     Log.Info("No route from the car's waypoint: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
                     route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
                     if (route != null) Log.Info($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(origin.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
+                    // A stand-in starts on its spawn waypoint and skips it, so it must be loaded where the route now
+                    // starts, if that place is free.
+                    if (route != null && ownCar != null)
+                    {
+                        var first = route.Waypoints[0];
+                        spawn = manager.GetClosestWaypoint(GleyGraph.Waypoints![first].position, 1f, w => w.listIndex == first, prefab);
+                        if (spawn == null) return Vanilla("the nearby lane the route starts on isn't free");
+                        start = first;
+                    }
                 }
                 // Steps the game's data doesn't have are checked against the world; a blocked one is remembered and the
                 // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
@@ -823,8 +834,21 @@ namespace DrivenRides
                 if (kind == Kind.OwnCar && ownCarEntered && ownCar != null)
                 {
                     faded = true;
-                    var park = OwnCarTaxi.Autopark(ownCar, () => cancelled || SaveChanged);
-                    while (park.MoveNext()) { yield return park.Current; if (cancelled) yield break; }
+                    Func<bool> stop = () => cancelled || SaveChanged || ownCar == null || !ownCar.controlledByPlayer;
+                    var park = Flatten(OwnCarTaxi.Autopark(ownCar, stop));
+                    while (park.MoveNext())
+                    {
+                        yield return park.Current;
+                        if (cancelled) yield break;
+                        // Checked between every step, so the teleport after the fade never runs on a car the player left.
+                        if (stop()) { Log.Info("Own car: autopark stopped (the player got out or the save changed)."); break; }
+                    }
+                    // Autopark stopped between its fade and its unfade (the player got out): the screen comes back.
+                    if (InstanceBehavior<UIs>.Instance.blackOverlay.color.a > 0.01f)
+                    {
+                        var unfade = UiFader.UnFade();
+                        while (unfade.MoveNext()) yield return unfade.Current;
+                    }
                     faded = false;
                 }
                 Finish();
@@ -835,13 +859,33 @@ namespace DrivenRides
             }
         }
 
+        // Steps nested iterators here instead of handing them to Unity, so an exception in one (the game's fades inside
+        // autopark) surfaces in the ride's iterator and runs its cleanup. Yield instructions still go to Unity.
+        private static IEnumerator Flatten(IEnumerator root)
+        {
+            var stack = new Stack<IEnumerator>();
+            stack.Push(root);
+            while (stack.Count > 0)
+            {
+                var top = stack.Peek();
+                if (!top.MoveNext()) { stack.Pop(); continue; }
+                if (top.Current is IEnumerator inner && !(top.Current is CustomYieldInstruction)) { stack.Push(inner); continue; }
+                yield return top.Current;
+            }
+        }
+
         // Vanilla's way out of the car: the game warps the player to the car's door a frame later, or puts them back in
         // if there is no room. The map still covers the screen.
-        private IEnumerator ExitOwnCar()
+        private static void RefuseReEntryFor(CarController car)
         {
-            exitingCar = ownCar;
+            exitingCar = car;
             exitBlockUntilFrame = Time.frameCount + 3;
             exitReEnterRefused = false;
+        }
+
+        private IEnumerator ExitOwnCar()
+        {
+            RefuseReEntryFor(ownCar!);
             // The map hides the HUD panel the game reads the parking state from on exit (SetParkingData), so the
             // state of where the car stands is written here.
             try
@@ -902,10 +946,24 @@ namespace DrivenRides
             // over meanwhile (the hospital, a load) keeps the player.
             yield return null;
             if (cancelled || SaveChanged) yield break;
-            try { real.EnterVehicle(); }
-            finally { ownCarEntered = SaveGameManager.Current?.ActiveVehicleId == real.vehicleInstance.id; }
+            // Entered only once vanilla's EnterVehicle has run to its end: it sets ActiveVehicleId before its event,
+            // the parenting and the engine, so a throw there leaves a half-entered car.
+            try
+            {
+                real.EnterVehicle();
+                ownCarEntered = SaveGameManager.Current?.ActiveVehicleId == real.vehicleInstance.id;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Own car: getting back in failed: " + ex);
+                if (SaveGameManager.Current?.ActiveVehicleId == real.vehicleInstance.id)
+                {
+                    RefuseReEntryFor(real);
+                    try { real.ExitVehicle(); } catch (Exception exitEx) { Log.Error("Own car: undoing the half entry: " + exitEx.Message); }
+                }
+            }
             real.SavePosition();
-            if (!ownCarEntered) { player.Character.ToggleVisibility(true); Log.Error("Own car: the player didn't get back in."); }
+            if (!ownCarEntered) { player.Character.ToggleVisibility(true); Log.Error("Own car: the player didn't get back in; on foot beside the car."); }
             Log.Info($"Own-car ride done: {NowMinutes() - startMinute:0.0} game minutes in all.");
         }
 
@@ -1867,6 +1925,8 @@ namespace DrivenRides
             var ride = Active;
             if (ride == null || ride.finished || ride.cancelled) return;
             if (ride.SaveChanged) { ride.Dispose(); return; }
+            // Back in the own car (autopark may still be fading): the trip is over for the clock.
+            if (ride.ownCarEntered) return;
             if (!TimeMachineRunning) minutes *= Options.ClockFactor;
         }
 

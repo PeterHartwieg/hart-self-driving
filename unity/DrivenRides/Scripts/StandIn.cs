@@ -33,14 +33,15 @@ namespace DrivenRides
             public Transform Donor = null!;
             public Transform DonorParent = null!;
             public Quaternion HolderRest;
-            // Spin scaled by the radii, so a bigger copied wheel turns slower, as on the road.
-            public float Ratio = 1f;
-            public float LastDonorSpin;
+            // The copied wheel's radius: it spins with the distance the car moves, not with the borrowed wheel, whose
+            // turn per frame at 3x speed can pass half a turn and so can't be read back.
+            public float Radius;
             public float Spin;
-            public bool Started;
         }
 
         private readonly List<CopiedWheel> wheels = new List<CopiedWheel>();
+        private Vector3 lastPosition;
+        private bool lastPositionSet;
 
         // Where the dressed car's own root sits (the body copy is lined up on the borrowed car by its middle, not its
         // root): the arrival puts the real car here.
@@ -158,9 +159,9 @@ namespace DrivenRides
                 var donorWheel = NearestSameCorner(donorRoot, donorWheels, holder.localPosition + shift, donorBounds.center);
                 if (donorWheel != null && donorWheel.parent != null)
                 {
-                    var realRadius = radiusOf.TryGetValue(wheel, out var rr) ? rr : 0f;
-                    var ratio = realRadius > 0.01f && donorRadius.TryGetValue(donorWheel, out var dr) && dr > 0.01f ? dr / realRadius : 1f;
-                    wheels.Add(new CopiedWheel { Holder = holder, Donor = donorWheel, DonorParent = donorWheel.parent, HolderRest = holder.localRotation, Ratio = ratio });
+                    var realRadius = radiusOf.TryGetValue(wheel, out var rr) && rr > 0.01f ? rr
+                        : donorRadius.TryGetValue(donorWheel, out var dr) && dr > 0.01f ? dr : 0.33f;
+                    wheels.Add(new CopiedWheel { Holder = holder, Donor = donorWheel, DonorParent = donorWheel.parent, HolderRest = holder.localRotation, Radius = realRadius });
                 }
             }
 
@@ -215,18 +216,18 @@ namespace DrivenRides
         private void LateUpdate()
         {
             var root = transform.rotation;
+            // Metres rolled forward since the last frame (backwards is negative).
+            var rolled = lastPositionSet ? Vector3.Dot(transform.position - lastPosition, transform.forward) : 0f;
+            lastPosition = transform.position;
+            lastPositionSet = true;
             foreach (var w in wheels)
             {
                 if (w.Holder == null || w.Donor == null || w.DonorParent == null) continue;
                 var local = w.Donor.localRotation;
-                // Rx(spin) leaves the axle alone, so the axle gives the steering; what is left is the spin.
+                // Rx(spin) leaves the axle alone, so the axle gives the steering.
                 var axle = local * Vector3.right;
                 var steer = Mathf.Atan2(-axle.z, axle.x) * Mathf.Rad2Deg;
-                var up = Quaternion.Inverse(Quaternion.AngleAxis(steer, Vector3.up)) * local * Vector3.up;
-                var donorSpin = Mathf.Atan2(up.z, up.y) * Mathf.Rad2Deg;
-                if (w.Started) w.Spin = (w.Spin + Mathf.DeltaAngle(w.LastDonorSpin, donorSpin) * w.Ratio) % 360f;
-                w.LastDonorSpin = donorSpin;
-                w.Started = true;
+                w.Spin = (w.Spin + rolled / w.Radius * Mathf.Rad2Deg) % 360f;
                 var turn = Quaternion.AngleAxis(steer, Vector3.up) * Quaternion.AngleAxis(w.Spin, Vector3.right);
                 var parent = Quaternion.Inverse(root) * w.DonorParent.rotation;
                 w.Holder.localRotation = parent * turn * Quaternion.Inverse(parent) * w.HolderRest;

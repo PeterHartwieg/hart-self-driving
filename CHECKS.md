@@ -1,6 +1,6 @@
 # In-game checks: own car spike (self-driving branch)
 
-Disposable save only. You need a car of your own (one with autopark and one without, if you have both), fuel, and some money. Every line in the log starts with `[Mod:Driven Rides]`; at startup two new patch lines (`TaxiSystem.GetPrice`, `ParkingSimulator.RunHourly` twice) must say `Active`. Press **Ctrl+Alt+Shift+G** once outdoors: the `Traffic pool:` line lists the models a stand-in can come from.
+Disposable save only. You need a car of your own (one with autopark and one without, if you have both), fuel, and some money. Every line in the log starts with `[Mod:Driven Rides]`; at startup three new patch lines (`TaxiSystem.GetPrice`, `ParkingSimulator.RunHourly`, `CarController.EnterVehicle`) must say `Active`. Press **Ctrl+Alt+Shift+G** once outdoors: the `Traffic pool:` line lists the models a stand-in can come from.
 
 1. **Start.** Sit in your car, stopped on a street. **L** opens the city map; pick a place 1 to 2 km away. The map closes, you ride along as with the driver, the clock follows the clock slider. Log: `Own car: the stand-in is ...` (its own twin, or which car is dressed), `Stand-in dressed: ...` if dressed.
 2. **Look.** If dressed: does the car on the street look like yours (body, wheels in place, wheels turning and steering)? Screenshots from close by, please. Lights are expected to be missing in this spike, and a car's own traffic twin keeps its random traffic colour.

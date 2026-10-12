@@ -163,14 +163,10 @@ namespace DrivenRides
             }
             helper.availableAutoParkSpot = spot;
             Log.Info($"Own car: autoparking {Vector3.Distance(car.transform.position, spot.transform.position):0.0} m away{(supported ? "" : " (the car has no autopark of its own)")}.");
-            // Stepped here rather than handed to Unity, so a cancel stops it between steps.
-            var park = helper.ParkInClosestSpot();
-            while (park.MoveNext())
-            {
-                yield return park.Current;
-                if (stop()) yield break;
-            }
-            if (car != null) car.SavePosition();
+            // Its fades are stepped by the ride (Ride.Flatten); the ride stops stepping when stop says so, which it
+            // checks between steps, so getting out during the fade leaves the car where it is.
+            yield return helper.ParkInClosestSpot();
+            if (car != null && !stop()) car.SavePosition();
         }
     }
 
