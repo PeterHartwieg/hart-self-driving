@@ -37,6 +37,12 @@ namespace DrivenRides
 
         public static bool Running => session != null;
 
+        // The ride's per-frame logic (Gley's waypoint switching, the turn speed) needs frames: a 3x ride at 60 fps has
+        // 0.05 s of game time per frame, so an automatic speed keeps to that and runs faster on a faster PC.
+        private const float MaxSpeed = 8f;
+        private const float GameSecondsPerFrame = 0.05f;
+        private float frameSeconds = 1f / 60f;
+
         private static string Folder => Path.Combine(GleyGraph.DataFolder, "tests");
 
         private sealed class CarModel
@@ -73,6 +79,11 @@ namespace DrivenRides
             public IReadOnlyList<int>? DrivenPath;
             public string RunId = "";
             public float Started;
+            public bool AutoSpeed;
+            public double SpeedSum;
+            public int SpeedFrames;
+            public int VSyncWas;
+            public int FrameRateWas;
         }
 
         private void OnEnable()
@@ -94,6 +105,14 @@ namespace DrivenRides
                 nextPoll = Time.unscaledTime + 1f;
                 try { Poll(); }
                 catch (Exception ex) { Log.Error("Turn tests command: " + ex); }
+            }
+            frameSeconds = Mathf.Lerp(frameSeconds, Mathf.Clamp(Time.unscaledDeltaTime, 0.002f, 0.2f), 0.05f);
+            if (session != null && session.AutoSpeed && session.Ride != null)
+            {
+                var auto = Mathf.Clamp(GameSecondsPerFrame / frameSeconds, 1f, MaxSpeed);
+                session.Ride.SetTestSpeed(auto);
+                session.SpeedSum += auto;
+                session.SpeedFrames++;
             }
             if (session != null && Time.unscaledTime >= nextStatus)
             {
@@ -287,7 +306,8 @@ namespace DrivenRides
         {
             var graph = GleyGraph.Graph;
             if (graph == null || !TrafficManager.HasInstance || !TrafficManager.IsInitialized) { Refuse("traffic is not ready"); yield break; }
-            var speed = args.TryGetValue("speed", out var sp) && float.TryParse(sp, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? Mathf.Clamp(v, 1f, 4f) : 3f;
+            // speed=auto: the speed follows the frame rate (AutoSpeed); a number is a fixed speed.
+            var speed = args.TryGetValue("speed", out var sp) ? sp == "auto" ? 0f : float.TryParse(sp, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? Mathf.Clamp(v, 1f, MaxSpeed) : 3f : 3f;
             var options = CatalogueSettings();
             var catalogue = Catalogue.Build(graph, options);
             var models = Models();
@@ -346,6 +366,8 @@ namespace DrivenRides
             if (plan.Count == 0) { Refuse("nothing to run"); yield break; }
             if (!Begin(graph, plan.Count)) yield break;
             var s = session!;
+            s.AutoSpeed = speed <= 0f;
+            if (s.AutoSpeed) speed = 3f;
             Log.Info($"Turn tests {s.Id}: {plan.Count} runs at {speed:0}x, cars {string.Join(", ", plan.Select(p => p.Car.Name).Distinct())}.");
 
             var controlResults = new List<(Fixture Fixture, JudgeResult Result)>();
@@ -430,6 +452,11 @@ namespace DrivenRides
             s.ResultsFile = Path.Combine(Folder, $"results-{s.Id}.jsonl");
             session = s;
             Options.LightsOverride = true;
+            // No frame cap while tests run: more frames let the automatic speed go higher.
+            s.VSyncWas = QualitySettings.vSyncCount;
+            s.FrameRateWas = Application.targetFrameRate;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = -1;
 
             // Traffic and pedestrians off, as the game's own ToggleTraffic and TogglePedestrian console commands.
             s.TrafficWas = manager!.spawnTraffic;
@@ -559,6 +586,7 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Turn tests samples: " + ex.Message); }
             line["end"] = ride.Ended ? ride.EndReason : timedOut ? "time limit" : s.StopRequested ? "stopped" : judge.Finished ? "last gate" : "failed";
             line["restarts"] = ride.Restarts;
+            if (s.AutoSpeed && s.SpeedFrames > 0) { line["speed"] = Math.Round(s.SpeedSum / s.SpeedFrames, 1); s.SpeedSum = 0; s.SpeedFrames = 0; }
             line["trace"] = Path.GetFileName(trace);
             if (File.Exists(Path.Combine(Folder, s.RunId + ".png"))) line["picture"] = s.RunId + ".png";
             Object.Destroy(testCar);
@@ -608,6 +636,8 @@ namespace DrivenRides
             try { if (s.Car != null) Object.Destroy(s.Car); } catch (Exception ex) { Log.Error("Turn tests end, sampler: " + ex.Message); }
             try { s.Ride?.EndTest(); } catch (Exception ex) { Log.Error("Turn tests end, ride: " + ex.Message); }
             Options.LightsOverride = null;
+            QualitySettings.vSyncCount = s.VSyncWas;
+            Application.targetFrameRate = s.FrameRateWas;
             try { if (s.Manager != null) s.Manager.spawnTraffic = s.TrafficWas; } catch (Exception ex) { Log.Error("Turn tests end, traffic: " + ex.Message); }
             try
             {

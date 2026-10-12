@@ -63,6 +63,8 @@ Commands: `cars`; `catalogue`; `run tier=quick|full`; `run [kinds=turn,uturn,lan
 - **Quick** (`run tier=quick`, about 10 minutes, after any update): the controls, every manoeuvre on the avoid list, and a fixed sample of 30 cases per kind, with the car with the largest turning circle.
 - **Full** (`run tier=full`, about 40 minutes, after changes to the turning code or a game update): the controls and every case with that car, then the other default cars on the cases it failed or passed within 0.2 m.
 
+`speed=auto` uncaps the frame rate for the session and sets the speed every frame so a frame covers about 0.05 s of game time, as a 3x ride at 60 fps does (Gley's waypoint switching and the ride's turn speed run once per frame), up to 8x. A fixed `speed=` goes up to 8 too.
+
 Cases are short (50 m run-up, 40 m run-out: the car reaches its top speed in about 40 m). Lane changes are all the ones across a wide gap (slip lanes, ramps) and a fixed one-in-eight sample of the rest. Traffic is off, so a case waits only 1 s after moving the anchor.
 
 **The avoid list.** `tools/tested-steps.py` turns results into `unity/DrivenRides/Scripts/TestedSteps.cs`: each manoeuvre that failed after its entry gate, with the shortest car that failed it. The ride planner leaves those manoeuvres out for cars at least that long. Re-judge older results first (`tools/rejudge --write`); pass only the kinds a later build hasn't changed (`file:UTurn,LaneChange`). Waypoint indices belong to one game build: regenerate after a game update. Results mark failures already on the list as `known`.

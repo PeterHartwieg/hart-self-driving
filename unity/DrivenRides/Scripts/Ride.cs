@@ -1554,6 +1554,9 @@ namespace DrivenRides
 
         public float RideSpeed => rideSpeed;
 
+        // Turn tests at an automatic speed set it every frame, quietly.
+        public void SetTestSpeed(float speed) => rideSpeed = speed;
+
         // The panel's speed buttons.
         public void SetSpeed(float speed)
         {
