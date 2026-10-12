@@ -78,7 +78,7 @@ namespace DrivenRides
             foreach (var r in car.GetComponentsInChildren<Renderer>()) if (r.enabled) { r.enabled = false; renderers.Add(r); }
             foreach (var c in car.GetComponentsInChildren<Collider>()) if (c.enabled) { c.enabled = false; colliders.Add(c); }
             car.SetFreeze(true);
-            car.poi?.SetHidden(hide: true);
+            // The map marker stays: vanilla's exit shows it, at the start, where the car is until it arrives.
             hiddenCars[car] = (renderers, colliders);
             Log.Info($"Own car hidden ({renderers.Count} parts, {colliders.Count} colliders).");
         }
@@ -90,7 +90,6 @@ namespace DrivenRides
             foreach (var r in was.Renderers) if (r != null) r.enabled = true;
             foreach (var c in was.Colliders) if (c != null) c.enabled = true;
             car.SetFreeze(false);
-            car.poi?.SetHidden(hide: false);
         }
 
         // The hidden car's id, for the hourly parking charges; null when no car is hidden.
@@ -103,12 +102,25 @@ namespace DrivenRides
         // Fuel for the way driven, as the game charges a skipped bridge (SkipBridgeHelper.GetFuelConsumption).
         private static readonly MethodInfo? FuelMethod = AccessTools.Method(typeof(SkipBridgeHelper), "GetFuelConsumption");
 
+        private static float FuelFor(CarController car, float metres)
+        {
+            if (SaveGameManager.Current?.gameVariables.disableVehicleFuel == true || car.fuelModule == null || !car.fuelModule.useFuel) return 0f;
+            return FuelMethod?.Invoke(null, new object[] { car, metres }) is float used && used > 0f ? used : 0f;
+        }
+
+        // As the bridge skip refuses a car without the fuel for it.
+        public static bool HasFuelFor(CarController car, float metres)
+        {
+            try { return car.GetCurrentFuel() >= FuelFor(car, metres); }
+            catch (Exception ex) { Log.Error("Own car fuel check: " + ex.Message); return true; }
+        }
+
         public static void ChargeFuel(CarController car, float metres)
         {
             try
             {
-                if (SaveGameManager.Current?.gameVariables.disableVehicleFuel == true || car.fuelModule == null || !car.fuelModule.useFuel) return;
-                if (!(FuelMethod?.Invoke(null, new object[] { car, metres }) is float used) || used <= 0f) return;
+                var used = FuelFor(car, metres);
+                if (used <= 0f) return;
                 var left = Mathf.Max(0f, car.GetCurrentFuel() - used);
                 car.SetFuel(left);
                 Log.Info($"Own car: {used:0.00} fuel for {metres:0} m, {left:0.00} left.");
@@ -121,7 +133,8 @@ namespace DrivenRides
         private static readonly MethodInfo? FindSpotMethod = AccessTools.Method(typeof(VehicleParkingHelper), "FindNearestFreeSpot");
         private static readonly FieldInfo? ParkingHelperField = AccessTools.Field(typeof(CarController), "vehicleParkingHelper");
 
-        public static IEnumerator Autopark(CarController car)
+        // Stepped by the ride, which stops stepping when it is cancelled; stop says so between steps too.
+        public static IEnumerator Autopark(CarController car, Func<bool> stop)
         {
             var mode = Options.Autopark;
             var supported = car.vehicleType != null && car.vehicleType.autoParkSupported;
@@ -133,6 +146,7 @@ namespace DrivenRides
             // The spots near the car are rebuilt on entering it; give them two frames.
             yield return null;
             yield return null;
+            if (stop() || car == null || !car.controlledByPlayer) yield break;
             if (!(ParkingHelperField?.GetValue(car) is VehicleParkingHelper helper) || helper == null || FindSpotMethod == null)
             {
                 Log.Error("Own car autopark: the car has no parking helper.");
@@ -149,8 +163,14 @@ namespace DrivenRides
             }
             helper.availableAutoParkSpot = spot;
             Log.Info($"Own car: autoparking {Vector3.Distance(car.transform.position, spot.transform.position):0.0} m away{(supported ? "" : " (the car has no autopark of its own)")}.");
-            yield return helper.ParkInClosestSpot();
-            car.SavePosition();
+            // Stepped here rather than handed to Unity, so a cancel stops it between steps.
+            var park = helper.ParkInClosestSpot();
+            while (park.MoveNext())
+            {
+                yield return park.Current;
+                if (stop()) yield break;
+            }
+            if (car != null) car.SavePosition();
         }
     }
 

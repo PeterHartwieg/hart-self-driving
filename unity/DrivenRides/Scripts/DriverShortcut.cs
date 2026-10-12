@@ -24,7 +24,9 @@ namespace DrivenRides
             var keyboard = Keyboard.current;
             if (keyboard == null || !keyboard.lKey.wasPressedThisFrame) return;
             if (keyboard.ctrlKey.isPressed || keyboard.altKey.isPressed || keyboard.shiftKey.isPressed) return;
-            if (!Options.Shortcut || SaveGameManager.Current == null || GameManager.ShouldBlockKeyboardShortcuts()) return;
+            if (SaveGameManager.Current == null || GameManager.ShouldBlockKeyboardShortcuts()) return;
+            // In the car, L is the own car's own switch; elsewhere the shortcut option's.
+            if (!(VehicleHelper.IsInsideVehicle() ? Options.OwnCar : Options.Shortcut)) return;
             try { Press(); }
             catch (Exception ex) { Log.Error("Driver shortcut: " + ex); }
         }

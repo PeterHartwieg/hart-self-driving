@@ -53,8 +53,9 @@ namespace DrivenRides
             Patch(typeof(TaxiSystem), "GetPrice", new[] { typeof(float) }, nameof(PricePrefix), prefix: true);
             // No hourly parking ticket or fee for the own car while it is hidden at the start of a ride: the game skips
             // the car the player sits in, so for that hour the hidden car counts as that car.
-            Patch(typeof(ParkingSimulator), "RunHourly", Type.EmptyTypes, nameof(HourlyPrefix), prefix: true);
-            Patch(typeof(ParkingSimulator), "RunHourly", Type.EmptyTypes, nameof(HourlyPostfix));
+            Patch(typeof(ParkingSimulator), "RunHourly", Type.EmptyTypes, nameof(HourlyPrefix), prefix: true, finalizer: nameof(HourlyFinalizer));
+            // Vanilla's exit puts the player back in when there's no room to stand; not once an own-car ride has begun.
+            Patch(typeof(CarController), "EnterVehicle", Type.EmptyTypes, nameof(EnterPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -65,7 +66,7 @@ namespace DrivenRides
             harmony = null;
         }
 
-        private static void Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false)
+        private static void Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false, string? finalizer = null)
         {
             // Overloads need their arguments in the log line to tell them apart.
             var name = $"{type?.Name ?? "(type not found)"}.{method}{(args != null && args.Length > 0 ? "(" + string.Join(", ", args.Select(a => a.Name)) + ")" : "")}";
@@ -83,7 +84,8 @@ namespace DrivenRides
                     return;
                 }
                 var patch = new HarmonyMethod(typeof(Patches), handler);
-                harmony!.Patch(original, prefix: prefix ? patch : null, postfix: prefix ? null : patch);
+                harmony!.Patch(original, prefix: prefix ? patch : null, postfix: prefix ? null : patch,
+                    finalizer: finalizer != null ? new HarmonyMethod(typeof(Patches), finalizer) : null);
                 Log.Info($"Patch {name}: Active.");
             }
             catch (Exception ex)
@@ -140,27 +142,30 @@ namespace DrivenRides
             return false;
         }
 
-        private static bool hourlySwapped;
-
-        private static void HourlyPrefix()
+        // The save whose ActiveVehicleId the prefix set; the finalizer puts it back even if RunHourly throws.
+        private static void HourlyPrefix(out GameInstance? __state)
         {
-            hourlySwapped = false;
+            __state = null;
             try
             {
                 var game = SaveGameManager.Current;
                 var hidden = OwnCarTaxi.HiddenId();
                 if (game == null || hidden == null || game.ActiveVehicleId != null) return;
                 game.ActiveVehicleId = hidden;
-                hourlySwapped = true;
+                __state = game;
             }
             catch (Exception ex) { Log.Error("Hourly parking: " + ex.Message); }
         }
 
-        private static void HourlyPostfix()
+        private static void HourlyFinalizer(GameInstance? __state)
         {
-            if (!hourlySwapped) return;
-            hourlySwapped = false;
-            if (SaveGameManager.Current != null) SaveGameManager.Current.ActiveVehicleId = null;
+            if (__state != null) __state.ActiveVehicleId = null;
+        }
+
+        private static bool EnterPrefix(CarController __instance)
+        {
+            try { return !Ride.RefusesEnter(__instance); }
+            catch { return true; }
         }
 
         private static bool TravelToPrefix()

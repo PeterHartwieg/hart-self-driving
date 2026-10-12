@@ -25,8 +25,26 @@ namespace DrivenRides
 
         private readonly List<Renderer> hidden = new List<Renderer>();
         private GameObject? body;
-        private readonly List<(Transform Holder, Transform Donor, Quaternion DonorRest, Quaternion HolderRest)> wheels =
-            new List<(Transform, Transform, Quaternion, Quaternion)>();
+        // Each copied wheel turns with a borrowed one. Gley sets a wheel's local rotation to EulerXYZ(spin, steer, 0)
+        // (UpdateWheelJob.cs:67-71), so its parent is the rest frame and steer and spin can be read back each frame.
+        private sealed class CopiedWheel
+        {
+            public Transform Holder = null!;
+            public Transform Donor = null!;
+            public Transform DonorParent = null!;
+            public Quaternion HolderRest;
+            // Spin scaled by the radii, so a bigger copied wheel turns slower, as on the road.
+            public float Ratio = 1f;
+            public float LastDonorSpin;
+            public float Spin;
+            public bool Started;
+        }
+
+        private readonly List<CopiedWheel> wheels = new List<CopiedWheel>();
+
+        // Where the dressed car's own root sits (the body copy is lined up on the borrowed car by its middle, not its
+        // root): the arrival puts the real car here.
+        public Vector3 BodyPosition => body != null ? body.transform.position : transform.position;
 
         // The prefab to borrow, and whether it needs dressing. Null when the pool has no idle car at all.
         public static (VehicleComponent Prefab, bool Dress)? Pick(CarController real, out string why)
@@ -42,8 +60,8 @@ namespace DrivenRides
             foreach (var v in vehicles.GetVehicleList())
             {
                 if (v == null || v.prefab == null || v.gameObject.activeInHierarchy || !seen.Add(v.prefab)) continue;
-                // A twin of another kind (bus, truck) keeps to its own lanes; only cars stand in.
-                if (twin != null && v.vehicleType != twin.vehicleType) continue;
+                // Only cars stand in: a truck or bus keeps to its own lanes; a taxi stays hailable and runs its own stops.
+                if (v.vehicleType != VehicleTypes.Car || v.prefab.GetComponent<TaxiController>() != null) continue;
                 var diff = Mathf.Abs(v.length - length);
                 if (diff < bestDiff) { bestDiff = diff; best = v.prefab.GetComponent<VehicleComponent>(); }
             }
@@ -84,9 +102,15 @@ namespace DrivenRides
             var donorRoot = donor.transform;
             var realRoot = real.transform;
             var donorWheels = new List<Transform>();
-            foreach (var w in donor.allWheels) if (w?.wheelGraphics != null) donorWheels.Add(w.wheelGraphics);
+            var donorRadius = new Dictionary<Transform, float>();
+            foreach (var w in donor.allWheels)
+                if (w?.wheelGraphics != null) { donorWheels.Add(w.wheelGraphics); donorRadius[w.wheelGraphics] = w.wheelRadius; }
 
             var realWheels = new List<Transform>();
+            // The wheel controller's frame is the wheel's rest: NWH sets the visual to the controller's rotation times
+            // steering, camber and spin (WheelController.cs:937-951).
+            var restOf = new Dictionary<Transform, Transform>();
+            var radiusOf = new Dictionary<Transform, float>();
             var realWheelParts = new HashSet<Transform>();
             if (real.vehicleController?.powertrain?.wheels != null)
                 foreach (var w in real.vehicleController.powertrain.wheels)
@@ -94,6 +118,8 @@ namespace DrivenRides
                     var visual = w?.wheelUAPI?.WheelVisual;
                     if (visual == null) continue;
                     realWheels.Add(visual.transform);
+                    restOf[visual.transform] = w!.wheelUAPI.transform;
+                    radiusOf[visual.transform] = w.wheelUAPI.Radius;
                     foreach (var t in visual.GetComponentsInChildren<Transform>(true)) realWheelParts.Add(t);
                     var fixedPart = w!.wheelUAPI.NonRotatingVisual;
                     if (fixedPart != null) foreach (var t in fixedPart.GetComponentsInChildren<Transform>(true)) realWheelParts.Add(t);
@@ -115,6 +141,7 @@ namespace DrivenRides
             body = new GameObject("DrivenRides.Body");
             body.transform.SetParent(donorRoot, false);
             body.transform.localPosition = shift;
+            body.transform.localScale = Divide(realRoot.lossyScale, donorRoot.lossyScale);
             body.layer = donor.gameObject.layer;
 
             // The car's wheels: a holder each at the real wheel's place, turned each frame as the nearest borrowed wheel.
@@ -124,11 +151,17 @@ namespace DrivenRides
                 var holder = new GameObject("DrivenRides.Wheel").transform;
                 holder.SetParent(body.transform, false);
                 holder.localPosition = realRoot.InverseTransformPoint(wheel.position);
-                holder.localRotation = Quaternion.Inverse(realRoot.rotation) * wheel.rotation;
+                // At rest, not as the wheel stands now (it may be steered or part way round).
+                holder.localRotation = Quaternion.Inverse(realRoot.rotation) * (restOf.TryGetValue(wheel, out var rest) ? rest.rotation : wheel.rotation);
+                holder.localScale = Divide(wheel.lossyScale, realRoot.lossyScale);
                 holders[wheel] = holder;
                 var donorWheel = NearestSameCorner(donorRoot, donorWheels, holder.localPosition + shift, donorBounds.center);
-                if (donorWheel != null)
-                    wheels.Add((holder, donorWheel, Quaternion.Inverse(donorRoot.rotation) * donorWheel.rotation, holder.localRotation));
+                if (donorWheel != null && donorWheel.parent != null)
+                {
+                    var realRadius = radiusOf.TryGetValue(wheel, out var rr) ? rr : 0f;
+                    var ratio = realRadius > 0.01f && donorRadius.TryGetValue(donorWheel, out var dr) && dr > 0.01f ? dr / realRadius : 1f;
+                    wheels.Add(new CopiedWheel { Holder = holder, Donor = donorWheel, DonorParent = donorWheel.parent, HolderRest = holder.localRotation, Ratio = ratio });
+                }
             }
 
             var copied = 0;
@@ -155,6 +188,18 @@ namespace DrivenRides
                 var copy = part.AddComponent<MeshRenderer>();
                 copy.sharedMaterials = r.sharedMaterials;
                 copy.shadowCastingMode = r.shadowCastingMode;
+                // The car's colour and dirt are property blocks on its body meshes (CarFeatures.SetColor).
+                if (r.HasPropertyBlock())
+                {
+                    var block = new MaterialPropertyBlock();
+                    r.GetPropertyBlock(block);
+                    copy.SetPropertyBlock(block);
+                    for (var m = 0; m < r.sharedMaterials.Length; m++)
+                    {
+                        r.GetPropertyBlock(block, m);
+                        if (!block.isEmpty) copy.SetPropertyBlock(block, m);
+                    }
+                }
                 copied++;
             }
 
@@ -170,14 +215,26 @@ namespace DrivenRides
         private void LateUpdate()
         {
             var root = transform.rotation;
-            foreach (var (holder, donor, donorRest, holderRest) in wheels)
+            foreach (var w in wheels)
             {
-                if (holder == null || donor == null) continue;
-                // The borrowed wheel's turn since dressing (spin and steering, in the car's frame) applied to the copy.
-                var now = Quaternion.Inverse(root) * donor.rotation;
-                holder.localRotation = now * Quaternion.Inverse(donorRest) * holderRest;
+                if (w.Holder == null || w.Donor == null || w.DonorParent == null) continue;
+                var local = w.Donor.localRotation;
+                // Rx(spin) leaves the axle alone, so the axle gives the steering; what is left is the spin.
+                var axle = local * Vector3.right;
+                var steer = Mathf.Atan2(-axle.z, axle.x) * Mathf.Rad2Deg;
+                var up = Quaternion.Inverse(Quaternion.AngleAxis(steer, Vector3.up)) * local * Vector3.up;
+                var donorSpin = Mathf.Atan2(up.z, up.y) * Mathf.Rad2Deg;
+                if (w.Started) w.Spin = (w.Spin + Mathf.DeltaAngle(w.LastDonorSpin, donorSpin) * w.Ratio) % 360f;
+                w.LastDonorSpin = donorSpin;
+                w.Started = true;
+                var turn = Quaternion.AngleAxis(steer, Vector3.up) * Quaternion.AngleAxis(w.Spin, Vector3.right);
+                var parent = Quaternion.Inverse(root) * w.DonorParent.rotation;
+                w.Holder.localRotation = parent * turn * Quaternion.Inverse(parent) * w.HolderRest;
             }
         }
+
+        // Gley may take the car back mid-ride (removed, or cleared off the road); it must not come back dressed.
+        private void OnDisable() => Undress();
 
         // Back to the pool as it came. Safe to call twice.
         public void Undress()
@@ -189,6 +246,9 @@ namespace DrivenRides
             body = null;
             Object.Destroy(this);
         }
+
+        private static Vector3 Divide(Vector3 a, Vector3 b) =>
+            new Vector3(b.x != 0f ? a.x / b.x : a.x, b.y != 0f ? a.y / b.y : a.y, b.z != 0f ? a.z / b.z : a.z);
 
         // Renderers that draw now: active, enabled, and of the nearest level of detail only.
         private static List<Renderer> VisibleRenderers(GameObject root)

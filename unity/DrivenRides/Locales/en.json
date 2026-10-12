@@ -14,6 +14,6 @@
     "drivenrides:options_speed_3": "3x",
     "drivenrides:options_clock": "Clock speed during rides: 0 % stops it, 100 % is normal (the ride panel's slider changes it too)",
     "drivenrides:options_clock_value": "{value} %",
-    "drivenrides:options_shortcut": "L calls the private driver, or drives your own car when you sit in it",
+    "drivenrides:options_shortcut": "L calls the private driver",
     "drivenrides:options_lights": "Rides stop at red lights"
 }

@@ -72,6 +72,25 @@ namespace DrivenRides
         private StandIn? standIn;
         private bool standInRemoved;
         private bool ownCarEntered;
+        // The car stands somewhere new (the end of the trip), so a cancel leaves the player beside it there.
+        private bool ownCarPlaced;
+        // Fuel is charged for the trip as first planned; a replan keeps only the rest of the way in the route.
+        private readonly double plannedMetres;
+
+        // Vanilla's exit warps the player a frame later and, with no room, calls EnterVehicle (CarController.cs:640-650).
+        // A ride that has given up must not be re-entered by that call, so EnterVehicle on the car is refused for a few
+        // frames after the exit, whatever happens to the ride (the EnterVehicle prefix).
+        private static CarController? exitingCar;
+        private static int exitBlockUntilFrame;
+        private static bool exitReEnterRefused;
+
+        public static bool RefusesEnter(CarController car)
+        {
+            if (exitingCar == null || !ReferenceEquals(car, exitingCar) || Time.frameCount > exitBlockUntilFrame) return false;
+            exitReEnterRefused = true;
+            Log.Info("Own car: the game tried to put the player back in after the exit; refused.");
+            return true;
+        }
 
         private Route route;
         // The route as Gley drives it: the planner's waypoints with each added turn's curve waypoint put in.
@@ -103,6 +122,8 @@ namespace DrivenRides
         private GameObject? anchor;
         private RideAnchor? anchorComponent;
         private bool attached;
+        // The player has been attached once (and so hidden); a cancel after the detach shows them again.
+        private bool boarded;
         private bool departed;
         private bool cameraSet;
         private bool scaleSet;
@@ -149,6 +170,7 @@ namespace DrivenRides
             this.vehicleType = vehicleType;
             this.goals = goals;
             this.route = route;
+            plannedMetres = route.LengthMetres;
             carLength = LengthOf(prefab);
             carSteering = new Steering(PooledCopy(prefab));
             path = Expand(route);
@@ -289,7 +311,7 @@ namespace DrivenRides
                     default:
                         return Vanilla("unknown taxi " + taxi.GetType().Name);
                 }
-                if (kind == Kind.OwnCar ? !Options.OwnCar : kind == Kind.PrivateDriver ? !Options.PrivateDriver : !Options.Taxis) return Vanilla("switched off in the options");
+                if (kind == Kind.OwnCar ? !Options.OwnCar : kind == Kind.PrivateDriver ? !Options.PrivateDriver : !Options.Taxis) return Vanilla(SwitchedOff);
                 if (kind != Kind.Stand && kind != Kind.OwnCar && parked == null && (car == null || car.GetIndex() < 0)) return Vanilla("the taxi has no traffic car");
                 if (prefab == null) return Vanilla("no vehicle prefab");
                 planLength = LengthOf(prefab);
@@ -359,14 +381,15 @@ namespace DrivenRides
                     }
                 }
                 if (goals.Count == 0) return Vanilla($"no lane waypoint within 300 m of the destination at {destination}");
-                if (route == null && car != null)
+                var origin = car != null ? car.transform : ownCar != null ? ownCar.transform : null;
+                if (route == null && origin != null)
                 {
                     // The summoned driver stops at the waypoint nearest the player, whatever kind of lane it is; some are
                     // pockets with no lane out. Then the route starts from a proper traffic lane nearby, and Gley steers
                     // the car straight to it.
                     Log.Info("No route from the car's waypoint: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
-                    route = PlanFromNearby(graph, car!.transform, start, goals, vehicleType, ref planMs);
-                    if (route != null) Log.Info($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(car.transform.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
+                    route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
+                    if (route != null) Log.Info($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(origin.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
                 }
                 // Steps the game's data doesn't have are checked against the world; a blocked one is remembered and the
                 // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
@@ -383,6 +406,7 @@ namespace DrivenRides
                     planMs += ms;
                 }
                 if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
+                if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla($"not enough fuel for {route.LengthMetres / 1000.0:0.0} km");
 
                 if (kind == Kind.Stand)
                 {
@@ -466,11 +490,13 @@ namespace DrivenRides
             }
         }
 
+        private const string SwitchedOff = "switched off in the options";
+
         private static IEnumerator? Vanilla(string reason)
         {
             Log.Info("Vanilla ride: " + reason + ".");
-            // Spike builds say why on screen too.
-            Notice.Show("Driven Rides: vanilla ride, " + reason + ".");
+            // Spike builds say why on screen too; a ride switched off is just a vanilla ride.
+            if (reason != SwitchedOff) Notice.Show("Driven Rides: vanilla ride, " + reason + ".");
             return null;
         }
 
@@ -727,7 +753,14 @@ namespace DrivenRides
                     var exit = ExitOwnCar();
                     while (exit.MoveNext()) yield return exit.Current;
                     if (cancelled) yield break;
-                    if (boardFailed) { Cancel("the player couldn't get out of the car"); yield break; }
+                    if (boardFailed)
+                    {
+                        Cancel("the player couldn't get out of the car");
+                        // As vanilla does when there's no room to get out: back in the car (the refusal has run out).
+                        if (exitReEnterRefused && ownCar != null && SaveGameManager.Current?.ActiveVehicleId == null) ownCar.EnterVehicle();
+                        Notice.Show("There's no room to get out of the car here.");
+                        yield break;
+                    }
                 }
                 try { Board(); }
                 catch (Exception ex) { boardFailed = true; Log.Error("Boarding failed: " + ex); }
@@ -785,9 +818,16 @@ namespace DrivenRides
                     while (unfade.MoveNext()) yield return unfade.Current;
                     faded = false;
                 }
+                // Autopark still belongs to the ride, so nothing else starts meanwhile and a cancel stops it. The game's
+                // autopark fades on its own; the flag lets a cancel unfade.
+                if (kind == Kind.OwnCar && ownCarEntered && ownCar != null)
+                {
+                    faded = true;
+                    var park = OwnCarTaxi.Autopark(ownCar, () => cancelled || SaveChanged);
+                    while (park.MoveNext()) { yield return park.Current; if (cancelled) yield break; }
+                    faded = false;
+                }
                 Finish();
-                // The game's autopark fades on its own, after the ride has let go of everything.
-                if (kind == Kind.OwnCar && ownCarEntered && ownCar != null) RideHost.Run(OwnCarTaxi.Autopark(ownCar));
             }
             finally
             {
@@ -799,11 +839,30 @@ namespace DrivenRides
         // if there is no room. The map still covers the screen.
         private IEnumerator ExitOwnCar()
         {
+            exitingCar = ownCar;
+            exitBlockUntilFrame = Time.frameCount + 3;
+            exitReEnterRefused = false;
+            // The map hides the HUD panel the game reads the parking state from on exit (SetParkingData), so the
+            // state of where the car stands is written here.
+            try
+            {
+                ownCar!.UpdateParkingZone();
+                var info = InstanceBehavior<UIs>.Instance.playerHUD.itemPanelUI.vehicleInfo;
+                if (info.isCommonVehicle)
+                {
+                    ownCar.vehicleInstance.parkingState = info.currentParkingState;
+                    ownCar.vehicleInstance.parkingNeighbourhood = info.currentParkingNeighbourhood;
+                }
+            }
+            catch (Exception ex) { Log.Error("Own car parking state: " + ex.Message); }
             try { ownCar!.ExitVehicle(); }
             catch (Exception ex) { boardFailed = true; Log.Error("Own car exit: " + ex); }
             yield return null;
             yield return null;
-            if (!boardFailed && SaveGameManager.Current?.ActiveVehicleId != null) boardFailed = true;
+            if (!boardFailed && (exitReEnterRefused || SaveGameManager.Current?.ActiveVehicleId != null)) boardFailed = true;
+            // Wait out the refusal, so the game's late call can't land after boarding.
+            while (Time.frameCount <= exitBlockUntilFrame) yield return null;
+            exitingCar = null;
         }
 
         // The end of an own-car ride: the stand-in goes back to the pool and the car takes its place, with the player in
@@ -816,30 +875,45 @@ namespace DrivenRides
             Vector3 position;
             Quaternion rotation;
             string where;
-            if (outcome == Outcome.Complete && OwnsCar) { position = car.transform.position; rotation = car.transform.rotation; where = "where the stand-in stopped"; }
+            // Where the dressed body sat, which for a dressed stand-in isn't its root.
+            var standInAt = standIn != null ? standIn.BodyPosition : car != null ? car.transform.position : real.transform.position;
+            if (outcome == Outcome.Complete && OwnsCar) { position = standInAt; rotation = car.transform.rotation; where = "where the stand-in stopped"; }
             else
             {
                 var y = destination.y;
                 var lane = TrafficManager.Instance.GetClosestWaypoint(destination, 50f, w => IsValidForLeaving(w, y), prefab);
                 if (lane != null) { position = lane.position; rotation = TrafficManager.Instance.GetWaypointOrientation(lane); where = $"on the lane at waypoint {lane.listIndex}"; }
-                else if (OwnsCar) { position = car.transform.position; rotation = car.transform.rotation; where = "where the stand-in was"; }
+                else if (OwnsCar) { position = standInAt; rotation = car.transform.rotation; where = "where the stand-in was"; }
                 else { position = real.transform.position; rotation = real.transform.rotation; where = "where it was parked (no lane near the destination)"; }
             }
             RemoveStandIn();
             OwnCarTaxi.Show(real);
+            ownCarPlaced = true;
             VehicleHelper.TeleportVehicleToGround(real, position, rotation);
+            // The teleport writes the rigidbody; its transform follows only at the next physics step, and the clearing,
+            // the save and the NavMesh point below read the transform.
+            if (real.TryGetComponent<Rigidbody>(out var body)) { real.transform.SetPositionAndRotation(body.position, body.rotation); Physics.SyncTransforms(); }
             VehicleHelper.DestroyBlockingVehicles(real.gameObject, real.vehicleType, real.transform);
-            OwnCarTaxi.ChargeFuel(real, (float)route.LengthMetres);
+            real.SavePosition();
+            OwnCarTaxi.ChargeFuel(real, (float)plannedMetres);
             Log.Info($"Own car placed {where}, {Vector3.Distance(position, destination):0} m from the destination.");
-            var place = NavMesh.SamplePosition(real.transform.position, out var hit, 4f, NavMesh.AllAreas) ? hit.position : pickupPosition;
-            Detach(place);
-            // The agent counts as on the NavMesh from the next frame; then in through vanilla's door.
+            Detach(BesideOwnCar());
+            // The agent counts as on the NavMesh from the next frame; then in through vanilla's door. Anything that took
+            // over meanwhile (the hospital, a load) keeps the player.
             yield return null;
-            real.EnterVehicle();
-            ownCarEntered = SaveGameManager.Current?.ActiveVehicleId == real.vehicleInstance.id;
+            if (cancelled || SaveChanged) yield break;
+            try { real.EnterVehicle(); }
+            finally { ownCarEntered = SaveGameManager.Current?.ActiveVehicleId == real.vehicleInstance.id; }
             real.SavePosition();
             if (!ownCarEntered) { player.Character.ToggleVisibility(true); Log.Error("Own car: the player didn't get back in."); }
             Log.Info($"Own-car ride done: {NowMinutes() - startMinute:0.0} game minutes in all.");
+        }
+
+        // A NavMesh point by the own car where it stands now; the pickup point if there is none.
+        private Vector3 BesideOwnCar()
+        {
+            if (ownCar == null) return pickupPosition;
+            return NavMesh.SamplePosition(ownCar.transform.position, out var hit, 4f, NavMesh.AllAreas) ? hit.position : ownCar.GetNavMeshTargetPosition();
         }
 
         private void RemoveStandIn()
@@ -864,6 +938,7 @@ namespace DrivenRides
             anchorComponent.Valid = () => OwnsCar;
             // Set first, so cleanup also undoes a partly finished attachment.
             attached = true;
+            boarded = true;
             // Also sets NavigationBlocker.Taxi, disables the capsule and the agent, and tells Gley the collider is gone.
             player.AttachToObject(anchor.transform, NavigationBlocker.Taxi);
             player.Character.ToggleVisibility(false);
@@ -1709,7 +1784,7 @@ namespace DrivenRides
                 {
                     var here = player.transform.position;
                     // An own-car ride leaves the player by their car, which stays where it was.
-                    var place = kind == Kind.OwnCar ? pickupPosition
+                    var place = kind == Kind.OwnCar ? (ownCarPlaced ? BesideOwnCar() : pickupPosition)
                         : NavMesh.SamplePosition(here, out var hit, 10f, NavMesh.AllAreas) ? hit.position : pickupPosition;
                     Detach(place);
                 }
@@ -1723,7 +1798,24 @@ namespace DrivenRides
             if (kind == Kind.OwnCar)
             {
                 RemoveStandIn();
-                try { if (ownCar != null && !ownCarEntered) OwnCarTaxi.Show(ownCar); } catch (Exception ex) { Log.Error("Cancel, own car: " + ex.Message); }
+                try
+                {
+                    if (ownCar != null && !ownCarEntered)
+                    {
+                        OwnCarTaxi.Show(ownCar);
+                        // Back at the start, parked cars may have filled the gap: cleared as vanilla does after a load.
+                        if (!ownCarPlaced) VehicleHelper.DestroyBlockingVehicles(ownCar.gameObject, ownCar.vehicleType, onlyParkedVehicles: true);
+                    }
+                }
+                catch (Exception ex) { Log.Error("Cancel, own car: " + ex.Message); }
+                try { if (!mapClosed && CityMap.IsOpen) InstanceBehavior<CityManager>.Instance.cityMap.Close(); }
+                catch (Exception ex) { Log.Error("Cancel, map: " + ex.Message); }
+                // Before departure the map's close may have put the car camera back on the hidden car.
+                try { if (ownCar != null && !ownCar.controlledByPlayer && manager != null && !handedOver) SetGameCamera(PedestrianCameraField?.GetValue(manager)); }
+                catch (Exception ex) { Log.Error("Cancel, camera: " + ex.Message); }
+                // Detached but not yet back in the car: the figure is still hidden.
+                try { if (!ownCarEntered && !attached && boarded && player != null) player.Character.ToggleVisibility(true); }
+                catch (Exception ex) { Log.Error("Cancel, visibility: " + ex.Message); }
             }
             else try { if (OwnsCar && (departed || onFirstWaypoint)) { if (kind == Kind.Test) TrafficManager.Instance.RemoveVehicle(carIndex); else ReleaseToTraffic(); } } catch (Exception ex) { Log.Error("Cancel, car: " + ex.Message); }
             if (faded && !handedOver)
