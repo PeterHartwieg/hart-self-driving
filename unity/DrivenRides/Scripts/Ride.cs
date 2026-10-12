@@ -139,6 +139,7 @@ namespace DrivenRides
             this.goals = goals;
             this.route = route;
             path = Expand(route);
+            carLength = LengthOf(prefab);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
             player = manager.playerController;
@@ -245,6 +246,7 @@ namespace DrivenRides
                 }
                 if (kind != Kind.Stand && parked == null && (car == null || car.GetIndex() < 0)) return Vanilla("the taxi has no traffic car");
                 if (prefab == null) return Vanilla("no vehicle prefab");
+                planLength = LengthOf(prefab);
 
                 var graph = GleyGraph.Graph;
                 var manager = TrafficManager.HasInstance && TrafficManager.IsInitialized ? TrafficManager.Instance : null;
@@ -391,6 +393,19 @@ namespace DrivenRides
             return null;
         }
 
+        // The length of the car a route is planned for: manoeuvres that failed in turn tests for cars this long are
+        // left out (TestedSteps).
+        private static float planLength;
+        private float carLength;
+
+        private static float LengthOf(VehicleComponent prefab)
+        {
+            if (TrafficVehiclesField?.GetValue(TrafficManager.Instance) is TrafficVehicles vehicles)
+                foreach (var v in vehicles.GetVehicleList())
+                    if (v != null && v.prefab == prefab.gameObject && v.length > 0f) return v.length;
+            return prefab.length;
+        }
+
         private static Route? Plan(LaneGraph graph, int start, List<Goal> goals, int vehicleType, out long ms, out string why)
         {
             var watch = Stopwatch.StartNew();
@@ -400,7 +415,7 @@ namespace DrivenRides
                 Goals = goals,
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
-                IsBlockedStep = GleyGraph.IsBlockedStep,
+                IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || TestedSteps.Blocks(a, b, planLength),
             });
             while (job.Status == PlanStatus.Running && watch.ElapsedMilliseconds < PlanBudgetMs)
                 job.Step(PlanStep, () => watch.ElapsedMilliseconds >= PlanBudgetMs);
@@ -1078,7 +1093,7 @@ namespace DrivenRides
                 Goals = goals,
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
-                IsBlockedStep = GleyGraph.IsBlockedStep,
+                IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || TestedSteps.Blocks(a, b, carLength),
             });
             replanSeconds = 0f;
             Log.Info("Watchdog: replanning (" + watch!.LastReason + ").");

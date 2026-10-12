@@ -39,7 +39,7 @@ namespace DrivenRides
             // Built now, so the first ride's planning time doesn't include it.
             try { _ = GleyGraph.Graph; }
             catch (Exception ex) { Log.Error("Lane graph: " + ex); }
-            Log.Info("City ready.");
+            Log.Info($"City ready ({TestedSteps.Count} manoeuvres left out from turn tests).");
         }
 
         // Fires before the city scene goes, so the ride's player and managers still exist (LoadScene.cs:27-31).
