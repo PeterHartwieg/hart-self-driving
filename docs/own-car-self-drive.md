@@ -14,7 +14,7 @@ Thumbnail work is in the Food Trucks checkout's `build/thumbnail-rides/` (not co
 ## Peter's decisions, 12 October 2026 (second round)
 
 - **Starting an own-car ride.** L in the driver's seat of your own car opens the destination map. L anywhere else keeps calling the private driver.
-- **Autopark is a three-way choice** on the options page, replacing the on/off toggle above: *park yourself* (you end in the driver's seat on the street), *autopark cars that have it* (`autoParkSupported`), or *autopark every car*. With no free spot found, every choice ends as *park yourself*.
+- **Autopark is a three-way choice** on the options page, replacing the on/off toggle above: *park yourself* (you end in the driver's seat on the street), *autopark cars that have it* (`autoParkSupported`), or *autopark every car*. With no free spot found, every choice ends as *park yourself*. Default: *autopark cars that have it* (Peter, 12 October 2026).
 - **After autopark you stay in the car**, parked. The ride doesn't put you at the door.
 - **Clock.** The same rule as the private driver, but the clock rate during a ride is a setting, on the options page and on the ride panel. The panel's last choice is remembered, for the clock and for the ride speed, and becomes the options page's value.
 - **Parking charges** on the hidden car during the ride are suppressed.
@@ -89,5 +89,4 @@ Borrow any pooled car with `LoadVehicle`, as the rides already do, hide its body
 ## Open questions
 
 - Where the car stops at the destination before autopark: on the street lane nearest the door, then the spot search from there.
-- Which clock rates the dropdown offers (proposed: a third, a half, normal).
 - In game: which models are in the Gley pool (`DebugKeys` G), and whether a reskinned stand-in looks right at street level.

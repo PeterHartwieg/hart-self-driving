@@ -8,7 +8,7 @@ Status: in development (Milestone 0, the spike). Not on the Workshop yet.
 
 ## Options
 
-In the game's Mods options: driven taxi rides and private-driver rides, each on or off; the ride speed (1×, 2× or 3×; default 1×); the clock's rate during a ride (a third, a half or normal; default a third); stopping at red lights; and the driver shortcut. The ride panel's speed and clock buttons change the same settings, so the next ride starts with the last choice.
+In the game's Mods options: driven taxi rides and private-driver rides, each on or off; the ride speed (1×, 2× or 3×; default 1×); the clock's speed during a ride (a slider from 0 %, a stopped clock, to 100 %, normal; default 33 %); stopping at red lights; and the driver shortcut. The ride panel's speed buttons and clock slider change the same settings, so the next ride starts with the last choice.
 
 ## Evidence
 

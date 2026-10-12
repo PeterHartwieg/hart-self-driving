@@ -15,22 +15,21 @@ namespace DrivenRides
         private const string DriverId = "driver";
         // A new id: the first spike builds defaulted to 3x under "speed".
         private const string SpeedId = "startspeed";
-        private const string ClockId = "clock";
+        // A new id: the first settings build stored a dropdown index under "clock".
+        private const string ClockId = "clockpercent";
         private const string ShortcutId = "shortcut";
         private const string LightsId = "lights";
         private static readonly float[] Speeds = { 1f, 2f, 3f };
         private const int DefaultSpeedIndex = 0;
-        // The clock's rate during a ride: a third, a half, normal.
-        private static readonly float[] Clocks = { 1f / 3f, 0.5f, 1f };
-        public static readonly string[] ClockLabels = { "1/3", "1/2", "1x" };
-        private const int DefaultClockIndex = 0;
+        // The clock's rate during a ride in percent: 0 stops it, 100 is normal (Peter, 12 October 2026).
+        private const int DefaultClockPercent = 33;
         private static string? modId;
 
         public static bool Taxis { get; private set; } = true;
         public static bool PrivateDriver { get; private set; } = true;
         public static float RideSpeed { get; private set; } = 1f;
-        public static int ClockIndex { get; private set; } = DefaultClockIndex;
-        public static float ClockFactor => Clocks[ClockIndex];
+        public static int ClockPercent { get; private set; } = DefaultClockPercent;
+        public static float ClockFactor => ClockPercent / 100f;
         public static bool Shortcut { get; private set; } = true;
         public static bool TrafficLights { get => LightsOverride ?? lights; private set => lights = value; }
         private static bool lights = true;
@@ -43,7 +42,7 @@ namespace DrivenRides
             Taxis = UnityEngine.PlayerPrefs.GetInt(Key(TaxisId), 1) != 0;
             PrivateDriver = UnityEngine.PlayerPrefs.GetInt(Key(DriverId), 1) != 0;
             RideSpeed = SpeedAt(UnityEngine.PlayerPrefs.GetInt(Key(SpeedId), DefaultSpeedIndex));
-            ClockIndex = ClockAt(UnityEngine.PlayerPrefs.GetInt(Key(ClockId), DefaultClockIndex));
+            ClockPercent = ClampClock(UnityEngine.PlayerPrefs.GetInt(Key(ClockId), DefaultClockPercent));
             Shortcut = UnityEngine.PlayerPrefs.GetInt(Key(ShortcutId), 1) != 0;
             TrafficLights = UnityEngine.PlayerPrefs.GetInt(Key(LightsId), 1) != 0;
 
@@ -54,13 +53,13 @@ namespace DrivenRides
                 .AddDropdown(SpeedId, "drivenrides:options_speed",
                     new[] { "drivenrides:options_speed_1", "drivenrides:options_speed_2", "drivenrides:options_speed_3" },
                     DefaultSpeedIndex, index => { RideSpeed = SpeedAt(index); Log.Info($"Option: ride speed {RideSpeed}x."); })
-                .AddDropdown(ClockId, "drivenrides:options_clock",
-                    new[] { "drivenrides:options_clock_third", "drivenrides:options_clock_half", "drivenrides:options_clock_normal" },
-                    DefaultClockIndex, index => { ClockIndex = ClockAt(index); Log.Info($"Option: clock during rides {ClockLabels[ClockIndex]}."); })
+                .AddSlider(ClockId, "drivenrides:options_clock", 0, 100, DefaultClockPercent,
+                    value => { ClockPercent = ClampClock(value); Log.Info($"Option: clock during rides {ClockPercent}%."); },
+                    "drivenrides:options_clock_value")
                 .AddToggle(LightsId, "drivenrides:options_lights", true, value => { TrafficLights = value; Log.Info($"Option: stop at red lights {(value ? "on" : "off")}."); })
                 .AddToggle(ShortcutId, "drivenrides:options_shortcut", true, value => { Shortcut = value; Log.Info($"Option: driver shortcut {(value ? "on" : "off")}."); });
             OptionsService.Register(id, options);
-            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, ride speed {RideSpeed}x, clock during rides {ClockLabels[ClockIndex]}, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}.");
+            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}.");
         }
 
         public static void Unregister()
@@ -77,16 +76,24 @@ namespace DrivenRides
             Save(SpeedId, index);
         }
 
-        public static void RememberClock(int index)
+        // The panel's slider sets the rate while it is dragged and writes it to disk once, when it is let go.
+        public static void SetClock(int percent)
         {
-            if (index < 0 || index >= Clocks.Length || modId == null) return;
-            ClockIndex = index;
-            Save(ClockId, index);
+            if (modId == null) return;
+            ClockPercent = ClampClock(percent);
+            Save(ClockId, ClockPercent, flush: false);
         }
 
-        private static void Save(string optionId, int value)
+        public static void FlushClock()
         {
-            try { UnityEngine.PlayerPrefs.SetInt(Key(optionId), value); UnityEngine.PlayerPrefs.Save(); }
+            if (modId == null) return;
+            Save(ClockId, ClockPercent);
+            Log.Info($"Clock during rides {ClockPercent}%.");
+        }
+
+        private static void Save(string optionId, int value, bool flush = true)
+        {
+            try { UnityEngine.PlayerPrefs.SetInt(Key(optionId), value); if (flush) UnityEngine.PlayerPrefs.Save(); }
             catch (Exception e) { Log.Error($"Saving option {optionId}: {e.Message}"); }
         }
 
@@ -94,6 +101,6 @@ namespace DrivenRides
 
         private static float SpeedAt(int index) => Speeds[index >= 0 && index < Speeds.Length ? index : DefaultSpeedIndex];
 
-        private static int ClockAt(int index) => index >= 0 && index < Clocks.Length ? index : DefaultClockIndex;
+        private static int ClampClock(int percent) => Mathf.Clamp(percent, 0, 100);
     }
 }

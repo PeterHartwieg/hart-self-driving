@@ -1605,9 +1605,9 @@ namespace DrivenRides
 
         public static void CancelActive(string reason, bool handedOver = false) => Active?.Cancel(reason, handedOver);
 
-        // During a ride the clock runs at the options' rate, a third by default (Peter, 11 and 12 October 2026). Ticks
-        // are game minutes from scaled time, so at a third and 3x ride speed the clock runs at its normal rate. The
-        // ride's own time machine (Skip) is left alone.
+        // During a ride the clock runs at the options' rate, 0 to 100 %, a third by default (Peter, 11 and 12 October
+        // 2026). Ticks are game minutes from scaled time, so at 33 % and 3x ride speed the clock runs at about its
+        // normal rate. The ride's own time machine (Skip) is left alone.
 
         public static void CapTick(ref float minutes)
         {
@@ -1640,12 +1640,6 @@ namespace DrivenRides
             Log.Info($"Ride speed {speed:0}x.");
         }
 
-        // The panel's clock button cycles the clock's rate; remembered for the next ride.
-        public void NextClock()
-        {
-            Options.RememberClock((Options.ClockIndex + 1) % Options.ClockLabels.Length);
-            Log.Info($"Clock during rides {Options.ClockLabels[Options.ClockIndex]}.");
-        }
 
         // The StartTimeMachine prefix: a time machine the ride didn't start cancels it first.
         public static void OnTimeMachineStarting()

@@ -161,7 +161,7 @@ The ModAPI has an options page per mod (`BigAmbitions.Mods.OptionsService.Regist
 
 - **Driven taxis** (toggle, `taxis`, default on) and **driven private driver** (toggle, `driver`, default on): off makes those rides vanilla. Hailed taxis and taxi stands share the first.
 - **Ride speed** (dropdown, `startspeed`, 1× / 2× / 3×, default 1×). The panel's buttons change it during a ride and write it back, so the next ride starts at the last choice (Peter, 12 October 2026).
-- **Clock during rides** (dropdown, `clock`, a third / a half / normal, default a third). The panel's clock button cycles it and writes it back the same way.
+- **Clock during rides** (slider, `clockpercent`, 0 to 100 %, default 33 %): 0 stops the clock, 100 is normal speed. The panel has the same slider and writes it back the same way.
 - **Stop at red lights** (toggle, `lights`, default on).
 - **Driver shortcut** (toggle, `shortcut`, default on).
 
