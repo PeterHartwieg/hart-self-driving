@@ -65,6 +65,8 @@ namespace DrivenRides
         private readonly List<int> owned = new List<int>();
         private readonly VehicleComponent car;
         private readonly int carIndex;
+        // A car the mod loaded onto the route's first waypoint (a stand's, or a parked driver's replacement).
+        private readonly bool onFirstWaypoint;
 
         private Route route;
         // The route as Gley drives it: the planner's waypoints with each added turn's curve waypoint put in.
@@ -123,8 +125,9 @@ namespace DrivenRides
         public static Quaternion PickupRotation => Active!.pickupRotation;
 
         private Ride(TaxiSystem taxiSystem, ITaxi taxi, Kind kind, EntityController target, float minutes, VehicleComponent car,
-            VehicleComponent prefab, int vehicleType, List<Goal> goals, Route route)
+            VehicleComponent prefab, int vehicleType, List<Goal> goals, Route route, bool onFirstWaypoint)
         {
+            this.onFirstWaypoint = onFirstWaypoint;
             this.taxiSystem = taxiSystem;
             this.taxi = taxi;
             this.kind = kind;
@@ -153,6 +156,7 @@ namespace DrivenRides
         public static IEnumerator? TryCreate(TaxiSystem taxiSystem, EntityController target, float minutes)
         {
             VehicleComponent? loaded = null;
+            PrivateDriverVehicle? parked = null;
             try
             {
                 if (!Options.DrivenRides) return null;
@@ -171,9 +175,13 @@ namespace DrivenRides
                 {
                     case PrivateDriverVehicle pd:
                         kind = Kind.PrivateDriver;
-                        if (pd.GetVehicleIndex() < 0) return Vanilla("the private driver is a parked car");
-                        car = pd.GetComponent<VehicleComponent>();
-                        prefab = car != null && car.prefab != null ? car.prefab.GetComponent<VehicleComponent>() : null;
+                        // Called from indoors, the driver waits as a parked car (PrivateDriverHelpers
+                        // .SummonPrivateDriverVehicleFromIndoors), not a traffic car; it is swapped for one on the lane
+                        // beside it once the route is known.
+                        parked = pd.GetVehicleIndex() < 0 ? pd : null;
+                        car = parked == null ? pd.GetComponent<VehicleComponent>() : null;
+                        prefab = parked != null ? pd.GetVehiclePrefab()
+                            : car != null && car.prefab != null ? car.prefab.GetComponent<VehicleComponent>() : null;
                         break;
                     case TaxiController tc:
                         kind = Kind.Taxi;
@@ -187,7 +195,7 @@ namespace DrivenRides
                     default:
                         return Vanilla("unknown taxi " + taxi.GetType().Name);
                 }
-                if (kind != Kind.Stand && (car == null || car.GetIndex() < 0)) return Vanilla("the taxi has no traffic car");
+                if (kind != Kind.Stand && parked == null && (car == null || car.GetIndex() < 0)) return Vanilla("the taxi has no traffic car");
                 if (prefab == null) return Vanilla("no vehicle prefab");
 
                 var graph = GleyGraph.Graph;
@@ -203,6 +211,12 @@ namespace DrivenRides
                     // checkFreeFor makes Gley test that the spawn waypoint is free (DensityManager.cs:244-256).
                     spawn = manager.GetClosestWaypoint(taxiObject.transform.position, 50f, w => IsGoodStart(w, y), prefab);
                     if (spawn == null) return Vanilla("no free lane waypoint by the taxi stand");
+                    start = spawn.listIndex;
+                }
+                else if (parked != null)
+                {
+                    spawn = SpawnBeside(manager, parked.transform, prefab);
+                    if (spawn == null) return Vanilla("no free lane waypoint by the parked driver");
                     start = spawn.listIndex;
                 }
                 else
@@ -242,7 +256,7 @@ namespace DrivenRides
                     }
                 }
                 if (goals.Count == 0) return Vanilla($"no lane waypoint within 300 m of the destination at {destination}");
-                if (route == null && kind != Kind.Stand)
+                if (route == null && car != null)
                 {
                     // The summoned driver stops at the waypoint nearest the player, whatever kind of lane it is; some are
                     // pockets with no lane out. Then the route starts from a proper traffic lane nearby, and Gley steers
@@ -279,6 +293,22 @@ namespace DrivenRides
                     AIEvents.TriggerChangeDrivingStateEvent(loaded.GetIndex(), SpecialDriveActionTypes.StopNow, 0f);
                     car = loaded;
                 }
+                else if (parked != null)
+                {
+                    if (!HasInactivePooledCar(prefab)) return Vanilla("no idle car of the driver's model in the traffic pool");
+                    loaded = manager.LoadVehicle(prefab.gameObject, spawn, true);
+                    if (loaded == null) return Vanilla("the driver's traffic car could not be loaded");
+                    if (route.Waypoints.Count > 1)
+                    {
+                        var ahead = GleyGraph.Waypoints![route.Waypoints[1]].position - spawn!.position;
+                        if (ahead.sqrMagnitude > 0.01f) loaded.transform.rotation = Quaternion.LookRotation(ahead);
+                    }
+                    AIEvents.TriggerChangeDrivingStateEvent(loaded.GetIndex(), SpecialDriveActionTypes.StopNow, 0f);
+                    taxi = SwapDriver(parked, loaded);
+                    car = loaded;
+                    loaded = null;
+                    Log.Info($"Driver swapped from a parked car to a traffic car at waypoint {spawn!.listIndex}, {Vector3.Distance(parked.transform.position, spawn.position):0.0} m away.");
+                }
 
                 GleyGraph.DumpRide(start, goals, route.Waypoints, destination);
                 var addedTurns = 0;
@@ -288,7 +318,7 @@ namespace DrivenRides
                     if (graph.UTurn(route.Waypoints[k]) == route.Waypoints[k + 1]) addedTurns++;
                 }
                 if (addedTurns > 0) Log.Info($"Route uses {addedTurns} turn{(addedTurns == 1 ? "" : "s")} or U-turn{(addedTurns == 1 ? "" : "s")} the game's traffic data doesn't have.");
-                var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car!, prefab, vehicleType, goals, route);
+                var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car!, prefab, vehicleType, goals, route, spawn != null);
                 Log.Info($"Ride accepted: {kind}, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, drive {route.DriveSeconds:0} s, walk {route.WalkSeconds:0} s, planned in {planMs} ms, budget {minutes:0.0} game minutes.");
                 Active = ride;
                 return ride.Run();
@@ -406,6 +436,42 @@ namespace DrivenRides
             foreach (var v in vehicles.GetVehicleList())
                 if (v != null && v.prefab == asset && !v.gameObject.activeInHierarchy) return true;
             return false;
+        }
+
+        // The lane waypoint for a parked driver's traffic car: free, near the parked car, facing its way if one does.
+        // The parked car's own colliders are off during the search, or it would block the lane it stands on (a
+        // Hamptons driver parks on a waypoint by the house).
+        private static Waypoint? SpawnBeside(TrafficManager manager, Transform parkedCar, VehicleComponent prefab)
+        {
+            var colliders = parkedCar.GetComponentsInChildren<Collider>();
+            var wasOn = new bool[colliders.Length];
+            for (var k = 0; k < colliders.Length; k++) { wasOn[k] = colliders[k].enabled; colliders[k].enabled = false; }
+            try
+            {
+                var y = parkedCar.position.y;
+                var forward = parkedCar.forward;
+                return manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y) && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f, prefab)
+                    ?? manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y), prefab);
+            }
+            finally
+            {
+                for (var k = 0; k < colliders.Length; k++) if (colliders[k] != null) colliders[k].enabled = wasOn[k];
+            }
+        }
+
+        private static readonly FieldInfo? PhoneDriverField = AccessTools.Field(typeof(SmartphonePrivateDriverUI), "_privateDriverVehicle");
+
+        // Vanilla's InstantiateVehicle, without its dismissal (which would toggle the open map): the loaded car becomes
+        // the phone's private driver, and the parked car goes back to the parking pool.
+        private static PrivateDriverVehicle SwapDriver(PrivateDriverVehicle parked, VehicleComponent loaded)
+        {
+            if (loaded.TryGetComponent<PrivateDriverVehicle>(out var stale)) Object.DestroyImmediate(stale);
+            var driver = loaded.gameObject.AddComponent<PrivateDriverVehicle>();
+            PrivateDriverHelpers.SetupVehicle(driver, parked.vehicleInstance);
+            var phone = InstanceBehavior<UIs>.Instance.smartphoneUI.privateDriverUI;
+            if (PhoneDriverField != null && ReferenceEquals(PhoneDriverField.GetValue(phone), parked)) PhoneDriverField.SetValue(phone, driver);
+            ParkingSimulator.ReleaseParkedVehicle(parked.gameObject);
+            return driver;
         }
 
         private static double NowMinutes()
@@ -530,8 +596,8 @@ namespace DrivenRides
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car was gone before departure"); return; }
             if (kind == Kind.Taxi) taxi.DriveAway();
             owned.Clear();
-            // A stand's car sits on its spawn waypoint; the route starts there.
-            for (var i = kind == Kind.Stand ? 1 : 0; i < path.Count; i++) owned.Add(path[i]);
+            // A loaded car sits on its spawn waypoint; the route starts there.
+            for (var i = onFirstWaypoint ? 1 : 0; i < path.Count; i++) owned.Add(path[i]);
             car.presetPath = owned;
             departed = true;
             SetTopSpeed();
@@ -1331,8 +1397,8 @@ namespace DrivenRides
             }
             try { RestoreCamera(); } catch (Exception ex) { Log.Error("Cancel, camera: " + ex.Message); }
             try { RestoreScale(); } catch (Exception ex) { Log.Error("Cancel, time scale: " + ex.Message); }
-            // A stand's car was loaded and held before departure, so it is released even if the ride never left.
-            try { if (OwnsCar && (departed || kind == Kind.Stand)) ReleaseToTraffic(); } catch (Exception ex) { Log.Error("Cancel, car: " + ex.Message); }
+            // A loaded car was held before departure, so it is released even if the ride never left.
+            try { if (OwnsCar && (departed || onFirstWaypoint)) ReleaseToTraffic(); } catch (Exception ex) { Log.Error("Cancel, car: " + ex.Message); }
             if (faded && !handedOver)
             {
                 faded = false;
