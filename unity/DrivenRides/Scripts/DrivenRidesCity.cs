@@ -101,10 +101,12 @@ namespace DrivenRides
             var ride = Ride.Active;
             if (ride == null || !ride.ShowPanel) return;
             boxStyle ??= new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 8, 8) };
-            var width = 420f;
+            var width = 520f;
             var rect = new Rect((Screen.width - width) / 2f, 24f, width, 44f);
             GUI.Box(rect, ride.PanelText, boxStyle);
-            var x = rect.xMax - 8f - 4 * 56f;
+            var x = rect.xMax - 8f - 4 * 56f - 96f;
+            if (GUI.Button(new Rect(x, rect.y + 8f, 90f, 28f), "Clock " + Options.ClockLabels[Options.ClockIndex])) ride.NextClock();
+            x += 96f;
             foreach (var speed in new[] { 1f, 2f, 3f })
             {
                 var label = Mathf.Approximately(ride.RideSpeed, speed) ? $"[{speed:0}x]" : $"{speed:0}x";

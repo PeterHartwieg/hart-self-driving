@@ -28,7 +28,7 @@ namespace DrivenRides
             Patch(typeof(TaxiSystem), "TravelCoroutine", new[] { typeof(EntityController), typeof(float) }, nameof(TravelPrefix), prefix: true);
             // The private driver's own Update would stop the car every frame while the mod drives it.
             Patch(typeof(PrivateDriverVehicle), "Update", Type.EmptyTypes, nameof(DriverUpdatePrefix), prefix: true);
-            // The clock runs at a third of its speed during a ride.
+            // The clock runs at the options' rate during a ride (a third by default).
             Patch(typeof(GameManager), "RunMainGameTick", new[] { typeof(float) }, nameof(TickPrefix), prefix: true);
             // A save during a ride puts the player back where they got in.
             Patch(typeof(PlayerHelper), "SaveCurrentPosition", Type.EmptyTypes, nameof(SavePositionPostfix));

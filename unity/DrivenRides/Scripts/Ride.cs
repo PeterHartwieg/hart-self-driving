@@ -216,7 +216,6 @@ namespace DrivenRides
             PrivateDriverVehicle? parked = null;
             try
             {
-                if (!Options.DrivenRides) return null;
                 if (Active != null) return Vanilla("a ride is still active");
                 var taxi = InstanceBehavior<CityManager>.Instance.cityMap.Taxi;
                 if (!(taxi is MonoBehaviour taxiObject) || taxiObject == null) return Vanilla("no taxi");
@@ -252,6 +251,7 @@ namespace DrivenRides
                     default:
                         return Vanilla("unknown taxi " + taxi.GetType().Name);
                 }
+                if (kind == Kind.PrivateDriver ? !Options.PrivateDriver : !Options.Taxis) return Vanilla("switched off in the options");
                 if (kind != Kind.Stand && parked == null && (car == null || car.GetIndex() < 0)) return Vanilla("the taxi has no traffic car");
                 if (prefab == null) return Vanilla("no vehicle prefab");
                 planLength = LengthOf(prefab);
@@ -1605,10 +1605,9 @@ namespace DrivenRides
 
         public static void CancelActive(string reason, bool handedOver = false) => Active?.Cancel(reason, handedOver);
 
-        // During a ride the clock runs at a third of its speed (Peter, 11 October 2026). Ticks are game minutes from
-        // scaled time, so at 3x ride speed the clock runs at its normal rate. The ride's own time machine (Skip) is
-        // left alone.
-        public const float ClockFactor = 1f / 3f;
+        // During a ride the clock runs at the options' rate, a third by default (Peter, 11 and 12 October 2026). Ticks
+        // are game minutes from scaled time, so at a third and 3x ride speed the clock runs at its normal rate. The
+        // ride's own time machine (Skip) is left alone.
 
         public static void CapTick(ref float minutes)
         {
@@ -1617,7 +1616,7 @@ namespace DrivenRides
             var ride = Active;
             if (ride == null || ride.finished || ride.cancelled) return;
             if (ride.SaveChanged) { ride.Dispose(); return; }
-            if (!TimeMachineRunning) minutes *= ClockFactor;
+            if (!TimeMachineRunning) minutes *= Options.ClockFactor;
         }
 
         // Vanilla's charge for the straight line from the car to the destination (TaxiSystem.GetTravelDurationMinutes).
@@ -1633,11 +1632,19 @@ namespace DrivenRides
         // Turn tests at an automatic speed set it every frame, quietly.
         public void SetTestSpeed(float speed) => rideSpeed = speed;
 
-        // The panel's speed buttons.
+        // The panel's speed buttons; the choice is remembered for the next ride.
         public void SetSpeed(float speed)
         {
             rideSpeed = speed;
+            Options.RememberSpeed(speed);
             Log.Info($"Ride speed {speed:0}x.");
+        }
+
+        // The panel's clock button cycles the clock's rate; remembered for the next ride.
+        public void NextClock()
+        {
+            Options.RememberClock((Options.ClockIndex + 1) % Options.ClockLabels.Length);
+            Log.Info($"Clock during rides {Options.ClockLabels[Options.ClockIndex]}.");
         }
 
         // The StartTimeMachine prefix: a time machine the ride didn't start cancels it first.

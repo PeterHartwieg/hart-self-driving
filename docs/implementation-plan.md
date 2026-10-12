@@ -159,8 +159,10 @@ Peter, 11 October 2026, after the first test rides: the world runs at normal spe
 
 The ModAPI has an options page per mod (`BigAmbitions.Mods.OptionsService.Register(modId, new ModOptions()...)`, the SDK's `Example-Options`). The game stores each value in `PlayerPrefs` under `m:<modId>:<optionId>` (`ModOptionPrefs.cs`) and calls the option's callback only when the options page builds its controls or the player changes one. So the mod reads `PlayerPrefs` with the same keys at load, and takes callbacks for changes after that. Options are player preferences, not save data.
 
-- **Driven rides** (toggle, `rides`, default on): off makes every ride vanilla.
-- **Ride speed at the start** (dropdown, `startspeed`, 1× / 2× / 3×, default 1×). The panel's buttons change it during a ride.
+- **Driven taxis** (toggle, `taxis`, default on) and **driven private driver** (toggle, `driver`, default on): off makes those rides vanilla. Hailed taxis and taxi stands share the first.
+- **Ride speed** (dropdown, `startspeed`, 1× / 2× / 3×, default 1×). The panel's buttons change it during a ride and write it back, so the next ride starts at the last choice (Peter, 12 October 2026).
+- **Clock during rides** (dropdown, `clock`, a third / a half / normal, default a third). The panel's clock button cycles it and writes it back the same way.
+- **Stop at red lights** (toggle, `lights`, default on).
 - **Driver shortcut** (toggle, `shortcut`, default on).
 
 ## Driver shortcut
