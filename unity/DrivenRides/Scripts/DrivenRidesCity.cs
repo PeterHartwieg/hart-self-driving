@@ -47,6 +47,7 @@ namespace DrivenRides
         {
             TurnTests.Abort("game unloaded");
             Ride.CancelActive("game unloaded", handedOver: true);
+            OwnCarTaxi.Drop();
             GleyGraph.Drop();
             if (runtimeObject != null) Object.Destroy(runtimeObject);
             runtimeObject = null;
@@ -72,6 +73,7 @@ namespace DrivenRides
     {
         private static RideHost? instance;
         private GUIStyle? boxStyle;
+        private bool clockDragged;
 
         // Runs a game coroutine (an unfade after a cancel) on the mod's own object.
         public static void Run(System.Collections.IEnumerator routine)
@@ -101,10 +103,16 @@ namespace DrivenRides
             var ride = Ride.Active;
             if (ride == null || !ride.ShowPanel) return;
             boxStyle ??= new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 8, 8) };
-            var width = 420f;
+            var width = 600f;
             var rect = new Rect((Screen.width - width) / 2f, 24f, width, 44f);
             GUI.Box(rect, ride.PanelText, boxStyle);
-            var x = rect.xMax - 8f - 4 * 56f;
+            // The clock slider: 0 % stops the clock, 100 % is normal. Remembered for the next ride once let go.
+            var x = rect.xMax - 8f - 4 * 56f - 176f;
+            GUI.Label(new Rect(x, rect.y + 12f, 76f, 24f), $"Clock {Options.ClockPercent}%");
+            var percent = Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(x + 78f, rect.y + 16f, 90f, 20f), Options.ClockPercent, 0f, 100f));
+            if (percent != Options.ClockPercent) { Options.SetClock(percent); clockDragged = true; }
+            if (clockDragged && Event.current.rawType == EventType.MouseUp) { Options.FlushClock(); clockDragged = false; }
+            x += 176f;
             foreach (var speed in new[] { 1f, 2f, 3f })
             {
                 var label = Mathf.Approximately(ride.RideSpeed, speed) ? $"[{speed:0}x]" : $"{speed:0}x";

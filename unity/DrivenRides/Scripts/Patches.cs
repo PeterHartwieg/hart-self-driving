@@ -28,7 +28,7 @@ namespace DrivenRides
             Patch(typeof(TaxiSystem), "TravelCoroutine", new[] { typeof(EntityController), typeof(float) }, nameof(TravelPrefix), prefix: true);
             // The private driver's own Update would stop the car every frame while the mod drives it.
             Patch(typeof(PrivateDriverVehicle), "Update", Type.EmptyTypes, nameof(DriverUpdatePrefix), prefix: true);
-            // The clock runs at a third of its speed during a ride.
+            // The clock runs at the options' rate during a ride (a third by default).
             Patch(typeof(GameManager), "RunMainGameTick", new[] { typeof(float) }, nameof(TickPrefix), prefix: true);
             // A save during a ride puts the player back where they got in.
             Patch(typeof(PlayerHelper), "SaveCurrentPosition", Type.EmptyTypes, nameof(SavePositionPostfix));
@@ -51,6 +51,13 @@ namespace DrivenRides
             Patch(typeof(TaxiSystem), "TravelTo", new[] { typeof(EntityController) }, nameof(TravelToPrefix), prefix: true);
             // The ride steers an arc turn by moving Gley's target for its car each physics step, before the drive job.
             Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPrefix), prefix: true);
+            // An own-car ride costs no fare.
+            Patch(typeof(TaxiSystem), "GetPrice", new[] { typeof(float) }, nameof(PricePrefix), prefix: true);
+            // No hourly parking ticket or fee for the own car while it is hidden at the start of a ride: the game skips
+            // the car the player sits in, so for that hour the hidden car counts as that car.
+            Patch(typeof(ParkingSimulator), "RunHourly", Type.EmptyTypes, nameof(HourlyPrefix), prefix: true, finalizer: nameof(HourlyFinalizer));
+            // Vanilla's exit puts the player back in when there's no room to stand; not once an own-car ride has begun.
+            Patch(typeof(CarController), "EnterVehicle", Type.EmptyTypes, nameof(EnterPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -67,7 +74,7 @@ namespace DrivenRides
             harmony = null;
         }
 
-        private static void Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false)
+        private static void Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false, string? finalizer = null)
         {
             // Overloads need their arguments in the log line to tell them apart.
             var name = $"{type?.Name ?? "(type not found)"}.{method}{(args != null && args.Length > 0 ? "(" + string.Join(", ", args.Select(a => a.Name)) + ")" : "")}";
@@ -85,7 +92,8 @@ namespace DrivenRides
                     return;
                 }
                 var patch = new HarmonyMethod(typeof(Patches), handler);
-                harmony!.Patch(original, prefix: prefix ? patch : null, postfix: prefix ? null : patch);
+                harmony!.Patch(original, prefix: prefix ? patch : null, postfix: prefix ? null : patch,
+                    finalizer: finalizer != null ? new HarmonyMethod(typeof(Patches), finalizer) : null);
                 Log.Info($"Patch {name}: Active.");
             }
             catch (Exception ex)
@@ -133,6 +141,39 @@ namespace DrivenRides
             if (showNotification) Notice.Show("Not during a ride.");
             __result = false;
             return false;
+        }
+
+        private static bool PricePrefix(ref float __result)
+        {
+            if (!(InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi)) return true;
+            __result = 0f;
+            return false;
+        }
+
+        // The save whose ActiveVehicleId the prefix set; the finalizer puts it back even if RunHourly throws.
+        private static void HourlyPrefix(out GameInstance? __state)
+        {
+            __state = null;
+            try
+            {
+                var game = SaveGameManager.Current;
+                var hidden = OwnCarTaxi.HiddenId();
+                if (game == null || hidden == null || game.ActiveVehicleId != null) return;
+                game.ActiveVehicleId = hidden;
+                __state = game;
+            }
+            catch (Exception ex) { Log.Error("Hourly parking: " + ex.Message); }
+        }
+
+        private static void HourlyFinalizer(GameInstance? __state)
+        {
+            if (__state != null) __state.ActiveVehicleId = null;
+        }
+
+        private static bool EnterPrefix(CarController __instance)
+        {
+            try { return !Ride.RefusesEnter(__instance); }
+            catch { return true; }
         }
 
         private static bool TravelToPrefix()
