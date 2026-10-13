@@ -76,4 +76,23 @@ public sealed class JunctionRulesTests
         again.LeaveAll(events);
         Assert.Single(events);
     }
+
+    [Fact]
+    public void ARedItCanStopForIsNeverDroppedOnTheWayIn()
+    {
+        // T3 20261013-200946-0017: seen 6.2 m off at 6.9 m/s (3.8 m/s², under HardDecel), then braking too gently;
+        // 0.2 m short of the line at 1.3 m/s it "needed" 4 m/s², then more: it was dropped as on amber.
+        var rules = new JunctionRules();
+        var red = new List<PathMark> { Mark(9, 249.9f, stop: true, enter: true, junction: 0) };
+        Assert.NotNull(Step(rules, red, 243.7f, 238f, 6.9f, 0f).StopAlong);
+        Assert.NotNull(Step(rules, red, 249.7f, 244f, 1.3f, 1.5f).StopAlong);
+        Assert.NotNull(Step(rules, red, 249.85f, 244.2f, 1.0f, 1.6f).StopAlong);
+        // Green, then red again later: decided afresh (seen too late this time: through).
+        var green = new List<PathMark> { Mark(9, 249.9f, stop: false, enter: true, junction: 0) };
+        Assert.Null(Step(rules, green, 249.85f, 244.2f, 1.0f, 5f).StopAlong);
+        var fresh = new JunctionRules();
+        Step(fresh, green, 246f, 241f, 12f, 0f);
+        Assert.Null(Step(fresh, red, 246f, 241f, 12f, 0.1f).StopAlong);
+        Assert.Null(Step(fresh, red, 249f, 244f, 3f, 0.4f).StopAlong);
+    }
 }

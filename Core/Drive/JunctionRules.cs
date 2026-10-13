@@ -21,6 +21,10 @@ namespace DrivenRides.Core.Drive
         public const float ShortOfLine = 1f;
 
         private readonly HashSet<int> drivenThrough = new HashSet<int>();
+        // A red's decision, taken once when the car first sees it set: stop (false) or drive through as on amber
+        // (true). Re-deciding each step dropped a red the car was braking for: a metre short of the line at 1 m/s
+        // it "needed" more than HardDecel (T3 20261013-200946-0017: the front passed the line on red).
+        private readonly Dictionary<int, bool> redDecision = new Dictionary<int, bool>();
         private readonly HashSet<int> entered = new HashSet<int>();
         private readonly HashSet<int> left = new HashSet<int>();
         private readonly Dictionary<int, float> inside = new Dictionary<int, float>();
@@ -59,13 +63,14 @@ namespace DrivenRides.Core.Drive
             for (var k = 0; k < marks.Count; k++)
             {
                 var m = marks[k];
+                if (!m.Stop) redDecision.Remove(m.Position);
                 var room = m.Along - front;
                 if (room < -0.3f || drivenThrough.Contains(m.Position)) continue;
                 var tooLate = room > 0f && speed * speed / (2f * room) > PursuitDriver.HardDecel;
                 if (m.Stop)
                 {
-                    if (room <= 0f) continue;
-                    if (tooLate) { drivenThrough.Add(m.Position); continue; }
+                    if (!redDecision.TryGetValue(m.Position, out var through)) redDecision[m.Position] = through = room <= 0f || tooLate;
+                    if (through) continue;
                     d.StopAlong = m.Along - ShortOfLine;
                     d.StopPosition = m.Position;
                     d.StopIsRed = true;

@@ -117,17 +117,22 @@ namespace DrivenRides.Core.Drive
 
             var desired = PlannedSpeed(along, i.SpeedMs);
             var holding = false;
+            // The braking a stop ahead needs, m/s²: past Decel the brake goes on in proportion, not only by the speed
+            // error (T3 20261013-200946-0017: a red seen 6 m off at 7 m/s took 4.5 m/s²; the error alone gave 3.7).
+            var need = 0f;
             if (i.StopAlong is float stop)
             {
                 var room = stop - (along + frontAhead);
                 desired = Math.Min(desired, Approach(0f, room));
                 holding = room < 3f;
+                need = Math.Max(need, Need(i.SpeedMs, room));
             }
             if (i.YieldAlong is float give)
             {
                 var room = give - (along + frontAhead);
                 desired = Math.Min(desired, Approach(0f, room));
                 holding |= room < 3f;
+                need = Math.Max(need, Need(i.SpeedMs, room));
             }
             if (i.GapAhead is float gap)
             {
@@ -143,6 +148,7 @@ namespace DrivenRides.Core.Drive
 
             var o = new DriveOutput { SteerDegrees = steer, Along = along, Lateral = lateral, Desired = desired, Lookahead = ld, Holding = holding };
             Pedals(ref o, i.SpeedMs, desired, i.Dt);
+            if (need > Decel && o.Handbrake < 0.5f) { o.Throttle = 0f; o.Brake = Math.Max(o.Brake, Math.Min(1f, need / BrakePerInput)); }
             return o;
         }
 
@@ -223,6 +229,12 @@ namespace DrivenRides.Core.Drive
             var t = FollowReaction;
             return (float)(FollowBrake * (-t + Math.Sqrt(t * t + 2 * room / FollowBrake)));
         }
+
+        // Braking (m/s²) per unit of NWH brake input, roughly: 0.2 slowed the limo at about 3.7 m/s² (T3 trace
+        // 20261013-200946-0017); lower than that, so a needed stop brakes harder rather than softer.
+        public const float BrakePerInput = 12f;
+
+        private static float Need(float speed, float room) => speed <= 0.3f ? 0f : room <= 0.05f ? HardDecel * 2f : speed * speed / (2f * room);
 
         // The highest speed from which the car slows to `speed` within `metres` at Decel.
         public static float Approach(float speed, float metres) =>
