@@ -65,6 +65,8 @@ namespace DrivenRides.Core.Drive
         // Past a car that waits for the ride car (in or beside its trigger), and squeezing past a standing car with
         // only the margin touching. 2 m/s past a waiting car looked like a crawl (T3 20261013-185723, ride 8).
         public const float CreepMs = 3.5f;
+        // A traffic car moving at most this fast stops for the ride car in its trigger: the ride car noses in.
+        public const float NoseInMs = 5f;
         public const float SqueezeMs = 2f;
         // Within this of a waiting car's body or trigger, the ride car is passing it.
         public const float PassingNear = 0.5f;
@@ -101,6 +103,7 @@ namespace DrivenRides.Core.Drive
         private int count;
         private string conflictNote = "";
         private float headway = Headway;
+        private bool noseIn;
         // The nearest gap to a standing car: where the ride car will come to a stop behind it.
         private float? standingGap;
         // Stretches of the line (rear-axle metres along) driven at a creep, and their speed.
@@ -277,6 +280,12 @@ namespace DrivenRides.Core.Drive
                     d.YieldFor = c.Id;
                     d.YieldNote = conflictNote;
                 }
+            }
+            if (noseIn)
+            {
+                var now = CapAt(along);
+                if (now < 100f && (d.MaxSpeed == null || now < d.MaxSpeed)) d.MaxSpeed = now;
+                noseIn = false;
             }
             KeepClear(d, front);
             Stuck(s, d, standing);
@@ -489,6 +498,10 @@ namespace DrivenRides.Core.Drive
             return false;
         }
 
+        // Slow enough to stop within its trigger, with a metre to spare, braking as Gley's cars do.
+        private static bool WillStopForUs(in OtherCar c) =>
+            c.Speed <= NoseInMs && c.Speed * c.Speed / (2f * PursuitDriver.LeaderBrake) + 1f < c.TriggerLength;
+
         // The car's front is behind the ride car's rear bumper.
         private bool BehindRear(in OtherCar c)
         {
@@ -556,6 +569,19 @@ namespace DrivenRides.Core.Drive
                 // before the car comes (head-on in one lane).
                 if (!conflict && dot < -0.64f && k == count - 1 && ua >= 0f) conflict = true;
                 if (!conflict) continue;
+                // A car crawling this slowly stops for the ride car as soon as the ride car's body is in its front
+                // trigger, well within the trigger's length (Gley's StopInDistance), if the body comes into its way
+                // further ahead of its front than it needs to stop: the ride car noses in at a creep
+                // instead of waiting for it, as drivers get out of a jam (T3 20261013-213209, ride 17: 62 s at a
+                // merge, giving way to one crawling car after another).
+                if (WillStopForUs(c) && runFrom >= c.Speed * c.Speed / (2f * PursuitDriver.LeaderBrake) + 2f)
+                {
+                    var last = k;
+                    while (last + 1 < count && corridor.Covers(poses[last + 1].Grown(SideMargin, EndMargin), out _, out _, out _, out _)) last++;
+                    creeps.Add((rearAt[runStart], rearAt[last] + SweepStep, CreepMs));
+                    noseIn = true;
+                    return null;
+                }
                 conflictNote = $"pose {k} ({rearAt[k] - rearAt[0]:0} m on) u {ua:0.0}..{ub:0.0}, us {early[k]:0.0}..{late[k]:0.0} s, it {corridor.Speed:0.0} m/s{(same ? " same way" : dot < -0.64f ? " head-on" : "")}";
                 if (runStart > 0) return rearAt[runStart - 1] + body.FrontAhead;
                 // Already inside its corridor: on if out before it can arrive, else stop here.
