@@ -74,6 +74,10 @@ namespace DrivenRides
         // TrafficDecision.ForcedCommit; review round 3, V2).
         public int ForcedCommits;
         private bool forcedBefore;
+        // Times it went on past a car's way committed to a moment ago with less than the headway to spare (review
+        // round 5, Y1).
+        public int MarginalCommits;
+        private bool marginalBefore;
         // The last reasons given, for the forced-commit log line (review round 4, X4).
         private readonly Queue<string> recentWhys = new Queue<string>();
         // Gley cars that have the ride car in their trigger (obstacleList), from where and how fast when it came in:
@@ -100,7 +104,7 @@ namespace DrivenRides
         // kept, and none of their buffers made (review round 2, U5).
         public bool Recording;
         private const int TraceLines = 30000;
-        private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic,forced\n";
+        private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic,forced,marginal\n";
         private string[]? traceRing;
         private int traceNext, traceCount;
         private readonly StringBuilder traceLine = new StringBuilder(160);
@@ -240,6 +244,12 @@ namespace DrivenRides
                 Log.Info($"NWH drive: going on past traffic car {decision.ForcedFor}'s way: standing there would be hit ({speed:0.0} m/s, {driver.Along:0} m, {decision.ForcedMargin:0.00} s to spare); before: {string.Join(" | ", recentWhys)}.");
             }
             forcedBefore = decision.ForcedCommit;
+            if (decision.MarginalCommit && !marginalBefore)
+            {
+                MarginalCommits++;
+                Log.Info($"NWH drive: going on past traffic car {decision.MarginalFor}'s way, committed to before, with {decision.MarginalMargin:0.00} s to spare (under the headway; {speed:0.0} m/s, {driver.Along:0} m).");
+            }
+            marginalBefore = decision.MarginalCommit;
             if (decision.Why != lastWhy)
             {
                 if (decision.Why.Length > 0) Log.Info($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");
@@ -344,7 +354,8 @@ namespace DrivenRides
                 .Append(o.Throttle.ToString("0.00", Inv)).Append(',').Append(o.Brake.ToString("0.00", Inv)).Append(',').Append(o.Handbrake.ToString("0", Inv)).Append(',')
                 .Append(gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
-                .Append(decision.Why.Replace(',', ';')).Append(',').Append(decision.ForcedCommit ? decision.ForcedFor.ToString(Inv) : "").Append('\n');
+                .Append(decision.Why.Replace(',', ';')).Append(',').Append(decision.ForcedCommit ? decision.ForcedFor.ToString(Inv) : "").Append(',')
+                .Append(decision.MarginalCommit ? decision.MarginalFor.ToString(Inv) : "").Append('\n');
             if (traceRing == null) return;
             traceRing[traceNext] = sb.ToString();
             traceNext = (traceNext + 1) % TraceLines;

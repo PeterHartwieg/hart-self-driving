@@ -119,8 +119,15 @@ namespace DrivenRides.Core.Drive
         public int ForcedFor = -1;
         // The least time to spare that forced commit was judged with, seconds (review round 4, X4).
         public float ForcedMargin;
-        // The car whose way the speed is capped short of, to keep a stopping option (TrafficDriver.Approach), or -1.
+        // Gone on past a car's way committed to a moment ago with less than the headway to spare (no headway at all),
+        // the car, and the time to spare (review round 5, Y1).
+        public bool MarginalCommit;
+        public int MarginalFor = -1;
+        public float MarginalMargin;
+        // The car whose way the front is to keep the option to stop short of (TrafficDriver.Approaches), or -1, and
+        // where the front is to be able to stop.
         public int ApproachFor = -1;
+        public float ApproachAlong;
         // Layer 3: backing off along the line, away from a car standing nose to nose with the ride car.
         public bool BackOff;
         public int BackOffFrom = -1;
@@ -137,16 +144,16 @@ namespace DrivenRides.Core.Drive
             GapSpeed = 0f;
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
-            StopIsRed = BackOff = NoseIn = ForcedCommit = false;
-            ForcedFor = ApproachFor = -1;
-            ForcedMargin = 0f;
+            StopIsRed = BackOff = NoseIn = ForcedCommit = MarginalCommit = false;
+            ForcedFor = ApproachFor = MarginalFor = -1;
+            ForcedMargin = MarginalMargin = 0f;
             Events.Clear();
             Why = "";
             Note = default;
         }
     }
 
-    public enum YieldNoteKind { None, Conflict, Still, KeepClear }
+    public enum YieldNoteKind { None, Conflict, Still, KeepClear, Approach }
 
     // Where and when the conflict a yield is for lies, for the log and the trace.
     public struct YieldNote
@@ -161,6 +168,7 @@ namespace DrivenRides.Core.Drive
             YieldNoteKind.Conflict => $"pose {Pose} ({On:0} m on) u {From:0.0}..{To:0.0}, us {Early:0.0}..{Late:0.0} s, it {Speed:0.0} m/s{(Same ? " same way" : HeadOn ? " head-on" : "")}",
             YieldNoteKind.Still => "still giving way",
             YieldNoteKind.KeepClear => $"keeping clear of car {Car}'s way",
+            YieldNoteKind.Approach => $"keeping the option to stop short of car {Car}'s way",
             _ => "",
         };
     }
