@@ -689,7 +689,8 @@ namespace DrivenRides
                     var arc = at >= 0 ? TurnArc.Fit(graph, entry, exit, minRadius) : null;
                     if (arc != null) arcs.Add((at, arc));
                 }
-                foreach (var k in expanded.SlowPath) slow.Add((k, 25f));
+                // No flat 25 km/h for added turns: the corner speed comes from the line's curvature, so a wide turn is
+                // driven faster than a tight one (Peter). U-turns in a long car stay at a crawl.
                 if (car.Length >= 5.5f) foreach (var k in expanded.UTurnPath) slow.Add((k, 15f));
             }
             // Gley caps every car at the road's limit; so does this driver.

@@ -41,7 +41,9 @@ namespace DrivenRides.Core.Drive
         public const float Decel = 2.5f;
         public const float HardDecel = 5f;
         public const float StopGap = 2.5f;
-        public const float Lateral = 2.5f;
+        // Sideways acceleration in a corner: 3.5 m/s² takes a 6.5 m arc at 17 km/h and a 20 m one at 30 (Peter, NWH
+        // spike: larger turns faster; at 2.5 every corner felt slow).
+        public const float Lateral = 3.5f;
 
         // frontAhead: the car's front bumper, metres ahead of the rear axle.
         public PursuitDriver(DriveLine line, float wheelbase, float frontAhead, float topMs)
