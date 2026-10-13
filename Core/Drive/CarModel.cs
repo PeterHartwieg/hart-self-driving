@@ -4,13 +4,15 @@ namespace DrivenRides.Core.Drive
 {
     // A kinematic model of a car driven by its own physics (NWH): a bicycle about the rear axle, a wheel that follows
     // the asked-for angle smoothed over about 0.1 s and turned at most 180 degrees a second, held to the lock at the
-    // present speed, and a speed that follows the driver's wish at up to 3 m/s² either way (pedals not modelled). Used
+    // present speed, and a speed that follows the driver's wish at up to 3 m/s² faster and 6 m/s² slower (pedals not
+    // modelled; a car brakes much harder than it speeds up, and the driver's amber rule counts on 5 m/s²). Used
     // by the planner's feasibility check and the Core tests, and calibrated against the rig's -nwh.csv traces.
     public sealed class CarModel
     {
         public const float SmoothSeconds = 0.1f;
         public const float WheelRate = 180f;
         public const float Accel = 3f;
+        public const float Brake = 6f;
 
         private readonly float wheelbase;
         private readonly Func<float, float> lockAt;
@@ -48,7 +50,11 @@ namespace DrivenRides.Core.Drive
             var want = Math.Max(-lockNow, Math.Min(lockNow, o.SteerDegrees));
             smoothed += (want - smoothed) * Math.Min(1, dt / SmoothSeconds);
             Steer += Math.Max(-WheelRate * dt, Math.Min(WheelRate * dt, smoothed - Steer));
-            Speed += Math.Max(-Accel * dt, Math.Min(Accel * dt, o.Desired - Speed));
+            // Slowing down brakes; so does speeding up in reverse from rest (NWH's gearbox reverses on the brake).
+            var change = o.Desired - Speed;
+            var slowing = Speed > 0 ? change < 0 : Speed < 0 ? change > 0 : false;
+            var limit = (slowing ? Brake : Accel) * dt;
+            Speed += Math.Max(-limit, Math.Min(limit, change));
             Heading += Speed * Math.Tan(Steer * Math.PI / 180) / wheelbase * dt;
             X += Speed * Math.Sin(Heading) * dt;
             Z += Speed * Math.Cos(Heading) * dt;

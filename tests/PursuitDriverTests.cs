@@ -126,35 +126,69 @@ public sealed class PursuitDriverTests
         Assert.All(track, t => Assert.True(t.Z < 61.5f, $"({t.X}, {t.Z}) swung wide"));
     }
 
+    // A traffic car with no target known: its corridor runs straight on along its heading.
+    private static OtherCar Other(int id, float x, float z, float vx, float vz) => new()
+    {
+        Id = id, X = x, Z = z, Heading = (float)Math.Atan2(vx == 0 && vz == 0 ? 0 : vx, vx == 0 && vz == 0 ? 1 : vz), Vx = vx, Vz = vz,
+        Length = 4.5f, Width = 1.9f, TriggerLength = 3f, Target = -1,
+    };
+
+    private sealed class NoFlags : ILiveFlags
+    {
+        public bool Stop(int waypoint) => false;
+        public bool GiveWayEntry(int waypoint, out int junction, out int road) { junction = road = -1; return false; }
+    }
+
+    private static TrafficDecision Decide(DriveLine line, float rearZ, float speed, params OtherCar[] cars)
+    {
+        var driver = new PursuitDriver(line, 3f, 4f, 14f);
+        driver.Step(new DriveInput { RearX = 0, RearZ = rearZ, Heading = 0, SpeedMs = speed, Dt = 0.02f });
+        var graph = new TurnTestGraph();
+        graph.Add(0, 0);
+        var traffic = new TrafficDriver(graph.Build(), line, driver, new RideBody { Wheelbase = 3f, FrontAhead = 4f, RearBehind = 1f, HalfWidth = 0.95f });
+        var at = line.Line.Project(0, rearZ, 0);
+        var heading = 0f;
+        return traffic.Decide(new TrafficSnapshot
+        {
+            RearX = line.Line.At(at).X, RearZ = line.Line.At(at).Z, Heading = heading, Speed = speed, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags(),
+        }, new TrafficDecision());
+    }
+
     [Fact]
     public void GivesWayToACrossingCarOnly()
     {
         var line = DriveLine.Build(Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 200)), Array.Empty<(int, Polyline)>());
-        var driver = new PursuitDriver(line, 3f, 4f, 14f);
-        driver.Step(new DriveInput { RearX = 0, RearZ = 8, Heading = 0, SpeedMs = 5, Dt = 0.02f });
-        // From the right at 10 m/s, 15 m off, crossing 8 m ahead of the front (z 20): give way, short of z 20.
-        var crossing = driver.YieldAlong(new[] { (15f, 20f, -10f, 0f) }, 5f);
-        Assert.NotNull(crossing);
-        Assert.InRange(crossing!.Value, 12f, 18.5f);
-        // Following on the line, a lane over in the same direction, or standing: no.
-        Assert.Null(driver.YieldAlong(new[] { (0f, -2f, 0f, 12f) }, 5f));
-        Assert.Null(driver.YieldAlong(new[] { (3.5f, 8f, 0f, 12f) }, 5f));
-        Assert.Null(driver.YieldAlong(new[] { (15f, 20f, 0f, 0f) }, 5f));
+        // From the right at 10 m/s, 15 m off, crossing 8 m ahead of the front (z 20): give way short of where the
+        // body would enter its way.
+        var crossing = Decide(line, 8f, 5f, Other(1, 15f, 20f, -10f, 0f));
+        Assert.NotNull(crossing.YieldAlong);
+        Assert.InRange(crossing.YieldAlong!.Value, 12f, 18.5f);
+        // Following on the line, a lane over in the same direction, oncoming a lane over, or standing beside: no.
+        Assert.Null(Decide(line, 8f, 5f, Other(2, 0f, -2f, 0f, 12f)).YieldAlong);
+        Assert.Null(Decide(line, 8f, 5f, Other(3, 3.5f, 8f, 0f, 12f)).YieldAlong);
+        Assert.Null(Decide(line, 8f, 5f, Other(4, -3.2f, 60f, 0f, -12f)).YieldAlong);
+        var standing = Decide(line, 8f, 5f, Other(5, 15f, 20f, 0f, 0f));
+        Assert.Null(standing.YieldAlong);
+        Assert.Null(standing.GapAhead);
+        // A car that has already crossed and is moving away: no (NWH spike, nwh6: it stood 9 s after they had passed).
+        Assert.Null(Decide(line, 8f, 5f, Other(6, -4f, 20f, -10f, 0f)).YieldAlong);
     }
 
     [Fact]
-    public void GivesWayBeforeATurnNotInIt()
+    public void GivesWayWhereTheBodyMeetsTheirWayNotTheLine()
     {
-        // North, then a right turn at z 30 into an eastbound lane; an oncoming (southbound) car will cross the exit.
-        var arc = TurnArc.Fit(new Vec3(0, 0, 20), 0, 1, new Vec3(12, 0, 30), 1, 0, 6f)!;
-        var points = Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 20)).Concat(Straight(new Vec3(12, 0, 30), new Vec3(80, 0, 30))).ToList();
-        var line = DriveLine.Build(points, new[] { (points.FindIndex(p => Math.Abs(p.Z - 20) < 0.01f && p.X == 0), arc) });
-        var driver = new PursuitDriver(line, 3f, 4f, 14f);
-        driver.Step(new DriveInput { RearX = 0, RearZ = 12, Heading = 0, SpeedMs = 5, Dt = 0.02f });
-        // A car coming down x = 8 at 10 m/s reaches the exit near (8, 30) in 2.5 s, as this car gets there.
-        var give = driver.YieldAlong(new[] { (8f, 55f, 0f, -10f) }, 5f);
+        // North, then a left turn at z 20 into a westbound lane at z 30; an oncoming (southbound) car will cross the
+        // turn. The body enters its lane before the line does.
+        var arc = TurnArc.Fit(new Vec3(0, 0, 20), 0, 1, new Vec3(-12, 0, 30), -1, 0, 6f)!;
+        var points = Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 20)).Concat(Straight(new Vec3(-12, 0, 30), new Vec3(-80, 0, 30))).ToList();
+        var entry = points.FindIndex(p => Math.Abs(p.Z - 20) < 0.01f && p.X == 0);
+        var line = DriveLine.Build(points, new[] { (entry, arc) });
+        var give = Decide(line, 12f, 5f, Other(1, -3.5f, 60f, 0f, -10f)).YieldAlong;
         Assert.NotNull(give);
-        // It waits before the bend starts (the arc leaves the entry lane at z 20), not at the meeting point.
-        Assert.True(give!.Value <= line.AlongOf[points.FindIndex(p => Math.Abs(p.Z - 20) < 0.01f && p.X == 0)] + 3f, $"gives way at {give} m");
+        // Where the line itself reaches the oncoming lane (x = -3.5 + 0.95 + 0.2), and the yield point must be well
+        // short of it.
+        var lineMeets = 0f;
+        for (var s = 0f; s < line.Line.Length; s += 0.1f) if (line.Line.At(s).X <= -2.35f) { lineMeets = s; break; }
+        Assert.True(give!.Value - 4f < lineMeets - 2f, $"gives way with the front at {give} m, the line meets their lane at {lineMeets} m");
     }
 }
