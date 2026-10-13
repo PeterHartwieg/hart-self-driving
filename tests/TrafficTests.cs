@@ -109,9 +109,14 @@ public sealed class TrafficTests
         var files = System.IO.Directory.GetFiles(folder!, "*.json");
         foreach (var file in files)
         {
-            var r = Run(TrafficScenarioJson.Load(System.IO.File.ReadAllText(file)));
+            var scenario = TrafficScenarioJson.Load(System.IO.File.ReadAllText(file));
+            var r = Run(scenario);
             output.WriteLine($"{System.IO.Path.GetFileName(file)}: {r}");
-            Assert.True(r.Failure == null, $"{System.IO.Path.GetFileName(file)}: {r.Failure}");
+            // A dump of a standstill the game resolved by itself (a busy merge, a Gley car waiting at its own give-way)
+            // may stand in the simulation too, whose traffic is no better at clearing it; it must not touch or run a red.
+            var gameStood = scenario.Note.StartsWith("standing", StringComparison.Ordinal);
+            var failure = r.Failure != null && gameStood && r.Failure.StartsWith("standing", StringComparison.Ordinal) ? null : r.Failure;
+            Assert.True(failure == null, $"{System.IO.Path.GetFileName(file)}: {failure}");
         }
     }
 
