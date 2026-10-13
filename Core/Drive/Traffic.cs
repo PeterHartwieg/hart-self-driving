@@ -71,6 +71,9 @@ namespace DrivenRides.Core.Drive
         public ILiveFlags Flags;
         // Metres free behind the rear bumper (parked cars, people), or null when nothing is near.
         public float? GapBehind;
+        // Metres free ahead of the front bumper on the car's way (parked cars, people: what the adapter's own cast
+        // sees), or null. Committing past a traffic car's way counts on it (review round 2, U1).
+        public float? GapAhead;
     }
 
     public enum JunctionEventKind { Enter, Leave }
