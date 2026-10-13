@@ -91,16 +91,17 @@ namespace DrivenRides
         public bool WaitingNow { get; private set; }
         public float Along => driver.Along;
         // The rig's records (TurnTests sets it before Begin): the per-step trace, kept as a ring of the last
-        // TraceLines steps, and the traffic recorder behind the scenario dumps. Off on a ride: nothing kept.
+        // TraceLines steps, the traffic recorder behind the scenario dumps, and the traffic cost. Off on a ride: nothing
+        // kept, and none of their buffers made (review round 2, U5).
         public bool Recording;
         private const int TraceLines = 30000;
         private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic\n";
-        private readonly string[] traceRing = new string[TraceLines];
+        private string[]? traceRing;
         private int traceNext, traceCount;
         private readonly StringBuilder traceLine = new StringBuilder(160);
         // Per-step traffic cost (review round 1, O7): reading Gley's cars within TrafficDriver.SeeMetres and Decide,
         // in microseconds, and the cars read; logged as percentiles when the drive ends.
-        public readonly CostSamples ReadCost = new CostSamples(), DecideCost = new CostSamples(), CarsRead = new CostSamples();
+        public CostSamples? ReadCost, DecideCost, CarsRead;
         private static readonly double MicrosPerTick = 1e6 / Stopwatch.Frequency;
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -110,6 +111,13 @@ namespace DrivenRides
         {
             Car = car;
             topMs = topKmh / 3.6f;
+            if (Recording && traceRing == null)
+            {
+                traceRing = new string[TraceLines];
+                ReadCost = new CostSamples();
+                DecideCost = new CostSamples();
+                CarsRead = new CostSamples();
+            }
             UsePath(path, arcs, slow);
             gley = new GleyTraffic(car.Root);
             startedAt = Time.time;
@@ -188,8 +196,8 @@ namespace DrivenRides
             var ticks = Stopwatch.GetTimestamp();
             gley.ReadCars(rear, TrafficDriver.SeeMetres, cars);
             var read = Stopwatch.GetTimestamp();
-            ReadCost.Add((float)((read - ticks) * MicrosPerTick));
-            CarsRead.Add(cars.Count);
+            ReadCost?.Add((float)((read - ticks) * MicrosPerTick));
+            CarsRead?.Add(cars.Count);
             if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, driver.Integral, cars, gley.Components);
             // What the cast sees ahead (parked cars, people): the traffic rules count on it before committing past a
             // traffic car's way (review round 2, U1), and the driver stops for it.
@@ -201,7 +209,7 @@ namespace DrivenRides
             };
             ticks = Stopwatch.GetTimestamp();
             traffic.Decide(snapshot, decision);
-            DecideCost.Add((float)((Stopwatch.GetTimestamp() - ticks) * MicrosPerTick));
+            DecideCost?.Add((float)((Stopwatch.GetTimestamp() - ticks) * MicrosPerTick));
             foreach (var e in decision.Events)
             {
                 gley.Apply(e);
@@ -315,6 +323,7 @@ namespace DrivenRides
                 .Append(gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.Why.Replace(',', ';')).Append('\n');
+            if (traceRing == null) return;
             traceRing[traceNext] = sb.ToString();
             traceNext = (traceNext + 1) % TraceLines;
             if (traceCount < TraceLines) traceCount++;
@@ -325,7 +334,7 @@ namespace DrivenRides
         {
             var all = new StringBuilder(TraceHeader, 64 + traceCount * 120);
             var first = (traceNext - traceCount + TraceLines) % TraceLines;
-            for (var k = 0; k < traceCount; k++) all.Append(traceRing[(first + k) % TraceLines]);
+            if (traceRing != null) for (var k = 0; k < traceCount; k++) all.Append(traceRing[(first + k) % TraceLines]);
             return all.ToString();
         }
 
@@ -495,7 +504,7 @@ namespace DrivenRides
 
         private void End(string reason, bool arrived)
         {
-            if (!Ended && DecideCost.Total > 0) Log.Info(CostLine());
+            if (!Ended && DecideCost != null && DecideCost.Total > 0) Log.Info(CostLine());
             Ended = true;
             Arrived = arrived;
             EndReason = reason;
@@ -505,7 +514,7 @@ namespace DrivenRides
 
         // The traffic cost over the drive (review round 1, O7): Gley's cars read within TrafficDriver.SeeMetres and
         // TrafficDriver.Decide, per physics step.
-        public string CostLine() =>
+        public string CostLine() => DecideCost == null || ReadCost == null || CarsRead == null ? "NWH drive: traffic cost not recorded." :
             $"NWH drive: traffic cost over {DecideCost.Total} steps: reading Gley's cars within {TrafficDriver.SeeMetres:0} m " +
             $"({CarsRead.Percentile(50):0} cars at the median, {CarsRead.Max:0} at most) p50 {ReadCost.Percentile(50):0} µs, p99 {ReadCost.Percentile(99):0} µs; " +
             $"deciding p50 {DecideCost.Percentile(50):0} µs, p99 {DecideCost.Percentile(99):0} µs, max {DecideCost.Max:0} µs.";
