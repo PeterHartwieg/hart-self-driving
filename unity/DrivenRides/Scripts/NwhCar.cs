@@ -22,6 +22,9 @@ namespace DrivenRides
         public NwhController Vehicle = null!;
         public Rigidbody Body = null!;
         public string TypeName = "";
+        // A car dressed as a traffic car that has no drivable twin (NwhDress): that traffic prefab's name; null for a
+        // drivable car in its own looks. The physics, the steering and the body box are always TypeName's.
+        public string? Look;
         // In the car's own space: the axles' z, the body box.
         public float RearZ, FrontZ, MaxSteer;
         public Vector3 BodyCentre, BodyHalf;
@@ -52,7 +55,21 @@ namespace DrivenRides
             return asset != null && asset.GetComponentInChildren<NwhController>(true) != null;
         }
 
-        public static NwhCar? Spawn(string vehicleTypeName, Vector3 at, Quaternion rotation, out string why)
+        public static NwhCar? Spawn(string vehicleTypeName, Vector3 at, Quaternion rotation, out string why) =>
+            Spawn(vehicleTypeName, at, rotation, null, out why);
+
+        // A drivable car that looks like a traffic car without a drivable twin (the taxi): the drivable car closest in
+        // size, with the traffic model's meshes on it (NwhDress). The donor is picked once per traffic prefab.
+        public static NwhCar? SpawnDressed(GameObject trafficPrefab, Vector3 at, Quaternion rotation, out string why)
+        {
+            var donor = NwhDress.DonorFor(trafficPrefab, out why);
+            if (donor == null) return null;
+            return Spawn(donor.TypeName, at, rotation, car => NwhDress.Dress(car, trafficPrefab, donor), out why);
+        }
+
+        // dress runs on the stripped car before it wakes, so whatever it adds wakes with the car; it returns why it
+        // failed, or null.
+        private static NwhCar? Spawn(string vehicleTypeName, Vector3 at, Quaternion rotation, Func<NwhCar, string?>? dress, out string why)
         {
             why = "";
             var holder = new GameObject("DrivenRides.NwhHolder");
@@ -80,6 +97,11 @@ namespace DrivenRides
                 car.MaxSteer = vehicle.steering.maximumSteerAngle;
                 car.SpeedCurve = vehicle.steering.speedSensitiveSteeringCurve;
                 Measure(car);
+                if (dress != null)
+                {
+                    var failed = dress(car);
+                    if (failed != null) { why = failed; Object.Destroy(root); return null; }
+                }
 
                 // The layer the game gives a car the player drives (VehicleController.EnterVehicle), so traffic treats it
                 // as it treats the player's car.
