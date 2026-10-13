@@ -34,7 +34,7 @@ namespace DrivenRides
             Try("obstacle lists", ObstacleLists);
             var cost = Cost();
             while (cost.MoveNext()) yield return cost.Current;
-            var light = Light(near);
+            var light = Lights(near);
             while (true)
             {
                 object? step;
@@ -84,6 +84,9 @@ namespace DrivenRides
                 try { return $"{w.listIndex} at {(w.position - near).magnitude:0} m, {IntersectionOf(w)!.GetType().Name}: {w.CanChange()}"; }
                 catch (Exception ex) { return $"{w.listIndex}: {ex.GetType().Name} {ex.Message}"; }
             });
+            var loose = all.Where(w => w != null && w.giveWay && IntersectionOf(w) == null).OrderBy(w => (w.position - near).sqrMagnitude).Take(5)
+                .Select(w => $"{w.listIndex} at {(w.position - near).magnitude:0} m ({w.position.x:0}, {w.position.z:0})");
+            Log.Info("NWH measure, give way outside intersections, nearest: " + string.Join("; ", loose) + ".");
             Log.Info($"NWH measure, give way: {all.Count(w => w != null && w.giveWay)} give-way waypoints, {all.Count(w => w != null && w.giveWay && IntersectionOf(w) != null)} in an intersection; nearest: {string.Join("; ", parts)}.");
         }
 
@@ -142,9 +145,20 @@ namespace DrivenRides
             Log.Info($"NWH measure, cost per physics step: median {times[times.Count / 2]:0} µs, 95% {times[times.Count * 95 / 100]:0} µs, max {times[times.Count - 1]:0} µs, for {counts.Average():0.0} cars within 60 m (of {Pool().Count(v => v != null && v.gameObject.activeInHierarchy)} active).");
         }
 
+        // Two lights, each with nobody counted inside when the test starts, so the hold can only be the -1.
+        private static IEnumerator Lights(Vector3 near)
+        {
+            var done = new HashSet<TrafficLightsIntersection>();
+            for (var n = 0; n < 2; n++)
+            {
+                var one = Light(near, done);
+                while (one.MoveNext()) yield return one.Current;
+            }
+        }
+
         // 5. Whether counting a car with index -1 in the nearest active traffic light holds it on yellow, and whether
         // taking it out lets the light go on.
-        private static IEnumerator Light(Vector3 near)
+        private static IEnumerator Light(Vector3 near, HashSet<TrafficLightsIntersection> done)
         {
             var manager = IntersectionManagerField?.GetValue(TrafficManager.Instance);
             var active = manager != null ? ActiveIntersectionsField?.GetValue(manager) as List<GenericIntersection> : null;
@@ -154,15 +168,17 @@ namespace DrivenRides
             if (active != null && all != null)
                 foreach (var i in active.OfType<TrafficLightsIntersection>())
                 {
+                    if (done.Contains(i) || ((CarsInField?.GetValue(i) as List<int>)?.Count ?? 1) > 0 || i.exitWaypoints == null || i.exitWaypoints.Count == 0) continue;
                     var first = i.stopWaypoints?.SelectMany(s => s.roadWaypoints).FirstOrDefault() ?? -1;
                     if (first < 0 || first >= all.Length || all[first] == null) continue;
                     var d = (all[first].position - near).sqrMagnitude;
                     if (d < best) { best = d; light = i; }
                 }
-            if (light == null) { Log.Info($"NWH measure, light: no active traffic light ({active?.Count ?? -1} active intersections)."); yield break; }
+            if (light == null) { Log.Info($"NWH measure, light: no active traffic light with nobody inside ({active?.Count ?? -1} active intersections)."); yield break; }
+            done.Add(light);
             int Road() => CurrentRoadField?.GetValue(light) is int r ? r : -1;
             bool Yellow() => YellowField?.GetValue(light) is bool y && y;
-            int Inside() => (CarsInField?.GetValue(light) as List<int>)?.Count ?? -1;
+            string Inside() => CarsInField?.GetValue(light) is List<int> l ? $"[{string.Join(",", l)}]" : "?";
             Log.Info($"NWH measure, light: {light.name} at {Mathf.Sqrt(best):0} m, green {light.greenLightTime:0.0} s, yellow {light.yellowLightTime:0.0} s, road {Road()}, yellow {Yellow()}, cars inside {Inside()}.");
             ((IIntersection)light).VehicleEnter(-1);
             var held = Time.realtimeSinceStartup;
@@ -173,6 +189,7 @@ namespace DrivenRides
             while (Time.realtimeSinceStartup - held < hold)
             {
                 yield return new WaitForSecondsRealtime(0.5f);
+                if (Yellow() && !sawYellow) Log.Info($"NWH measure, light yellow {Time.realtimeSinceStartup - held:0.0} s after -1 went in, inside {Inside()}.");
                 sawYellow |= Yellow();
                 if (Road() != startRoad) { changed = true; break; }
             }
