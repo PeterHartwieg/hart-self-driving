@@ -186,6 +186,7 @@ namespace DrivenRides
                 case "run": Start(args, null); break;
                 case "rerun": if (rest.Count > 0) Start(args, rest[0]); break;
                 case "stop": if (session != null) session.StopRequested = true; break;
+                case "measure": StartCoroutine(NwhMeasure.Run(Camera.main != null ? Camera.main.transform.position : transform.position)); break;
                 default: Log.Error("Turn tests: unknown command " + words[0]); break;
             }
         }
