@@ -690,6 +690,7 @@ namespace DrivenRides
             var testCar = car.Root.AddComponent<TestCar>();
             testCar.SetBody(car.BodyCentre, car.BodyHalf);
             testCar.FrontAxleOf = () => car.FrontAxle;
+            testCar.Wheels = car.Vehicle.powertrain.wheels.Where(w => w?.wheelUAPI != null).Select(w => w.wheelUAPI).ToArray();
             var outline = testCar.Outline();
             var middle = (outline[0] + outline[2]) / 2f + Vector3.up;
             var blockers = Physics.OverlapBox(middle, new Vector3(testCar.HalfWidth, 0.8f, car.Length / 2f), car.Root.transform.rotation, TestCar.ObstacleMask, QueryTriggerInteraction.Ignore);
