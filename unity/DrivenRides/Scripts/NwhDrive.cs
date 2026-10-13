@@ -65,8 +65,9 @@ namespace DrivenRides
         public Func<int, string, DrivePlan?>? Replan;
         private int blockedPosition;
 
-        // T3's tally: contacts with traffic cars (and who was moving), standstills over 30 s away from a red, red runs.
-        public int Contacts, ContactsMoving, Stalls, RedRuns;
+        // T3's tally: contacts with traffic cars (all, and those this car caused), standstills over 30 s away from a
+        // red, red runs (TrafficVerdict).
+        public int Contacts, ContactsCaused, Stalls, RedRuns;
         private float standing;
         private float prevFront;
         private readonly Dictionary<int, bool> stoppable = new Dictionary<int, bool>();
@@ -160,7 +161,7 @@ namespace DrivenRides
             // The traffic snapshot: the path's waypoints from a little behind to 80 m ahead, the Gley cars round it.
             Marks(front);
             gley.ReadCars(rear, TrafficDriver.SeeMetres, cars);
-            recorder.Record(Time.time, rear, heading, speed, driver.Along, cars, gley.Components);
+            recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, cars, gley.Components);
             traffic.Decide(new TrafficSnapshot
             {
                 Time = Time.time, RearX = rear.x, RearZ = rear.z, Heading = heading, Speed = speed, Marks = marks, Cars = cars, Flags = gley,
@@ -292,6 +293,8 @@ namespace DrivenRides
                     var w = all[path[k]];
                     if (w == null || !w.stop || !Options.TrafficLights) { stoppable.Remove(k); continue; }
                     if (!stoppable.ContainsKey(k) && along > prevFront) stoppable[k] = along - prevFront - speed * 0.1f > speed * speed / (2f * PursuitDriver.HardDecel);
+                    // Standing short of a set stop: whatever it saw first, a pass from here is a red run.
+                    if (Mathf.Abs(speed) < 0.5f && along > prevFront && along - prevFront < 10f) stoppable[k] = true;
                     if (prevFront < along && front >= along && stoppable.TryGetValue(k, out var could) && could)
                     {
                         RedRuns++;
@@ -319,8 +322,13 @@ namespace DrivenRides
             var ours = Car.Body.velocity.magnitude;
             var theirs = other.rb != null ? other.rb.velocity.magnitude : 0f;
             Contacts++;
-            if (ours > 0.5f) ContactsMoving++;
-            Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s, it {theirs:0.0} m/s ({decision.Why}).");
+            // Caused by this car when it was moving towards the point of contact; a car that ran into it standing or
+            // moving away (rear-ended, cut in on) caused it itself.
+            var at = collision.contactCount > 0 ? collision.GetContact(0).point : other.transform.position;
+            var towards = Vector3.Dot(Car.Body.velocity, Vector3.ProjectOnPlane(at - Car.Body.worldCenterOfMass, Vector3.up).normalized);
+            var caused = ours > 0.5f && towards > 0.5f;
+            if (caused) ContactsCaused++;
+            Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s ({towards:0.0} towards it), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
             Dump("contact", $"contact with traffic car {other.GetIndex()}: this car {ours:0.0} m/s, it {theirs:0.0} m/s");
         }
 
@@ -329,7 +337,7 @@ namespace DrivenRides
             if (Dumps.Count >= MaxDumps) return;
             try
             {
-                var s = recorder.Build($"{kind}-{Dumps.Count + 1}", $"{what}; {Car.TypeName}, version {DrivenRidesMod.Version}", Car, topMs, path, line, arcs, slowStretches, gley);
+                var s = recorder.Build($"{kind}-{Dumps.Count + 1}", $"{what}; {Car.TypeName}, version {DrivenRidesMod.Version}", Car, topMs, TrackWidth, path, line, arcs, slowStretches, gley);
                 if (s != null) Dumps.Add((kind, s.ToJson()));
             }
             catch (Exception ex) { Log.Error("Traffic dump: " + ex); }

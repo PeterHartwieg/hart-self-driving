@@ -25,7 +25,7 @@ namespace DrivenRides
         private sealed class Frame
         {
             public ScenarioFrame State = new ScenarioFrame();
-            public float Along;
+            public float Along, Steer;
             // Waypoints with `stop` set among those watched.
             public HashSet<int> Stops = new HashSet<int>();
         }
@@ -35,7 +35,7 @@ namespace DrivenRides
         private readonly HashSet<int> watched = new HashSet<int>();
         private float next, watchedAt = float.MinValue;
 
-        public void Record(float time, Vector3 rear, float heading, float speed, float along, IReadOnlyList<OtherCar> cars, IReadOnlyList<VehicleComponent> components)
+        public void Record(float time, Vector3 rear, float heading, float speed, float along, float steer, IReadOnlyList<OtherCar> cars, IReadOnlyList<VehicleComponent> components)
         {
             if (time < next) return;
             next = time + Every;
@@ -49,7 +49,7 @@ namespace DrivenRides
                 watched.Clear();
                 foreach (var w in graph.Near(GleyGraph.ToVec(rear), Around)) if (all[w] != null && all[w].enter) watched.Add(w);
             }
-            var f = new Frame { Along = along };
+            var f = new Frame { Along = along, Steer = steer };
             f.State.T = time;
             f.State.RideX = rear.x;
             f.State.RideZ = rear.z;
@@ -70,7 +70,8 @@ namespace DrivenRides
         }
 
         // The scenario from the oldest frame kept to now. path/line/arcs/slow: the ride's, as NwhDrive drives it.
-        public TrafficScenario? Build(string name, string note, NwhCar car, float topMs, List<int> path, DriveLine line,
+        // trackWidth: the front track NwhDrive steers with (NWH's Ackermann).
+        public TrafficScenario? Build(string name, string note, NwhCar car, float topMs, float trackWidth, List<int> path, DriveLine line,
             IReadOnlyList<(int Entry, Polyline Arc)> arcs, IReadOnlyList<(float From, float To, float Ms)> slow, GleyTraffic traffic)
         {
             var all = GleyGraph.Waypoints;
@@ -158,6 +159,24 @@ namespace DrivenRides
             ride.Heading = first.State.RideHeading;
             ride.Speed = first.State.RideSpeed;
             foreach (var (from, to, ms) in slow) if (to > shift) ride.Slow.Add((from - shift, to - shift, ms));
+            // The car as measured (review round 1, S10): its lock at speeds, its track, the model's yaw factor, the
+            // wheel's rate and angle; and the line as driven (arcs, fillets, shifts) from the path's start on.
+            for (var ms = 0f; ms <= 30f; ms += 2.5f) ride.LockCurve.Add((ms, car.LockAt(ms)));
+            ride.TrackWidth = trackWidth;
+            ride.YawFactor = CarSpec.DefaultYawFactor;
+            ride.WheelRate = car.Vehicle != null ? car.Vehicle.steering.degreesPerSecondLimit : CarModel.WheelRate;
+            ride.Steer = first.Steer;
+            var lineEnd = line.AlongOf[start + ride.Path.Length - 1] + 10f;
+            ride.Line.Add(line.Line.At(shift));
+            for (var i = 0; i < line.Line.Points.Count; i++)
+            {
+                var along = line.Along(i);
+                if (along <= shift + 0.05f) continue;
+                if (along > lineEnd) break;
+                ride.Line.Add(line.Line.Points[i]);
+            }
+            ride.LineAlong = new float[ride.Path.Length];
+            for (var k = 0; k < ride.Path.Length; k++) ride.LineAlong[k] = line.AlongOf[start + k] - shift;
 
             // Each traffic car from where it was first seen, through the targets it went for.
             var seen = new Dictionary<int, ScenarioCar>();

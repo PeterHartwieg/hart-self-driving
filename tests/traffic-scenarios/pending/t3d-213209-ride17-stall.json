@@ -1,6 +1,6 @@
 {
 "name":"stall-1",
-"note":"standing 30 s (giving way to 7); ba:vehicletype_limo, version 0.1.70",
+"note":"standing 30 s (giving way to 7); ba:vehicletype_limo, version 0.1.70. Pending: in game a merge into a dense stream of cars; the simulation's cars jam in the junction there and the ride car never gets a gap. Replay test: Ride17GivesWayOnlyToCarsThatAreComing.",
 "seconds":40,
 "waypoints":[
 {"p":[-132.158,0,-204.583],"n":[591],"x":1,"s":50,"src":4},

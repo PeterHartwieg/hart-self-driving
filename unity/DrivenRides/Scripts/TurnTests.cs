@@ -864,6 +864,8 @@ namespace DrivenRides
             RestoreNwhScale(s);
 
             var result = judge.Result(timedOut);
+            // T3: traffic contacts this car caused, red runs and standstills fail the run (TrafficVerdict).
+            TrafficVerdict.Apply(result, drive.ContactsCaused, drive.Contacts - drive.ContactsCaused, drive.RedRuns, drive.Stalls);
             try
             {
                 File.WriteAllText(Path.Combine(Folder, s.RunId + "-samples.csv"), testCar.Samples.ToString());
@@ -872,7 +874,7 @@ namespace DrivenRides
                 line["trace"] = s.RunId + "-nwh.csv";
                 // T3: traffic contacts (this car moving), standstills, red runs; each failure's T0 scenario beside the trace.
                 line["contacts"] = drive.Contacts;
-                line["contactsMoving"] = drive.ContactsMoving;
+                line["contactsCaused"] = drive.ContactsCaused;
                 line["stalls"] = drive.Stalls;
                 line["redRuns"] = drive.RedRuns;
                 var dumps = new JArray();

@@ -11,8 +11,9 @@ namespace DrivenRides.Core.Drive
     // Distances `u` are metres along the corridor from the car's front now (its rear is at -Length).
     public sealed class Corridor
     {
-        // A traffic car's way of speeding up (Gley's cars take about 10 s to their top speed) and of slowing down.
-        public const float Accel = 1.5f;
+        // A traffic car's way of speeding up and of slowing down. Gley's cars take about 10 s to their top speed (1.4 m/s²
+        // at 50 km/h); 2 m/s² leaves room for the quicker ones (T0's cars speed up at 2).
+        public const float Accel = 2f;
         public const float Ease = 1.5f;
         // A traffic car stops for a `stop` waypoint it can stop for at this braking or less.
         public const float StopDecel = 4.5f;
@@ -30,13 +31,16 @@ namespace DrivenRides.Core.Drive
 
         public readonly List<Segment> Segments = new List<Segment>();
         public float Speed, TopSpeed, Length;
+        public bool SpeedingUp;
         public float MinX, MinZ, MaxX, MaxZ;
 
         // Builds the corridor of `car` as far as it can get in `seconds` and `beyond` metres more, from the lane graph
         // and Gley's live flags. The extra stretch is the ride car's sweep: a car coming the other way down the same
         // lane must be seen there before the ride car goes in, not only where it can be within the time. roadHeld: the
         // road the ride car holds at a junction, or -1 (JunctionRules.RoadHeld).
-        public void Build(LaneGraph graph, in OtherCar car, ILiveFlags flags, float seconds, float beyond, Func<int, int> roadHeld)
+        // speedingUp: the car has been gaining speed (TrafficDriver watches each car's speed over time): it goes on up
+        // to the road's limit, as a car that is pulling away does, rather than keeping its pace.
+        public void Build(LaneGraph graph, in OtherCar car, ILiveFlags flags, float seconds, float beyond, Func<int, int> roadHeld, bool speedingUp = false)
         {
             Segments.Clear();
             Speed = car.Speed;
@@ -45,7 +49,8 @@ namespace DrivenRides.Core.Drive
             // A car pulling away goes up to the road's limit; one already moving keeps its pace (Gley gives each
             // car its own top speed below the limit, VehicleComponent.maxSpeed), give or take a little.
             var limit = (target >= 0 ? graph.SpeedMs(target) : LaneGraph.DefaultSpeedMs) * 1.1f;
-            TopSpeed = Speed < StartingMs ? Math.Max(Speed, limit) : Math.Max(Speed, Math.Min(limit, Speed + 1f));
+            SpeedingUp = speedingUp;
+            TopSpeed = Speed < StartingMs || speedingUp ? Math.Max(Speed, limit) : Math.Max(Speed, Math.Min(limit, Speed + 1f));
             var reach = Math.Min(160f, Far(seconds) + 2f + beyond);
             float hx = (float)Math.Sin(car.Heading), hz = (float)Math.Cos(car.Heading);
             var half = car.Width / 2f + SideMargin;

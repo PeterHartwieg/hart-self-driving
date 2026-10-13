@@ -93,7 +93,10 @@ namespace DrivenRides.Core.Drive
         public float? YieldAlong;
         public int YieldFor = -1;
         // Where and when the conflict is, for the trace.
-        public string YieldNote = "";
+        // Kept as numbers and written out only when read (the adapter reads it when the reason changes): no string is
+        // built each physics step (review round 1, O7).
+        public string YieldNote => Note.ToString();
+        public YieldNote Note;
         // A traffic car in the way: metres from the front bumper to where the body would touch it, and which.
         public float? GapAhead;
         public int GapFor = -1;
@@ -119,7 +122,27 @@ namespace DrivenRides.Core.Drive
             BlockedWhy = "";
             StopIsRed = BackOff = false;
             Events.Clear();
-            Why = YieldNote = "";
+            Why = "";
+            Note = default;
         }
+    }
+
+    public enum YieldNoteKind { None, Conflict, Still, KeepClear }
+
+    // Where and when the conflict a yield is for lies, for the log and the trace.
+    public struct YieldNote
+    {
+        public YieldNoteKind Kind;
+        public int Pose, Car;
+        public float On, From, To, Early, Late, Speed;
+        public bool Same, HeadOn;
+
+        public override string ToString() => Kind switch
+        {
+            YieldNoteKind.Conflict => $"pose {Pose} ({On:0} m on) u {From:0.0}..{To:0.0}, us {Early:0.0}..{Late:0.0} s, it {Speed:0.0} m/s{(Same ? " same way" : HeadOn ? " head-on" : "")}",
+            YieldNoteKind.Still => "still giving way",
+            YieldNoteKind.KeepClear => $"keeping clear of car {Car}'s way",
+            _ => "",
+        };
     }
 }
