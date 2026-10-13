@@ -56,7 +56,7 @@ Recorded too: entry speed, the closest near-miss level (0.3, 0.2, 0.1 m), the ma
 
 In `<persistentDataPath>/DrivenRides/tests/`. The Mac script `tools/turn-tests.sh` writes `command.tmp` and renames it to `command.txt`; the mod reads and deletes it. A `stop.txt` file stops a run. The mod writes `status.json` (heartbeat, current case, counts), `results-<session>.jsonl` (one line per run) and pictures `<run id>.png`.
 
-Commands: `cars`; `catalogue`; `run tier=quick|full`; `run [kinds=turn,uturn,lanechange,ramp,ride,control] [cars=default|all|<names>] [speed=3] [limit=N] [ids=...] [rides=<lines>]`; `rerun <results file>` (the failed ones); `stop`.
+Commands: `cars`; `catalogue`; `run tier=quick|full`; `run [kinds=turn,uturn,lanechange,ramp,ride,control] [cars=default|all|<names>] [speed=3] [limit=N] [ids=...] [rides=<lines>]`; `rerun <results file>` (the failed ones); `stop`. `run driver=nwh [traffic=on]` drives each case with the car's own NWH physics; a car without a drivable prefab (the taxi) is the drivable car closest in size dressed as it (`NwhDress`, the result line names the `donor`). `dress [car=taxi|<traffic prefab>]` parks a dressed car beside the player to look at (also Ctrl+Alt+Shift+L); `dress remove` takes it away.
 
 ## Tiers and the avoid list
 

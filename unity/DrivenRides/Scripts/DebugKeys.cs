@@ -21,6 +21,7 @@ namespace DrivenRides
             (Key.V, "hospital now", Hospital),
             (Key.U, "throw in the ride's frame update", Ride.DebugThrow),
             (Key.J, "fake a save change", Ride.DebugFakeSaveChange),
+            (Key.L, "park a dressed taxi beside you", () => NwhDress.SpawnBeside("taxi")),
         };
 
         private void OnEnable() =>

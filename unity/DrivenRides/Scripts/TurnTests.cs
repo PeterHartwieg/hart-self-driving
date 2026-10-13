@@ -187,6 +187,11 @@ namespace DrivenRides
                 case "rerun": if (rest.Count > 0) Start(args, rest[0]); break;
                 case "stop": if (session != null) session.StopRequested = true; break;
                 case "measure": StartCoroutine(NwhMeasure.Run(Camera.main != null ? Camera.main.transform.position : transform.position)); break;
+                // dress [car=<traffic prefab, or taxi>] parks a dressed NWH car beside the player; dress remove takes it away.
+                case "dress":
+                    if (rest.Contains("remove")) NwhDress.Remove();
+                    else NwhDress.SpawnBeside(args.TryGetValue("car", out var which) ? which : "taxi");
+                    break;
                 default: Log.Error("Turn tests: unknown command " + words[0]); break;
             }
         }
@@ -263,6 +268,8 @@ namespace DrivenRides
             {
                 ["name"] = m.Name, ["prefab"] = m.Prefab.name, ["taxi"] = m.Taxi, ["topSpeed"] = m.TopSpeed,
                 ["length"] = Round(m.Length), ["width"] = Round(m.Width), ["turnRadius"] = Round(m.TurnRadius),
+                // The drivable car an NWH drive dresses as this one, for a car without its own drivable prefab.
+                ["donor"] = NwhCar.HasPrefab(m.Name) ? null : NwhDress.DonorFor(m.Prefab, out _) is NwhDress.Donor d ? NwhCar.Id(d.TypeName) : null,
             }.ToString(Newtonsoft.Json.Formatting.None));
             File.WriteAllLines(Path.Combine(Folder, "cars.jsonl"), lines);
             Log.Info("Turn tests: cars written.");
@@ -323,8 +330,9 @@ namespace DrivenRides
             var nwh = args.TryGetValue("driver", out var dr) && dr == "nwh";
             var trafficOn = args.TryGetValue("traffic", out var tr) && tr == "on";
             var models = Models();
-            // An NWH drive needs the car's drivable prefab: the taxi has none.
-            if (nwh) models = models.Where(m => !m.Taxi && NwhCar.HasPrefab(m.Name)).ToList();
+            // An NWH drive needs the car's drivable prefab; a car without one (the taxi) is a drivable car dressed as
+            // it (NwhDress).
+            if (nwh) models = models.Where(m => NwhCar.HasPrefab(m.Name) || NwhDress.DonorFor(m.Prefab, out _) != null).ToList();
             var plan = new List<(Fixture Fixture, CarModel Car)>();
             List<CarModel>? followUp = null;
             static IEnumerable<string> followUpNames(List<(Fixture Fixture, CarModel Car)> p, int from) => p.Skip(from).Select(x => x.Car.Name).Distinct();
@@ -649,8 +657,11 @@ namespace DrivenRides
             var ahead = all[firstPath.Count > 1 ? firstPath[1] : route[1]].position - start.position;
             ahead.y = 0f;
             var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(ahead) : Quaternion.identity;
-            var car = NwhCar.Spawn(model.Name, start.position + Vector3.up * 0.4f, rotation, out var why);
+            var car = NwhCar.HasPrefab(model.Name)
+                ? NwhCar.Spawn(model.Name, start.position + Vector3.up * 0.4f, rotation, out var why)
+                : NwhCar.SpawnDressed(model.Prefab, start.position + Vector3.up * 0.4f, rotation, out why);
             if (car == null) { Record(s, line, "setup-error", "no NWH car: " + why, null, null); yield break; }
+            if (car.Look != null) line["donor"] = NwhCar.Id(car.TypeName);
             s.NwhCar = car;
             // The prefab's origin is not its rear axle: the waypoint is where the rear axle starts.
             car.Root.transform.position -= rotation * new Vector3(0f, 0f, car.RearZ);

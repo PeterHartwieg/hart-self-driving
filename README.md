@@ -25,7 +25,7 @@ What has been seen in the game, what is pending and what is only read from code.
 
 ## Debug keys
 
-Ctrl+Alt+Shift with: **G** graph stats, **X** clear a stuck ride, **K** remove the ride car, **V** hospital mid-ride, **U** throw inside the ride, **J** fake a save change. Spike builds only.
+Ctrl+Alt+Shift with: **G** graph stats, **X** clear a stuck ride, **K** remove the ride car, **V** hospital mid-ride, **U** throw inside the ride, **J** fake a save change, **L** park an NWH car dressed as a taxi beside you. Spike builds only.
 
 ## Licence
 
