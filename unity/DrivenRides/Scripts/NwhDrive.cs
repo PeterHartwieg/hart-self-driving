@@ -19,6 +19,8 @@ namespace DrivenRides
     internal sealed class NwhDrive : MonoBehaviour
     {
         public NwhCar Car = null!;
+        // The front track for NWH's Ackermann (CarModel.TrackWidth), set before Begin; 0 steers as for a bicycle.
+        public float TrackWidth;
         private PursuitDriver driver = null!;
         private DriveLine line = null!;
         private List<int> path = null!;
@@ -84,7 +86,7 @@ namespace DrivenRides
             foreach (var i in path) points.Add(GleyGraph.ToVec(all[i].position));
             line = DriveLine.Build(points, arcs);
             topMs = topKmh / 3.6f;
-            driver = new PursuitDriver(line, car.Wheelbase, car.FrontAhead, topMs);
+            driver = new PursuitDriver(line, car.Wheelbase, car.FrontAhead, topMs, TrackWidth);
             // A slow position covers the stretch from it to the next position.
             foreach (var (position, kmh) in slow)
             {

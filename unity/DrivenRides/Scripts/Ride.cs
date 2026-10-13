@@ -179,6 +179,7 @@ namespace DrivenRides
             plannedMetres = route.LengthMetres;
             carLength = LengthOf(prefab);
             carSteering = new Steering(PooledCopy(prefab));
+            nwhPlanner = kind == Kind.Test ? null : planNwh;
             path = Expand(route);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
@@ -325,6 +326,7 @@ namespace DrivenRides
                 if (prefab == null) return Vanilla("no vehicle prefab");
                 planLength = LengthOf(prefab);
                 planSteering = new Steering(PooledCopy(prefab));
+                planNwh = PlanForNwh ? NwhPlanner.ForTrafficPrefab(prefab.gameObject, 0f) : null;
 
                 var graph = GleyGraph.Graph;
                 var manager = TrafficManager.HasInstance && TrafficManager.IsInitialized ? TrafficManager.Instance : null;
@@ -414,11 +416,12 @@ namespace DrivenRides
                 // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
                 for (var attempt = 0; route != null && attempt < 6; attempt++)
                 {
-                    var blocked = FindBlockedSteps(graph, route.Waypoints, planSteering);
+                    var blocked = planNwh != null ? planNwh.BlockedSteps(graph, route.Waypoints) : FindBlockedSteps(graph, route.Waypoints, planSteering);
                     if (blocked.Count == 0) break;
                     foreach (var (from, to, what) in blocked)
                     {
-                        GleyGraph.BlockStep(from, to);
+                        if (planNwh != null) planNwh.Block(from, to);
+                        else GleyGraph.BlockStep(from, to);
                         Log.Info($"Step {from} -> {to} blocked by '{what}'.");
                     }
                     route = Plan(graph, route.Waypoints[0], goals, vehicleType, out var ms, out why);
@@ -523,6 +526,12 @@ namespace DrivenRides
         // left out (TestedSteps).
         private static float planLength;
         private static Steering planSteering;
+        // A ride car driven by its own physics (NWH) is planned with its drivable prefab's shape and Core's feasibility
+        // check instead of the Gley model (NwhPlanner); TestedSteps is then a record, not a filter. Off until rides
+        // are driven that way (docs/implementation-plan.md, phase 5); the rig's driver=nwh uses NwhPlanner directly.
+        internal static bool PlanForNwh { get; set; }
+        private static NwhPlanner? planNwh;
+        private readonly NwhPlanner? nwhPlanner;
         private float carLength;
         private Steering carSteering;
 
@@ -548,7 +557,7 @@ namespace DrivenRides
                 Goals = goals,
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
-                IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || TestedSteps.Blocks(a, b, planLength),
+                IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || (planNwh != null ? planNwh.IsBlocked(a, b) : TestedSteps.Blocks(a, b, planLength)),
             });
             while (job.Status == PlanStatus.Running && watch.ElapsedMilliseconds < PlanBudgetMs)
                 job.Step(PlanStep, () => watch.ElapsedMilliseconds >= PlanBudgetMs);
@@ -1158,6 +1167,19 @@ namespace DrivenRides
         {
             var steering = carSteering;
             var graph = GleyGraph.Graph;
+            if (nwhPlanner != null && graph != null)
+            {
+                var plan = nwhPlanner.Plan(graph, r.Waypoints);
+                arcs.Clear();
+                arcAt = 0;
+                arcAlong = -1f;
+                foreach (var (at, line) in plan.Arcs) arcs.Add((plan.Path[at], plan.Path[at + 1], line));
+                slowPath.Clear();
+                slowPath.UnionWith(plan.Expanded.SlowPath);
+                uTurnPath.Clear();
+                uTurnPath.UnionWith(plan.Expanded.UTurnPath);
+                return plan.Path;
+            }
             var expanded = PathExpander.Expand(graph, r.Waypoints, (e, x, a) => TurnClear(e, x, a, steering), (e, x) => ArcClear(e, x, steering));
             arcs.Clear();
             arcAt = 0;
@@ -1648,11 +1670,12 @@ namespace DrivenRides
                 for (var q = k; q < w.Count && q <= k + 4; q++) ahead.Add(w[q]);
                 var from = w[k];
                 var to = w[k + 1];
-                var blocked = FindBlockedSteps(graph, ahead, carSteering).FindAll(b => b.From == from && b.To == to);
+                var blocked = (nwhPlanner != null ? nwhPlanner.BlockedSteps(graph, ahead, 0f) : FindBlockedSteps(graph, ahead, carSteering)).FindAll(b => b.From == from && b.To == to);
                 if (blocked.Count == 0) continue;
                 // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
-                GleyGraph.BlockStep(w[k], w[k + 1]);
+                if (nwhPlanner != null) nwhPlanner.Block(w[k], w[k + 1]);
+                else GleyGraph.BlockStep(w[k], w[k + 1]);
                 Event($"Step {w[k]} -> {w[k + 1]} ahead blocked by '{blocked[0].What}'; replanning.");
                 return true;
             }
@@ -1702,7 +1725,7 @@ namespace DrivenRides
                 Goals = goals,
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
-                IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || TestedSteps.Blocks(a, b, carLength),
+                IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || (nwhPlanner != null ? nwhPlanner.IsBlocked(a, b) : TestedSteps.Blocks(a, b, carLength)),
             });
             replanSeconds = 0f;
             Log.Info("Watchdog: replanning (" + watch!.LastReason + ").");
