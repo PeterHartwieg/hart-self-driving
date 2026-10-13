@@ -48,10 +48,16 @@ namespace DrivenRides.Core.Drive
         public float YawGain => CarModel.YawGain(Wheelbase, TrackWidth);
 
         // The car's tightest circle at a speed, measured at the rear axle.
-        public float RadiusAt(float speedMs) => (float)(1 / CarModel.Curvature(Math.Max(5f, LockAt(speedMs)), Wheelbase, TrackWidth));
+        public float RadiusAt(float speedMs) => (float)(1 / (YawFactor * CarModel.Curvature(Math.Max(5f, LockAt(speedMs)), Wheelbase, TrackWidth)));
+
+        // How sharply the car turns against the model at the same wheel angle (CarModel.YawFactor): 0.97 replays the
+        // T2 runs of the limo, the Dash and the taxi best (U-turn exits within 0.21 to 0.39 m, every run within 0.41 m;
+        // tools/calibrate with YAW=).
+        public const float DefaultYawFactor = 0.97f;
+        public float YawFactor { get; set; } = DefaultYawFactor;
 
         // The model of this car at a pose.
-        public CarModel Model(double x, double z, double heading, double speed = 0) => new CarModel(Wheelbase, LockAt, x, z, heading, speed) { TrackWidth = TrackWidth, Rate = WheelRate };
+        public CarModel Model(double x, double z, double heading, double speed = 0) => new CarModel(Wheelbase, LockAt, x, z, heading, speed) { TrackWidth = TrackWidth, Rate = WheelRate, YawFactor = YawFactor };
 
         // The car's circle at the speed it takes the tightest arc a junction may get for it: TurnArc.Fit makes an arc
         // RadiusSlack wider than this (and never under MinDriveRadius), and the driver takes an arc at its corner speed

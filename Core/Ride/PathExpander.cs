@@ -40,10 +40,13 @@ namespace DrivenRides.Core.Ride
                 if (graph == null || k + 1 >= w.Count) continue;
                 var vias = graph.TurnVias(w[k], w[k + 1]);
                 var uTurn = graph.IsUTurn(w[k], w[k + 1]);
-                if (vias.Count > 0 && !uTurn && arc != null && arc(w[k], w[k + 1]))
+                if (vias.Count > 0 && arc != null && arc(w[k], w[k + 1]))
                 {
+                    // A turn's or a U-turn's driver's line (TurnArc.Fit, TurnArc.FitUTurn): no vias, the car follows the
+                    // line from the entry to the target.
                     for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);
                     slowPath.Add(result.Count);
+                    if (uTurn) { expanded.UTurnPath.Add(result.Count - 1); expanded.UTurnPath.Add(result.Count); }
                     expanded.Arcs.Add((w[k], w[k + 1]));
                     continue;
                 }

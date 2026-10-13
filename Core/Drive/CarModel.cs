@@ -23,6 +23,9 @@ namespace DrivenRides.Core.Drive
         // the limo turns the car 0.8 as sharply as a bicycle with that wheel angle, at every angle and speed in the
         // rig's traces (tools/calibrate).
         public float TrackWidth;
+        // The car's yaw over the model's at the same wheel angle and track, from the rig's traces (tools/calibrate):
+        // NWH's tyres give a little; the limo, the Dash and the taxi all turned 0.96 to 0.97 as sharply.
+        public float YawFactor = 1f;
         private double smoothed;
 
         // The rear axle and heading (radians, as atan2(dx, dz)), the wheel (degrees, positive to the right), the speed.
@@ -78,7 +81,7 @@ namespace DrivenRides.Core.Drive
             var slowing = Speed > 0 ? change < 0 : Speed < 0 ? change > 0 : false;
             var limit = (slowing ? Brake : Accel) * dt;
             Speed += Math.Max(-limit, Math.Min(limit, change));
-            Heading += Speed * Curvature(Steer, wheelbase, TrackWidth) * dt;
+            Heading += YawFactor * Speed * Curvature(Steer, wheelbase, TrackWidth) * dt;
             X += Speed * Math.Sin(Heading) * dt;
             Z += Speed * Math.Cos(Heading) * dt;
         }

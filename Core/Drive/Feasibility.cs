@@ -27,6 +27,10 @@ namespace DrivenRides.Core.Drive
         // The rear axle's pose where it failed (or, for a pass, furthest from the line), and that distance.
         public Pose Worst;
         public float WorstOff;
+        // Out of a U-turn (the heading within 20 degrees of the exit lane's): how far the rear axle ran past the line on
+        // the outside, and how far it then swung back past it on the inside (Peter: "the second half overshoots and
+        // then a correction goes back the other way").
+        public float ExitOvershoot, ExitSwingBack;
         public Polyline? Arc;
         public JudgeResult? Judge;
         public int Steps;
@@ -89,6 +93,8 @@ namespace DrivenRides.Core.Drive
         // Whether a point is pedestrian ground (the judge's PavementAt); null offline, where the judge's geometric
         // kerb estimate stands in.
         public Func<Vec3, bool>? PavementAt { get; set; }
+        // U-turns through Gley's vias instead of a driver's curve (TurnArc.FitUTurn), for T1's comparison only.
+        public bool UTurnVias { get; set; }
         // As the rig's kerb check: a wheel this much above the lowest is on a kerb (a road's camber across the car is
         // a few centimetres, a kerb about 15), here at two world samples in a row (1 m).
         public const float KerbRise = 0.1f;
@@ -113,6 +119,12 @@ namespace DrivenRides.Core.Drive
         // The arc an added turn is driven along, if the car can drive one cleanly; null: through its vias.
         public Polyline? Arc(int entry, int exit)
         {
+            if (graph.IsUTurn(entry, exit))
+            {
+                if (UTurnVias) return null;
+                var u = UTurnVerdict(entry, exit);
+                return u.Feasible ? u.Arc : null;
+            }
             var v = ArcVerdict(entry, exit);
             return v.Feasible ? v.Arc : null;
         }
@@ -126,7 +138,7 @@ namespace DrivenRides.Core.Drive
         {
             if (steps.TryGetValue((entry, exit), out var known)) return known;
             Verdict verdict;
-            if (graph.IsUTurn(entry, exit)) verdict = ViaVerdict(entry, exit, exit);
+            if (graph.IsUTurn(entry, exit)) verdict = UTurnVias ? ViaVerdict(entry, exit, exit) : UTurnVerdict(entry, exit);
             else
             {
                 verdict = ArcVerdict(entry, exit);
@@ -193,6 +205,23 @@ namespace DrivenRides.Core.Drive
             return verdict;
         }
 
+        // A U-turn on a driver's curve (TurnArc.FitUTurn) at the car's tightest followable circle at the slowest corner
+        // speed; too narrow for it, the car goes round the block.
+        private Verdict UTurnVerdict(int entry, int exit)
+        {
+            if (arcs.TryGetValue((entry, exit), out var known)) return known;
+            Verdict verdict;
+            var fixture = Catalogue.ForStep(graph, entry, exit, options);
+            var minRadius = car.RadiusAt(PursuitDriver.MinCornerMs);
+            var line = TurnArc.FitUTurn(graph, entry, exit, minRadius, out var why);
+            if (line == null)
+                verdict = new Verdict { Form = "u-curve", Reason = FormattableString.Invariant($"no U-turn curve, {graph.UTurnWidth(entry, exit):0.0} m across: {why}") };
+            else if (fixture == null) verdict = new Verdict { Feasible = true, Form = "u-curve", Arc = line };
+            else verdict = DriveArc(fixture, entry, exit, line, "u-curve");
+            arcs[(entry, exit)] = verdict;
+            return verdict;
+        }
+
         private Verdict DriveArc(Fixture fixture, int entry, int exit, Polyline arc, string form)
         {
             var plan = DrivePlan.Build(graph, fixture.Route, car, (e, x) => e == entry && x == exit ? arc : null, null, limitKmh);
@@ -229,7 +258,9 @@ namespace DrivenRides.Core.Drive
             var path = plan.Path;
             var start = graph.Position(path[0]);
             var next = line.Line.At(1f);
-            var model = car.Model(start.X, start.Z, Math.Atan2(next.X - start.X, next.Z - start.Z));
+            var startHeading = Math.Atan2(next.X - start.X, next.Z - start.Z);
+            var model = car.Model(start.X, start.Z, startHeading);
+            var exitPhase = false;
             float entryAlong = 0f, exitAlong = float.MaxValue;
             for (var k = 0; k < path.Count; k++) if (path[k] == fixture.Route[fixture.EntryIndex]) { entryAlong = line.AlongOf[k]; break; }
             for (var k = path.Count - 1; k >= 0; k--) if (path[k] == fixture.Route[fixture.ExitIndex]) { exitAlong = line.AlongOf[k]; break; }
@@ -256,6 +287,17 @@ namespace DrivenRides.Core.Drive
                 var ground = line.Line.At(driver.Along).Y;
                 var pose = new Pose((float)model.X, ground, (float)model.Z, (float)model.Heading);
                 var off = Math.Abs(o.Lateral);
+                if (fixture.Manoeuvre == CaseKind.UTurn && !judge.Failed)
+                {
+                    var exitHeading = Math.Atan2(-Math.Sin(startHeading), -Math.Cos(startHeading));
+                    if (!exitPhase && Math.Abs(DriveLine.Wrap(model.Heading - exitHeading)) < 20 * Math.PI / 180) exitPhase = true;
+                    if (exitPhase)
+                    {
+                        // A left U-turn's outside is the line's right (positive).
+                        if (o.Lateral > verdict.ExitOvershoot) { verdict.ExitOvershoot = o.Lateral; verdict.ExitSwingBack = 0f; }
+                        else if (verdict.ExitOvershoot > 0f && -o.Lateral > verdict.ExitSwingBack) verdict.ExitSwingBack = -o.Lateral;
+                    }
+                }
                 if (driver.Along > entryAlong - WorldFrom && off > verdict.WorstOff && !judge.Failed) { verdict.WorstOff = off; verdict.Worst = pose; }
                 var settled = off < SettledOff && Math.Abs(model.Steer) < SettledWheel;
                 var half = settled ? settledHalf : turningHalf;

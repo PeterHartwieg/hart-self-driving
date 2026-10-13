@@ -113,6 +113,33 @@ static class Feasible
             }
             Console.WriteLine($"\nU-turns ({total} approaches): inner one feasible {inner}; some pair feasible {any}; feasible only via a wider pair {viaWider}; a wider pair is the widest feasible {widerChosen}.");
             Console.WriteLine("Wider pairs (rig ids): " + string.Join(",", wideIds));
+            // Every pair through Gley's vias (as before the driver's curve) against on the curve.
+            var vias = new Feasibility(graph, car, null, margin, Limit) { UTurnVias = true };
+            int both = 0, curveOnly = 0, viasOnly = 0, neither = 0;
+            foreach (var f in cases.Where(c => c.Kind == CaseKind.UTurn && c.Id.StartsWith("uturn-", StringComparison.Ordinal)))
+                foreach (var pair in graph.UTurnGroup(f.Route[f.EntryIndex]))
+                {
+                    var curve = check.Step(pair.Entry, pair.Target);
+                    var old = vias.Step(pair.Entry, pair.Target);
+                    if (curve.Feasible && old.Feasible) both++;
+                    else if (curve.Feasible) curveOnly++;
+                    else if (old.Feasible) viasOnly++;
+                    else neither++;
+                    if (curve.Feasible != old.Feasible)
+                        Console.WriteLine($"  {pair.Entry} -> {pair.Target} ({pair.Width:0} m): vias {(old.Feasible ? "feasible" : "blocked")}, curve {(curve.Feasible ? "feasible" : "blocked: " + curve.Reason)}");
+                }
+            Console.WriteLine($"U-turn pairs, vias against the driver's curve: both feasible {both}, curve only {curveOnly}, vias only {viasOnly}, neither {neither}.");
+            // Out of each U-turn the car drives (simulated): overshoot past the exit lane and the swing back.
+            foreach (var (name, k) in new[] { ("vias", vias), ("curve", check) })
+            {
+                var exits = cases.Where(c => c.Kind == CaseKind.UTurn && c.Id.StartsWith("uturn-", StringComparison.Ordinal))
+                    .SelectMany(f => graph.UTurnGroup(f.Route[f.EntryIndex])).Select(p => k.Step(p.Entry, p.Target)).Where(v => v.Feasible).ToList();
+                if (exits.Count == 0) continue;
+                Console.WriteLine($"Exits on {name} ({exits.Count} feasible pairs): overshoot over 0.3 m {exits.Count(v => v.ExitOvershoot > 0.3f)}, worst {exits.Max(v => v.ExitOvershoot):0.00} m; swing back over 0.3 m {exits.Count(v => v.ExitSwingBack > 0.3f)}, worst {exits.Max(v => v.ExitSwingBack):0.00} m.");
+                if (name == "curve" && Array.IndexOf(args, "--exits") >= 0)
+                    foreach (var v in exits.Where(v => v.ExitOvershoot > 0.3f || v.ExitSwingBack > 0.3f))
+                        Console.WriteLine($"  radius {v.Arc?.Radius:0.0} m: overshoot {v.ExitOvershoot:0.00}, swing back {v.ExitSwingBack:0.00}");
+            }
         }
         if (Opt("--out") is string outFile) File.WriteAllLines(outFile, rows);
         if (Opt("--previous") is string previous)

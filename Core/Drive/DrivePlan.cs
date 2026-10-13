@@ -35,6 +35,17 @@ namespace DrivenRides.Core.Drive
                 var line = at >= 0 ? arc(entry, exit) : null;
                 if (line != null) plan.Arcs.Add((at, line));
             }
+            // Each arc no faster than the car still has a sixth of its lock to spare on it (the lock narrows with speed):
+            // on a U-turn curve at its smallest radius the wheel sat at lock and the car ran wide out of it.
+            foreach (var (at, line) in plan.Arcs)
+            {
+                if (line.Radius <= 0f) continue;
+                var fastest = 0f;
+                for (var v = 1f; v <= car.TopKmh / 3.6f; v += 0.25f)
+                    if (car.RadiusAt(v) * TurnArc.RadiusSlack <= line.Radius) fastest = v;
+                    else break;
+                if (fastest > 0f && fastest * 3.6f < car.TopKmh) plan.Slow.Add((at, fastest * 3.6f));
+            }
             // No flat speed for added turns or U-turns: the corner speed comes from the line's curvature (never under
             // PursuitDriver.MinCornerMs), so a wide turn is driven faster than a tight one (Peter, NWH spike). The
             // Gley-era 15 km/h for a long car's U-turn covered the whole straight way into the junction too, and held

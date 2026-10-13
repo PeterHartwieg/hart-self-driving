@@ -13,6 +13,9 @@ namespace DrivenRides.Core.Drive
         public Polyline Line { get; }
         // Metres along Line of each path position; a waypoint the arc cuts past gets its nearest point on the line.
         public float[] AlongOf { get; }
+        // The stretches (metres along) where the line is a fitted arc or U-turn curve, lead-in and run-out included:
+        // there the driver may steer for the line's own curvature (PursuitDriver's feed-forward).
+        public List<(float From, float To)> Curves { get; } = new List<(float, float)>();
 
         private DriveLine(Polyline line, float[] alongOf) { Line = line; AlongOf = alongOf; }
 
@@ -34,6 +37,7 @@ namespace DrivenRides.Core.Drive
                 }
                 line.Add(p);
             }
+            var curves = new List<(float, float)>();
             var byEntry = new Dictionary<int, Polyline>();
             foreach (var (entry, arc) in arcs) if (entry >= 0 && entry + 1 < points.Count) byEntry[entry] = arc;
             for (var k = 0; k < points.Count; k++)
@@ -50,7 +54,9 @@ namespace DrivenRides.Core.Drive
                     walked += Vec3.HorizontalDistance(turn.Points[i - 1], turn.Points[i]);
                     if (walked >= TurnArc.LeadIn - 0.01f) { from = i; break; }
                 }
+                var curveFrom = sum;
                 for (var i = from; i < turn.Points.Count; i++) Add(turn.Points[i]);
+                curves.Add((curveFrom, sum));
                 // The waypoints the arc passes (its exit and the exit lane up to the run-out's end) are skipped.
                 var end = turn.Points[turn.Points.Count - 1];
                 var before = turn.Points[turn.Points.Count - 2];
@@ -68,7 +74,9 @@ namespace DrivenRides.Core.Drive
                 along[k] = NearestAlong(polyline, points[k], last);
                 last = along[k];
             }
-            return new DriveLine(polyline, along);
+            var built = new DriveLine(polyline, along);
+            built.Curves.AddRange(curves);
+            return built;
         }
 
         // Where a point is relative to the line, searching `range` metres on from `from`: metres along, and metres

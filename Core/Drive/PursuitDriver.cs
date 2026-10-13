@@ -71,6 +71,9 @@ namespace DrivenRides.Core.Drive
         }
 
         public float Along => along;
+        // Steering for a fitted curve's own curvature (on since 0.1.65); tools/calibrate turns it off to replay runs
+        // driven before.
+        public bool FeedForward { get; set; } = true;
         public float Length => line.Line.Length;
         public float FrontAhead => frontAhead;
 
@@ -102,6 +105,14 @@ namespace DrivenRides.Core.Drive
             var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - ph);
             var distance = (float)Math.Sqrt(tx * tx + tz * tz);
             var curvature = 2 * Math.Sin(alpha) / Math.Max(1f, distance);
+            // Feed-forward: the line's own curvature where the car will be once the wheel gets there, with pursuit only
+            // for the error. Pursuit alone unwinds a lookahead early where a curve ends and runs wide where it starts;
+            // out of a U-turn that was an overshoot and a swing back (Peter, T2). Pure pursuit from a car that is
+            // exactly on the line commands ChordCurvature; what it commands beyond that is the correction.
+            var reference = along + ahead;
+            var wide = LineCurvature(reference, ld);
+            if (FeedForward && Smooth(reference, ld, wide))
+                curvature = wide + (curvature - ChordCurvature(reference, ld));
             var steer = (float)(Math.Atan(wheelbase * curvature / CarModel.YawGain(wheelbase, trackWidth)) * 180 / Math.PI);
 
             var desired = PlannedSpeed(along, i.SpeedMs);
@@ -140,6 +151,38 @@ namespace DrivenRides.Core.Drive
 
         // After backing off: where the rear axle is now, searched up to 12 m back from the last position.
         public void BackTo(float x, float z) => along = line.Locate(x, z, Math.Max(0f, along - 12f), 13f).Along;
+
+        // The line's curvature at a distance along it (right positive), over the lookahead: a fitted curve's own, and
+        // a kink (a via's corner) spread over the stretch pursuit would round it in.
+        private double LineCurvature(float at, float window)
+        {
+            var half = Math.Max(1f, window / 2f);
+            Vec3 a = line.Line.At(at - half), b = line.Line.At(at), c = line.Line.At(at + half);
+            var h1 = Math.Atan2(b.X - a.X, b.Z - a.Z);
+            var h2 = Math.Atan2(c.X - b.X, c.Z - b.Z);
+            var length = Vec3.HorizontalDistance(a, b) + Vec3.HorizontalDistance(b, c);
+            return length > 0.5f ? DriveLine.Wrap(h2 - h1) / (length / 2) : 0.0;
+        }
+
+        // Whether the stretch from half a lookahead behind the reference to a lookahead past it lies on a fitted arc or
+        // U-turn curve (DriveLine.Curves), whose curvature is the line's design. Elsewhere (Gley's junction curves,
+        // a via's corner) pursuit rounds the line on its own, as before.
+        private bool Smooth(float at, float lookahead, double curvature)
+        {
+            foreach (var (from, to) in line.Curves)
+                if (at - lookahead / 2f >= from && at + lookahead <= to) return true;
+            return false;
+        }
+
+        // What pure pursuit commands from the line itself at a distance along it, aiming lookahead further on.
+        private double ChordCurvature(float at, float lookahead)
+        {
+            Vec3 p = line.Line.At(at), q = line.Line.At(at + 0.5f), t = line.Line.At(at + lookahead);
+            var heading = Math.Atan2(q.X - p.X, q.Z - p.Z);
+            float tx = t.X - p.X, tz = t.Z - p.Z;
+            var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - heading);
+            return 2 * Math.Sin(alpha) / Math.Max(1f, Math.Sqrt(tx * tx + tz * tz));
+        }
 
         // The speed the plan allows at `at` metres along: no faster than lets the car slow to each limit ahead at
         // Decel. It keeps no state, so the traffic sweep can ask it about any point ahead.

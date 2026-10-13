@@ -138,6 +138,7 @@ foreach (var group in runs.GroupBy(r => r.Car.Name))
 // 3. Closed loop on rig cases that passed: nwh1's driver for the spike's runs, Core's PursuitDriver (steering for the
 // car's track, as NwhDrive does since 0.1.55) for the planner's runs, each on the line the rig built.
 var closed = new Dictionary<string, List<double>>();
+var exits = new Dictionary<string, List<double>>();
 foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && (r.Version.EndsWith("nwh1", StringComparison.Ordinal) || r.Plan != null)))
 {
     var f = run.Fixture!;
@@ -153,6 +154,8 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && 
     var plan = DrivePlan.Build(graph, f.Route, run.Car, arc);
     var line = plan.Line(graph);
     var driver = nwh1 ? null : plan.Driver(line, spec.Wheelbase, spec.FrontAhead, spec.TrackWidth);
+    // The driver as it drove these runs: no feed-forward before 0.1.65.
+    if (driver != null) driver.FeedForward = string.CompareOrdinal(run.Version, "0.1.65") >= 0;
     // The recorded speed by distance along the line, and the car's lateral offset there.
     var byAlong = run.Rows.Where(r => r.Speed > 0.05f).Select(r => (r.Along, r.Speed, r.Lateral)).ToList();
     if (byAlong.Count < 10) continue;
@@ -175,7 +178,11 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && 
     // The model's track: the prefab's (as the planner uses it), the fitted one with TRACK=fit, none with BICYCLE=1.
     var modelTrack = Environment.GetEnvironmentVariable("BICYCLE") == "1" ? 0f : Environment.GetEnvironmentVariable("TRACK") == "fit" ? tracks[run.Car.Name] : spec.TrackWidth;
     var car = new CarModel(run.Car.Wheelbase, run.Car.LockAt, start.X, start.Z, Math.Atan2(next.X - start.X, next.Z - start.Z))
-        { Smooth = best.Smooth, Rate = best.Rate, TrackWidth = modelTrack };
+        { Smooth = best.Smooth, Rate = best.Rate, TrackWidth = modelTrack, YawFactor = float.TryParse(Environment.GetEnvironmentVariable("YAW"), NumberStyles.Float, CultureInfo.InvariantCulture, out var yf) ? yf : 1f };
+    var uTurn = run.Fixture!.Kind == DrivenRides.Core.Testing.CaseKind.UTurn;
+    var startHeading = car.Heading;
+    var exitPhase = false;
+    double exitWorst = 0;
     var along = 0f;
     double worst = 0, worstAt = 0, widestModel = 0, widestCar = 0;
     var lastAlong = byAlong[^1].Along;
@@ -188,6 +195,8 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && 
         var difference = Math.Abs(lateral - recordedLateral);
         // From 10 m on: the first metres from a standstill are on the handbrake and the clutch, not the steering.
         if (along > 10f && difference > worst) { worst = difference; worstAt = along; }
+        if (uTurn && !exitPhase && Math.Abs(DriveLine.Wrap(car.Heading - startHeading - Math.PI)) < 20 * Math.PI / 180) exitPhase = true;
+        if (exitPhase) exitWorst = Math.Max(exitWorst, difference);
         if (Environment.GetEnvironmentVariable("SERIES") == run.Name && step % 25 == 0)
             Console.WriteLine($"    {along,6:0.0} m: speed {speed:0.0}, model {lateral,6:0.00}, car {recordedLateral,6:0.00}");
         widestModel = Math.Max(widestModel, Math.Abs(lateral));
@@ -208,9 +217,16 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && 
     }
     if (!closed.TryGetValue(run.Car.Name, out var list)) closed[run.Car.Name] = list = new List<double>();
     list.Add(worst);
+    if (uTurn)
+    {
+        if (!exits.TryGetValue(run.Car.Name, out var e)) exits[run.Car.Name] = e = new List<double>();
+        e.Add(exitWorst);
+    }
     if (Environment.GetEnvironmentVariable("VERBOSE") == "1" || worst > 0.3)
         Console.WriteLine($"Closed loop {run.Name} ({run.Case}, {run.Car.Name}, {run.Plan ?? "nwh1"}): model off the car's lateral by up to {worst:0.00} m (at {worstAt:0} m along); widest off the line: model {widestModel:0.00} m, car {widestCar:0.00} m.");
 }
+foreach (var (name, list) in exits)
+    Console.WriteLine($"U-turn exits, {name}, {list.Count} passed runs: model off the car's lateral {Spread(list)}.");
 foreach (var (name, list) in closed)
     Console.WriteLine($"Closed loop, {name}, {list.Count} passed runs: {Spread(list)}. Margin to use: {list.Max():0.00} m{(list.Max() > 0.5 ? " (over 0.5 m: the plan says wider margins, not more model)" : "")}.");
 

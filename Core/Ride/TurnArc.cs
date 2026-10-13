@@ -182,6 +182,109 @@ namespace DrivenRides.Core.Ride
             return new Polyline(points) { Radius = r };
         }
 
+        // A U-turn as a driver takes it (Peter, T2: through Gley's vias the car made two tight 90-degree turns with a
+        // straight between): on along the entry lane, one curve tangent to the entry lane and to the target's lane,
+        // as wide as the two lanes are apart (a semicircle when they are level), then on down the target's lane.
+        // It starts where the straight way into the junction ends (LaneGraph.UTurnStart: past the median's nose),
+        // earlier if the curve would reach past the junction's far side. Null when the lanes are too close for the
+        // car's circle (minRadius, with RadiusSlack): that car goes round the block.
+        public static Polyline? FitUTurn(LaneGraph graph, int entry, int target, float minRadius) => FitUTurn(graph, entry, target, minRadius, out _);
+
+        public static Polyline? FitUTurn(LaneGraph graph, int entry, int target, float minRadius, out string why)
+        {
+            why = "not a U-turn with a plain entry";
+            if (!graph.IsUTurn(entry, target) || !graph.PlainHeading(entry, out var ux, out var uz)) return null;
+            int startWaypoint = graph.UTurnStart(entry, target);
+            // The lane the U-turn ends in: the target's lane where it leaves the junction (inside it, the target's
+            // own heading may be skewed, and the curve would end bent against the lane).
+            var lane = target;
+            for (var guard = 0; guard < 20 && graph.IsIntersection(lane) && graph.Successors(lane).Count > 0; guard++) lane = graph.Successors(lane)[0];
+            why = "no start or target heading";
+            float vx, vz;
+            if (startWaypoint < 0 || !(graph.PlainHeading(lane, out vx, out vz) || Heading(graph, target, out vx, out vz))) return null;
+            Vec3 e = graph.Position(entry), x = graph.Position(graph.PlainHeading(lane, out _, out _) ? lane : target);
+            float lx = -uz, lz = ux; // left of the entry heading
+            float nx = -vz, nz = vx; // left of the target's heading
+            float Along(Vec3 p) => (p.X - e.X) * ux + (p.Z - e.Z) * uz;
+            // The far side of the junction along the entry's straight way.
+            var junctionEnd = Along(graph.Position(startWaypoint));
+            var at = startWaypoint;
+            for (var guard = 0; guard < 40; guard++)
+            {
+                var next = -1;
+                foreach (var n in graph.Successors(at))
+                {
+                    Vec3 a = graph.Position(at), b = graph.Position(n);
+                    var length = Vec3.HorizontalDistance(a, b);
+                    if (length > 0.1f && ((b.X - a.X) * ux + (b.Z - a.Z) * uz) / length > 0.95f) { next = n; break; }
+                }
+                if (next < 0 || !graph.IsIntersection(next)) break;
+                junctionEnd = Math.Max(junctionEnd, Along(graph.Position(next)));
+                at = next;
+            }
+            // The circle from S = e + u s, centre to the left, tangent to the target's lane on its left: its radius
+            // grows or shrinks with s where the lanes aren't level. S is the straight way's end (past the median's
+            // nose) unless another start gives the car a circle it can follow, or keeps the curve within the junction;
+            // never before 6 m past the entry.
+            var denominator = 1f - (lx * nx + lz * nz);
+            why = "the target's lane isn't turned back towards the entry";
+            if (denominator < 0.2f) return null;
+            float RadiusAt(float along) => ((e.X + ux * along - x.X) * nx + (e.Z + uz * along - x.Z) * nz) / denominator;
+            var least = minRadius * RadiusSlack;
+            var preferred = Along(graph.Position(startWaypoint));
+            float start = preferred, r = RadiusAt(preferred), bestScore = float.MaxValue;
+            for (var along = 6f; along <= junctionEnd + 3f; along += 0.5f)
+            {
+                var radius = RadiusAt(along);
+                if (radius <= 0f || along + radius > junctionEnd + 3f) continue;
+                // A followable circle first, then the start nearest the straight way's end.
+                var score = (radius >= least ? 0f : 1000f + (least - radius) * 100f) + Math.Abs(along - preferred);
+                if (score < bestScore) { bestScore = score; start = along; r = radius; }
+            }
+            why = "the target's lane is on the wrong side";
+            if (r <= 0f) return null;
+            why = FormattableString.Invariant($"a circle of {r:0.0} m, the car follows {minRadius * RadiusSlack:0.0} m and more");
+            if (r < minRadius * RadiusSlack || r > MaxRadius) return null;
+            var s = new Vec3(e.X + ux * start, e.Y, e.Z + uz * start);
+            var c = new Vec3(s.X + lx * r, 0f, s.Z + lz * r);
+            // Turning left: the heading (atan2(x, z)) falls from the entry's to the target's.
+            var turn = Math.Atan2(ux, uz) - Math.Atan2(vx, vz);
+            while (turn <= 0) turn += 2 * Math.PI;
+            while (turn > 2 * Math.PI) turn -= 2 * Math.PI;
+            why = FormattableString.Invariant($"the lanes are {turn * 180 / Math.PI:0} degrees apart");
+            if (turn < 150 * Math.PI / 180 || turn > 210 * Math.PI / 180) return null;
+            why = "";
+            var points = new List<Vec3> { new Vec3(e.X - ux * LeadIn, e.Y, e.Z - uz * LeadIn) };
+            AddStraight(points, points[0], e);
+            AddStraight(points, e, s);
+            double ox = s.X - c.X, oz = s.Z - c.Z;
+            var steps = Math.Max(4, (int)Math.Ceiling(r * turn / Spacing));
+            for (var k = 1; k <= steps; k++)
+            {
+                var phi = -turn * k / steps;
+                double cos = Math.Cos(phi), sin = Math.Sin(phi);
+                var f = (float)k / steps;
+                points.Add(new Vec3((float)(c.X + ox * cos + oz * sin), e.Y + (x.Y - e.Y) * f, (float)(c.Z - ox * sin + oz * cos)));
+            }
+            var end = points[points.Count - 1];
+            AddStraight(points, end, new Vec3(end.X + vx * RunOut, x.Y, end.Z + vz * RunOut));
+            return new Polyline(points) { Radius = r };
+        }
+
+        // A waypoint's heading towards its successor, junction waypoints included.
+        private static bool Heading(LaneGraph graph, int i, out float dx, out float dz)
+        {
+            dx = dz = 0f;
+            var next = graph.Successors(i);
+            if (next.Count == 0) return false;
+            Vec3 a = graph.Position(i), b = graph.Position(next[0]);
+            var length = Vec3.HorizontalDistance(a, b);
+            if (length < 0.1f) return false;
+            dx = (b.X - a.X) / length;
+            dz = (b.Z - a.Z) / length;
+            return true;
+        }
+
         private static void AddStraight(List<Vec3> points, Vec3 from, Vec3 to)
         {
             var length = Vec3.HorizontalDistance(from, to);

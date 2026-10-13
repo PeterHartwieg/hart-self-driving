@@ -43,7 +43,7 @@ public sealed class FeasibilityTests
         var uTurn = new Feasibility(u, Small()).Step(uEntry, u.UTurn(uEntry));
         output.WriteLine(uTurn.ToString());
         Assert.True(uTurn.Feasible, uTurn.ToString());
-        Assert.Equal("vias", uTurn.Form);
+        Assert.Equal("u-curve", uTurn.Form);
     }
 
     // TurnTestGraph.UTurn with a second lane on the far carriageway, outside the target lane: room to swing into.
@@ -141,6 +141,32 @@ public sealed class FeasibilityTests
         output.WriteLine(verdict.ToString());
         Assert.False(verdict.Feasible);
         Assert.Contains("kerb", verdict.Reason);
+    }
+
+    [Fact]
+    public void AUTurnIsOneSmoothCurveAsWideAsTheLanesAreApart()
+    {
+        // The two-lane street: inner to inner is 15 m across, outer to outer 23 m. The curve is a semicircle of half
+        // that, its heading turning steadily (no straight across between two quarter turns, as through the vias).
+        var (u, entry) = TwoLaneUTurn();
+        foreach (var (target, width) in u.UTurns(entry))
+        {
+            var line = TurnArc.FitUTurn(u, entry, target, 3f)!;
+            Assert.NotNull(line);
+            Assert.InRange(line.Radius, width / 2f - 0.3f, width / 2f + 0.3f);
+            var pts = line.Points;
+            double? last = null;
+            var turned = 0.0;
+            for (var k = 1; k < pts.Count; k++)
+            {
+                var h = Math.Atan2(pts[k].X - pts[k - 1].X, pts[k].Z - pts[k - 1].Z);
+                if (last is double l) turned += DriveLine.Wrap(h - l);
+                last = h;
+            }
+            Assert.InRange(Math.Abs(turned), Math.PI - 0.15, Math.PI + 0.15);
+        }
+        // Too narrow for a car whose tightest followable circle is 9 m: none.
+        Assert.Null(TurnArc.FitUTurn(u, entry, u.UTurn(entry), 9f));
     }
 
     [Fact]
