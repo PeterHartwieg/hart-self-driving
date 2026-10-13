@@ -94,8 +94,19 @@ public sealed class JudgeTests
         f.EntryIndex = 0; f.ExitIndex = f.Route.Count - 1;
         var judge = Make(graph, f);
         for (var z = 0; z <= 68; z += 4) judge.Add(At(z, 0, z));
+        // Through its gates it goes on; it passes once it has arrived, in its lane.
+        Assert.False(judge.Finished);
+        judge.Arrive();
         Assert.True(judge.Finished);
         Assert.Equal("pass", judge.Result(false).Verdict);
+        // Arriving across the lane's end at an angle fails.
+        var (graph2, f2) = Straight();
+        f2.EntryIndex = 0; f2.ExitIndex = f2.Route.Count - 1;
+        var angled = Make(graph2, f2);
+        for (var z = 0; z <= 64; z += 4) angled.Add(At(z, 0, z));
+        angled.Add(At(68, 0.5f, 68, heading: 25));
+        angled.Arrive();
+        Assert.Contains("exit-heading", angled.Result(false).Reasons);
     }
 
     [Fact]
@@ -113,6 +124,7 @@ public sealed class JudgeTests
         for (var z = 44; z <= 100; z += 4) judge.Add(At(z, 0, z));
         Assert.False(judge.Finished);
         for (var z = 104; z <= 146; z += 4) judge.Add(At(z, 0, z));
+        judge.Arrive();
         Assert.True(judge.Finished);
         var result = judge.Result(false);
         Assert.Equal("pass", result.Verdict);

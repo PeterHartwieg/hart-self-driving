@@ -200,6 +200,8 @@ foreach (var line in File.ReadLines(resultsPath))
         }
     }
     var end = run.TryGetProperty("end", out var e) ? e.GetString() : "";
+    // A ride is judged on to its arrival.
+    if (end == "arrived") judge.Arrive();
     var result = judge.Result(end == "time limit");
     var oldVerdict = run.GetProperty("verdict").GetString();
     var oldReasons = run.TryGetProperty("judge", out var j) ? string.Join(" ", j.GetProperty("Reasons").EnumerateArray().Select(x => x.GetString())) : "";

@@ -871,6 +871,7 @@ namespace DrivenRides
                 yield return null;
             }
             var timedOut = Time.time >= limit + extraSeconds;
+            if (drive.Ended && drive.Arrived) judge.Arrive();
             if (drive.Ended && drive.EndReason.StartsWith("blocked", StringComparison.Ordinal)) judge.Replanned(drive.EndReason);
             yield return null;
             RestoreNwhScale(s);

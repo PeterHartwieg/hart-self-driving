@@ -1674,10 +1674,21 @@ namespace DrivenRides
                 for (var q = k; q < w.Count && q <= k + 4; q++) ahead.Add(w[q]);
                 var from = w[k];
                 var to = w[k + 1];
-                // The NWH check is asked afresh: the parked cars near the step are loaded now.
+                // The NWH check is asked afresh: the parked cars near the step are loaded now. A step still feasible in
+                // another form (vias now, not the arc) changes the line, so the route is expanded again (review round 1).
+                var before = nwhPlanner?.Check.Step(from, to);
                 nwhPlanner?.Check.Forget(from, to);
                 var blocked = (nwhPlanner != null ? nwhPlanner.BlockedSteps(graph, ahead, 0f) : FindBlockedSteps(graph, ahead, carSteering)).FindAll(b => b.From == from && b.To == to);
-                if (blocked.Count == 0) continue;
+                if (blocked.Count == 0)
+                {
+                    var now = nwhPlanner?.Check.Step(from, to);
+                    if (before != null && now != null && (now.Form != before.Form || !ReferenceEquals(now.Arc, before.Arc)))
+                    {
+                        Event($"Step {from} -> {to} ahead now driven {now.Form}; replanning.");
+                        return true;
+                    }
+                    continue;
+                }
                 // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
                 if (nwhPlanner != null) nwhPlanner.Block(w[k], w[k + 1], NwhPlanner.CauseOf(graph, w[k], w[k + 1]));

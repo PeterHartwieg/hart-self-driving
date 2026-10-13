@@ -39,16 +39,13 @@ namespace DrivenRides.Core.Testing
             {
                 var total = 0f;
                 for (int k = 1; k < route.Count; k++) total += Vec3.HorizontalDistance(route[k - 1], route[k]);
-                // On the last straight stretch of the way: a ride may end in a bend (a lane curving away, 100 degrees
-                // in its last 17 m on T3's rides 9 to 18), where a gate square to a chord met the car at 33 degrees.
+                // The ride is judged on to its arrival (Judge.Arrive) against the line's direction where the car
+                // stops: the gates only mark the way there, so a bend at the end is driven and judged too (review
+                // round 1; T3 20261013-211205 failed rides 9 to 18 where a gate square to a chord of a terminal bend met
+                // the car at 33 degrees).
                 if (total > 24f)
-                {
-                    var lastAt = total - 8f;
-                    while (lastAt > 16f && !Straight(route, lastAt)) lastAt -= 1f;
-                    if (!Straight(route, lastAt)) lastAt = total - 8f;
-                    return new CaseGeometry(new List<Gate> { At("entry", fixture.EntryIndex), GateAt("exit", route, lastAt - 8f), GateAt("last", route, lastAt) },
+                    return new CaseGeometry(new List<Gate> { At("entry", fixture.EntryIndex), GateAt("exit", route, total - 16f), GateAt("last", route, total - 8f) },
                         null, route, expanded);
-                }
             }
             var gates = new List<Gate> { At("entry", fixture.EntryIndex), At("exit", fixture.ExitIndex) };
             Gate last = At("last", route.Count - 2);
@@ -73,18 +70,6 @@ namespace DrivenRides.Core.Testing
                 turnGate = new Gate("turn", graph.Position(fixture.TurnGateWaypoint), dx, dz);
             }
             return new CaseGeometry(gates, turnGate, route, expanded);
-        }
-
-        // Whether the route keeps within 10 degrees of one heading from 10 m before this far along it to 2 m after.
-        private static bool Straight(List<Vec3> route, float along)
-        {
-            var reference = GateAt("", route, along);
-            for (var a = along - 10f; a <= along + 2f; a += 1f)
-            {
-                var g = GateAt("", route, Math.Max(0.1f, a));
-                if (Geometry.Angle(g.DirX, g.DirZ, reference.DirX, reference.DirZ) > 10f) return false;
-            }
-            return true;
         }
 
         // A gate across the route this far along it, square to its segment there.

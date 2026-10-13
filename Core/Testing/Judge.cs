@@ -120,7 +120,8 @@ namespace DrivenRides.Core.Testing
                     result.GatesPassed.Add(gate.Name);
                     newGate = true;
                     if (gate.Name == "entry") { entered = true; result.EntrySpeed = s.SpeedMs; }
-                    if (gate.Name == "last")
+                    // A ride is judged on to its arrival (Arrive); its gates only mark the way.
+                    if (gate.Name == "last" && !RideToItsEnd)
                     {
                         Finished = true;
                         result.LastGateLateral = gate.Lateral(s.Centre);
@@ -266,6 +267,37 @@ namespace DrivenRides.Core.Testing
         // A footprint corner, pulled PavementInset inward, on pedestrian ground and not within half a lane of any
         // lane (crosswalks are pedestrian ground too, and lie on the lanes).
         private string? OnPedestrianGround(Sample s) => Testing.Pavement.CornerOnPavement(graph, s.Footprint, s.Centre, PavementAt!);
+
+        // A ride has arrived (the driver stopped at the end of its line): it passes if it went through its gates and
+        // stands in its lane, its middle within 1 m of the route and its heading within ArrivalHeading of the route's
+        // direction there, the local tangent of a bend if it ends in one (review round 1: the finish had moved to a
+        // straight stretch before a terminal bend, which then went unjudged).
+        public const float ArrivalHeading = 15f;
+        private bool RideToItsEnd => fixture.Manoeuvre == CaseKind.Ride && fixture.ExitIndex >= fixture.Route.Count - 1;
+
+        public void Arrive()
+        {
+            if (Finished || !hasPrevious || !RideToItsEnd) return;
+            var s = previous;
+            if (nextGate < geometry.Gates.Count) { Fail(s.Step, "missed-gate:" + geometry.Gates[nextGate].Name); return; }
+            Finished = true;
+            var route = geometry.RoutePolyline;
+            float best = float.PositiveInfinity, side = 0, dirX = 0, dirZ = 1;
+            for (int k = 0; k + 1 < route.Count; k++)
+            {
+                if (!Geometry.Direction(route[k], route[k + 1], out float dx, out float dz)) continue;
+                float length = Vec3.HorizontalDistance(route[k], route[k + 1]);
+                float t = Math.Max(0, Math.Min(length, (s.Centre.X - route[k].X) * dx + (s.Centre.Z - route[k].Z) * dz));
+                float px = route[k].X + dx * t, pz = route[k].Z + dz * t;
+                float d = (float)Math.Sqrt((s.Centre.X - px) * (s.Centre.X - px) + (s.Centre.Z - pz) * (s.Centre.Z - pz));
+                if (d < best) { best = d; side = (s.Centre.X - px) * dz - (s.Centre.Z - pz) * dx; dirX = dx; dirZ = dz; }
+            }
+            result.LastGateLateral = side;
+            float yaw = (float)(s.HeadingDegrees * Math.PI / 180);
+            result.LastGateHeadingError = Geometry.Angle((float)Math.Sin(yaw), (float)Math.Cos(yaw), dirX, dirZ);
+            if (Math.Abs(side) > 1f) Fail(s.Step, "exit-lane");
+            if (result.LastGateHeadingError > ArrivalHeading) Fail(s.Step, "exit-heading");
+        }
 
         public void Contact(int step, string what)
         {

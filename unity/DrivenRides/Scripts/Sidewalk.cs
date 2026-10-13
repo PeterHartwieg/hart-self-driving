@@ -17,6 +17,7 @@ namespace DrivenRides
     {
         private static NavMeshQueryFilter? filter;
         private static bool looked;
+        private static float lookedAt = -100f;
         // As the probe sampled: within 0.4 m of the point.
         private const float SampleMetres = 0.4f;
 
@@ -26,8 +27,13 @@ namespace DrivenRides
         {
             get
             {
-                if (looked) return filter;
+                // Kept once found with areas to query; before a city has loaded it may not be, so it is looked for
+                // again every few seconds (review round 1: cached empty before the city loaded, for good).
+                if (filter is NavMeshQueryFilter f0 && f0.areaMask != 0) return filter;
+                if (looked && Time.realtimeSinceStartup - lookedAt < 5f) return null;
                 looked = true;
+                lookedAt = Time.realtimeSinceStartup;
+                filter = null;
                 foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
                 {
                     Type? t = null;
@@ -41,7 +47,8 @@ namespace DrivenRides
                     }
                     catch (Exception ex) { Log.Error("Pavement filter: " + ex.Message); }
                 }
-                Log.Info(filter != null ? $"Pavement: the pedestrians' NavMesh filter (areaMask {filter.Value.areaMask:X}, agent {filter.Value.agentTypeID})." : "Pavement: the pedestrians' NavMesh filter was not found; the kerb estimate stands in.");
+                if (filter is NavMeshQueryFilter found && found.areaMask == 0) filter = null;
+                Log.Info(filter != null ? $"Pavement: the pedestrians' NavMesh filter (areaMask {filter.Value.areaMask:X}, agent {filter.Value.agentTypeID})." : "Pavement: the pedestrians' NavMesh filter isn't there yet; the kerb estimate stands in.");
                 return filter;
             }
         }

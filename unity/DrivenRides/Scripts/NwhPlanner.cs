@@ -376,8 +376,15 @@ namespace DrivenRides
                         // behind within this metre's box.
                         if (side == null)
                         {
-                            if (c is MeshCollider mesh && !mesh.convex) continue;
-                            if ((c.ClosestPoint(probe) - probe).sqrMagnitude > 0.0025f) continue;
+                            if (c is MeshCollider mesh && !mesh.convex)
+                            {
+                                // A ray from inside a mesh doesn't meet it: rays in from 3 m either side do if the line
+                                // runs through it (review round 1: such a collider was skipped).
+                                var inFromRight = c.Raycast(new Ray(probe + right * 3f, -right), out _, 3f);
+                                var inFromLeft = c.Raycast(new Ray(probe - right * 3f, right), out _, 3f);
+                                if (!inFromRight && !inFromLeft) continue;
+                            }
+                            else if ((c.ClosestPoint(probe) - probe).sqrMagnitude > 0.0025f) continue;
                             side = 0f;
                         }
                         var need = half + clear;
@@ -430,6 +437,8 @@ namespace DrivenRides
         // the ones blocked.
         public (Route? Route, string Summary) PlanRoute(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds = 8)
         {
+            // The pedestrians' NavMesh may have come since the planner was made (Sidewalk).
+            Check.PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null;
             var blockedNotes = new List<string>();
             Route? route = null;
             for (var attempt = 0; attempt < rounds; attempt++)
