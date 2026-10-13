@@ -73,7 +73,7 @@ namespace DrivenRides.Core.Routing
             uTurns = new int[n];
             uTurnStarts = new int[n];
             for (int i = 0; i < n; i++) { turns[i] = Array.Empty<int>(); uTurns[i] = -1; uTurnStarts[i] = -1; }
-            if (inferTurns) { InferTurns(); InferUTurns(); }
+            if (inferTurns) { InferTurns(); InferUTurns(); InferWideUTurns(); }
         }
 
         private readonly IReadOnlyList<int>[] turns;
@@ -84,6 +84,130 @@ namespace DrivenRides.Core.Routing
         // the car: Gley skips a target behind the car as passed, and the far carriageway's exit is behind the entry.
         public int UTurn(int i) => uTurns[i];
         public int UTurnStart(int i) => uTurnStarts[i];
+
+        // Every U-turn from entry i: the inner one (UTurn) and the wider ones, from each lane of the approach to each
+        // lane of the far carriageway (Peter, 13 October 2026: a driver swings from the outermost lane to the
+        // outermost lane on the other side for the widest circle, when traffic allows). Width: metres across.
+        public IReadOnlyList<(int Target, float Width)> UTurns(int i) =>
+            uTurnPairs.TryGetValue(i, out var pairs) ? pairs : uTurns[i] >= 0 ? new[] { (uTurns[i], uTurnWidths[i]) } : Array.Empty<(int, float)>();
+        public bool IsUTurn(int i, int x)
+        {
+            if (uTurns[i] == x) return true;
+            if (!uTurnPairs.TryGetValue(i, out var pairs)) return false;
+            foreach (var (target, _) in pairs) if (target == x) return true;
+            return false;
+        }
+        // Whether a U-turn is one of the wider ones (not UTurn(i), the Gley path's only one).
+        public bool IsWideUTurn(int i, int x) => uTurns[i] != x && IsUTurn(i, x);
+        // The waypoint where the straight way into the junction ends and the U-turn starts.
+        public int UTurnStart(int i, int x) => uTurns[i] == x ? uTurnStarts[i] : uTurnPairStarts.TryGetValue((i, x), out var s) ? s : -1;
+        // Metres a U-turn is narrower than the widest of its approach and far carriageway's, for the planner's cost.
+        public float UTurnNarrower(int i, int x) => uTurnNarrower.TryGetValue((i, x), out var n) ? n : 0f;
+        public int InferredWideUTurns { get; private set; }
+        // All the U-turns of the approach whose inner U-turn starts at m (entry, target, metres across), widest first.
+        public IReadOnlyList<(int Entry, int Target, float Width)> UTurnGroup(int m) =>
+            uTurnGroups.TryGetValue(m, out var group) ? group : uTurns[m] >= 0 ? new[] { (m, uTurns[m], uTurnWidths.Length > m ? uTurnWidths[m] : 0f) } : Array.Empty<(int, int, float)>();
+        private readonly Dictionary<int, List<(int, int, float)>> uTurnGroups = new Dictionary<int, List<(int, int, float)>>();
+
+        private float[] uTurnWidths = Array.Empty<float>();
+        private readonly Dictionary<int, List<(int, float)>> uTurnPairs = new Dictionary<int, List<(int, float)>>();
+        private readonly Dictionary<(int, int), int> uTurnPairStarts = new Dictionary<(int, int), int>();
+        private readonly Dictionary<(int, int), float> uTurnNarrower = new Dictionary<(int, int), float>();
+
+        // The wider U-turns of each inferred one: the approach's other entry lanes, level with the inner entry and to
+        // its right, and the far carriageway's other lanes, level with the inner target and to its right (its outer
+        // side). Each pair gets the straight way in from its own entry and a via at its own arc's far end, as the
+        // inner one does.
+        private void InferWideUTurns()
+        {
+            uTurnWidths = new float[Count];
+            for (int m = 0; m < Count; m++)
+            {
+                int t = uTurns[m];
+                if (t < 0 || !Heading(m, out float dx, out float dz) || !AnyHeading(t, out float tx, out float tz)) continue;
+                uTurnWidths[m] = Math.Abs(Side(m, dx, dz, positions[t]));
+                var entries = new List<int> { m };
+                foreach (int e in Near(positions[m], 20f))
+                {
+                    if (e == m || !IsJunctionEntry(e) || !Heading(e, out float ex, out float ez) || ex * dx + ez * dz < 0.95f) continue;
+                    if (Math.Abs(positions[e].Y - positions[m].Y) > 1f) continue;
+                    float along = Along(m, dx, dz, positions[e]), side = Side(m, dx, dz, positions[e]);
+                    if (Math.Abs(along) <= 8f && side >= 2f && side <= 16f) entries.Add(e);
+                }
+                // The far lanes: one junction waypoint per lane, the one most level with the inner target.
+                var lanes = new List<(int Waypoint, float Side)> { (t, 0f) };
+                foreach (int j in Near(positions[t], 20f))
+                {
+                    if (j == t || !intersections[j] || !AnyHeading(j, out float jx, out float jz) || jx * tx + jz * tz < 0.95f) continue;
+                    if (Math.Abs(positions[j].Y - positions[t].Y) > 1f) continue;
+                    float along = Along(t, tx, tz, positions[j]), side = Side(t, tx, tz, positions[j]);
+                    if (Math.Abs(along) > 4f || side < 2f || side > 16f) continue;
+                    int same = lanes.FindIndex(l => Math.Abs(l.Side - side) < 1.5f);
+                    if (same < 0) lanes.Add((j, side));
+                    else if (same > 0 && Math.Abs(along) < Math.Abs(Along(t, tx, tz, positions[lanes[same].Waypoint]))) lanes[same] = (j, side);
+                }
+                if (entries.Count == 1 && lanes.Count == 1) continue;
+                var pairs = new List<(int E, int X, float Width)>();
+                foreach (int e in entries)
+                {
+                    Heading(e, out float ex, out float ez);
+                    foreach (var (x, _) in lanes)
+                    {
+                        float width = Math.Abs(Side(e, ex, ez, positions[x]));
+                        if (e == m && x == t) { pairs.Add((e, x, width)); continue; }
+                        var chain = new List<int>();
+                        int straight = StraightInto(e, ex, ez, 14f, out float startAhead, chain);
+                        if (straight < 0) continue;
+                        float ahead = Along(e, ex, ez, positions[x]);
+                        if (ahead < startAhead - 2f || ahead > startAhead + 24f || width > 36f) continue;
+                        if (ArcVia(e, ex, ez, x, startAhead, straight) is int via) chain.Add(via);
+                        turnVia[(e, x)] = chain.ToArray();
+                        uTurnPairStarts[(e, x)] = straight;
+                        pairs.Add((e, x, width));
+                        InferredWideUTurns++;
+                    }
+                }
+                float widest = 0f;
+                foreach (var p in pairs) widest = Math.Max(widest, p.Width);
+                pairs.Sort((a, b) => b.Width.CompareTo(a.Width));
+                uTurnGroups[m] = pairs.ConvertAll(p => (p.E, p.X, p.Width));
+                foreach (var (e, x, width) in pairs)
+                {
+                    if (!uTurnPairs.TryGetValue(e, out var list))
+                    {
+                        uTurnPairs[e] = list = new List<(int, float)>();
+                        if (uTurns[e] >= 0 && e != m) list.Add((uTurns[e], Math.Abs(Side(e, dx, dz, positions[uTurns[e]]))));
+                    }
+                    if (!list.Exists(p => p.Item1 == x)) list.Add((x, width));
+                    uTurnNarrower[(e, x)] = widest - width;
+                }
+            }
+        }
+
+        private float Along(int i, float dx, float dz, Vec3 p) => (p.X - positions[i].X) * dx + (p.Z - positions[i].Z) * dz;
+        private float Side(int i, float dx, float dz, Vec3 p) => (p.X - positions[i].X) * dz - (p.Z - positions[i].Z) * dx;
+
+        // A junction waypoint near the far end of a U-turn's arc, heading across towards the turn's side, so the car
+        // follows the curve; null if there is none.
+        private int? ArcVia(int i, float dx, float dz, int target, float startAhead, int straight)
+        {
+            float bx = positions[target].X - positions[i].X, bz = positions[target].Z - positions[i].Z;
+            float bAhead = bx * dx + bz * dz, bSide = bx * dz - bz * dx;
+            float lx = -dz, lz = dx; // left of the heading
+            float half = -bSide / 2f;
+            float apexAhead = Math.Max(bAhead, startAhead) + half;
+            var apex = new Vec3(positions[i].X + dx * apexAhead + lx * half, positions[i].Y, positions[i].Z + dz * apexAhead + lz * half);
+            int via = -1;
+            float viaDistance = 5f;
+            foreach (int j in Near(apex, 5f))
+            {
+                if (!intersections[j] || j == target || j == straight || Math.Abs(positions[j].Y - positions[i].Y) > 2f) continue;
+                if (!AnyHeading(j, out float hx, out float hz) || hx * lx + hz * lz < 0.3f) continue;
+                float d = Vec3.HorizontalDistance(apex, positions[j]);
+                if (d < viaDistance) { viaDistance = d; via = j; }
+            }
+            return via >= 0 ? via : (int?)null;
+        }
         public bool PlainHeading(int i, out float dx, out float dz) => Heading(i, out dx, out dz);
         public int InferredUTurns { get; private set; }
 

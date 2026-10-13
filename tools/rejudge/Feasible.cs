@@ -9,7 +9,7 @@ using DrivenRides.Core.Testing;
 // case, and the cases whose verdict changed since a previous run: the regression gate between two builds.
 //
 //   feasible <car> [--ids a,b,...|@file] [--kinds turn,uturn] [--margin m] [--out file] [--previous file]
-//            [--rig results.jsonl]
+//            [--rig results.jsonl] [--wide]
 //
 // <car>: limo, mersaididash, taxi (Cars.cs) or name;wheelbase;top km/h;cx,cy,cz;hx,hy,hz;kmh=deg,... (CarSpec.Parse; the game
 // log's "NWH shape" line). --rig: compare with a rig run's NWH results for that car; each case
@@ -85,6 +85,33 @@ static class Feasible
         {
             Console.WriteLine($"Against the rig ({compared} cases): the check agrees on {agree}; driven as the rig drove them, the model agrees on {asRigAgree} of {asRigCompared}.");
             foreach (var (key, n) in confusion.OrderBy(p => p.Key)) Console.WriteLine($"  {key}: {n}");
+        }
+        if (Array.IndexOf(args, "--wide") >= 0)
+        {
+            // Each inner U-turn against its approach's wider ones (LaneGraph.UTurnGroup): the widest the car can make,
+            // as the planner's width cost picks it when the lane changes are free.
+            int inner = 0, any = 0, viaWider = 0, widerChosen = 0, total = 0;
+            var wideIds = new List<string>();
+            foreach (var f in cases.Where(c => c.Kind == CaseKind.UTurn && c.Id.StartsWith("uturn-", StringComparison.Ordinal)))
+            {
+                total++;
+                int entry = f.Route[f.EntryIndex], t = f.Route[f.EntryIndex + 1];
+                var innerVerdict = check.Step(entry, t);
+                var group = graph.UTurnGroup(entry);
+                foreach (var pair in group) if (graph.IsWideUTurn(pair.Entry, pair.Target)) wideIds.Add($"uturnw-{pair.Entry}-{pair.Target}");
+                (int E, int X, float Width)? pick = null;
+                foreach (var pair in group)
+                    if (check.Step(pair.Entry, pair.Target).Feasible) { pick = pair; break; }
+                if (innerVerdict.Feasible) inner++;
+                if (pick != null) any++;
+                if (!innerVerdict.Feasible && pick != null) viaWider++;
+                if (pick != null && (pick.Value.E != entry || pick.Value.X != t)) widerChosen++;
+                var innerWidth = group.FirstOrDefault(p => p.Entry == entry && p.Target == t).Width;
+                Console.WriteLine($"{f.Id}: inner ({innerWidth:0} m) {(innerVerdict.Feasible ? "feasible" : "blocked")}; {group.Count} pairs; " +
+                                  (pick is var (e, x, w) ? $"widest feasible {e} -> {x}, {w:0} m{(e == entry && x == t ? " (the inner one)" : "")}" : "none feasible: round the block"));
+            }
+            Console.WriteLine($"\nU-turns ({total} approaches): inner one feasible {inner}; some pair feasible {any}; feasible only via a wider pair {viaWider}; a wider pair is the widest feasible {widerChosen}.");
+            Console.WriteLine("Wider pairs (rig ids): " + string.Join(",", wideIds));
         }
         if (Opt("--out") is string outFile) File.WriteAllLines(outFile, rows);
         if (Opt("--previous") is string previous)

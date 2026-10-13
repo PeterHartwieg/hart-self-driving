@@ -22,7 +22,8 @@ namespace DrivenRides.Core.Testing
                 if (graph.IsJunctionEntryWaypoint(i))
                     foreach (int x in graph.MissingTurns(i))
                         Add(graph, options, cases, Make(graph, options, CaseKind.Turn, new List<int> { i, x }));
-                if (UTurnCase(graph, options, i) is Fixture uTurn) Add(graph, options, cases, uTurn);
+                foreach (var (target, _) in graph.UTurns(i))
+                    if (UTurnCase(graph, options, i, target) is Fixture uTurn) Add(graph, options, cases, uTurn);
                 if (graph.IsIntersection(i) || graph.IsJunctionExitWaypoint(i) || graph.Lateral(i).Count == 0) continue;
                 float distance = JunctionDistance(graph, i, junctions);
                 foreach (int beside in graph.Lateral(i))
@@ -58,7 +59,7 @@ namespace DrivenRides.Core.Testing
         public static Fixture? ForStep(LaneGraph graph, int entry, int exit, CatalogueOptions options)
         {
             Fixture? fixture = null;
-            if (graph.UTurn(entry) == exit) fixture = UTurnCase(graph, options, entry);
+            if (graph.IsUTurn(entry, exit)) fixture = UTurnCase(graph, options, entry, exit);
             else
                 foreach (int x in graph.MissingTurns(entry))
                     if (x == exit) { fixture = Make(graph, options, CaseKind.Turn, new List<int> { entry, exit }); break; }
@@ -66,10 +67,10 @@ namespace DrivenRides.Core.Testing
         }
 
         // A U-turn's case: from the entry to its target, on through the junction to the first plain waypoint of the far
-        // carriageway.
-        private static Fixture? UTurnCase(LaneGraph graph, CatalogueOptions options, int i)
+        // carriageway. The inner one (LaneGraph.UTurn) keeps its id, uturn-<entry>-<exit>; a wider one is
+        // uturnw-<entry>-<target>.
+        private static Fixture? UTurnCase(LaneGraph graph, CatalogueOptions options, int i, int target)
         {
-            int target = graph.UTurn(i);
             if (target < 0) return null;
             var middle = new List<int> { i, target };
             var seen = new HashSet<int>(middle);
@@ -85,7 +86,9 @@ namespace DrivenRides.Core.Testing
             }
             if (graph.IsIntersection(current)) return null;
             Fixture fixture = Make(graph, options, CaseKind.UTurn, middle);
-            fixture.TurnGateWaypoint = graph.UTurnStart(i);
+            // Two far lanes can lead to one plain waypoint, so a wider one is named by its target.
+            if (graph.IsWideUTurn(i, target)) fixture.Id = "uturnw-" + i + "-" + target;
+            fixture.TurnGateWaypoint = graph.UTurnStart(i, target);
             return fixture;
         }
 

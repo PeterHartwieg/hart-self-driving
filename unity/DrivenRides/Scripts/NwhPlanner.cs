@@ -251,7 +251,7 @@ namespace DrivenRides
                 {
                     if (gone < laneMetres && LaneBlocked(graph, from, to) is string parked) result.Add((from, to, parked));
                 }
-                else if (graph.UTurn(from) == to || Contains(graph.MissingTurns(from), to))
+                else if (graph.IsUTurn(from, to) || Contains(graph.MissingTurns(from), to))
                 {
                     var verdict = Check.Step(from, to);
                     if (!verdict.Feasible) result.Add((from, to, verdict.ToString()));

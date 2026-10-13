@@ -39,7 +39,7 @@ namespace DrivenRides.Core.Ride
                 result.Add(w[k]);
                 if (graph == null || k + 1 >= w.Count) continue;
                 var vias = graph.TurnVias(w[k], w[k + 1]);
-                var uTurn = graph.UTurn(w[k]) == w[k + 1];
+                var uTurn = graph.IsUTurn(w[k], w[k + 1]);
                 if (vias.Count > 0 && !uTurn && arc != null && arc(w[k], w[k + 1]))
                 {
                     for (var back = 2; back >= 0; back--) if (result.Count - 1 - back >= 0) slowPath.Add(result.Count - 1 - back);

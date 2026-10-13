@@ -16,7 +16,7 @@ if (args[1] == "feasible")
 }
 if (args[1] == "stats")
 {
-    Console.WriteLine($"{graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} U-turns, {graph.TrimmedChains} straight ways in cut back");
+    Console.WriteLine($"{graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} U-turns and {graph.InferredWideUTurns} wider ones, {graph.TrimmedChains} straight ways in cut back");
     return;
 }
 if (args[1] == "show")

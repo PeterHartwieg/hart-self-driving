@@ -129,7 +129,7 @@ namespace DrivenRides.Core.Drive
         {
             if (steps.TryGetValue((entry, exit), out var known)) return known;
             Verdict verdict;
-            if (graph.UTurn(entry) == exit) verdict = ViaVerdict(entry, exit, exit);
+            if (graph.IsUTurn(entry, exit)) verdict = ViaVerdict(entry, exit, exit);
             else
             {
                 verdict = ArcVerdict(entry, exit);

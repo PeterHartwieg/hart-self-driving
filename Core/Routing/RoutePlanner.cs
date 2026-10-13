@@ -31,6 +31,12 @@ namespace DrivenRides.Core.Routing
         public float MissingTurnPenaltySeconds = 8f;
         // A U-turn at a junction (LaneGraph.UTurn) costs this on top. PositiveInfinity turns them off.
         public float UTurnPenaltySeconds = 12f;
+        // The wider U-turns too (LaneGraph.UTurns: every approach lane to every far lane), for a car driven by its own
+        // physics, each costing this much more per metre it is narrower than the widest, so the widest the car can
+        // make wins: two lanes wider (8 m) is worth more than a lane change (5 s) before the junction. The Gley path
+        // keeps the inner one only.
+        public bool WideUTurns;
+        public float UTurnNarrowerSecondsPerMetre = 1.5f;
         // Steps the game's data doesn't have (lane changes, added turns, U-turns) that the caller found blocked in the
         // world, by their start and end waypoints. Asked only for those steps.
         public Func<int, int, bool>? IsBlockedStep;
@@ -96,6 +102,8 @@ namespace DrivenRides.Core.Routing
         private readonly float laneChangePenalty;
         private readonly float missingTurnPenalty;
         private readonly float uTurnPenalty;
+        private readonly bool wideUTurns;
+        private readonly float narrowerSeconds;
         private readonly float walkWeight;
         private readonly Func<int, int, bool>? blockedStep;
         private readonly Func<int, bool>? disabled;
@@ -118,6 +126,8 @@ namespace DrivenRides.Core.Routing
             laneChangePenalty = request.LaneChangePenaltySeconds;
             missingTurnPenalty = request.MissingTurnPenaltySeconds;
             uTurnPenalty = request.UTurnPenaltySeconds;
+            wideUTurns = request.WideUTurns;
+            narrowerSeconds = request.UTurnNarrowerSecondsPerMetre;
             walkWeight = request.WalkWeight;
             blockedStep = request.IsBlockedStep;
             disabled = request.IsDisabled;
@@ -217,9 +227,24 @@ namespace DrivenRides.Core.Routing
                     for (int k = 0; k < added.Count; k++)
                         RelaxAdded(i, added[k], entry.Cost, missingTurnPenalty + 0.2 * Vec3.Distance(graph.Position(i), graph.Position(added[k])) / graph.SpeedMs(i));
                 }
-                int uTurn = graph.UTurn(i);
-                if (uTurn >= 0 && !float.IsPositiveInfinity(uTurnPenalty))
-                    RelaxAdded(i, uTurn, entry.Cost, uTurnPenalty + 0.6 * Vec3.Distance(graph.Position(i), graph.Position(uTurn)) / graph.SpeedMs(i));
+                if (!float.IsPositiveInfinity(uTurnPenalty))
+                {
+                    if (wideUTurns)
+                    {
+                        IReadOnlyList<(int Target, float Width)> uTurns = graph.UTurns(i);
+                        for (int k = 0; k < uTurns.Count; k++)
+                        {
+                            int x = uTurns[k].Target;
+                            RelaxAdded(i, x, entry.Cost, uTurnPenalty + 0.6 * Vec3.Distance(graph.Position(i), graph.Position(x)) / graph.SpeedMs(i)
+                                + narrowerSeconds * graph.UTurnNarrower(i, x));
+                        }
+                    }
+                    else
+                    {
+                        int uTurn = graph.UTurn(i);
+                        if (uTurn >= 0) RelaxAdded(i, uTurn, entry.Cost, uTurnPenalty + 0.6 * Vec3.Distance(graph.Position(i), graph.Position(uTurn)) / graph.SpeedMs(i));
+                    }
+                }
             }
             Status = PlanStatus.NoPath;
             return Status;

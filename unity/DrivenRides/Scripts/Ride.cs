@@ -482,7 +482,7 @@ namespace DrivenRides
                 for (var k = 0; k + 1 < route.Waypoints.Count; k++)
                 {
                     foreach (var t in graph.MissingTurns(route.Waypoints[k])) if (t == route.Waypoints[k + 1]) addedTurns++;
-                    if (graph.UTurn(route.Waypoints[k]) == route.Waypoints[k + 1]) addedTurns++;
+                    if (graph.IsUTurn(route.Waypoints[k], route.Waypoints[k + 1])) addedTurns++;
                 }
                 if (addedTurns > 0) Log.Info($"Route uses {addedTurns} turn{(addedTurns == 1 ? "" : "s")} or U-turn{(addedTurns == 1 ? "" : "s")} the game's traffic data doesn't have.");
                 var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car!, prefab, vehicleType, goals, route, spawn != null)
@@ -558,6 +558,7 @@ namespace DrivenRides
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
                 IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || (planNwh != null ? planNwh.IsBlocked(a, b) : TestedSteps.Blocks(a, b, planLength)),
+                WideUTurns = planNwh != null,
             });
             while (job.Status == PlanStatus.Running && watch.ElapsedMilliseconds < PlanBudgetMs)
                 job.Step(PlanStep, () => watch.ElapsedMilliseconds >= PlanBudgetMs);
@@ -752,7 +753,7 @@ namespace DrivenRides
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
                 // A U-turn is driven as Gley will drive it, through its vias, at the speed the ride takes it: a long car
                 // that can't make one cleanly goes round the block (Peter: few drivers would U-turn a car that size).
-                if (graph.UTurn(w[k]) == w[k + 1])
+                if (graph.IsUTurn(w[k], w[k + 1]))
                 {
                     if (!TurnClear(graph, w[k], w[k + 1], w[k + 1], car, out var uWhat, car.Length >= LongCarMetres ? UTurnSpeed : TurnSpeed))
                         result.Add((w[k], w[k + 1], uWhat));
@@ -1728,6 +1729,7 @@ namespace DrivenRides
                 VehicleType = vehicleType,
                 IsDisabled = GleyGraph.IsDisabled,
                 IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || (nwhPlanner != null ? nwhPlanner.IsBlocked(a, b) : TestedSteps.Blocks(a, b, carLength)),
+                WideUTurns = nwhPlanner != null,
             });
             replanSeconds = 0f;
             Log.Info("Watchdog: replanning (" + watch!.LastReason + ").");
