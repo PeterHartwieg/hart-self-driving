@@ -32,6 +32,7 @@ namespace DrivenRides
         private float stillSeconds;
         private float heldSeconds;
         private bool giving;
+        private float backOffUntil;
         private readonly List<(float, float, float, float)> traffic = new List<(float, float, float, float)>();
         private static readonly System.Reflection.FieldInfo? TrafficVehiclesField = HarmonyLib.AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
 
@@ -104,6 +105,17 @@ namespace DrivenRides
             var forward = t.forward;
             var rear = Car.RearAxle;
             var speed = Vector3.Dot(Car.Body.velocity, forward);
+            // Backing off: NWH's automatic gearbox shifts into reverse on the brake at a standstill and the brake then
+            // drives the car backwards (swapInputInReverse).
+            if (Time.time < backOffUntil)
+            {
+                vehicle.input.Steering = 0f;
+                vehicle.input.Throttle = 0f;
+                vehicle.input.Handbrake = 0f;
+                vehicle.input.Brakes = 0.35f;
+                lastProgressTime = Time.time;
+                return;
+            }
             var stop = RedAhead(speed);
             var gap = GapAhead(speed);
             var give = driver.YieldAlong(MovingTraffic(rear), speed);
@@ -125,7 +137,15 @@ namespace DrivenRides
             if (give != null && !giving) Log.Info($"NWH drive: giving way at {give:0} m along (front at {o.Along + Car.FrontAhead:0}).");
             giving = give != null;
             heldSeconds = WaitingNow && gap != null ? heldSeconds + Time.fixedDeltaTime : 0f;
-            if (heldSeconds > 5f && heldSeconds < 5.03f) Log.Info($"NWH drive: held 5 s behind '{lastBlocker}' {gap:0.0} m ahead.");
+            // Nose to nose with a traffic car: it stops for this car in its trigger and this car for it, for good
+            // (Peter, NWH spike: crashed again and is now stuck). This one backs off a little so the other can go.
+            if (heldSeconds > 5f && gap < 1.2f && lastBlocker.Contains("AiVehicles"))
+            {
+                Log.Info($"NWH drive: held 5 s behind '{lastBlocker}' {gap:0.0} m ahead; backing off.");
+                backOffUntil = Time.time + 1.5f;
+                heldSeconds = 0f;
+            }
+            else if (heldSeconds > 5f && heldSeconds < 5.03f) Log.Info($"NWH drive: held 5 s behind '{lastBlocker}' {gap:0.0} m ahead.");
 
             Trace.Append((Time.time - startedAt).ToString("0.00", Inv)).Append(',').Append(o.Along.ToString("0.0", Inv)).Append(',')
                 .Append(o.Lateral.ToString("0.00", Inv)).Append(',').Append(speed.ToString("0.00", Inv)).Append(',').Append(o.Desired.ToString("0.00", Inv)).Append(',')

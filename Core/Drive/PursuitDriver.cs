@@ -151,12 +151,34 @@ namespace DrivenRides.Core.Drive
                     // less than 3 m/s) is no conflict.
                     var ours = (hitAlong - front) / Math.Max(3f, speedMs);
                     if (ours > t + 1.5f) continue;
-                    var stopAt = Math.Max(front, hitAlong - 2f);
+                    // Wait short of the turn that leads there, not of the meeting point: in a tight turn the body swings
+                    // into the other lanes well before the line crosses them (Peter, NWH spike: a U-turn into an
+                    // oncoming car). A car already in the turn finishes it unless the meeting point is right ahead.
+                    var turnStart = TurnStart(front, hitAlong);
+                    float stopAt;
+                    if (turnStart > front + 0.5f) stopAt = Math.Min(hitAlong - 2f, turnStart);
+                    else if (hitAlong - front < 4f) stopAt = front;
+                    else break;
                     if (first == null || stopAt < first) first = stopAt;
                     break;
                 }
             }
             return first;
+        }
+
+        // Where the line first bends 15 degrees away from its heading at `from`, before `to`; `to` if it doesn't.
+        private float TurnStart(float from, float to)
+        {
+            var a = line.Line.At(from);
+            var b = line.Line.At(from + 1f);
+            var h0 = Math.Atan2(b.X - a.X, b.Z - a.Z);
+            for (var s = from + 1f; s < to; s += 0.5f)
+            {
+                var p = line.Line.At(s);
+                var q = line.Line.At(s + 1f);
+                if (Math.Abs(DriveLine.Wrap(Math.Atan2(q.X - p.X, q.Z - p.Z) - h0)) > 15 * Math.PI / 180) return Math.Max(from, s - 1f);
+            }
+            return to;
         }
 
         // The speed the plan allows here: no faster than lets the car slow to each limit ahead at Decel.

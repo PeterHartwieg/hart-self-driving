@@ -148,4 +148,20 @@ public sealed class PursuitDriverTests
         Assert.Null(driver.YieldAlong(new[] { (3.5f, 8f, 0f, 12f) }, 5f));
         Assert.Null(driver.YieldAlong(new[] { (15f, 20f, 0f, 0f) }, 5f));
     }
+
+    [Fact]
+    public void GivesWayBeforeATurnNotInIt()
+    {
+        // North, then a right turn at z 30 into an eastbound lane; an oncoming (southbound) car will cross the exit.
+        var arc = TurnArc.Fit(new Vec3(0, 0, 20), 0, 1, new Vec3(12, 0, 30), 1, 0, 6f)!;
+        var points = Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 20)).Concat(Straight(new Vec3(12, 0, 30), new Vec3(80, 0, 30))).ToList();
+        var line = DriveLine.Build(points, new[] { (points.FindIndex(p => Math.Abs(p.Z - 20) < 0.01f && p.X == 0), arc) });
+        var driver = new PursuitDriver(line, 3f, 4f, 14f);
+        driver.Step(new DriveInput { RearX = 0, RearZ = 12, Heading = 0, SpeedMs = 5, Dt = 0.02f });
+        // A car coming down x = 8 at 10 m/s reaches the exit near (8, 30) in 2.5 s, as this car gets there.
+        var give = driver.YieldAlong(new[] { (8f, 55f, 0f, -10f) }, 5f);
+        Assert.NotNull(give);
+        // It waits before the bend starts (the arc leaves the entry lane at z 20), not at the meeting point.
+        Assert.True(give!.Value <= line.AlongOf[points.FindIndex(p => Math.Abs(p.Z - 20) < 0.01f && p.X == 0)] + 3f, $"gives way at {give} m");
+    }
 }
