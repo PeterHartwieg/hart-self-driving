@@ -10,7 +10,7 @@ namespace DrivenRides.Core.Drive
     public struct DriveInput
     {
         public float RearX, RearZ, Heading, SpeedMs, Dt;
-        // Metres along the line short of which the car gives way (YieldAlong), or null.
+        // Metres along the line where the front gives way to traffic (TrafficDriver), or null.
         public float? YieldAlong;
         // The wheel's angle now (degrees, positive to the right).
         public float WheelDegrees;
@@ -18,6 +18,8 @@ namespace DrivenRides.Core.Drive
         public float? StopAlong;
         // Metres from the car's front to something in its way (a car ahead), or null.
         public float? GapAhead;
+        // A speed cap from the traffic rules (creeping past a car that waits for this one), m/s, or null.
+        public float? MaxSpeed;
     }
 
     public struct DriveOutput
@@ -39,7 +41,6 @@ namespace DrivenRides.Core.Drive
         private readonly List<(float From, float To, float Speed)> slow = new List<(float, float, float)>();
         private float along;
         private float integral;
-        private int firstPoint;
 
         // Comfortable braking and the limit past which a red is driven through (amber), m/s².
         public const float Decel = 2.5f;
@@ -120,6 +121,7 @@ namespace DrivenRides.Core.Drive
                 desired = Math.Min(desired, Approach(0f, gap - StopGap));
                 holding |= gap < StopGap + 3f;
             }
+            if (i.MaxSpeed is float cap) desired = Math.Min(desired, cap);
             if (along + frontAhead >= Length - 1f) desired = 0f;
             // No faster than the corner the wheel is turning now, nor the one it is asked for: the car accelerated
             // out of corners with the wheel still at lock and ran wide (Peter, NWH spike: overshooting the corner).
@@ -131,67 +133,20 @@ namespace DrivenRides.Core.Drive
             return o;
         }
 
-        // Giving way (Peter, NWH spike: the car pulled out across a traffic car onto Broadway). Another car moving
-        // at over 1.5 m/s that will cross the next 25 m of the line within 3 s, before this car has gone past that
-        // point, is given way to: the result is metres along the line where the front stops, 2 m short of where they
-        // would meet. A car on the line behind this one is following it, not crossing.
-        public float? YieldAlong(IEnumerable<(float X, float Z, float Vx, float Vz)> others, float speedMs)
-        {
-            var front = along + frontAhead;
-            float? first = null;
-            foreach (var (x, z, vx, vz) in others)
-            {
-                var speed = (float)Math.Sqrt(vx * vx + vz * vz);
-                if (speed < 1.5f) continue;
-                var (onAlong, onSide) = line.Locate(x, z, Math.Max(0f, along - 15f), 45f);
-                if (Math.Abs(onSide) < 2.2f && onAlong < front + 1f) continue;
-                for (var t = 0.25f; t <= 3f; t += 0.25f)
-                {
-                    float px = x + vx * t, pz = z + vz * t;
-                    var (hitAlong, hitSide) = line.Locate(px, pz, front - 2f, 27f);
-                    if (Math.Abs(hitSide) > 2.2f || hitAlong < front - 1f || hitAlong > front + 25f) continue;
-                    // A meeting point far enough ahead that the other car is through it 1.5 s before this one (at no
-                    // less than 3 m/s) is no conflict.
-                    var ours = (hitAlong - front) / Math.Max(3f, speedMs);
-                    if (ours > t + 1.5f) continue;
-                    // Wait short of the turn that leads there, not of the meeting point: in a tight turn the body swings
-                    // into the other lanes well before the line crosses them (Peter, NWH spike: a U-turn into an
-                    // oncoming car). A car already in the turn finishes it unless the meeting point is right ahead.
-                    var turnStart = TurnStart(front, hitAlong);
-                    float stopAt;
-                    if (turnStart > front + 0.5f) stopAt = Math.Min(hitAlong - 2f, turnStart);
-                    else if (hitAlong - front < 4f) stopAt = front;
-                    else break;
-                    if (first == null || stopAt < first) first = stopAt;
-                    break;
-                }
-            }
-            return first;
-        }
+        // A car that starts part way along its line (a dumped traffic scenario): where its rear axle is.
+        public void StartAt(float x, float z) => along = line.Locate(x, z, 0f, line.Line.Length).Along;
 
-        // Where the line first bends 15 degrees away from its heading at `from`, before `to`; `to` if it doesn't.
-        private float TurnStart(float from, float to)
-        {
-            var a = line.Line.At(from);
-            var b = line.Line.At(from + 1f);
-            var h0 = Math.Atan2(b.X - a.X, b.Z - a.Z);
-            for (var s = from + 1f; s < to; s += 0.5f)
-            {
-                var p = line.Line.At(s);
-                var q = line.Line.At(s + 1f);
-                if (Math.Abs(DriveLine.Wrap(Math.Atan2(q.X - p.X, q.Z - p.Z) - h0)) > 15 * Math.PI / 180) return Math.Max(from, s - 1f);
-            }
-            return to;
-        }
+        // After backing off: where the rear axle is now, searched up to 12 m back from the last position.
+        public void BackTo(float x, float z) => along = line.Locate(x, z, Math.Max(0f, along - 12f), 13f).Along;
 
-        // The speed the plan allows here: no faster than lets the car slow to each limit ahead at Decel.
+        // The speed the plan allows at `at` metres along: no faster than lets the car slow to each limit ahead at
+        // Decel. It keeps no state, so the traffic sweep can ask it about any point ahead.
         public float PlannedSpeed(float at, float speedMs)
         {
             var desired = top;
             var pts = line.Line.Points;
             var horizon = at + 10f + speedMs * speedMs / (2 * Decel);
-            while (firstPoint + 1 < pts.Count && line.Along(firstPoint) < at - 1f) firstPoint++;
-            for (var k = firstPoint; k < pts.Count; k++)
+            for (var k = line.FirstPointFrom(at - 1f); k < pts.Count; k++)
             {
                 var s = line.Along(k);
                 if (s < at - 1f) continue;

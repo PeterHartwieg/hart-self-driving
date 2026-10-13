@@ -161,6 +161,20 @@ namespace DrivenRides.Core.Drive
             return alongCache[point];
         }
 
+        // The first point of the line at or after `at` metres along it.
+        public int FirstPointFrom(float at)
+        {
+            Along(0);
+            int lo = 0, hi = alongCache.Count;
+            while (lo < hi)
+            {
+                var mid = (lo + hi) / 2;
+                if (alongCache[mid] < at) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
+
         public static double Wrap(double a)
         {
             while (a > Math.PI) a -= 2 * Math.PI;
