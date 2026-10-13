@@ -24,10 +24,12 @@ public sealed class ApproachPedalTests
     }
 
     [Theory]
-    [InlineData(9f, 12f, false)]
-    [InlineData(12f, 14f, true)]
-    [InlineData(13f, 13f, true)]
-    public void TheCarKeepsItsStoppingOptionThroughThePedals(float rideMs, float crossMs, bool byApproach)
+    [InlineData(9f, 12f, 0f, false)]
+    [InlineData(10f, 6f, 16f, false)]
+    [InlineData(10f, 6f, 20f, true)]
+    [InlineData(12f, 7f, 20f, false)]
+    [InlineData(12f, 7f, 24f, true)]
+    public void TheCarKeepsItsStoppingOptionThroughThePedals(float rideMs, float crossMs, float later, bool byApproach)
     {
         var car = RideCar.Dash;
         // North along x = 0; a lane east along z = 30, its car coming from the west so that it would arrive about when
@@ -40,12 +42,15 @@ public sealed class ApproachPedalTests
         var graph = b.Build();
         var traffic = new TrafficDriver(graph, line, driver, new RideBody { Wheelbase = car.Wheelbase, FrontAhead = car.FrontAhead, RearBehind = car.RearBehind, HalfWidth = car.HalfWidth });
         float z = -car.FrontAhead, v = rideMs, throttle = 0f, brake = 0f;
-        var crossX = -(30f / rideMs) * crossMs + 2f;
+        // Arriving at the ride car's path `later` metres after it would at its own pace (a slow car that could speed up).
+        var crossX = -(30f / rideMs) * crossMs + 2f - later;
         const float dt = 0.02f;
         var decision = new TrafficDecision();
         var entered = false;
         var approached = false;
         var lost = 0f;
+        var lostFirst = float.NaN;
+        // lost, lostFirst: the braking needed to keep the option, m/s².
         for (var step = 0; step < 600; step++)
         {
             var t = step * dt;
@@ -58,7 +63,14 @@ public sealed class ApproachPedalTests
             // Whenever it is to keep the option, it can still stop at PursuitDriver.Decel after the brakes' latency
             // short of the boundary (give or take StopUncertainty).
             if (decision.ApproachFor == 1)
-                lost = Math.Max(lost, z + car.FrontAhead + v * TrafficDriver.BrakeLatency + v * v / (2f * PursuitDriver.Decel) - decision.ApproachAlong - TrafficDriver.StopUncertainty);
+            {
+                // The braking it needs to stop by the boundary after the brakes' latency, both along the line, which
+                // starts at z = -20 (review round 6, AA5).
+                var room = decision.ApproachAlong + TrafficDriver.StopUncertainty - (z + 20f + car.FrontAhead) - v * TrafficDriver.BrakeLatency;
+                var need = v * v / (2f * Math.Max(0.05f, room));
+                if (float.IsNaN(lostFirst)) lostFirst = Math.Max(PursuitDriver.Decel, need);
+                lost = Math.Max(lost, need);
+            }
             var o = driver.Step(new DriveInput
             {
                 RearX = 0f, RearZ = z, Heading = 0f, SpeedMs = v, Dt = dt, WheelDegrees = 0f,
@@ -73,11 +85,13 @@ public sealed class ApproachPedalTests
             var front = z + car.FrontAhead;
             if (front > 30f - 0.95f && z - car.RearBehind < 30f + 0.95f && crossX - 2.25f < car.HalfWidth && crossX + 2.25f > -car.HalfWidth) entered = true;
         }
-        output.WriteLine($"{rideMs} m/s, car at {crossMs} m/s: approached {approached}, entered with the car there {entered}, option lost by {lost:0.00} m at most");
+        output.WriteLine($"{rideMs} m/s, car at {crossMs} m/s, {later} m later: approached {approached}, entered with the car there {entered}, braking needed {lostFirst:0.00} m/s² when imposed, {lost:0.00} at most");
         // Held back by the cautious judgement where the lenient one alone was late, and never in the lane with the car.
         Assert.Equal(byApproach, approached);
         Assert.False(entered);
-        Assert.True(lost <= 0.05f, $"the stopping option was lost by {lost:0.00} m");
+        // Once imposed, the pedals keep the option: the braking it needs to stop by the boundary never grows past Decel,
+        // or past what it was when the judgement imposed it (found late, that is the prediction's; review round 6).
+        if (approached) Assert.True(lost <= lostFirst + 0.3f, $"braking needed grew to {lost:0.00} m/s², {lostFirst:0.00} when imposed");
     }
 
     // Why a stop and not a speed cap: driven through the pedals, a cap recomputed each step for the distance left

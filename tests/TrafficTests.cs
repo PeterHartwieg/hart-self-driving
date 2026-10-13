@@ -34,6 +34,9 @@ public sealed class TrafficTests
         var forced = 0;
         var marginal = 0;
         var marginalUnderHalf = 0;
+        var late = 0;
+        var again = 0;
+        var invariantFailures = new ConcurrentBag<string>();
         var times = new List<float>();
         var forcedSeeds = new ConcurrentBag<(int Seed, string What)>();
         Parallel.For(0, seeds, seed =>
@@ -42,15 +45,29 @@ public sealed class TrafficTests
             System.Threading.Interlocked.Add(ref forced, r.ForcedCommits);
             System.Threading.Interlocked.Add(ref marginal, r.MarginalCommits);
             if (r.MarginalLeast < 0.5f) System.Threading.Interlocked.Increment(ref marginalUnderHalf);
+            System.Threading.Interlocked.Add(ref late, r.ApproachesLate);
+            System.Threading.Interlocked.Add(ref again, r.ApproachesAgain);
+            if (r.ForcedUnderFloor > 0) invariantFailures.Add($"seed {seed}: a forced commit under the floor");
+            if (r.OptionLost > 0.3f) invariantFailures.Add($"seed {seed}: the stopping option lost ({r.OptionLost:0.00} m/s² more braking needed)");
             if (r.Arrived && r.Failure == null) lock (times) times.Add(r.Time);
             if (r.ForcedCommits > 0) forcedSeeds.Add((seed, r.Forced[0]));
             if (r.Failure != null || r.Blocked != null) failures.Add((seed, r.Failure ?? "blocked: " + r.Blocked));
             else System.Threading.Interlocked.Increment(ref arrived);
         });
-        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {forced} forced commits in {forcedSeeds.Count} seeds, {marginal} marginal ({marginalUnderHalf} runs under 0.5 s to spare), mean arrival {(times.Count > 0 ? times.Average() : 0f):0.00} s");
+        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {forced} forced commits in {forcedSeeds.Count} seeds, {marginal} marginal ({marginalUnderHalf} runs under 0.5 s to spare), {late} stops short imposed late ({again} more again within 1 s), mean arrival {(times.Count > 0 ? times.Average() : 0f):0.00} s");
         foreach (var (seed, why) in failures.OrderBy(f => f.Seed).Take(20)) output.WriteLine($"  seed {seed}: {why}");
         foreach (var (seed, what) in forcedSeeds.OrderBy(f => f.Seed).Take(10)) output.WriteLine($"  forced, seed {seed}: {what}");
+        foreach (var f in invariantFailures.Take(10)) output.WriteLine("  invariant, " + f);
+        // Contacts and red runs are failures above; these are the others (review round 6, decision a).
         Assert.Empty(failures);
+        Assert.Empty(invariantFailures);
+        // A ratchet from 0.1.77-traffic14 (review round 6): runs with a forced commit and marginal continuations per
+        // template, only ever lowered.
+        if (Ratchet.TryGetValue(template, out var most))
+        {
+            Assert.True(forcedSeeds.Count <= most.Forced, $"{forcedSeeds.Count} runs with a forced commit, the ratchet is {most.Forced}");
+            Assert.True(marginal <= most.Marginal, $"{marginal} marginal continuations, the ratchet is {most.Marginal}");
+        }
         // Forced commits are the emergency rule's: at most 2 % of runs. Review round 4 (X4) asked for 1 %; with the
         // cautious judgement trusting the cars' real stops and give-ways (round 5, Y5) priority has 1.2 %, which the
         // reviewers leave to in-game evidence rather than more tuning in simulation.
@@ -58,6 +75,11 @@ public sealed class TrafficTests
     }
 
     // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
+    private static readonly Dictionary<string, (int Forced, int Marginal)> Ratchet = new()
+    {
+        ["lights"] = (1, 4), ["priority"] = (7, 4), ["merge"] = (0, 0), ["uturn"] = (0, 0), ["headon"] = (0, 0), ["pullaway"] = (0, 0),
+    };
+
     [Fact]
     public void TraceOneSeed()
     {
@@ -70,6 +92,7 @@ public sealed class TrafficTests
         var r = Run(scenario, true);
         output.WriteLine(r.ToString());
         foreach (var f in r.Forced) output.WriteLine("forced: " + f);
+        output.WriteLine($"option lost {r.OptionLost:0.00} m/s², forced under floor {r.ForcedUnderFloor}");
         output.WriteLine(r.Trace.ToString());
     }
 
@@ -113,10 +136,9 @@ public sealed class TrafficTests
             Assert.Equal(s.Cars.Count, again.Cars.Count);
             var a = Run(s);
             var b = Run(again);
-            // The JSON rounds positions to the centimetre: the same outcome, within half a second over a minute's run.
-            Assert.Equal(a.Arrived, b.Arrived);
-            Assert.Equal(a.Failure == null, b.Failure == null);
-            Assert.InRange(b.Time, a.Time - 0.5f, a.Time + 0.5f);
+            // Written at round-trip precision: the very same run.
+            Assert.Equal(a.ToString(), b.ToString());
+            Assert.Equal(a.Time, b.Time);
         }
     }
 
@@ -235,7 +257,7 @@ public sealed class TrafficTests
                 Time = f.T, RearX = f.RideX, RearZ = f.RideZ, Heading = f.RideHeading, Speed = f.RideSpeed,
                 Marks = Array.Empty<DrivenRides.Core.Drive.PathMark>(), Cars = cars, Flags = flags,
             }, d);
-            lines.Add($"{f.T,5:0.0} v {f.RideSpeed,4:0.0} along {driver.Along,6:0.0} yield {d.YieldAlong,6:0.0} for {d.YieldFor,3} gap {d.GapAhead,5:0.0} {d.Why} {d.YieldNote}");
+            lines.Add($"{f.T,5:0.0} v {f.RideSpeed,4:0.0} along {driver.Along,6:0.0} yield {d.YieldAlong,6:0.0} for {d.YieldFor,3} gap {d.GapAhead,5:0.0} {d.Why} {d.YieldNote}{(d.ForcedCommit ? $" | forced {d.ForcedFor} with {d.ForcedMargin:0.00} s" : "")}");
         }
         return lines;
     }
@@ -257,7 +279,11 @@ public sealed class TrafficTests
     }
 
     // T3 20261013-211205, ride 9: a truck (11 m) coming up on the ride car's left as it turned left across its lane.
-    // Fed the recorded frames, the ride car must give way to it at every frame from the first until the contact.
+    // Fed the recorded frames, the ride car must give way to it at every frame from the first until the contact, or,
+    // where the recorded car drove on past the stop it was given (a replay doesn't obey the decisions) and can no
+    // longer stop short of the truck's way, the emergency rule decides: a forced commit with the floor to spare
+    // (review round 6: before, the cautious stop was kept for a car past that point, which stops it in the truck's
+    // way where standing isn't safe).
     [Fact]
     public void Ride9KeepsGivingWayToTheTruck()
     {
@@ -265,7 +291,7 @@ public sealed class TrafficTests
         var lines = ReplayDecisions(s);
         var first = lines.FindIndex(l => l.Contains("for   0"));
         Assert.True(first >= 0, string.Join("\n", lines));
-        var dropped = lines.Skip(first).Where(l => !l.Contains("for   0")).ToList();
+        var dropped = lines.Skip(first).Where(l => !l.Contains("for   0") && !l.Contains("| forced 0 ")).ToList();
         foreach (var l in lines.Skip(first)) output.WriteLine(l);
         Assert.True(dropped.Count == 0, $"dropped car 0 at:\n{string.Join("\n", dropped.Take(5))}");
     }

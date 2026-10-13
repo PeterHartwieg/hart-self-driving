@@ -132,7 +132,8 @@ namespace DrivenRides.Core.Testing
             return j.ToString();
         }
 
-        private static string F(float v) => float.IsNaN(v) || float.IsInfinity(v) ? "0" : Math.Round(v, 3).ToString(CultureInfo.InvariantCulture);
+        // Round-trip precision (G9): a scenario read back runs exactly as written (review round 6, AA6).
+        private static string F(float v) => float.IsNaN(v) || float.IsInfinity(v) ? "0" : v.ToString("G9", CultureInfo.InvariantCulture);
         private static string Ints(IEnumerable<int> values) => "[" + string.Join(",", values) + "]";
 
         private static string Points(IReadOnlyList<Vec3> points)

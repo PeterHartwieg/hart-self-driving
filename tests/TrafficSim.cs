@@ -29,6 +29,13 @@ internal sealed class SimResult
     // review round 5, Y1).
     public int MarginalCommits;
     public float MarginalLeast = float.MaxValue;
+    // The soak's invariants (review round 6, decision a): a forced commit with less than the floor to spare, and the
+    // stopping option lost while a stop short of a car's way was imposed (the braking it needs growing past Decel and
+    // past what it was when imposed).
+    public int ForcedUnderFloor;
+    public float OptionLost;
+    // Stops short of a car's way imposed when the car could no longer make them at Decel (found late).
+    public int ApproachesLate, ApproachesAgain;
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
@@ -117,6 +124,12 @@ internal sealed class TrafficSim : ILiveFlags
     public SimResult Run()
     {
         var forcedBefore = false;
+        var approachFor = -1;
+        var approachNeed = 0f;
+        var approachAlong = 0f;
+        var approachKept = false;
+        var approachLast = new Dictionary<int, float>();
+        var wasFree = true;
         var marginalBefore = false;
         var whys = new Queue<string>();
         var lastWhy = "";
@@ -218,6 +231,34 @@ internal sealed class TrafficSim : ILiveFlags
                 whys.Enqueue($"{time:0.0} {decision.Why} ({ride.Speed:0.0} m/s)");
                 if (whys.Count > 4) whys.Dequeue();
             }
+            if (decision.ForcedCommit && decision.ForcedMargin < TrafficDriver.MarginFloor((float)ride.Speed) - 1e-3f) result.ForcedUnderFloor++;
+            if (decision.ApproachFor >= 0)
+            {
+                var front0 = driver.Along + body.FrontAhead;
+                var roomA = decision.ApproachAlong + TrafficDriver.StopUncertainty - front0 - (float)ride.Speed * TrafficDriver.BrakeLatency;
+                var needA = (float)(ride.Speed * ride.Speed) / (2f * Math.Max(0.05f, roomA));
+                // Judged against the boundary as it stands: where the prediction moves it nearer (a car seen to be faster,
+                // a way found to reach further), the need starts afresh; that is the prediction's, not the driving's.
+                if (decision.ApproachFor != approachFor || decision.ApproachAlong < approachAlong - 0.3f)
+                {
+                    approachNeed = Math.Max(PursuitDriver.Decel, needA);
+                    // Imposed too late to stop at Decel already: the prediction's, counted, not the driving's to keep.
+                    // Late only if nothing held the car the decision before (else it was already braking for that).
+                    if (needA > PursuitDriver.Decel + 0.3f && wasFree)
+                    {
+                        if (approachLast.TryGetValue(decision.ApproachFor, out var last) && time - last < 1f) result.ApproachesAgain++;
+                        else result.ApproachesLate++;
+                    }
+                    approachKept = needA <= PursuitDriver.Decel + 0.3f;
+                }
+                approachFor = decision.ApproachFor;
+                approachAlong = decision.ApproachAlong;
+                approachLast[approachFor] = time;
+                if (needA - approachNeed > result.OptionLost + 0.3f && trace) result.Trace.Append($"OPTION {time:0.00} car {decision.ApproachFor} along {decision.ApproachAlong:0.0} front {front0:0.0} v {ride.Speed:0.0} need {needA:0.0} from {approachNeed:0.0} yield {decision.YieldAlong:0.0} {decision.Why}\n");
+                if (approachKept) result.OptionLost = Math.Max(result.OptionLost, needA - approachNeed);
+            }
+            else approachFor = -1;
+            wasFree = decision.YieldAlong == null && decision.StopAlong == null && decision.GapAhead == null && decision.MaxSpeed == null;
             if (decision.ForcedCommit && !forcedBefore)
             {
                 result.ForcedCommits++;

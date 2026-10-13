@@ -63,6 +63,8 @@ public sealed class RememberedCommitmentTests
                 if (bFirst) cars.Insert(0, bc); else cars.Add(bc);
             }
             else bx = 35f;
+            // The driver keeps up with the car, as on the road (the traffic driver looks for the car near it).
+            driver.StartAt(0f, z);
             traffic.Decide(new TrafficSnapshot { Time = t, RearX = 0f, RearZ = z, Heading = 0f, Speed = rideMs, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags() }, d);
             var front = z + car.FrontAhead;
             var frontAlong = front + 40f;
