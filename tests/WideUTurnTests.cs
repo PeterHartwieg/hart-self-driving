@@ -85,4 +85,26 @@ public sealed class WideUTurnTests
         var uTurn = Assert.Single(steps, s => graph.IsUTurn(s.First, s.Second));
         Assert.True(graph.IsWideUTurn(uTurn.First, uTurn.Second));
     }
+
+    [Fact]
+    public void BlockedWiderPairsCostTheInnerOneNothing()
+    {
+        // All the wider pairs blocked for this car: the inner U-turn is the widest one open and costs what it costs
+        // on the Gley path, so blocked wide pairs never push a route round the block.
+        var (graph, inner, _, goals) = Street();
+        var group = graph.UTurnGroup(inner);
+        var request = new RouteRequest { Start = 0, Goals = goals.Select(g => new Goal(g, 0)).ToArray() };
+        var gley = RoutePlanner.Plan(graph, request, int.MaxValue).Result!;
+        request.WideUTurns = true;
+        request.IsBlockedStep = (a, b) => graph.IsWideUTurn(a, b);
+        var wide = RoutePlanner.Plan(graph, request, int.MaxValue).Result!;
+        Assert.Equal(gley.Waypoints, wide.Waypoints);
+        Assert.Equal(gley.DriveSeconds, wide.DriveSeconds, 3);
+        // With only the widest blocked, the next widest open pair costs nothing extra either; a narrower one does.
+        var widest = group[0];
+        request.IsBlockedStep = (a, b) => a == widest.Entry && b == widest.Target;
+        var next = RoutePlanner.Plan(graph, request, int.MaxValue).Result!;
+        var uTurn = next.Waypoints.Zip(next.Waypoints.Skip(1)).Single(s => graph.IsUTurn(s.First, s.Second));
+        Assert.Equal(group[1].Width, graph.UTurnWidth(uTurn.First, uTurn.Second), 3);
+    }
 }

@@ -101,8 +101,18 @@ namespace DrivenRides.Core.Routing
         public bool IsWideUTurn(int i, int x) => uTurns[i] != x && IsUTurn(i, x);
         // The waypoint where the straight way into the junction ends and the U-turn starts.
         public int UTurnStart(int i, int x) => uTurns[i] == x ? uTurnStarts[i] : uTurnPairStarts.TryGetValue((i, x), out var s) ? s : -1;
-        // Metres a U-turn is narrower than the widest of its approach and far carriageway's, for the planner's cost.
+        // Metres a U-turn is narrower than the widest of its approach and far carriageway's.
         public float UTurnNarrower(int i, int x) => uTurnNarrower.TryGetValue((i, x), out var n) ? n : 0f;
+        // The inner entry whose group a U-turn belongs to (UTurnGroup), and its width; -1 and 0 for none.
+        public int UTurnGroupOf(int i, int x) => uTurnGroupOf.TryGetValue((i, x), out var m) ? m : uTurns[i] == x ? i : -1;
+        public float UTurnWidth(int i, int x)
+        {
+            var m = UTurnGroupOf(i, x);
+            if (m < 0) return 0f;
+            foreach (var p in UTurnGroup(m)) if (p.Entry == i && p.Target == x) return p.Width;
+            return 0f;
+        }
+        private readonly Dictionary<(int, int), int> uTurnGroupOf = new Dictionary<(int, int), int>();
         public int InferredWideUTurns { get; private set; }
         // All the U-turns of the approach whose inner U-turn starts at m (entry, target, metres across), widest first.
         public IReadOnlyList<(int Entry, int Target, float Width)> UTurnGroup(int m) =>
@@ -180,6 +190,7 @@ namespace DrivenRides.Core.Routing
                     }
                     if (!list.Exists(p => p.Item1 == x)) list.Add((x, width));
                     uTurnNarrower[(e, x)] = widest - width;
+                    uTurnGroupOf[(e, x)] = m;
                 }
             }
         }
