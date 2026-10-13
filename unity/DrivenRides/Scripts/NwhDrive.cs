@@ -32,6 +32,14 @@ namespace DrivenRides
         private float stillSeconds;
         private float heldSeconds;
         private bool giving;
+        private Rigidbody? lastBlockerBody;
+
+        private bool BlockerWaitsForUs(Vector3 forward)
+        {
+            if (lastBlockerBody == null) return false;
+            if (lastBlockerBody.velocity.magnitude > 0.3f) return false;
+            return Vector3.Angle(Vector3.ProjectOnPlane(lastBlockerBody.transform.forward, Vector3.up), Vector3.ProjectOnPlane(forward, Vector3.up)) > 30f;
+        }
         private float backOffUntil;
         private readonly List<(float, float, float, float)> traffic = new List<(float, float, float, float)>();
         private static readonly System.Reflection.FieldInfo? TrafficVehiclesField = HarmonyLib.AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
@@ -139,10 +147,12 @@ namespace DrivenRides
             heldSeconds = WaitingNow && gap != null ? heldSeconds + Time.fixedDeltaTime : 0f;
             // Nose to nose with a traffic car: it stops for this car in its trigger and this car for it, for good
             // (Peter, NWH spike: crashed again and is now stuck). This one backs off a little so the other can go.
-            if (heldSeconds > 5f && gap < 1.2f && lastBlocker.Contains("AiVehicles"))
+            // A traffic car standing across this car's way (not queued ahead in the same direction) is waiting for
+            // this one too (Peter, NWH spike: it stopped for traffic but then just stood there, 2 m from it).
+            if (heldSeconds > 5f && gap < 3.5f && lastBlocker.Contains("AiVehicles") && BlockerWaitsForUs(forward))
             {
                 Log.Info($"NWH drive: held 5 s behind '{lastBlocker}' {gap:0.0} m ahead; backing off.");
-                backOffUntil = Time.time + 1.5f;
+                backOffUntil = Time.time + 2f;
                 heldSeconds = 0f;
             }
             else if (heldSeconds > 5f && heldSeconds < 5.03f) Log.Info($"NWH drive: held 5 s behind '{lastBlocker}' {gap:0.0} m ahead.");
@@ -226,7 +236,7 @@ namespace DrivenRides
                 var (_, side) = line.Locate(point.x, point.z, driver.Along, reach + 10f);
                 if (Mathf.Abs(side) > Car.BodyHalf.x + 0.4f) continue;
                 var d = h.distance + 0.3f;
-                if (best == null || d < best) { best = d; lastBlocker = $"{h.collider.name} ({LayerMask.LayerToName(h.collider.gameObject.layer)})"; }
+                if (best == null || d < best) { best = d; lastBlocker = $"{h.collider.name} ({LayerMask.LayerToName(h.collider.gameObject.layer)})"; lastBlockerBody = h.rigidbody; }
             }
             return best;
         }
