@@ -1771,18 +1771,18 @@ namespace DrivenRides
         {
             var graph = GleyGraph.Graph;
             if (nwhPlanner == null || graph == null) return null;
-            return nwhPlanner.PlanRoundBlock(graph, route.Waypoints, path, position, what, pose, goals, vehicleType);
+            return nwhPlanner.PlanRoundBlock(route.Waypoints, path, position, what, pose, goals, vehicleType);
         }
 
         // NwhDrive.LookAhead for an NWH ride: the planner's look-ahead (lanes loaded since, manoeuvres checked again
         // near, steps ahead blocked now), as a job the drive steps.
-        private readonly NwhPlanner.Watch nwhWatch = new NwhPlanner.Watch();
+        private readonly WayOnPlanner.Watch nwhWatch = new WayOnPlanner.Watch();
 
         internal WayOnJob? NwhLookAhead(int position, Func<CarPose> pose)
         {
             var graph = GleyGraph.Graph;
             if (nwhPlanner == null || graph == null) return null;
-            return nwhPlanner.LookAhead(graph, route.Waypoints, path, position, pose, goals, vehicleType, nwhWatch);
+            return nwhPlanner.LookAhead(route.Waypoints, path, position, pose, goals, vehicleType, nwhWatch);
         }
 
         // NwhDrive.Take for an NWH ride: a job's way on taken as a replan is (progress, waypoint index, watchdog); the

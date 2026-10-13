@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using DrivenRides.Core.Drive;
 using DrivenRides.Core.Ride;
 using DrivenRides.Core.Routing;
@@ -163,17 +162,19 @@ public sealed class ReviewRound2Tests
     [Fact]
     public void Q5APlanningJobRunsInSlicesAndSaysWhereToHoldFirst()
     {
+        // A clock of its own, 2 ms a piece of work (review round 3: slept, the test depended on the scheduler).
+        var now = 0.0;
         IEnumerable<object?> Work(WayOnJob job)
         {
             for (var i = 0; i < 6; i++)
             {
-                Thread.Sleep(2);
+                now += 2;
                 if (i == 1) job.HoldPosition = 7;
                 yield return null;
             }
             job.Note = "done";
         }
-        var job = new WayOnJob("ahead", 3, Work);
+        var job = new WayOnJob("ahead", 3, Work, () => now);
         Assert.False(job.Step(1.0));
         Assert.False(job.Step(1.0));
         Assert.Equal(7, job.HoldPosition);

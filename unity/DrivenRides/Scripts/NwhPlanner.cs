@@ -105,7 +105,7 @@ namespace DrivenRides
     // drive" and "Parked cars in lanes"): which form each added turn takes and whether the car can make it (Core's
     // Feasibility, with the world swept here), and whether a lane is blocked by a parked car. One per car and session;
     // the Gley path (Ride.FindBlockedSteps, TurnDrive) stays for Gley ride cars.
-    internal sealed class NwhPlanner
+    internal sealed class NwhPlanner : IWayOnWorld
     {
         private static readonly Dictionary<string, NwhPlanner> planners = new Dictionary<string, NwhPlanner>();
         private static object? plannersFor;
@@ -146,11 +146,14 @@ namespace DrivenRides
         // the game parks cars only near the player.
         public const float PlannedAheadMetres = 200f;
 
+        private readonly LaneGraph graph;
+
         private NwhPlanner(CarSpec car)
         {
             Car = car;
+            graph = GleyGraph.Graph!;
             // The pavement from the pedestrians' NavMesh (Sidewalk): no manoeuvre that puts a corner of the body on it.
-            Check = new Feasibility(GleyGraph.Graph!, car, WorldHit, Feasibility.DefaultMargin, LimitKmh)
+            Check = new Feasibility(graph, car, WorldHit, Feasibility.DefaultMargin, LimitKmh)
                 { GroundAt = GroundAt, PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null };
             var h = car.BodyHalf;
             // The driver stops for anything within its half width and 0.4 m of its line (NwhDrive.GapAhead).
@@ -184,11 +187,7 @@ namespace DrivenRides
             return type != null ? For(type, topKmh) : null;
         }
 
-        // Why a step is blocked, which says for how long (review round 1: every block held for the session):
-        // a manoeuvre the car can't make, for the session (the world and the car don't change); something standing
-        // in the lane (a parked car, a prop), for InLaneSeconds, then swept again; found blocked on the way (no
-        // motion, held by something, a traffic car that won't move), for this ride only.
-        public enum BlockCause { Manoeuvre, InLane, OnTheWay }
+        // Blocks of the InLane kind (BlockCause) hold this long, then the step is swept again.
         public const float InLaneSeconds = 180f;
 
         public void Block(int from, int to, BlockCause cause = BlockCause.Manoeuvre) => blocked[(from, to)] = (cause, Time.realtimeSinceStartup);
@@ -216,14 +215,8 @@ namespace DrivenRides
             laneClear.Clear();
         }
 
-        // The cause a step found blocked gets, from what failed it (review round 2: every failed manoeuvre was held
-        // for the session, those failed by a parked car too): a lane step or a lane change is something in the
-        // lane; a manoeuvre that met a car (parked, or the player's: Feasibility.Movable, WorldHit) is too, so it is
-        // checked again later; one that met the built world (a prop, a kerb, the pavement, a building) or that the
-        // car can't steer is a manoeuvre this car can't make.
-        public static BlockCause CauseOf(LaneGraph graph, int from, int to, string what) =>
-            !(graph.IsUTurn(from, to) || Contains(graph.MissingTurns(from), to)) || what.Contains(Feasibility.Movable)
-                ? BlockCause.InLane : BlockCause.Manoeuvre;
+        // The cause a step found blocked gets, from what failed it (WayOnPlanner.CauseOf).
+        public static BlockCause CauseOf(LaneGraph graph, int from, int to, string what) => WayOnPlanner.CauseOf(graph, from, to, what);
 
         private static float LimitKmh(int waypoint)
         {
@@ -313,6 +306,7 @@ namespace DrivenRides
                 }
                 else if (graph.IsUTurn(from, to) || Contains(graph.MissingTurns(from), to))
                 {
+                    foreach (var y in Check.StepWork(from, to)) yield return y;
                     var verdict = Check.Step(from, to);
                     if (!verdict.Feasible) result.Add((from, to, verdict.ToString()));
                 }
@@ -357,7 +351,7 @@ namespace DrivenRides
 
         // Within this of the ride car, the game's parked cars are there (they are cleared beyond 80 m of the player,
         // ParkingLaneGenerator.CleanupParkedVehicles).
-        public const float LoadedMetres = 70f;
+        public const float LoadedMetres = WayOnPlanner.LoadedMetres;
 
         // A plain lane step swept for what stands in it: parked cars and the player's cars, and from RoadClearance up
         // props, buildings, the road's raised edges and median islands. A driver passes a car parked partly in the
@@ -513,6 +507,8 @@ namespace DrivenRides
                 {
                     // The line the car will drive, rounded corners and sideways moves included, checked as driven: a
                     // step it fails on is blocked like the others (review round 2: never an unchecked plan).
+                    // Its turns' checks worked out first as yielding work, so Build finds them known (review round 3).
+                    foreach (var y in Check.PrepareWork(route.Waypoints)) yield return y;
                     var built = DrivePlan.Build(graph, route.Waypoints, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
                     yield return null;
                     var notes = new List<string>();
@@ -553,23 +549,9 @@ namespace DrivenRides
                 + (noCase > 0 ? $"; {noCase} with no case to check" : "");
         }
 
-        private static string StepKind(LaneGraph graph, int from, int to) =>
-            graph.IsWideUTurn(from, to) ? "wide U-turn" : graph.IsUTurn(from, to) ? "U-turn" : Contains(graph.MissingTurns(from), to) ? "turn"
-            : Contains(graph.Successors(from), to) ? "lane" : "lane change";
+        private static string StepKind(LaneGraph graph, int from, int to) => WayOnPlanner.StepKind(graph, from, to);
 
-        // The step of a route that a path position lies on: the last route waypoint at or before it in the path. The
-        // index of the step's start in the route, or -1.
-        public static int RouteStepAt(IReadOnlyList<int> route, IReadOnlyList<int> path, int position)
-        {
-            int r = -1, k = 0;
-            for (var q = 0; q < route.Count && k < path.Count; q++)
-            {
-                while (k < path.Count && path[k] != route[q]) k++;
-                if (k >= path.Count || k > position) break;
-                r = q;
-            }
-            return r >= 0 && r + 1 < route.Count ? r : -1;
-        }
+        public static int RouteStepAt(IReadOnlyList<int> route, IReadOnlyList<int> path, int position) => WayOnPlanner.RouteStepAt(route, path, position);
 
         // The ride's expansion of a route for this car: added turns on an arc the car can drive cleanly, else through
         // vias it can; the slow stretches and the road limits (DrivePlan). The line is checked as it will be driven
@@ -589,179 +571,36 @@ namespace DrivenRides
             return failed.Count == 0 ? plan : null;
         }
 
-        // The way on round a step the car found blocked on its way (NwhDrive.Replan): the step is blocked for this
-        // ride, and the rest of the way planned from where the car stands (PlanFrom).
-        public WayOnJob PlanRoundBlock(LaneGraph graph, IReadOnlyList<int> route, IReadOnlyList<int> path, int position, string what,
-            Func<CarPose> pose, IReadOnlyList<Goal> goals, int vehicleType)
+        // The way on round a step the car found blocked on its way, and the look-ahead while it drives: Core's
+        // WayOnPlanner, with this planner as its world.
+        public WayOnPlanner WayOn => wayOn ??= new WayOnPlanner(this);
+        private WayOnPlanner? wayOn;
+
+        public WayOnJob PlanRoundBlock(IReadOnlyList<int> route, IReadOnlyList<int> path, int position, string what,
+            Func<CarPose> pose, IReadOnlyList<Goal> goals, int vehicleType) => WayOn.RoundBlock(route, path, position, what, pose, goals, vehicleType);
+
+        public WayOnJob LookAhead(IReadOnlyList<int> route, IReadOnlyList<int> path, int position, Func<CarPose> pose,
+            IReadOnlyList<Goal> goals, int vehicleType, WayOnPlanner.Watch watch) => WayOn.LookAhead(route, path, position, pose, goals, vehicleType, watch);
+
+        // IWayOnWorld: this planner's graph, check, route search, lane sweep, moves and blocks.
+        LaneGraph IWayOnWorld.Graph => graph;
+        Feasibility IWayOnWorld.Check => Check;
+
+        IEnumerable<object?> IWayOnWorld.PlanRoute(int start, IReadOnlyList<Goal> goals, int vehicleType, WayOnJob? job, PlannedRoute into)
         {
-            var routeNow = new List<int>(route);
-            var pathNow = new List<int>(path);
-            return new WayOnJob("replanned", position, job => RoundBlockWork(job, graph, routeNow, pathNow, position, what, pose, goals, vehicleType));
+            var planned = new Planned();
+            foreach (var y in PlanRouteWork(graph, start, goals, vehicleType, 8, job, planned)) yield return y;
+            into.Route = planned.Route;
+            into.Plan = planned.Plan;
+            into.Summary = planned.Summary;
         }
 
-        private IEnumerable<object?> RoundBlockWork(WayOnJob job, LaneGraph graph, List<int> route, List<int> path, int position, string what,
-            Func<CarPose> pose, IReadOnlyList<Goal> goals, int vehicleType)
-        {
-            var r = RouteStepAt(route, path, position);
-            if (r < 0) { job.Note = $"blocked by {what}; the car is on no step of its route"; yield break; }
-            Block(route[r], route[r + 1], BlockCause.OnTheWay);
-            foreach (var y in PlanFromWork(job, graph, route, path, position, pose, goals, vehicleType, $"step {route[r]} -> {route[r + 1]} blocked by {what}"))
-                yield return y;
-        }
+        IEnumerable<object?> IWayOnWorld.LanesAhead(IReadOnlyList<int> path, int position, float metres, Vec3 near, List<(int From, int To, string What)> found) =>
+            BlockedAheadWork(graph, path, position, metres, near, found);
 
-        // The rest of a ride planned from where the car stands: from the start of the route step it is on, from the
-        // waypoints of the lanes beside that step and from the next waypoints of the route. A way is kept only if the
-        // car joins its line where it stands (DriveLine.Joins: within 1.5 m of the line, not only beside it) and the
-        // model, started at the car's pose, speed and wheel, drives onto it clean (Feasibility.Join; review round 2:
-        // a line starting beyond the blocked step passed, and the drive onto a line was never checked). The pose is
-        // read when each way is tried, as the car may drive on meanwhile.
-        private IEnumerable<object?> PlanFromWork(WayOnJob job, LaneGraph graph, List<int> route, List<int> path, int position,
-            Func<CarPose> pose, IReadOnlyList<Goal> goals, int vehicleType, string why)
-        {
-            var r = RouteStepAt(route, path, position);
-            if (r < 0) { job.Note = why + "; the car is on no step of its route"; yield break; }
-            int from = route[r], to = route[r + 1];
-            var starts = new List<int> { from };
-            foreach (var w in new[] { from, to })
-                foreach (var beside in graph.Lateral(w)) if (!starts.Contains(beside)) starts.Add(beside);
-            for (var k = r + 1; k < route.Count && k <= r + 2; k++) if (!starts.Contains(route[k])) starts.Add(route[k]);
-            var tried = new List<string>();
-            foreach (var start in starts)
-            {
-                var found = new Planned();
-                foreach (var y in PlanRouteWork(graph, start, goals, vehicleType, 8, job, found)) yield return y;
-                if (found.Route == null || found.Plan == null) { tried.Add($"{start}: no route"); continue; }
-                var line = found.Plan.Line(graph);
-                var now = pose();
-                if (!line.Joins(now.X, now.Z, now.Heading, out _)) { tried.Add($"{start}: not where the car stands"); continue; }
-                var joining = Check.Join(found.Plan, line, now);
-                if (joining != null) { tried.Add($"{start}: {joining}"); yield return null; continue; }
-                job.Found = (found.Plan, new List<int>(found.Route.Waypoints), $"{why}; from {start}: {found.Summary}");
-                yield break;
-            }
-            job.Note = $"{why}; no way on joins the car where it stands ({string.Join("; ", tried)})";
-            Log.Info("NWH planner: " + job.Note + ".");
-        }
+        bool IWayOnWorld.IsBlocked(int from, int to) => GleyGraph.IsBlockedStep(from, to) || IsBlocked(from, to);
 
-        // What a ride's look-ahead knows (LookAhead): the plan the car drives now, the manoeuvres it has checked again
-        // near, and what it found changed that no new line has taken up yet.
-        public sealed class Watch
-        {
-            public DrivePlan? Plan { get; private set; }
-            public readonly HashSet<(int, int)> Rechecked = new HashSet<(int, int)>();
-            public readonly List<string> Pending = new List<string>();
-
-            // A plan taken up (the ride's first, or a way on): what changed before it is dealt with (review round 2:
-            // a change was acknowledged when found, so one with no way on was forgotten).
-            public void Installed(DrivePlan plan)
-            {
-                Plan = plan;
-                Pending.Clear();
-            }
-
-            internal void Note(string what)
-            {
-                if (!Pending.Contains(what)) Pending.Add(what);
-            }
-        }
-
-        // The ride's look-ahead while it drives (NwhDrive.LookAhead), as a job: the lanes ahead swept for what has
-        // loaded since (a step blocked, or passed on another sideways move than the plan's), each manoeuvre ahead
-        // checked again once the car is near enough for the world round it to be there (one that now fails is
-        // blocked; one that now takes another shape changes the line), and any step of the route ahead that is
-        // blocked now held short of. The outcomes (review round 2): nothing changed (Changed false); a way on
-        // (Found); or something changed with no way on yet (Found null), with HoldPosition the step the car must not
-        // enter. What changed stays in the watch until a plan is installed, so the next look tries again.
-        public WayOnJob LookAhead(LaneGraph graph, IReadOnlyList<int> route, IReadOnlyList<int> path, int position, Func<CarPose> pose,
-            IReadOnlyList<Goal> goals, int vehicleType, Watch watch)
-        {
-            var routeNow = new List<int>(route);
-            var pathNow = new List<int>(path);
-            return new WayOnJob("ahead", position, job => LookAheadWork(job, graph, routeNow, pathNow, position, pose, goals, vehicleType, watch));
-        }
-
-        private IEnumerable<object?> LookAheadWork(WayOnJob job, LaneGraph graph, List<int> route, List<int> path, int position, Func<CarPose> pose,
-            IReadOnlyList<Goal> goals, int vehicleType, Watch watch)
-        {
-            var here = pose();
-            var rear = new Vec3(here.X, 0f, here.Z);
-            var hold = int.MaxValue;
-            var holdWhat = "";
-            var lanes = new List<(int From, int To, string What)>();
-            foreach (var y in BlockedAheadWork(graph, path, position, AheadMetres, rear, lanes)) yield return y;
-            foreach (var (from, to, what) in lanes)
-            {
-                Block(from, to, BlockCause.InLane);
-                watch.Note($"step {from} -> {to}: {what}");
-            }
-            // Each manoeuvre within LoadedMetres checked again once while it stays that near (the parked cars round it
-            // are loaded then), compared by shape (Verdict.SameShape; review round 2: by object, every turn changed).
-            watch.Rechecked.RemoveWhere(step => Vec3.HorizontalDistance(rear, graph.Position(step.Item1)) > LoadedMetres);
-            var r0 = RouteStepAt(route, path, position);
-            for (var q = Math.Max(0, r0); q + 1 < route.Count; q++)
-            {
-                int from = route[q], to = route[q + 1];
-                if (Vec3.HorizontalDistance(rear, graph.Position(from)) > LoadedMetres) break;
-                // Checked again once, and again whenever its verdict was forgotten since (a block on it expired).
-                if (!(graph.IsUTurn(from, to) || Contains(graph.MissingTurns(from), to))) continue;
-                if (!watch.Rechecked.Add((from, to)) && Check.Knows(from, to)) continue;
-                var before = Check.Step(from, to);
-                Check.Forget(from, to);
-                var now = Check.Step(from, to);
-                yield return null;
-                if (!now.Feasible) { Block(from, to, CauseOf(graph, from, to, now.ToString())); watch.Note($"{StepKind(graph, from, to)} {from} -> {to} now {now}"); }
-                else if (!now.SameShape(before)) watch.Note($"{StepKind(graph, from, to)} {from} -> {to} now {now.Form}");
-            }
-            // Every step of the route ahead that is blocked now, by this look or an earlier one: the car holds short of
-            // the first until a way round it is installed.
-            for (var q = Math.Max(0, r0); q + 1 < route.Count; q++)
-            {
-                int from = route[q], to = route[q + 1];
-                if (!GleyGraph.IsBlockedStep(from, to) && !IsBlocked(from, to)) continue;
-                var at = PathPosition(path, position, from);
-                if (at >= 0 && at < hold) { hold = at; holdWhat = $"{StepKind(graph, from, to)} {from} -> {to} blocked"; }
-                break;
-            }
-            // The sideways moves of the lanes ahead against the plan the car drives (review round 2: a global count of
-            // moves, raised by other routes' sweeps too, and taken as seen before any line was built with it).
-            if (watch.Plan != null && SamePath(watch.Plan.Path, path))
-            {
-                var installed = new Dictionary<(int, int), float>();
-                foreach (var shift in watch.Plan.Shifts) installed[(path[shift.Position], path[shift.Position + 1])] = shift.Offset;
-                var gone = 0f;
-                for (var k = Math.Max(0, position); k + 1 < path.Count && gone < AheadMetres; k++)
-                {
-                    int from = path[k], to = path[k + 1];
-                    gone += Vec3.HorizontalDistance(graph.Position(from), graph.Position(to));
-                    if (!Contains(graph.Successors(from), to) || IsBlocked(from, to)) continue;
-                    var offset = ShiftFor(from, to)?.Offset ?? 0f;
-                    installed.TryGetValue((from, to), out var had);
-                    if (Mathf.Abs(offset - had) > 0.05f) watch.Note($"step {from} -> {to} passed {offset:+0.00;-0.00} m sideways, not {had:+0.00;-0.00} m");
-                }
-            }
-            if (hold != int.MaxValue) { job.HoldPosition = hold; job.HoldWhat = holdWhat; }
-            if (watch.Pending.Count == 0 && hold == int.MaxValue) yield break;
-            job.Changed = true;
-            foreach (var y in PlanFromWork(job, graph, route, path, position, pose, goals, vehicleType, "ahead: " + string.Join("; ", watch.Pending)))
-                yield return y;
-        }
-
-        // How far ahead the look-ahead sweeps lanes.
-        public const float AheadMetres = 150f;
-
-        // The first position from `position` on where the path is at a waypoint, or -1.
-        private static int PathPosition(IReadOnlyList<int> path, int position, int waypoint)
-        {
-            for (var k = Math.Max(0, position); k < path.Count; k++) if (path[k] == waypoint) return k;
-            return -1;
-        }
-
-        private static bool SamePath(IReadOnlyList<int> a, IReadOnlyList<int> b)
-        {
-            if (a.Count != b.Count) return false;
-            for (var k = 0; k < a.Count; k++) if (a[k] != b[k]) return false;
-            return true;
-        }
+        void IWayOnWorld.Note(string text) => Log.Info("NWH planner: " + text + ".");
 
         private static bool Contains(IReadOnlyList<int> list, int value)
         {

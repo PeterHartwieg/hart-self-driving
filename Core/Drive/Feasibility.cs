@@ -137,48 +137,134 @@ namespace DrivenRides.Core.Drive
             arcMinRadius = car.ArcMinRadius();
         }
 
+        // Each check below is also a piece of work that yields as it goes (review round 3: a planning job's time
+        // budget couldn't stop a simulation, the slow part, once started): after each look at the world and every
+        // YieldSteps simulation steps. The plain calls run the work to its end.
+        public const int YieldSteps = 50;
+
+        private static void Run(IEnumerable<object?> work)
+        {
+            foreach (var _ in work) { }
+        }
+
         // The arc an added turn is driven along, if the car can drive one cleanly; null: through its vias.
         public Polyline? Arc(int entry, int exit)
         {
-            if (graph.IsUTurn(entry, exit))
-            {
-                if (UTurnVias) return null;
-                var u = UTurnVerdict(entry, exit);
-                return u.Feasible ? u.Arc : null;
-            }
-            var v = ArcVerdict(entry, exit);
-            return v.Feasible ? v.Arc : null;
+            Run(ArcWork(entry, exit));
+            return KnownArc(entry, exit, out var arc) ? arc : null;
         }
 
+        // What Arc gives, if it is known without a simulation.
+        private bool KnownArc(int entry, int exit, out Polyline? arc)
+        {
+            arc = null;
+            if (graph.IsUTurn(entry, exit) && UTurnVias) return true;
+            if (!arcs.TryGetValue((entry, exit), out var v)) return false;
+            arc = v.Feasible ? v.Arc : null;
+            return true;
+        }
+
+        private IEnumerable<object?> ArcWork(int entry, int exit) =>
+            graph.IsUTurn(entry, exit) ? (UTurnVias ? Array.Empty<object?>() : UTurnWork(entry, exit)) : TurnArcWork(entry, exit);
+
         // Whether the car drives an added turn cleanly through its vias to the aim (PathExpander's clear).
-        public bool Clear(int entry, int exit, int aim) => ViaVerdict(entry, exit, aim).Feasible;
+        public bool Clear(int entry, int exit, int aim)
+        {
+            Run(ViaWork(entry, exit, aim));
+            return vias[(entry, exit, aim)].Feasible;
+        }
 
         // One added step (a missing turn or a U-turn) in the form the planner gives it: an arc that works, else the
         // vias with the aim PathExpander picks. Not feasible: the planner blocks the step for this car.
         public Verdict Step(int entry, int exit)
         {
-            if (steps.TryGetValue((entry, exit), out var known)) return known;
+            Run(StepWork(entry, exit));
+            return steps[(entry, exit)];
+        }
+
+        public IEnumerable<object?> StepWork(int entry, int exit)
+        {
+            if (steps.ContainsKey((entry, exit))) yield break;
             Verdict verdict;
-            if (graph.IsUTurn(entry, exit)) verdict = UTurnVias ? ViaVerdict(entry, exit, exit) : UTurnVerdict(entry, exit);
+            if (graph.IsUTurn(entry, exit))
+            {
+                if (UTurnVias)
+                {
+                    foreach (var y in ViaWork(entry, exit, exit)) yield return y;
+                    verdict = vias[(entry, exit, exit)];
+                }
+                else
+                {
+                    foreach (var y in UTurnWork(entry, exit)) yield return y;
+                    verdict = arcs[(entry, exit)];
+                }
+            }
             else
             {
-                verdict = ArcVerdict(entry, exit);
+                foreach (var y in TurnArcWork(entry, exit)) yield return y;
+                verdict = arcs[(entry, exit)];
                 if (!verdict.Feasible)
                 {
                     var fixture = Catalogue.ForStep(graph, entry, exit, options);
                     var aim = exit;
                     if (fixture != null)
                     {
-                        var expanded = PathExpander.Expand(graph, fixture.Route, (e, x, a) => e != entry || x != exit || ViaVerdict(e, x, a).Feasible);
-                        if (expanded.Aims.TryGetValue((entry, exit), out var picked)) aim = picked.Aim;
+                        // The aim PathExpander picks, its questions answered one simulation at a time: each pass stops
+                        // at the first unknown answer, which is then worked out (the same answers, in the same order, as
+                        // asking each in turn).
+                        for (var pass = 0; pass < 32; pass++)
+                        {
+                            int? need = null;
+                            var expanded = PathExpander.Expand(graph, fixture.Route, (e, x, a) =>
+                            {
+                                if (e != entry || x != exit) return true;
+                                if (need != null) return false;
+                                if (vias.TryGetValue((e, x, a), out var v)) return v.Feasible;
+                                need = a;
+                                return false;
+                            });
+                            if (need is int a0) { foreach (var y in ViaWork(entry, exit, a0)) yield return y; continue; }
+                            if (expanded.Aims.TryGetValue((entry, exit), out var picked)) aim = picked.Aim;
+                            break;
+                        }
                     }
-                    var through = ViaVerdict(entry, exit, aim);
+                    foreach (var y in ViaWork(entry, exit, aim)) yield return y;
+                    var through = vias[(entry, exit, aim)];
                     // A failed arc's reason is kept beside the vias' one, for the log.
                     verdict = through.Feasible || verdict.Reason.Length == 0 ? through : through.With("; arc: " + verdict.Reason);
                 }
             }
             steps[(entry, exit)] = verdict;
-            return verdict;
+        }
+
+        // The checks a plan of a route needs (DrivePlan.Build asks Arc and Clear through PathExpander), worked out
+        // ahead as yielding work, so the Build that follows finds them all known. The same answers in the same order:
+        // each pass stops at the first unknown one.
+        public IEnumerable<object?> PrepareWork(IReadOnlyList<int> route)
+        {
+            for (var pass = 0; pass < 64; pass++)
+            {
+                (int, int)? needArc = null;
+                (int, int, int)? needVia = null;
+                PathExpander.Expand(graph, route,
+                    (e, x, a) =>
+                    {
+                        if (needArc != null || needVia != null) return false;
+                        if (vias.TryGetValue((e, x, a), out var v)) return v.Feasible;
+                        needVia = (e, x, a);
+                        return false;
+                    },
+                    (e, x) =>
+                    {
+                        if (needArc != null || needVia != null) return false;
+                        if (KnownArc(e, x, out var arc)) return arc != null;
+                        needArc = (e, x);
+                        return false;
+                    });
+                if (needArc is var (ae, ax)) { foreach (var y in ArcWork(ae, ax)) yield return y; }
+                else if (needVia is var (ve, vx, va)) { foreach (var y in ViaWork(ve, vx, va)) yield return y; }
+                else yield break;
+            }
         }
 
         // Whether a step's verdict is known (cached): one forgotten (Forget) is checked afresh when next asked.
@@ -205,9 +291,9 @@ namespace DrivenRides.Core.Drive
             return Drive(fixture, plan, "route");
         }
 
-        private Verdict ArcVerdict(int entry, int exit)
+        private IEnumerable<object?> TurnArcWork(int entry, int exit)
         {
-            if (arcs.TryGetValue((entry, exit), out var known)) return known;
+            if (arcs.ContainsKey((entry, exit))) yield break;
             Verdict verdict;
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
             var widest = TurnArc.Fit(graph, entry, exit, arcMinRadius);
@@ -215,25 +301,26 @@ namespace DrivenRides.Core.Drive
             else if (fixture == null) verdict = new Verdict { Form = "arc", Reason = NoCase };
             else
             {
-                verdict = DriveArc(fixture, entry, exit, widest, "arc");
+                verdict = new Verdict { Form = "arc" };
+                foreach (var y in DriveArcWork(fixture, entry, exit, widest, verdict)) yield return y;
                 // The tightest arc the car can follow keeps further from the inside corner than a wide one.
                 var least = Math.Max(arcMinRadius * TurnArc.RadiusSlack, TurnArc.MinDriveRadius);
                 if (!verdict.Feasible && widest.Radius > least + 1f && TurnArc.Fit(graph, entry, exit, arcMinRadius, least) is Polyline tight)
                 {
-                    var second = DriveArc(fixture, entry, exit, tight, "tight arc");
+                    var second = new Verdict { Form = "tight arc" };
+                    foreach (var y in DriveArcWork(fixture, entry, exit, tight, second)) yield return y;
                     if (!second.Feasible) second.Reason += "; widest arc: " + verdict.Reason;
                     verdict = second;
                 }
             }
             arcs[(entry, exit)] = verdict;
-            return verdict;
         }
 
         // A U-turn on a driver's curve (TurnArc.FitUTurn) at the car's tightest followable circle at the slowest corner
         // speed; too narrow for it, the car goes round the block.
-        private Verdict UTurnVerdict(int entry, int exit)
+        private IEnumerable<object?> UTurnWork(int entry, int exit)
         {
-            if (arcs.TryGetValue((entry, exit), out var known)) return known;
+            if (arcs.ContainsKey((entry, exit))) yield break;
             Verdict verdict;
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
             var minRadius = car.RadiusAt(PursuitDriver.MinCornerMs);
@@ -241,38 +328,47 @@ namespace DrivenRides.Core.Drive
             if (line == null)
                 verdict = new Verdict { Form = "u-curve", Reason = FormattableString.Invariant($"no U-turn curve, {graph.UTurnWidth(entry, exit):0.0} m across: {why}") };
             else if (fixture == null) verdict = new Verdict { Form = "u-curve", Reason = NoCase };
-            else verdict = DriveArc(fixture, entry, exit, line, "u-curve");
+            else
+            {
+                verdict = new Verdict { Form = "u-curve" };
+                foreach (var y in DriveArcWork(fixture, entry, exit, line, verdict)) yield return y;
+            }
             arcs[(entry, exit)] = verdict;
-            return verdict;
         }
 
-        private Verdict DriveArc(Fixture fixture, int entry, int exit, Polyline arc, string form)
+        private IEnumerable<object?> DriveArcWork(Fixture fixture, int entry, int exit, Polyline arc, Verdict verdict)
         {
             var plan = DrivePlan.Build(graph, fixture.Route, car, (e, x) => e == entry && x == exit ? arc : null, null, limitKmh);
-            var verdict = Drive(fixture, plan, form);
+            foreach (var y in DriveWork(fixture, plan, verdict)) yield return y;
             verdict.Arc = arc;
-            return verdict;
         }
 
-        private Verdict ViaVerdict(int entry, int exit, int aim)
+        private IEnumerable<object?> ViaWork(int entry, int exit, int aim)
         {
-            if (vias.TryGetValue((entry, exit, aim), out var known)) return known;
+            if (vias.ContainsKey((entry, exit, aim))) yield break;
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
-            Verdict verdict;
-            if (fixture == null) verdict = new Verdict { Form = "vias", Reason = NoCase };
+            var verdict = new Verdict { Form = "vias" };
+            if (fixture == null) verdict.Reason = NoCase;
             else
             {
                 // The aim given, if the case's run-out has it; else the one PathExpander picks without a check.
                 var plan = DrivePlan.Build(graph, fixture.Route, car, (e, x) => null, (e, x, a) => e != entry || x != exit || a == aim, limitKmh);
-                verdict = Drive(fixture, plan, "vias");
+                foreach (var y in DriveWork(fixture, plan, verdict)) yield return y;
             }
             vias[(entry, exit, aim)] = verdict;
-            return verdict;
         }
 
         // The case driven on the plan's line from a standstill at its first waypoint, as the rig loads a car, until
         // the judge passes its last gate or fails it.
         public Verdict Drive(Fixture fixture, DrivePlan plan, string form)
+        {
+            var verdict = new Verdict { Form = form };
+            Run(DriveWork(fixture, plan, verdict));
+            return verdict;
+        }
+
+        // Drive as work: fills `verdict` (its Form given).
+        private IEnumerable<object?> DriveWork(Fixture fixture, DrivePlan plan, Verdict verdict)
         {
             Simulations++;
             var line = plan.Line(graph);
@@ -295,7 +391,6 @@ namespace DrivenRides.Core.Drive
             var settledHalf = car.BodyHalf;
             var length = Route.Fixed(graph, fixture.Route).LengthMetres;
             var limit = 30.0 + length / 4.0;
-            var verdict = new Verdict { Form = form };
             var lastWorld = double.NegativeInfinity;
             var kerbSamples = 0;
             var travelled = 0.0;
@@ -332,9 +427,11 @@ namespace DrivenRides.Core.Drive
                     Step = step, Time = time, Centre = Local(pose, car.BodyCentre), FrontAxle = Local(pose, new Vec3(0f, 0f, car.Wheelbase)),
                     HeadingDegrees = (float)(model.Heading * 180 / Math.PI), Footprint = footprint, SpeedMs = (float)Math.Abs(model.Speed),
                 });
+                var looked = false;
                 if (driver.Along > entryAlong - WorldFrom && travelled - lastWorld >= WorldEvery)
                 {
                     lastWorld = travelled;
+                    looked = true;
                     var hit = world?.Invoke(new BodyBox(Local(pose, car.BodyCentre), worldHalf, pose.Heading));
                     if (hit != null && !judge.Failed)
                     {
@@ -356,21 +453,52 @@ namespace DrivenRides.Core.Drive
                 if (judge.Failed && verdict.Steps == 0) { verdict.Steps = step; verdict.Worst = pose; verdict.WorstOff = off; }
                 if (judge.Failed || judge.Finished) { timedOut = false; break; }
                 if (o.Along + car.FrontAhead >= line.Line.Length - 1.5f && Math.Abs(model.Speed) < 0.3) { timedOut = false; break; }
+                if (looked || step % YieldSteps == 0) yield return null;
             }
             var result = judge.Result(timedOut);
             verdict.Judge = result;
             verdict.Feasible = result.Verdict == "pass";
             if (!verdict.Feasible) verdict.Reason = (result.Reasons.Count > 0 ? string.Join(" ", result.Reasons) : result.Verdict) + (verdict.Hit != null ? " (" + verdict.Hit + ")" : "");
-            return verdict;
         }
 
         // The four wheels at a pose, the margin further out each side; one higher than the lowest by KerbRise, for
         // KerbSamples samples in a row, is on a kerb.
         // settled: the car keeps to a straight lane within centimetres, so its wheels count where they are (review
         // round 1: the margin put a settled car's wheels on the kerb beside an outer lane).
+        private float TrackHalf => car.TrackWidth > 0f ? car.TrackWidth / 2f : Math.Max(0.5f, car.BodyHalf.X - 0.25f);
+
+        // The ground under the four wheels where they are (rear left, rear right, front left, front right), or null.
+        private Vec3[]? Track(Pose pose)
+        {
+            var half = TrackHalf;
+            var at = new[]
+            {
+                Local(pose, new Vec3(-half, 0f, 0f)), Local(pose, new Vec3(half, 0f, 0f)),
+                Local(pose, new Vec3(-half, 0f, car.Wheelbase)), Local(pose, new Vec3(half, 0f, car.Wheelbase)),
+            };
+            for (var i = 0; i < 4; i++)
+            {
+                if (!(GroundAt!(at[i]) is float h)) return null;
+                at[i] = new Vec3(at[i].X, h, at[i].Z);
+            }
+            return at;
+        }
+
+        // Both wheels of one side up (a car run wide onto the pavement): the car at a pose (its rear axle) leans
+        // beyond the road's cross-fall by more than KerbRise. Measured where the wheels really are, not the margin
+        // wider (review round 3). What, or null; null too without GroundAt or a lane near.
+        public string? Leaning(Pose pose)
+        {
+            if (GroundAt == null || !(WheelPlane.CrossFall(graph, Local(pose, car.BodyCentre), pose.Heading, GroundAt) is float fall) || !(Track(pose) is Vec3[] real)) return null;
+            var roll = WheelPlane.Roll(real, fall * 2f * TrackHalf);
+            return Math.Abs(roll) > KerbRise
+                ? FormattableString.Invariant($"kerb: the {(roll > 0 ? "left" : "right")} wheels {Math.Abs(roll):0.00} m above the {(roll > 0 ? "right" : "left")} ones beyond the road's cross-fall at ({pose.X:0.0}, {pose.Z:0.0})")
+                : null;
+        }
+
         private string? WheelOnKerb(Pose pose, ref int samples, bool settled)
         {
-            var half = (car.TrackWidth > 0f ? car.TrackWidth / 2f : Math.Max(0.5f, car.BodyHalf.X - 0.25f)) + (settled ? 0f : Margin);
+            var half = TrackHalf + (settled ? 0f : Margin);
             var wheels = new[]
             {
                 Local(pose, new Vec3(-half, 0f, 0f)), Local(pose, new Vec3(half, 0f, 0f)),
@@ -387,10 +515,7 @@ namespace DrivenRides.Core.Drive
             for (var i = 0; i < 4 && up == null; i++)
                 if (WheelPlane.Rise(ground, i) is float rise && rise > KerbRise)
                     up = FormattableString.Invariant($"kerb: a {(i < 2 ? "rear" : "front")} wheel {rise:0.00} m above the plane of the others at ({wheels[i].X:0.0}, {wheels[i].Z:0.0})");
-            // Both wheels of one side up (a car run wide onto the pavement): the car leans beyond the road's cross-fall.
-            if (up == null && WheelPlane.CrossFall(graph, Local(pose, car.BodyCentre), pose.Heading, GroundAt!) is float fall
-                && WheelPlane.Roll(ground, fall * 2f * half) is var roll && Math.Abs(roll) > KerbRise)
-                up = FormattableString.Invariant($"kerb: the {(roll > 0 ? "left" : "right")} wheels {Math.Abs(roll):0.00} m above the {(roll > 0 ? "right" : "left")} ones beyond the road's cross-fall at ({pose.X:0.0}, {pose.Z:0.0})");
+            up ??= Leaning(pose);
             samples = up != null ? samples + 1 : 0;
             return samples >= KerbSamples ? up : null;
         }
@@ -402,13 +527,27 @@ namespace DrivenRides.Core.Drive
         // where, or null.
         public string? Sweep(DrivePlan plan, DriveLine line, float from, float to)
         {
+            var result = new SweepResult();
+            Run(SweepWork(plan, line, from, to, result));
+            return result.What;
+        }
+
+        public IEnumerable<object?> SweepWork(DrivePlan plan, DriveLine line, float from, float to, SweepResult result)
+        {
             var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
             var start = Math.Max(0f, from - 25f);
             Vec3 p0 = line.Line.At(start), p1 = line.Line.At(start + 1f);
             var model = car.Model(p0.X, p0.Z, Math.Atan2(p1.X - p0.X, p1.Z - p0.Z));
             driver.StartAt(p0.X, p0.Z);
             model.Speed = driver.PlannedSpeed(start, car.TopKmh / 3.6f);
-            return Follow(driver, model, line, from, to, out _);
+            return FollowWork(driver, model, line, from, to, result);
+        }
+
+        // What a sweep or a join met (null: nothing), and the rear axle's last distance from the line.
+        public sealed class SweepResult
+        {
+            public string? What;
+            public float Lateral;
         }
 
         // The drive from where the car stands onto a new line (review round 2: a new way on was taken up when the line
@@ -417,6 +556,13 @@ namespace DrivenRides.Core.Drive
         // sweep's, and must have settled within JoinSettled of the line by then. What it meets, or null.
         public string? Join(DrivePlan plan, DriveLine line, CarPose pose)
         {
+            var result = new SweepResult();
+            Run(JoinWork(plan, line, pose, result));
+            return result.What;
+        }
+
+        public IEnumerable<object?> JoinWork(DrivePlan plan, DriveLine line, CarPose pose, SweepResult result)
+        {
             Simulations++;
             var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
             driver.StartAt(pose.X, pose.Z);
@@ -424,10 +570,10 @@ namespace DrivenRides.Core.Drive
             model.SetWheel(pose.Wheel);
             var from = driver.Along;
             var to = Math.Min(from + JoinMetres, line.Line.Length - car.FrontAhead - 2f);
-            if (Follow(driver, model, line, from, to, out var lateral) is string hit) return "joining the new line: " + hit;
-            return Math.Abs(lateral) > JoinSettled
-                ? FormattableString.Invariant($"joining the new line: still {lateral:+0.00;-0.00} m off it after {to - from:0} m")
-                : null;
+            foreach (var y in FollowWork(driver, model, line, from, to, result)) yield return y;
+            if (result.What != null) result.What = "joining the new line: " + result.What;
+            else if (Math.Abs(result.Lateral) > JoinSettled)
+                result.What = FormattableString.Invariant($"joining the new line: still {result.Lateral:+0.00;-0.00} m off it after {to - from:0} m");
         }
 
         public const float JoinMetres = 30f;
@@ -436,33 +582,47 @@ namespace DrivenRides.Core.Drive
         // The model driven along a line from `from` to `to`, checked from the start: its body against the world, its
         // corners against the pavement, its wheels against kerbs, each time a corner of the body has moved WorldEvery
         // metres. What it meets, or null; the rear axle's last distance from the line.
-        private string? Follow(PursuitDriver driver, CarModel model, DriveLine line, float from, float to, out float lateral)
+        private IEnumerable<object?> FollowWork(PursuitDriver driver, CarModel model, DriveLine line, float from, float to, SweepResult result)
         {
             var turningHalf = new Vec3(car.BodyHalf.X + Margin, car.BodyHalf.Y, car.BodyHalf.Z + Margin);
             var lastCheck = double.NegativeInfinity;
             var travelled = 0.0;
             var kerbSamples = 0;
-            lateral = 0f;
+            var step = 0;
             for (var time = 0f; time < 60f && driver.Along < Math.Min(to, line.Line.Length - car.FrontAhead - 2f); time += StepSeconds)
             {
                 var o = driver.Step(model.Input(StepSeconds));
                 double x0 = model.X, z0 = model.Z, h0 = model.Heading;
                 model.Step(o, StepSeconds);
                 travelled += CornerTravel(x0, z0, h0, model);
-                lateral = o.Lateral;
-                if (driver.Along < from || travelled - lastCheck < WorldEvery) continue;
+                result.Lateral = o.Lateral;
+                if (driver.Along < from || travelled - lastCheck < WorldEvery)
+                {
+                    if (++step % YieldSteps == 0) yield return null;
+                    continue;
+                }
                 lastCheck = travelled;
                 var pose = new Pose((float)model.X, line.Line.At(driver.Along).Y, (float)model.Z, (float)model.Heading);
                 var settled = Math.Abs(o.Lateral) < SettledOff && Math.Abs(model.Steer) < SettledWheel;
                 var half = settled ? car.BodyHalf : turningHalf;
                 var footprint = Footprint(pose, half);
                 if (world?.Invoke(new BodyBox(Local(pose, car.BodyCentre), new Vec3(half.X + NearMiss, half.Y, half.Z + NearMiss), pose.Heading)) is string hit)
-                    return FormattableString.Invariant($"{hit} at {driver.Along:0} m");
+                {
+                    result.What = FormattableString.Invariant($"{hit} at {driver.Along:0} m");
+                    yield break;
+                }
                 if (PavementAt != null && Pavement.CornerOnPavement(graph, footprint, Local(pose, car.BodyCentre), PavementAt) is string pavement)
-                    return pavement;
-                if (GroundAt != null && WheelOnKerb(pose, ref kerbSamples, settled) is string kerb) return kerb;
+                {
+                    result.What = pavement;
+                    yield break;
+                }
+                if (GroundAt != null && WheelOnKerb(pose, ref kerbSamples, settled) is string kerb)
+                {
+                    result.What = kerb;
+                    yield break;
+                }
+                yield return null;
             }
-            return null;
         }
 
         // How far the body's farthest corner moved in a step, at most: the rear axle's move and the turn times the
@@ -490,8 +650,9 @@ namespace DrivenRides.Core.Drive
                 foreach (var k in new List<int>(plan.Fillets))
                 {
                     if (k <= 0 || k >= line.AlongOf.Length) continue;
-                    var what = Sweep(plan, line, line.AlongOf[k] - 10f, line.AlongOf[k] + 10f);
-                    yield return null;
+                    var swept = new SweepResult();
+                    foreach (var y in SweepWork(plan, line, line.AlongOf[k] - 10f, line.AlongOf[k] + 10f, swept)) yield return y;
+                    var what = swept.What;
                     if (what == null) continue;
                     plan.Fillets.Remove(k);
                     sharp.Add(k);
@@ -501,8 +662,9 @@ namespace DrivenRides.Core.Drive
                 foreach (var shift in new List<(int Position, float From, float To, float Offset)>(plan.Shifts))
                 {
                     var start = line.AlongOf[shift.Position];
-                    var what = Sweep(plan, line, start + shift.From - 10f, start + shift.To + 10f);
-                    yield return null;
+                    var swept = new SweepResult();
+                    foreach (var y in SweepWork(plan, line, start + shift.From - 10f, start + shift.To + 10f, swept)) yield return y;
+                    var what = swept.What;
                     if (what == null) continue;
                     plan.Shifts.Remove(shift);
                     failed.Add((plan.Path[shift.Position], plan.Path[shift.Position + 1], "no way past within the lane: " + what));
@@ -513,8 +675,9 @@ namespace DrivenRides.Core.Drive
             var final = plan.Line(graph);
             foreach (var k in sharp)
             {
-                var what = Sweep(plan, final, final.AlongOf[k] - 10f, final.AlongOf[k] + 10f);
-                yield return null;
+                var swept = new SweepResult();
+                foreach (var y in SweepWork(plan, final, final.AlongOf[k] - 10f, final.AlongOf[k] + 10f, swept)) yield return y;
+                var what = swept.What;
                 if (what != null && k + 1 < plan.Path.Count) failed.Add((plan.Path[k], plan.Path[k + 1], $"corner at {plan.Path[k]}, neither rounded nor sharp: {what}"));
             }
             if (!settled)

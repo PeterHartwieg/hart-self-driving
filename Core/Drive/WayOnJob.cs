@@ -10,13 +10,20 @@ namespace DrivenRides.Core.Drive
     public sealed class WayOnJob
     {
         private readonly IEnumerator<object?> work;
-        private readonly Stopwatch clock = new Stopwatch();
-        private double budget = double.PositiveInfinity;
+        private readonly Func<double> clock;
+        private double budget = double.PositiveInfinity, sliceStart;
 
-        public WayOnJob(string kind, int position, Func<WayOnJob, IEnumerable<object?>> body)
+        // clockMs: milliseconds from any start (a stopwatch's by default; tests give their own).
+        public WayOnJob(string kind, int position, Func<WayOnJob, IEnumerable<object?>> body, Func<double>? clockMs = null)
         {
             Kind = kind;
             Position = position;
+            if (clockMs == null)
+            {
+                var watch = Stopwatch.StartNew();
+                clockMs = () => watch.Elapsed.TotalMilliseconds;
+            }
+            clock = clockMs;
             work = body(this).GetEnumerator();
         }
 
@@ -35,17 +42,21 @@ namespace DrivenRides.Core.Drive
         public string HoldWhat { get; set; } = "";
         public string Note { get; set; } = "";
         public double Milliseconds { get; private set; }
+        // The longest slice so far, ms: a slice ends at the first yield past the budget.
+        public double LongestSlice { get; private set; }
         public int Slices { get; private set; }
-        public bool OverBudget => clock.Elapsed.TotalMilliseconds >= budget;
+        public bool OverBudget => clock() - sliceStart >= budget;
 
         public bool Step(double budgetMs)
         {
             budget = budgetMs;
-            clock.Restart();
+            sliceStart = clock();
             Slices++;
             while (!Done && !OverBudget)
                 if (!work.MoveNext()) Done = true;
-            Milliseconds += clock.Elapsed.TotalMilliseconds;
+            var spent = clock() - sliceStart;
+            Milliseconds += spent;
+            LongestSlice = Math.Max(LongestSlice, spent);
             return Done;
         }
     }

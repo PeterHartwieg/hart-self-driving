@@ -74,6 +74,9 @@ namespace DrivenRides.Core.Drive
         // Metres free ahead of the front bumper on the car's way (parked cars, people: what the adapter's own cast
         // sees), or null. Committing past a traffic car's way counts on it (review round 2, U1).
         public float? GapAhead;
+        // Metres along the line where the front must stop for the planner (a step ahead it must not enter:
+        // WayOnControl.HoldAlong), or null; set before Decide, a hold found this step included (review round 3).
+        public float? PlannerHoldAlong;
     }
 
     public enum JunctionEventKind { Enter, Leave }

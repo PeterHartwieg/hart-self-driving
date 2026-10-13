@@ -828,14 +828,14 @@ namespace DrivenRides
             var extraSeconds = 0f;
             drive.Blocked += (position, what) =>
             {
-                if (drive.Replan != null) return;
+                if (drive.WayOn.Replan != null) return;
                 var r = NwhPlanner.RouteStepAt(driveRoute, path, position);
                 if (r < 0) return;
-                planner?.Block(driveRoute[r], driveRoute[r + 1], NwhPlanner.BlockCause.OnTheWay);
+                planner?.Block(driveRoute[r], driveRoute[r + 1], DrivenRides.Core.Drive.BlockCause.OnTheWay);
                 line["blocked"] = $"step {driveRoute[r]} -> {driveRoute[r + 1]}: {what}";
             };
             var goals = new[] { new Goal(rideEnd, 0f) };
-            var watch = new NwhPlanner.Watch();
+            var watch = new DrivenRides.Core.Drive.WayOnPlanner.Watch();
             if (firstPlan != null) watch.Installed(firstPlan);
             // Takes a new way on: the drive gets its plan, the judge the old route up to where the car left it and
             // the new one after (Judge.Reroute).
@@ -870,9 +870,9 @@ namespace DrivenRides
             }
             if (planner != null && fixture.Kind == CaseKind.Ride)
             {
-                drive.Replan = (position, what, pose) => planner.PlanRoundBlock(graph, driveRoute, path, position, what, pose, goals, (int)VehicleTypes.Car);
-                drive.LookAhead = (position, pose) => planner.LookAhead(graph, driveRoute, path, position, pose, goals, (int)VehicleTypes.Car, watch);
-                drive.Take = job => TakeUp(job.Found, job.Position, job.Kind, job.Note);
+                drive.WayOn.Replan = (position, what, pose) => planner.PlanRoundBlock(driveRoute, path, position, what, pose, goals, (int)VehicleTypes.Car);
+                drive.WayOn.LookAhead = (position, pose) => planner.LookAhead(driveRoute, path, position, pose, goals, (int)VehicleTypes.Car, watch);
+                drive.WayOn.Take = job => TakeUp(job.Found, job.Position, job.Kind, job.Note);
             }
             s.NwhDrive = drive;
             testCar.Waiting = () => drive.WaitingNow;

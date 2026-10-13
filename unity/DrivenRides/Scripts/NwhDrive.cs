@@ -61,29 +61,11 @@ namespace DrivenRides
         // The car can't get on: raised with the path position its front had reached and what blocked it, for the
         // planner to block that step and plan again (NwhPlanner.Block).
         public event Action<int, string>? Blocked;
-        // Asked once the car has backed off from a blocked step (or found it couldn't), with the path position, what
-        // blocked it and the car's pose: a planning job for the way on (the planner blocks the step and plans again
-        // from where the car is, joining the car's pose), stepped PlanBudgetMs a physics step while the car stands,
-        // then handed to Take. Null, or a job with no way on: the drive ends "blocked".
-        public Func<int, string, Func<CarPose>, WayOnJob?>? Replan;
+        // The way on (Core WayOnControl): the planner's jobs (its Replan, LookAhead and Take, set before Begin), stepped
+        // a time budget each physics step, and its hold short of a step the car must not enter. Without a Replan, a
+        // blocked drive ends "blocked".
+        public readonly WayOnControl WayOn = new WayOnControl { Log = text => Log.Info("NWH drive: " + text) };
         private int blockedPosition;
-        // Asked about once a second while the car drives, with the path position its front has reached and the car's
-        // pose: a look-ahead job, stepped while the car drives on. It may say to hold short of a step (the car stops
-        // before it, and gives up after HoldSeconds standing there with no way on), and its way on goes to Take.
-        public Func<int, Func<CarPose>, WayOnJob?>? LookAhead;
-        // Takes up a finished job's way on (the ride's route, the judge's) and gives the plan to drive, or null.
-        public Func<WayOnJob, DrivePlan?>? Take;
-        private float nextLook;
-        private WayOnJob? job;
-        // Planning time per physics step (review round 2: a replan ran whole inside one FixedUpdate).
-        public const double PlanBudgetMs = 3.0;
-        // The front stops this far short of a step the look-ahead found bad, and the drive gives up after standing
-        // there this long with no way on.
-        public const float HoldShort = 2f;
-        public const float HoldSeconds = 10f;
-        private float? holdAlong;
-        private string holdWhat = "";
-        private float heldSeconds;
 
         // T3's tally: contacts with traffic cars (all, and those this car caused), standstills over 30 s away from a
         // red, red runs (TrafficVerdict).
@@ -144,9 +126,7 @@ namespace DrivenRides
             Shifts = plan.Shifts;
             Fillets = plan.Fillets;
             UsePath(plan.Path, plan.Arcs, plan.Slow);
-            job = null;
-            holdAlong = null;
-            heldSeconds = 0f;
+            WayOn.Reset();
             // On the new line where the car stands (it may be some way along its first step).
             var rearNow = Car.RearAxle;
             driver.StartAt(rearNow.x, rearNow.z);
@@ -217,10 +197,22 @@ namespace DrivenRides
             // What the cast sees ahead (parked cars, people): the traffic rules count on it before committing past a
             // traffic car's way (review round 2, U1), and the driver stops for it.
             var castGap = HoldForCast(GapAhead(speed));
+            // The planner's look-ahead before the traffic decision, so a hold it sets this step is in the decision
+            // (review round 3): not while blocked or backing off from a traffic car.
+            if (blockedWhat == null && !backing)
+            {
+                var at = 0;
+                while (at + 1 < path.Count && line.AlongOf[at + 1] <= front) at++;
+                var ahead = WayOn.Ahead(Time.time, Time.fixedDeltaTime, at, line.AlongOf, front, speed, PoseNow);
+                if (ahead.Act == WayOnControl.Act.Restart && ahead.Plan != null) { Restart(ahead.Plan); return; }
+                if (ahead.Act == WayOnControl.Act.End) { End(ahead.Why, false); return; }
+                if (ahead.Act == WayOnControl.Act.Block) Block(ahead.Position >= 0 ? ahead.Position : at, front, ahead.Why);
+            }
             var snapshot = new TrafficSnapshot
             {
                 Time = Time.time, RearX = rear.x, RearZ = rear.z, Heading = heading, Speed = speed, Marks = marks, Cars = cars, Flags = gley,
                 GapBehind = traffic.BackingOff || decision.GapAhead < 4f ? GapBehind() : null, GapAhead = castGap,
+                PlannerHoldAlong = WayOn.HoldAlong,
             };
             ticks = Stopwatch.GetTimestamp();
             traffic.Decide(snapshot, decision);
@@ -253,24 +245,14 @@ namespace DrivenRides
                     input.Handbrake = 1f;
                     if (Mathf.Abs(speed) > 0.2f) return;
                     // The way on is planned over the next physics steps while the car stands.
-                    if (job == null || job.Kind != "replanned")
-                    {
-                        Log.Info($"NWH drive: {recovery.Ended} ({recovery.Backed:0.0} m); asking for another way.");
-                        try { job = Replan?.Invoke(blockedPosition, blockedWhat, PoseNow); } catch (Exception ex) { Log.Error("NWH drive, replan: " + ex); job = null; }
-                        if (job == null) { End("blocked: " + blockedWhat, false); return; }
-                    }
-                    if (!StepJob()) return;
-                    if (job == null) { End("blocked: " + blockedWhat, false); return; }
-                    var finished = job;
-                    job = null;
-                    DrivePlan? plan = null;
-                    try { plan = Take?.Invoke(finished); } catch (Exception ex) { Log.Error("NWH drive, take: " + ex); }
-                    Log.Info($"NWH drive: planned in {finished.Milliseconds:0} ms over {finished.Slices} physics steps.");
-                    if (plan == null || plan.Path.Count < 2) { End("blocked: " + blockedWhat, false); return; }
+                    if (WayOn.Job == null) Log.Info($"NWH drive: {recovery.Ended} ({recovery.Backed:0.0} m); asking for another way.");
+                    var way = WayOn.Blocked(blockedPosition, blockedWhat, PoseNow);
+                    if (way.Act == WayOnControl.Act.Wait) return;
+                    if (way.Act != WayOnControl.Act.Restart || way.Plan == null) { End(way.Why.Length > 0 ? way.Why : "blocked: " + blockedWhat, false); return; }
                     blockedWhat = null;
                     recovery = null;
                     input.Handbrake = 0f;
-                    Restart(plan);
+                    Restart(way.Plan);
                     return;
                 }
                 // Reversing: NWH's automatic gearbox reverses on the brake at a standstill; past MaxMs it brakes by
@@ -298,50 +280,13 @@ namespace DrivenRides
                 return;
             }
             backing = false;
-            if (LookAhead != null && job == null && Time.time >= nextLook)
-            {
-                var at = 0;
-                while (at + 1 < path.Count && line.AlongOf[at + 1] <= front) at++;
-                try { job = LookAhead(at, PoseNow); } catch (Exception ex) { Log.Error("NWH drive, look-ahead: " + ex); job = null; }
-                nextLook = Time.time + 1f;
-            }
-            if (job != null && job.Kind == "ahead")
-            {
-                var done = StepJob();
-                // A step ahead the car must not enter: it stops short of it (or as soon as it comfortably can) while
-                // the way round is planned.
-                if (job != null && job.HoldPosition >= 0 && job.HoldPosition < path.Count)
-                {
-                    var comfortable = front + speed * speed / (2f * HoldDecel);
-                    var at = Mathf.Max(line.AlongOf[job.HoldPosition] - HoldShort, comfortable);
-                    if (holdAlong == null || at < holdAlong - 0.5f)
-                    {
-                        holdAlong = at;
-                        holdWhat = job.HoldWhat;
-                        Log.Info($"NWH drive: holding short of {holdWhat} at {at:0} m.");
-                    }
-                }
-                if (done && job != null)
-                {
-                    var finished = job;
-                    job = null;
-                    if (finished.Found != null)
-                    {
-                        DrivePlan? plan = null;
-                        try { plan = Take?.Invoke(finished); } catch (Exception ex) { Log.Error("NWH drive, take: " + ex); }
-                        if (plan != null && plan.Path.Count >= 2) { Restart(plan); return; }
-                    }
-                    else if (finished.HoldPosition < 0) holdAlong = null;
-                    // Changed with no way on: look again a little later (each look plans again in full).
-                    if (finished.Changed && finished.Found == null) nextLook = Time.time + 3f;
-                }
-            }
             var gap = castGap;
             // People and parked cars stand; a traffic car ahead is followed at its own speed.
             var gapSpeed = 0f;
             if (decision.GapAhead is float carGap && (gap == null || carGap < gap)) { gap = carGap; gapSpeed = decision.GapSpeed; lastBlockerLayer = -1; }
+            // The planner's hold, a fixed point: the driver brakes as hard as it needs (WayOnControl).
             var stopAlong = decision.StopAlong;
-            if (holdAlong is float holdAt && (stopAlong == null || holdAt < stopAlong)) stopAlong = holdAt;
+            if (WayOn.HoldAlong is float holdAt && (stopAlong == null || holdAt < stopAlong)) stopAlong = holdAt;
             var o = driver.Step(new DriveInput
             {
                 RearX = rear.x, RearZ = rear.z, Heading = heading, SpeedMs = speed, Dt = Time.fixedDeltaTime, WheelDegrees = vehicle.steering.angle,
@@ -361,9 +306,6 @@ namespace DrivenRides
             Tally(speed, o.Along + Car.FrontAhead);
             if (Ended) return;
             if (o.Along + Car.FrontAhead >= driver.Length - 1.5f && Mathf.Abs(speed) < 0.3f) { End("arrived", true); return; }
-            // Held short of a bad step with no way round it found in HoldSeconds: the drive ends there.
-            heldSeconds = holdAlong != null && Mathf.Abs(speed) < 0.2f ? heldSeconds + Time.fixedDeltaTime : 0f;
-            if (heldSeconds > HoldSeconds && job == null) { End("blocked ahead: " + holdWhat, false); return; }
             if (BlockedRule(o, speed, gap)) return;
             // Stuck: 30 s without 2 m of progress while nothing holds the car.
             if (o.Along > lastProgressAlong + 2f || WaitingNow) { lastProgressAlong = o.Along; lastProgressTime = Time.time; }
@@ -518,23 +460,6 @@ namespace DrivenRides
             return new CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z), Vector3.Dot(Car.Body.velocity, forward), Car.Vehicle.steering.angle);
         }
 
-        // One physics step's share of the job; true when it is done. A job that throws is dropped (null) and counts as
-        // done with no way on.
-        private bool StepJob()
-        {
-            if (job == null) return true;
-            try { return job.Step(PlanBudgetMs); }
-            catch (Exception ex)
-            {
-                Log.Error("NWH drive, planning: " + ex);
-                job = null;
-                return true;
-            }
-        }
-
-        // The braking a hold short of a step assumes, m/s².
-        private const float HoldDecel = 4f;
-
         // The car can't get on, whatever the driver does: pushing with no motion for 2 s (against a kerb nose or a
         // parked car the gap didn't see), or held 3 s by something that never moves (a parked car, a prop). T2
         // (turn rig 20261013-182118): four runs ended at full throttle and no speed for 20 s. It backs off a little
@@ -558,13 +483,18 @@ namespace DrivenRides
             var front = o.Along + Car.FrontAhead;
             var position = 0;
             while (position + 1 < path.Count && line.AlongOf[position + 1] <= front) position++;
+            return Block(position, front, what);
+        }
+
+        // The step at a path position given up: the car backs off and the planner goes round it.
+        private bool Block(int position, float front, string what)
+        {
             Log.Info($"NWH drive: blocked ({what}) at path position {position}, {front:0} m along; backing off.");
             blockedWhat = what;
             blockedPosition = position;
             recovery = null;
             // A look-ahead under way planned from a pose the car has left.
-            job = null;
-            holdAlong = null;
+            WayOn.Reset();
             pushSeconds = staticHeldSeconds = 0f;
             try { Blocked?.Invoke(position, what); } catch (Exception ex) { Log.Error("NWH drive, blocked: " + ex.Message); }
             return true;
