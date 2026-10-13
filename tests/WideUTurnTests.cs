@@ -107,4 +107,26 @@ public sealed class WideUTurnTests
         var uTurn = next.Waypoints.Zip(next.Waypoints.Skip(1)).Single(s => graph.IsUTurn(s.First, s.Second));
         Assert.Equal(group[1].Width, graph.UTurnWidth(uTurn.First, uTurn.Second), 3);
     }
+
+    [Fact]
+    public void ABlockedLaneStepIsDrivenRoundFromTheStart()
+    {
+        // Two lanes north (x = 0 and x = 4), the ride starting on the first waypoint after a junction, a car parked
+        // in its first step: A* changes lanes from the start (T3: rides refused there) and never takes the step.
+        var b = new TurnTestGraph();
+        var j = b.Add(0, -6, true);
+        int[] a = Enumerable.Range(0, 10).Select(k => b.Add(0, k * 10)).ToArray();
+        int[] c = Enumerable.Range(0, 10).Select(k => b.Add(4, k * 10)).ToArray();
+        b.Link(new[] { j }.Concat(a).ToArray());
+        b.Link(c);
+        for (var k = 0; k < 10; k++) { b.Beside(a[k], c[k]); b.Beside(c[k], a[k]); }
+        var graph = b.Build();
+        Assert.True(graph.IsJunctionExitWaypoint(a[0]));
+        var request = new RouteRequest { Start = a[0], Goals = new[] { new Goal(a[9], 0) }, IsBlockedStep = (x, y) => x == a[0] && y == a[1] };
+        var route = RoutePlanner.Plan(graph, request, int.MaxValue).Result!;
+        var steps = route.Waypoints.Zip(route.Waypoints.Skip(1)).ToList();
+        Assert.DoesNotContain((a[0], a[1]), steps);
+        Assert.Contains(c, w => route.Waypoints.Contains(w));
+        Assert.Equal(a[9], route.Waypoints[^1]);
+    }
 }

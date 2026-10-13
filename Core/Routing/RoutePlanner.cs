@@ -38,8 +38,8 @@ namespace DrivenRides.Core.Routing
         // path keeps the inner one only.
         public bool WideUTurns;
         public float UTurnNarrowerSecondsPerMetre = 1.5f;
-        // Steps the game's data doesn't have (lane changes, added turns, U-turns) that the caller found blocked in the
-        // world, by their start and end waypoints. Asked only for those steps.
+        // Steps the caller found blocked in the world (lane changes, added turns, U-turns, and lane steps with a car
+        // parked in them), by their start and end waypoints.
         public Func<int, int, bool>? IsBlockedStep;
     }
 
@@ -195,8 +195,12 @@ namespace DrivenRides.Core.Routing
                     }
                 }
                 IReadOnlyList<int> successors = graph.Successors(i);
-                for (int k = 0; k < successors.Count; k++) Relax(i, successors[k], entry.Cost, 0);
-                if (!float.IsPositiveInfinity(laneChangePenalty) && !graph.IsIntersection(i) && !graph.IsJunctionExitWaypoint(i))
+                // A lane step can be blocked too (a car parked in the lane, NwhPlanner): T3 replanned round 24 of them
+                // in one ride while A* kept taking them.
+                for (int k = 0; k < successors.Count; k++) RelaxAdded(i, successors[k], entry.Cost, 0);
+                // From the start too, even just past a junction: the car stands there, it isn't coming out of a turn
+                // (T3: rides refused because the only way off their first step was blocked).
+                if (!float.IsPositiveInfinity(laneChangePenalty) && !graph.IsIntersection(i) && (i == start || !graph.IsJunctionExitWaypoint(i)))
                 {
                     // A lane change goes diagonally to the second waypoint after the one beside i, so the car moves
                     // over gently while driving on. Never inside a junction, and never from the first waypoint after

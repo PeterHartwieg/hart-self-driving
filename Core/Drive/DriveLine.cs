@@ -79,6 +79,90 @@ namespace DrivenRides.Core.Drive
             return built;
         }
 
+        // The line moved sideways over stretches (a car parked partly in the lane, passed within it; NwhPlanner): each
+        // shift is the path position whose step it starts on, metres along that step where the obstacle begins and
+        // ends, and the offset (right positive); it eases in and out over `ramp` metres either side.
+        public DriveLine Shifted(IReadOnlyList<(int Position, float From, float To, float Offset)> shifts, float ramp = 10f)
+        {
+            if (shifts.Count == 0) return this;
+            var spans = new List<(float From, float To, float Offset)>();
+            foreach (var (position, from, to, offset) in shifts)
+                if (position >= 0 && position < AlongOf.Length) spans.Add((AlongOf[position] + from, AlongOf[position] + to, offset));
+            float OffsetAt(float a)
+            {
+                var o = 0f;
+                foreach (var (from, to, offset) in spans)
+                {
+                    float w;
+                    if (a >= from && a <= to) w = 1f;
+                    else if (a < from && a > from - ramp) w = Ease((a - (from - ramp)) / ramp);
+                    else if (a > to && a < to + ramp) w = Ease(((to + ramp) - a) / ramp);
+                    else w = 0f;
+                    // Overlapping shifts (one obstacle over two steps) don't add up: the larger one holds.
+                    if (Math.Abs(offset * w) > Math.Abs(o)) o = offset * w;
+                }
+                return o;
+            }
+            bool Near(float a)
+            {
+                foreach (var (from, to, _) in spans) if (a > from - ramp - 1f && a < to + ramp + 1f) return true;
+                return false;
+            }
+            // The old line, a point a metre where it moves, with each point's distance along.
+            var old = new List<(Vec3 P, float A)>();
+            var pts = Line.Points;
+            for (var i = 0; i < pts.Count; i++)
+            {
+                if (i > 0)
+                {
+                    float a0 = Along(i - 1), a1 = Along(i);
+                    if (Near(a0) || Near(a1))
+                        for (var a = a0 + 1f; a < a1 - 0.25f; a += 1f) old.Add((Line.At(a), a));
+                }
+                old.Add((pts[i], Along(i)));
+            }
+            var moved = new List<Vec3>(old.Count);
+            var newAlong = new float[old.Count];
+            var sum = 0f;
+            for (var i = 0; i < old.Count; i++)
+            {
+                var (p, a) = old[i];
+                var o = OffsetAt(a);
+                var q = p;
+                if (o != 0f)
+                {
+                    Vec3 b = old[Math.Max(0, i - 1)].P, c = old[Math.Min(old.Count - 1, i + 1)].P;
+                    float dx = c.X - b.X, dz = c.Z - b.Z, n = (float)Math.Sqrt(dx * dx + dz * dz);
+                    if (n > 1e-4f) q = new Vec3(p.X + dz / n * o, p.Y, p.Z - dx / n * o);
+                }
+                if (i > 0) sum += Vec3.HorizontalDistance(moved[i - 1], q);
+                moved.Add(q);
+                newAlong[i] = sum;
+            }
+            float Map(float a)
+            {
+                for (var i = 1; i < old.Count; i++)
+                    if (old[i].A >= a)
+                    {
+                        var span = old[i].A - old[i - 1].A;
+                        var f = span > 1e-4f ? (a - old[i - 1].A) / span : 0f;
+                        return newAlong[i - 1] + (newAlong[i] - newAlong[i - 1]) * f;
+                    }
+                return sum;
+            }
+            var along = new float[AlongOf.Length];
+            for (var k = 0; k < along.Length; k++) along[k] = Map(AlongOf[k]);
+            var shifted = new DriveLine(new Polyline(moved), along);
+            foreach (var (from, to) in Curves) shifted.Curves.Add((Map(from), Map(to)));
+            return shifted;
+        }
+
+        private static float Ease(float t)
+        {
+            t = Math.Max(0f, Math.Min(1f, t));
+            return t * t * (3f - 2f * t);
+        }
+
         // Where a point is relative to the line, searching `range` metres on from `from`: metres along, and metres
         // to the side (right positive).
         public (float Along, float Lateral) Locate(float x, float z, float from, float range)
