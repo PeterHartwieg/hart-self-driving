@@ -268,7 +268,7 @@ Peter's time goes to T2 and T3 starts and to judging the look; the regressions a
 5. **Rides.** The own car first: the player's real car with `autoSetInput = false`, no `StandIn` and no swap (`docs/own-car-self-drive.md` shrinks to autopark, fuel, parking charges and the map marker). Then the private driver: its summoned Gley car swapped for an NWH car of the same type at boarding, while the map covers the screen. Then the watchdog on NWH progress, Skip, the bridge skip as a teleport of the NWH car, and 2× and 3× (the rig has only run NWH at about 4.7× with no traffic).
 6. **Per-car calibration.** The 15 drivable models through T2. A car that can't do a manoeuvre is left out of it by the feasibility check, never by a hand list.
 
-Taxis have no drivable prefab. They stay Gley cars (0.1.51 patches) until there is a drivable taxi: the taxi's meshes on the drivable car of the nearest size, the reverse of `StandIn`'s dress. That is its own phase after 6, if Peter wants it for the first release.
+**Taxis** (Peter, 13 October 2026): a drivable taxi, built as a re-skin. The taxi has no drivable prefab, so the mod spawns the drivable car closest in size, hides its renderers and puts the taxi traffic model's meshes on it (body, lights and the wheels on NWH's wheel visuals): the reverse of `StandIn`'s dress. It runs beside phases 1 to 4 and is checked in the rig like any other car (T2, then T3).
 
 ### Risks
 
@@ -282,10 +282,9 @@ Taxis have no drivable prefab. They stay Gley cars (0.1.51 patches) until there 
 | Reading every car each physics step is slow | Frame rate drops | Phase 1 measures it; only cars within 60 m |
 | NWH at 2× and 3× | Physics at a larger time step | Phase 5 rides at each speed; physics step stays fixed |
 
-### Open with Peter
+### Who does what
 
-- How the work is split with the own-car session (branch `self-driving`), which has paused the stand-in work. My suggestion: one session takes phases 1 to 4, the own-car session takes phase 5's own-car part once phase 4 passes.
-- Taxis for the first release: Gley cars as now, or a drivable taxi.
+One session (this one) takes phases 1 to 4 and the drivable taxi, with subagents in their own worktrees. The own-car session (branch `self-driving`) has paused the stand-in and takes the own-car part of phase 5 once phase 4 passes.
 
 ## Milestones
 

@@ -10,29 +10,22 @@ namespace DrivenRides.Core.Tests;
 
 public sealed class PursuitDriverTests
 {
-    // A kinematic car (bicycle model about the rear axle) with a wheel that turns at most `rate` degrees a second
-    // and locks at `lockDegrees`, driven by the driver at the speed it asks for (pedals ignored).
+    // Core's CarModel, locked at `lockDegrees`, driven by the driver at the speed it asks for.
     private static List<(float X, float Z, float Lateral, float Speed)> Drive(DriveLine line, float wheelbase, float lockDegrees,
         float startX, float startZ, float heading, float topMs = 14f, Func<float, float?>? stopAt = null, int steps = 4000)
     {
         var driver = new PursuitDriver(line, wheelbase, wheelbase + 1f, topMs);
-        double x = startX, z = startZ, h = heading, steer = 0, smoothed = 0, speed = 0;
+        var car = new CarModel(wheelbase, lockDegrees, startX, startZ, heading);
         const float dt = 0.02f;
         var track = new List<(float, float, float, float)>();
         for (var i = 0; i < steps; i++)
         {
-            var o = driver.Step(new DriveInput { RearX = (float)x, RearZ = (float)z, Heading = (float)h, SpeedMs = (float)speed, Dt = dt, WheelDegrees = (float)steer, StopAlong = stopAt?.Invoke(driver.Along) });
-            var want = Math.Max(-lockDegrees, Math.Min(lockDegrees, o.SteerDegrees));
-            // As NWH: the asked-for angle smoothed (about 0.1 s), then turned at most 180 degrees a second.
-            smoothed += (want - smoothed) * Math.Min(1, dt / 0.1);
-            steer += Math.Max(-180 * dt, Math.Min(180 * dt, smoothed - steer));
-            // The car reaches the desired speed at up to 3 m/s² either way.
-            speed += Math.Max(-3 * dt, Math.Min(3 * dt, o.Desired - speed));
-            h += speed * Math.Tan(steer * Math.PI / 180) / wheelbase * dt;
-            x += speed * Math.Sin(h) * dt;
-            z += speed * Math.Cos(h) * dt;
-            track.Add(((float)x, (float)z, o.Lateral, (float)speed));
-            if (o.Along >= line.Line.Length - wheelbase - 1.5f && speed < 0.05) break;
+            var input = car.Input(dt);
+            input.StopAlong = stopAt?.Invoke(driver.Along);
+            var o = driver.Step(input);
+            car.Step(o, dt);
+            track.Add(((float)car.X, (float)car.Z, o.Lateral, (float)car.Speed));
+            if (o.Along >= line.Line.Length - wheelbase - 1.5f && car.Speed < 0.05) break;
         }
         return track;
     }
