@@ -556,8 +556,9 @@ namespace DrivenRides.Core.Drive
 
         // The drive from where the car stands onto a new line (review round 2: a new way on was taken up when the line
         // passed near the car, never driven from the car's pose): the model starts at the car's rear axle, heading,
-        // speed and wheel angle and follows the line for JoinMetres, its body, corners and wheels checked as a
-        // sweep's, and must have settled within JoinSettled of the line by then. What it meets, or null.
+        // speed and wheel angle and follows the line for JoinMetres (on past a bend it ends in, JoinEnd), its body,
+        // corners and wheels checked as a sweep's, and must have settled within JoinSettled of the line by then. What it
+        // meets, or null.
         public string? Join(DrivePlan plan, DriveLine line, CarPose pose)
         {
             var result = new SweepResult();
@@ -573,12 +574,41 @@ namespace DrivenRides.Core.Drive
             var model = car.Model(pose.X, pose.Z, pose.Heading, pose.Speed);
             model.SetWheel(pose.Wheel);
             var from = driver.Along;
-            var to = Math.Min(from + JoinMetres, line.Line.Length - car.FrontAhead - 2f);
+            var to = JoinEnd(line, from);
             foreach (var y in FollowWork(driver, model, line, from, to, result)) yield return y;
             if (result.What != null) result.What = "joining the new line: " + result.What;
             else if (Math.Abs(result.Lateral) > JoinSettled)
                 result.What = FormattableString.Invariant($"joining the new line: still {result.Lateral:+0.00;-0.00} m off it after {to - from:0} m");
         }
+
+        // Where a join is judged settled: JoinMetres on, or further where that falls in a bend, at the first point
+        // after it with the line straight for JoinStraight metres before it (the driver settles on a straight, not in a
+        // turn: a way on whose first 30 m ended inside a turn through vias was refused, 0.65 m off the line there),
+        // at most JoinMaxMetres on, and short of the line's end.
+        private float JoinEnd(DriveLine line, float from)
+        {
+            var last = line.Line.Length - car.FrontAhead - 2f;
+            var to = from + JoinMetres;
+            while (to < from + JoinMaxMetres && to < last && !Straight(line, to)) to += 1f;
+            return Math.Min(to, last);
+        }
+
+        // Whether the line keeps within JoinStraightDegrees of one heading over the JoinStraight metres before `at`.
+        private static bool Straight(DriveLine line, float at)
+        {
+            var first = HeadingAt(line, at - JoinStraight);
+            for (var a = at - JoinStraight + 1f; a <= at; a += 1f)
+                if (Math.Abs(DriveLine.Wrap(HeadingAt(line, a) - first)) > JoinStraightDegrees * Math.PI / 180) return false;
+            return true;
+        }
+
+        private static double HeadingAt(DriveLine line, float at)
+        {
+            Vec3 a = line.Line.At(Math.Max(0f, at)), b = line.Line.At(Math.Max(0f, at) + 0.5f);
+            return Math.Atan2(b.X - a.X, b.Z - a.Z);
+        }
+
+        public const float JoinStraight = 8f, JoinStraightDegrees = 2f, JoinMaxMetres = 100f;
 
         // Where the car will be in `seconds`, driving the plan it drives now as its driver does: braking for the stops it
         // is braking for (the pose's StopAlong, YieldAlong, the gap ahead closing at its speed, MaxSpeed; review round

@@ -310,4 +310,24 @@ public sealed class ReviewRound4Tests
         Assert.Equal(-1, Look().HoldPosition);
         Assert.Empty(watch.Holds);
     }
+
+    [Fact]
+    public void AJoinThatEndsInATurnIsJudgedOnTheStraightAfterIt()
+    {
+        var (graph, entry, exit) = TurnTestGraph.Turn();
+        var route = new List<int> { 0, 1, entry, exit, exit + 1, exit + 2, exit + 3, exit + 4 };
+        // The turn through its vias, the car standing 2 m along the first lane.
+        var plan = DrivePlan.Build(graph, route, Small(), (e, x) => null, (e, x, a) => true);
+        var line = plan.Line(graph);
+        var pose = new CarPose(0f, -28f, 0f, 0f);
+        // The first 30 m end inside the turn.
+        double Heading(float at) { Vec3 a = line.Line.At(at), b = line.Line.At(at + 0.5f); return Math.Atan2(b.X - a.X, b.Z - a.Z); }
+        var start = line.Locate(pose.X, pose.Z, 0f, line.Line.Length).Along;
+        Assert.True(Math.Abs(DriveLine.Wrap(Heading(start + 30f) - Heading(start + 22f))) > 5 * Math.PI / 180);
+        // A car that follows the turn settles after it: accepted.
+        Assert.Null(new Feasibility(graph, Small()).Join(plan, line, pose));
+        // One that can't steer round it (6 degrees of lock) doesn't: refused.
+        var stiff = new CarSpec("stiff", 2.5f, _ => 6f, new Vec3(0, 0.7f, 1.25f), new Vec3(0.9f, 0.7f, 2f), 50f, 1.5f);
+        Assert.Contains("off it after", new Feasibility(graph, stiff).Join(plan, line, pose) ?? "");
+    }
 }
