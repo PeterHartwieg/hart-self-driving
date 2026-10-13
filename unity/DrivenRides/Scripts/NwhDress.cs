@@ -42,6 +42,8 @@ namespace DrivenRides
 
         private static readonly System.Reflection.FieldInfo? TypesField = AccessTools.Field(typeof(VehicleTypeHelper), "VehicleTypes");
         private static readonly System.Reflection.FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
+        private static readonly System.Reflection.FieldInfo? EngineSourceField = AccessTools.Field(typeof(EngineSoundComponent), "audioSource");
+        private static readonly System.Reflection.FieldInfo? MasterVolumeField = AccessTools.Field(typeof(TrafficVehicles), "masterVolume");
         // By traffic prefab name; null when no drivable car fits.
         private static readonly Dictionary<string, Donor?> donors = new Dictionary<string, Donor?>();
         private static readonly HashSet<string> partsLogged = new HashSet<string>();
@@ -184,7 +186,19 @@ namespace DrivenRides
                 var lightsSettings = gleyLights != null
                     ? new DressLights.Settings { BlinkerSpeed = gleyLights.blinkerSpeed, BlinkerOffset = UnityEngine.Random.Range(gleyLights.blinkerOffset.x, gleyLights.blinkerOffset.y), Brake = gleyLights.brakeLightBrightness, Reverse = gleyLights.reverseLightBrightness }
                     : null;
-                var stripped = StripToLook(copy);
+                // The engine sound: Gley's clip on the traffic model's own AudioSource, which stays on the copy.
+                var gleyEngine = copy.GetComponent<EngineSoundComponent>();
+                var engineSource = gleyEngine != null ? EngineSourceField?.GetValue(gleyEngine) as AudioSource ?? gleyEngine.GetComponent<AudioSource>() : null;
+                var engineSettings = gleyEngine != null && engineSource != null && engineSource.clip != null
+                    ? new DressEngine.Settings
+                    {
+                        MinPitch = gleyEngine.minPitch, MaxPitch = gleyEngine.maxPitch, MinVolume = gleyEngine.minVolume, MaxVolume = gleyEngine.maxVolume,
+                        // Gley gives each car a top speed between these when it is spawned (VehicleComponent.ActivateVehicle).
+                        TopKmh = (gley.minPossibleSpeed + gley.maxPossibleSpeed) / 2f,
+                        Master = TrafficManager.HasInstance && TrafficVehiclesField?.GetValue(TrafficManager.Instance) is TrafficVehicles pool && MasterVolumeField?.GetValue(pool) is float master ? master : 1f,
+                    }
+                    : null;
+                var stripped = StripToLook(copy, engineSettings != null ? engineSource : null);
 
                 // The donor's own meshes are hidden; its colliders and wheel physics stay as they are.
                 var hidden = 0;
@@ -287,6 +301,26 @@ namespace DrivenRides
                 }
                 else lightsText = "none found (Gley's VehicleLightsComponent " + (gleyLights == null ? "missing" : "has no renderer") + ")";
 
+                // A dressed car sounds like the car it looks like (Peter, rig 0.1.55: "Taxi motor sound sounds like the
+                // sports car"): the donor's NWH engine sounds go silent (a sound component without clips never starts,
+                // SoundComponent.VC_Initialize) and the traffic model's clip plays as Gley plays it. The tyres,
+                // suspension, crash and the rest stay the donor's.
+                string engineText;
+                if (engineSettings != null && engineSource != null)
+                {
+                    engineSource.playOnAwake = false;
+                    engineSource.loop = true;
+                    // As EngineSoundComponent.Awake does.
+                    if (TrafficComponent.Instance != null && TrafficComponent.Instance.engineMixerGroup != null) engineSource.outputAudioMixerGroup = TrafficComponent.Instance.engineMixerGroup;
+                    var muted = MuteNwhEngine(car.Vehicle);
+                    car.Root.AddComponent<DressEngine>().Begin(car, engineSource, engineSettings);
+                    var s = engineSettings;
+                    engineText = $"the traffic model's '{engineSource.clip!.name}' (pitch {s.MinPitch:0.00} to {s.MaxPitch:0.00}, volume {s.MinVolume:0.00} to {s.MaxVolume:0.00} from 0 to {s.TopKmh:0} km/h, " +
+                                 $"master {s.Master:0.00}, mixer {(engineSource.outputAudioMixerGroup != null ? engineSource.outputAudioMixerGroup.name : "none")}, doppler {engineSource.dopplerLevel:0.0}); " +
+                                 $"the donor's {(muted.Length > 0 ? muted : "engine sounds were already empty")} muted";
+                }
+                else engineText = "the donor's NWH engine (the traffic model has " + (gleyEngine == null ? "no EngineSoundComponent" : "no engine clip") + ")";
+
                 // Where the look sticks out of the donor's body box (the physics): parts there pass through walls.
                 var lookBody = MeshBounds(root, copy.GetComponentsInChildren<Renderer>(true), shadow);
                 var outside = "";
@@ -314,7 +348,7 @@ namespace DrivenRides
                 Log.Info($"Dressed {NwhCar.Id(donor.TypeName)} as {trafficPrefab.name}: look {look}; donor {drivable} (length {drivable.Length - look.Length:+0.00;-0.00}, width {drivable.Width - look.Width:+0.00;-0.00}, " +
                          $"wheelbase {drivable.Wheelbase - look.Wheelbase:+0.00;-0.00}, track {drivable.Track - look.Track:+0.00;-0.00}, score {donor.Score:0.00}). " +
                          $"Copied {allRenderers.Length - wheelRenderers} body and {wheelRenderers} wheel renderers ({lods} LOD groups), body shifted {shift.x:0.00}, {shift.y:0.00}, {shift.z:0.00}; " +
-                         $"hid {hidden} of the donor's ({lightSources} light sources left on it). Wheels: {string.Join("; ", mapping)}. Lights: {lightsText}. " +
+                         $"hid {hidden} of the donor's ({lightSources} light sources left on it). Wheels: {string.Join("; ", mapping)}. Lights: {lightsText}. Engine: {engineText}. " +
                          $"Outside the physics box: {(outside.Length > 0 ? outside : "unmeasured")}. Mismatch: {(mismatches.Count > 0 ? string.Join("; ", mismatches) : "none over " + Tolerance + " m")}. {watch.ElapsedMilliseconds} ms.");
                 return null;
             }
@@ -326,9 +360,29 @@ namespace DrivenRides
             finally { Object.Destroy(holder); }
         }
 
-        // Everything but the meshes goes: scripts (Gley's, the game's, the lights' and the sound's) first, then
-        // colliders, the rigidbody, lights, audio and the rest. Some require others, so a few passes.
-        private static string StripToLook(GameObject copy)
+        // The donor's engine, exhaust, turbo and gearbox whine sounds, emptied before the car wakes. Returns their names.
+        private static string MuteNwhEngine(NwhController vehicle)
+        {
+            var sound = vehicle.soundManager;
+            if (sound == null) return "";
+            var muted = new List<string>();
+            foreach (var c in new NWH.VehiclePhysics2.Sound.SoundComponents.SoundComponent[]
+                     {
+                         sound.engineRunningComponent, sound.engineStartStopComponent, sound.exhaustPopComponent,
+                         sound.turboWhistleComponent, sound.turboFlutterComponent, sound.transmissionWhineComponent,
+                     })
+            {
+                if (c?.clips == null || c.clips.Count == 0) continue;
+                muted.Add($"{c.GetType().Name.Replace("Component", "")} ('{(c.Clip != null ? c.Clip.name : "")}')");
+                c.clips = new List<AudioClip>();
+            }
+            return string.Join(", ", muted);
+        }
+
+        // Everything but the meshes goes (and keep, the engine's AudioSource): scripts (Gley's, the game's, the
+        // lights' and the sound's) first, then colliders, the rigidbody, lights, audio and the rest. Some require
+        // others, so a few passes.
+        private static string StripToLook(GameObject copy, AudioSource? keep)
         {
             var gone = new SortedDictionary<string, int>();
             void Remove(Component c)
@@ -345,13 +399,13 @@ namespace DrivenRides
             }
             for (var pass = 0; pass < 4; pass++)
             {
-                var rest = copy.GetComponentsInChildren<Component>(true).Where(c => c != null && !IsLook(c)).Reverse().ToList();
+                var rest = copy.GetComponentsInChildren<Component>(true).Where(c => c != null && !IsLook(c) && c != keep).Reverse().ToList();
                 if (rest.Count == 0) break;
                 // The rigidbody last: joints need it.
                 foreach (var c in rest.Where(c => !(c is Rigidbody))) Remove(c);
                 foreach (var c in rest.Where(c => c is Rigidbody)) if (c != null) Remove(c);
             }
-            var left = copy.GetComponentsInChildren<Component>(true).Where(c => c != null && !IsLook(c)).Select(c => c.GetType().Name).Distinct().ToList();
+            var left = copy.GetComponentsInChildren<Component>(true).Where(c => c != null && !IsLook(c) && c != keep).Select(c => c.GetType().Name).Distinct().ToList();
             return string.Join(", ", gone.Select(p => p.Value > 1 ? $"{p.Key} x{p.Value}" : p.Key)) + (left.Count > 0 ? "; LEFT " + string.Join(", ", left) : "");
         }
 
@@ -537,6 +591,47 @@ namespace DrivenRides
             block.SetFloat(BrakeLight, braking ? settings.Brake : 0f);
             block.SetFloat(ReverseLight, gear < 0 ? settings.Reverse : 0f);
             lights.SetPropertyBlock(block);
+        }
+    }
+}
+
+namespace DrivenRides
+{
+    // The traffic model's engine sound on a dressed car, as Gley plays it (EngineSoundComponent.UpdateEngineSound):
+    // the car's speed over its top speed sets the volume and the pitch in a straight line. It plays while the NWH
+    // engine runs. Speed, not engine revs: no gear changes in the sound, so it is the same at any rig speed.
+    internal sealed class DressEngine : MonoBehaviour
+    {
+        public sealed class Settings
+        {
+            public float MinPitch, MaxPitch, MinVolume, MaxVolume, TopKmh, Master;
+        }
+
+        private NwhController? vehicle;
+        private Rigidbody? body;
+        private AudioSource? source;
+        private Settings settings = new Settings();
+
+        public void Begin(NwhCar car, AudioSource source, Settings settings)
+        {
+            vehicle = car.Vehicle;
+            body = car.Body;
+            this.source = source;
+            this.settings = settings;
+        }
+
+        private void Update()
+        {
+            if (vehicle == null || body == null || source == null) return;
+            if (!vehicle.IsInitialized || !vehicle.powertrain.engine.IsRunning)
+            {
+                if (source.isPlaying) source.Stop();
+                return;
+            }
+            var share = body.velocity.magnitude * 3.6f / Mathf.Max(1f, settings.TopKmh);
+            source.volume = (settings.MinVolume + (settings.MaxVolume - settings.MinVolume) * share) * settings.Master;
+            source.pitch = settings.MinPitch + (settings.MaxPitch - settings.MinPitch) * share;
+            if (!source.isPlaying) source.Play();
         }
     }
 }
