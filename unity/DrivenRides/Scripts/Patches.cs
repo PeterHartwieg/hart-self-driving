@@ -51,6 +51,8 @@ namespace DrivenRides
             Patch(typeof(TaxiSystem), "TravelTo", new[] { typeof(EntityController) }, nameof(TravelToPrefix), prefix: true);
             // The ride steers an arc turn by moving Gley's target for its car each physics step, before the drive job.
             Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPrefix), prefix: true);
+            // ... and after Gley has turned it, the ride car turns about its middle, not its origin.
+            Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPostfix));
             // An own-car ride costs no fare.
             Patch(typeof(TaxiSystem), "GetPrice", new[] { typeof(float) }, nameof(PricePrefix), prefix: true);
             // No hourly parking ticket or fee for the own car while it is hidden at the start of a ride: the game skips
@@ -66,6 +68,12 @@ namespace DrivenRides
         {
             try { Ride.SteerArcs(); }
             catch (Exception ex) { Log.Error("Arc steering: " + ex.Message); }
+        }
+
+        private static void TrafficFixedPostfix()
+        {
+            try { Ride.TurnAboutMiddle(); }
+            catch (Exception ex) { Log.Error("Turning about the middle: " + ex.Message); }
         }
 
         public static void Remove()

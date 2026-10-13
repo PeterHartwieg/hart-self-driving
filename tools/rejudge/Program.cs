@@ -64,7 +64,7 @@ if (args[1] == "drive")
 if (args[1] == "arcline")
 {
     // arcline <entry> <exit>: the driver's arc for the 6.7 m Dash, one point per line.
-    var line = DrivenRides.Core.Ride.TurnArc.Fit(graph, int.Parse(args[2]), int.Parse(args[3]), 5.74f);
+    var line = DrivenRides.Core.Ride.TurnArc.Fit(graph, int.Parse(args[2]), int.Parse(args[3]), Env("MIN_RADIUS", 5.74f));
     if (line != null) foreach (var p in line.Points) Console.WriteLine(FormattableString.Invariant($"{p.X:0.00} {p.Z:0.00}"));
     return;
 }
@@ -73,7 +73,11 @@ if (args[1] == "arcs")
     // arcs [lookahead] [entry exit]: which catalogue turns get a driver's arc for the 6.7 m Dash, and how closely
     // the car follows it (front axle off the line, the middle of the car off it when it comes out).
     var look = args.Length > 2 ? float.Parse(args[2], CultureInfo.InvariantCulture) : 3f;
-    var dash = new DrivenRides.Core.Ride.CarShape(4.02f, 35f, 2.4f, 0.6f, 0.39f);
+    // CAR="wheel distance,max steer,front axle,centre up,centre ahead" for another car (from the game log).
+    var shape = (Environment.GetEnvironmentVariable("CAR") ?? "4.02,35,2.4,0.6,0.39").Split(',').Select(v => float.Parse(v, CultureInfo.InvariantCulture)).ToArray();
+    var dash = new DrivenRides.Core.Ride.CarShape(shape[0], shape[1], shape[2], shape[3], shape[4]);
+    // FRONT_LOOK: the lookahead counted from the front axle (the pivot's lookahead is front axle + this).
+    if (Environment.GetEnvironmentVariable("FRONT_LOOK") is string fl) look = dash.FrontAxle + float.Parse(fl, CultureInfo.InvariantCulture);
     var fixtures = Catalogue.Build(graph).Where(f => f.Kind == CaseKind.Turn);
     if (args.Length > 4) fixtures = fixtures.Where(f => f.Id == $"turn-{args[3]}-{args[4]}");
     int fitted = 0, total = 0;
@@ -81,14 +85,15 @@ if (args[1] == "arcs")
     var rearAll = new List<double>();
     var middleAll = new List<double>();
     var radii = new List<double>();
+    var wiggles = new List<double>();
     foreach (var f in fixtures)
     {
         total++;
         int entry = f.Route[f.EntryIndex], exit = f.Route[f.ExitIndex];
-        var line = DrivenRides.Core.Ride.TurnArc.Fit(graph, entry, exit, 5.74f);
+        var line = DrivenRides.Core.Ride.TurnArc.Fit(graph, entry, exit, Env("MIN_RADIUS", 5.74f));
         if (line == null) continue;
         fitted++;
-        var poses = DrivenRides.Core.Ride.TurnDrive.Pursue(line, dash, 25 / 3.6f, 3f, look, 0.25f, Environment.GetEnvironmentVariable("FROM_FRONT") == "1");
+        var poses = DrivenRides.Core.Ride.TurnDrive.Pursue(line, dash, 25 / 3.6f, Env("FACTOR", 3f), look, 0.25f, Environment.GetEnvironmentVariable("FROM_FRONT") == "1");
         if (poses == null) { Console.WriteLine($"{f.Id}: the car never gets round"); continue; }
         double Off(double x, double z)
         {
@@ -111,6 +116,15 @@ if (args[1] == "arcs")
         var rear = poses.Max(p => Off(p.X - 1.62 * Math.Sin(p.Heading), p.Z - 1.62 * Math.Cos(p.Heading)));
         var middle = poses.Max(p => Off(p.X, p.Z));
         rearAll.Add(rear); middleAll.Add(middle); radii.Add(line.Radius);
+        var flips = 0; var lastRate = 0.0;
+        for (var q = 1; q < poses.Count; q++)
+        {
+            var rate = Math.IEEERemainder(poses[q].Heading - poses[q - 1].Heading, 2 * Math.PI);
+            if (Math.Abs(rate) < 0.002) continue;
+            if (lastRate != 0 && Math.Sign(rate) != Math.Sign(lastRate)) flips++;
+            lastRate = rate;
+        }
+        wiggles.Add(flips);
         var last = poses[^1];
         var outLine = line.Points.Min(q => Math.Sqrt(Math.Pow(q.X - last.X, 2) + Math.Pow(q.Z - last.Z, 2)));
         worstAll.Add(worst);
@@ -119,6 +133,7 @@ if (args[1] == "arcs")
     string Spread(List<double> v) { v.Sort(); return v.Count == 0 ? "-" : $"median {v[v.Count / 2]:0.00} m, worst {v[^1]:0.00} m"; }
     radii.Sort();
     Console.WriteLine($"radius: min {radii[0]:0.0}, quartiles {radii[radii.Count / 4]:0.0} / {radii[radii.Count / 2]:0.0} / {radii[radii.Count * 3 / 4]:0.0}, max {radii[^1]:0.0} m");
+    Console.WriteLine($"steering reversals per turn: {Spread(wiggles).Replace(" m", "")}");
     Console.WriteLine($"{fitted} of {total} turns get an arc; off the line: front axle {Spread(worstAll)}; middle {Spread(middleAll)}; rear axle {Spread(rearAll)}");
     return;
 }
