@@ -87,6 +87,9 @@ namespace DrivenRides
             // driver=nwh: each case's car is the drivable prefab driven by its own physics (NwhDrive,
             // docs/nwh-drive-spike.md). traffic=on keeps traffic and pedestrians.
             public bool Nwh;
+            // With driver=nwh, the planner's feasibility check and parked-car sweep (NwhPlanner) decide what is
+            // driven, as in a ride: a case they leave out is "avoided". check=off drives every case as the spike did.
+            public bool NwhCheck = true;
             public bool TrafficOn;
             public NwhCar? NwhCar;
             public NwhDrive? NwhDrive;
@@ -389,6 +392,7 @@ namespace DrivenRides
             if (!Begin(graph, plan.Count, trafficOn)) yield break;
             var s = session!;
             s.Nwh = nwh;
+            s.NwhCheck = !(args.TryGetValue("check", out var ck) && ck == "off");
             s.AutoSpeed = speed <= 0f;
             if (s.AutoSpeed) speed = 3f;
             Log.Info($"Turn tests {s.Id}: {plan.Count} runs at {speed:0}x, cars {string.Join(", ", plan.Select(p => p.Car.Name).Distinct())}.");
@@ -653,6 +657,22 @@ namespace DrivenRides
             while (Time.unscaledTime < until) { if (s.StopRequested) yield break; yield return null; }
 
             TrafficManager.Instance.ClearTrafficOnArea(start.position, 40f);
+            // The planner's questions before the car is loaded, as a ride asks them when it is planned: can this car
+            // make the manoeuvre, and are the case's lanes free of parked cars (loaded now, near the anchor).
+            var planner = s.NwhCheck && fixture.Path == null ? (NwhCar.HasPrefab(model.Name) ? NwhPlanner.For(model.Name, model.TopSpeed) : NwhPlanner.ForTrafficPrefab(model.Prefab, model.TopSpeed)) : null;
+            if (planner != null)
+            {
+                line["minRadius"] = Math.Round(planner.Car.ArcMinRadius(), 2);
+                if (fixture.Kind == CaseKind.Turn || fixture.Kind == CaseKind.UTurn)
+                {
+                    var verdict = planner.Check.Step(route[fixture.EntryIndex], route[fixture.EntryIndex + 1]);
+                    line["plan"] = verdict.Form;
+                    line["check"] = verdict.ToString();
+                    if (!verdict.Feasible) { Record(s, line, "avoided", verdict.ToString(), null, fixture); yield break; }
+                }
+                var parked = planner.BlockedAhead(graph, route, 0, float.MaxValue);
+                if (parked.Count > 0) { Record(s, line, "avoided", $"step {parked[0].From} -> {parked[0].To}: {parked[0].What}", null, fixture); yield break; }
+            }
             var firstPath = fixture.Path ?? PathExpander.Expand(graph, route).Path;
             var ahead = all[firstPath.Count > 1 ? firstPath[1] : route[1]].position - start.position;
             ahead.y = 0f;
@@ -680,7 +700,8 @@ namespace DrivenRides
                 yield break;
             }
 
-            // The path: the fixture's own (the controls), or the planner's expansion with arcs this car can follow.
+            // The path: the fixture's own (the controls), the planner's (the arc or vias its check passed), or with
+            // check=off the spike's: an arc wherever one fits the lock at 10 km/h.
             var minRadius = car.Wheelbase / Mathf.Tan(Mathf.Max(5f, car.LockAt(NwhManoeuvreKmh / 3.6f)) * Mathf.Deg2Rad);
             List<int> path;
             var arcs = new List<(int Entry, Polyline Arc)>();
@@ -689,6 +710,13 @@ namespace DrivenRides
             {
                 path = fixture.Path;
                 if (fixture.SlowPath != null) foreach (var k in fixture.SlowPath) slow.Add((k, 25f));
+            }
+            else if (planner != null)
+            {
+                var plan = planner.Plan(graph, route);
+                path = plan.Path;
+                arcs.AddRange(plan.Arcs);
+                slow.AddRange(plan.Slow);
             }
             else
             {
@@ -705,10 +733,11 @@ namespace DrivenRides
                 // driven faster than a tight one (Peter). U-turns in a long car stay at a crawl.
                 if (car.Length >= 5.5f) foreach (var k in expanded.UTurnPath) slow.Add((k, 15f));
             }
-            // Gley caps every car at the road's limit; so does this driver.
-            for (var k = 0; k < path.Count; k++) if (all[path[k]].maxSpeed > 0 && all[path[k]].maxSpeed < model.TopSpeed) slow.Add((k, all[path[k]].maxSpeed));
+            // Gley caps every car at the road's limit; so does this driver (the planner's plan has them already).
+            if (planner == null)
+                for (var k = 0; k < path.Count; k++) if (all[path[k]].maxSpeed > 0 && all[path[k]].maxSpeed < model.TopSpeed) slow.Add((k, all[path[k]].maxSpeed));
             line["arcs"] = arcs.Count;
-            line["minRadius"] = Math.Round(minRadius, 2);
+            if (planner == null) line["minRadius"] = Math.Round(minRadius, 2);
 
             var geometry = CaseGeometry.Build(graph, fixture);
             var judge = new Judge(graph, geometry, fixture);
@@ -717,6 +746,8 @@ namespace DrivenRides
             s.Geometry = geometry;
             s.DrivenPath = path;
             var drive = car.Root.AddComponent<NwhDrive>();
+            // The driver steers for NWH's Ackermann, as the planner's check assumed (CarModel.TrackWidth).
+            if (planner != null) drive.TrackWidth = planner.Car.TrackWidth;
             drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);
             s.NwhDrive = drive;
             testCar.Waiting = () => drive.WaitingNow;

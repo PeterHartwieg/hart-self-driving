@@ -40,7 +40,8 @@ namespace DrivenRides
             return (wheelbase, maxSteer * factor);
         }
 
-        private static string? TypeOf(string trafficPrefabName)
+        // The vehicle type whose traffic prefab this is (NwhPlanner too).
+        internal static string? TypeOf(string trafficPrefabName)
         {
             if (typeOfTraffic == null)
             {

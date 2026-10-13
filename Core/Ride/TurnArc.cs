@@ -92,7 +92,8 @@ namespace DrivenRides.Core.Ride
         // follow. The arc stays in the junction box: it starts no earlier than the first lane crossing the entry lane
         // and ends by the last lane the exit lane crosses (Peter, turn test 0.1.43: with an entry waypoint 20 m short
         // of a narrow cross street, the widest arc swept over the avenue's oncoming lanes before the junction).
-        public static Polyline? Fit(LaneGraph graph, int entry, int exit, float minRadius)
+        // radius: this arc instead of the widest one the junction has room for (it must still fit).
+        public static Polyline? Fit(LaneGraph graph, int entry, int exit, float minRadius, float? radius = null)
         {
             if (!graph.PlainHeading(entry, out var ux, out var uz) || !graph.PlainHeading(exit, out var vx, out var vz)) return null;
             Vec3 e = graph.Position(entry), x = graph.Position(exit);
@@ -114,7 +115,7 @@ namespace DrivenRides.Core.Ride
                     if (Crossing(x, vx, vz, p, q, out var t) && t <= 0f && t > b - 30f && t > last) last = t;
                 }
             }
-            return Fit(e, ux, uz, x, vx, vz, minRadius, null, Math.Max(0f, first - BoxMargin), last + BoxMargin);
+            return Fit(e, ux, uz, x, vx, vz, minRadius, radius, Math.Max(0f, first - BoxMargin), last + BoxMargin);
         }
 
         // Where the segment p-q crosses the line from `from` along (dx, dz), as metres along that line; only segments

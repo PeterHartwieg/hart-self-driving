@@ -34,7 +34,7 @@ namespace DrivenRides.Core.Drive
     public sealed class PursuitDriver
     {
         private readonly DriveLine line;
-        private readonly float wheelbase, frontAhead, top;
+        private readonly float wheelbase, frontAhead, top, trackWidth;
         private readonly float[] cornerSpeeds;
         private readonly List<(float From, float To, float Speed)> slow = new List<(float, float, float)>();
         private float along;
@@ -51,11 +51,14 @@ namespace DrivenRides.Core.Drive
         public const float MinCornerMs = 12f / 3.6f;
         public const float LagSeconds = 0.25f;
 
-        // frontAhead: the car's front bumper, metres ahead of the rear axle.
-        public PursuitDriver(DriveLine line, float wheelbase, float frontAhead, float topMs)
+        // frontAhead: the car's front bumper, metres ahead of the rear axle. trackWidth: the front track, for NWH's
+        // Ackermann (CarModel.TrackWidth): the limo turns 0.8 as sharply as a bicycle with the same wheel angle, and a
+        // driver steering for a bicycle ran 0.5 m wide on every arc (tools/calibrate, rig session 20261013-083259).
+        public PursuitDriver(DriveLine line, float wheelbase, float frontAhead, float topMs, float trackWidth = 0f)
         {
             this.line = line;
             this.wheelbase = Math.Max(1f, wheelbase);
+            this.trackWidth = Math.Max(0f, trackWidth);
             this.frontAhead = frontAhead;
             top = topMs;
             cornerSpeeds = line.CornerSpeeds(topMs, Lateral, 10f);
@@ -84,7 +87,7 @@ namespace DrivenRides.Core.Drive
 
             // The wheel reaches a new angle only after a moment (NWH smooths it and turns it at a limited rate), so the
             // driver steers for where the car will be by then: on along its present curve for LagSeconds.
-            var yawRate = i.SpeedMs * Math.Tan(i.WheelDegrees * Math.PI / 180) / wheelbase;
+            var yawRate = i.SpeedMs * CarModel.Curvature(i.WheelDegrees, wheelbase, trackWidth);
             var turned = yawRate * LagSeconds;
             var ahead = i.SpeedMs * LagSeconds;
             var px = i.RearX + ahead * (float)Math.Sin(i.Heading + turned / 2);
@@ -96,7 +99,7 @@ namespace DrivenRides.Core.Drive
             var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - ph);
             var distance = (float)Math.Sqrt(tx * tx + tz * tz);
             var curvature = 2 * Math.Sin(alpha) / Math.Max(1f, distance);
-            var steer = (float)(Math.Atan(wheelbase * curvature) * 180 / Math.PI);
+            var steer = (float)(Math.Atan(wheelbase * curvature / CarModel.YawGain(wheelbase, trackWidth)) * 180 / Math.PI);
 
             var desired = PlannedSpeed(along, i.SpeedMs);
             var holding = false;
@@ -121,7 +124,7 @@ namespace DrivenRides.Core.Drive
             // No faster than the corner the wheel is turning now, nor the one it is asked for: the car accelerated
             // out of corners with the wheel still at lock and ran wide (Peter, NWH spike: overshooting the corner).
             var wheel = Math.Max(Math.Abs(i.WheelDegrees), Math.Abs(steer));
-            if (wheel > 3f) desired = Math.Min(desired, Math.Max(MinCornerMs, (float)Math.Sqrt(Lateral * wheelbase / Math.Tan(wheel * Math.PI / 180))));
+            if (wheel > 3f) desired = Math.Min(desired, Math.Max(MinCornerMs, (float)Math.Sqrt(Lateral / CarModel.Curvature(wheel, wheelbase, trackWidth))));
 
             var o = new DriveOutput { SteerDegrees = steer, Along = along, Lateral = lateral, Desired = desired, Lookahead = ld, Holding = holding };
             Pedals(ref o, i.SpeedMs, desired, i.Dt);

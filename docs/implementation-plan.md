@@ -246,7 +246,7 @@ From the Gley decompile in `build/decompiled-external/GleyTrafficSystem/`:
 
 One check: simulate `PursuitDriver` on the ride's `DriveLine` with the Core car model, and judge the track with the rig's own `Core.Testing.Judge` (lane, far side early, contact by sweeping the body box against the world). The planner asks the question the rig asks: would this manoeuvre fail?
 
-- **The model.** The kinematic car in `PursuitDriverTests` becomes `Core.Drive.CarModel`: bicycle model, NWH's steering smoothing and its 180°/s rate, the lock at speed, the planned speed profile. Calibrated per car from the rig's `-nwh.csv` traces; the measured error becomes the margin. `TurnDrive` (the Gley model) goes when the Gley path goes.
+- **The model.** The kinematic car in `PursuitDriverTests` becomes `Core.Drive.CarModel`: bicycle model, NWH's steering smoothing and its 180°/s rate, the lock at speed, NWH's Ackermann (the front track: the limo turns 0.76 as sharply as a bicycle with the same wheel angle, which is why the spike's driver ran wide on every arc), the planned speed profile. Calibrated per car from the rig's `-nwh.csv` traces; the measured error becomes the margin. `TurnDrive` (the Gley model) goes when the Gley path goes.
 - **Arcs.** `TurnArc.Fit` with the car's smallest radius at corner speed, then simulated and judged.
 - **U-turns.** No via tuning. A U-turn is feasible if the simulated one at 12 to 15 km/h stays inside the far carriageway and clear of the world; otherwise that step is removed for this car and the route goes round the block. Cached per car and junction for the session. Long cars will rarely pass, as Peter wants.
 

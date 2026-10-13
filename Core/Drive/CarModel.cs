@@ -14,6 +14,13 @@ namespace DrivenRides.Core.Drive
 
         private readonly float wheelbase;
         private readonly Func<float, float> lockAt;
+        // The smoothing and the wheel's rate, NWH's by default; tools/calibrate fits them to the rig's traces.
+        public float Smooth = SmoothSeconds, Rate = WheelRate;
+        // The front wheels' track, for NWH's Ackermann (0: a plain bicycle). NWH turns the two front wheels to
+        // atan(4 t sin a / (2 L cos a -/+ t sin a)) for a steering angle a (Steering.CalculateSteerAngles), which on
+        // the limo turns the car 0.8 as sharply as a bicycle with that wheel angle, at every angle and speed in the
+        // rig's traces (tools/calibrate).
+        public float TrackWidth;
         private double smoothed;
 
         // The rear axle and heading (radians, as atan2(dx, dz)), the wheel (degrees, positive to the right), the speed.
@@ -35,21 +42,37 @@ namespace DrivenRides.Core.Drive
 
         public float Wheelbase => wheelbase;
 
+        // The wheel at an angle and held there (a replay starting mid-drive).
+        public void SetWheel(double degrees) { Steer = degrees; smoothed = degrees; }
+
         // What the driver is told about the car this step.
         public DriveInput Input(float dt) => new DriveInput
         {
             RearX = (float)X, RearZ = (float)Z, Heading = (float)Heading, SpeedMs = (float)Speed, Dt = dt, WheelDegrees = (float)Steer,
         };
 
+        // The curvature the rear axle follows at a steering angle (degrees): the mean of the two front wheels' with NWH's
+        // Ackermann, about 2 t / L of a bicycle's.
+        public static double Curvature(double steerDegrees, float wheelbase, float trackWidth)
+        {
+            var t = Math.Tan(steerDegrees * Math.PI / 180);
+            if (trackWidth <= 0f) return t / wheelbase;
+            var a = trackWidth * t / (2 * wheelbase);
+            return 2 * trackWidth * t / (wheelbase * wheelbase) / Math.Max(0.1, 1 - a * a);
+        }
+
+        // How sharply the car turns against a bicycle with the same wheelbase, for small angles.
+        public static float YawGain(float wheelbase, float trackWidth) => trackWidth > 0f ? 2f * trackWidth / wheelbase : 1f;
+
         // One physics step with the driver's output.
         public void Step(DriveOutput o, float dt)
         {
             var lockNow = lockAt((float)Math.Abs(Speed));
             var want = Math.Max(-lockNow, Math.Min(lockNow, o.SteerDegrees));
-            smoothed += (want - smoothed) * Math.Min(1, dt / SmoothSeconds);
-            Steer += Math.Max(-WheelRate * dt, Math.Min(WheelRate * dt, smoothed - Steer));
+            smoothed += (want - smoothed) * (Smooth > 0f ? Math.Min(1, dt / Smooth) : 1);
+            Steer += Math.Max(-Rate * dt, Math.Min(Rate * dt, smoothed - Steer));
             Speed += Math.Max(-Accel * dt, Math.Min(Accel * dt, o.Desired - Speed));
-            Heading += Speed * Math.Tan(Steer * Math.PI / 180) / wheelbase * dt;
+            Heading += Speed * Curvature(Steer, wheelbase, TrackWidth) * dt;
             X += Speed * Math.Sin(Heading) * dt;
             Z += Speed * Math.Cos(Heading) * dt;
         }

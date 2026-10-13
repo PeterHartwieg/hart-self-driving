@@ -8,8 +8,8 @@ namespace DrivenRides.Core.Testing
     {
         private readonly CaseGeometry geometry;
         private readonly Fixture fixture;
-        private readonly List<Stretch> plain = new List<Stretch>();
-        private readonly List<Stretch> exitRoad = new List<Stretch>();
+        private readonly List<LaneStretch> plain = new List<LaneStretch>();
+        private readonly List<LaneStretch> exitRoad = new List<LaneStretch>();
         private readonly JudgeResult result = new JudgeResult();
         private Sample previous;
         private bool hasPrevious, turnPassed, entered;
@@ -24,7 +24,7 @@ namespace DrivenRides.Core.Testing
             // Lane stretches only: an added turn's or a lane change's step is a chord across lanes, not a lane.
             for (int k = 0; k + 1 < fixture.Route.Count; k++)
                 if (!graph.IsIntersection(fixture.Route[k]) && !graph.IsIntersection(fixture.Route[k + 1]) && Has(graph.Successors(fixture.Route[k]), fixture.Route[k + 1]))
-                    plain.Add(new Stretch(graph, geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1], k) { Min = -1f, Max = Vec3.HorizontalDistance(geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1]) + 1f });
+                    plain.Add(new LaneStretch(graph, geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1], k) { Min = -1f, Max = Vec3.HorizontalDistance(geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1]) + 1f });
             // The oncoming lanes of the road turned into, from its mouth on: inside the junction a correct left turn
             // sweeps across them, and a U-turn's own approach lanes are that road's oncoming lanes (the far-side check
             // covers U-turns).
@@ -32,7 +32,7 @@ namespace DrivenRides.Core.Testing
             float length = 0;
             for (int k = fixture.ExitIndex; k + 1 < fixture.Route.Count && length < 25f; k++)
             {
-                var stretch = new Stretch(graph, geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1], k);
+                var stretch = new LaneStretch(graph, geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1], k);
                 stretch.Min = 0;
                 stretch.Max = Math.Min(stretch.Length, 25f - length);
                 exitRoad.Add(stretch);
@@ -41,7 +41,7 @@ namespace DrivenRides.Core.Testing
             if (exitRoad.Count == 0)
             {
                 Gate exit = geometry.Gates[1];
-                var stretch = new Stretch(graph, exit.Point, exit.Point + new Vec3(exit.DirX * 25f, 0, exit.DirZ * 25f), fixture.ExitIndex);
+                var stretch = new LaneStretch(graph, exit.Point, exit.Point + new Vec3(exit.DirX * 25f, 0, exit.DirZ * 25f), fixture.ExitIndex);
                 stretch.Min = 0;
                 exitRoad.Add(stretch);
             }
@@ -104,7 +104,7 @@ namespace DrivenRides.Core.Testing
             }
             Plain(s);
             if (entered && !Finished)
-                foreach (Stretch stretch in exitRoad) Intrusion(s, stretch);
+                foreach (LaneStretch stretch in exitRoad) Intrusion(s, stretch);
             if (fixture.Manoeuvre == CaseKind.UTurn && !turnPassed) FarSide(s);
             if (!hasPrevious || newGate || s.Waiting || previous.Waiting || Vec3.HorizontalDistance(stuckPosition, s.Centre) >= 2f)
             {
@@ -135,7 +135,7 @@ namespace DrivenRides.Core.Testing
             }
             if (float.IsPositiveInfinity(distance)) return;
             segment = best;
-            foreach (Stretch stretch in plain)
+            foreach (LaneStretch stretch in plain)
             {
                 if (stretch.Index != best) continue;
                 // Off either end (behind the route's start, past a stretch's end) the distance says nothing.
@@ -147,7 +147,7 @@ namespace DrivenRides.Core.Testing
             }
         }
 
-        private void Intrusion(Sample s, Stretch stretch, bool limitLength = true)
+        private void Intrusion(Sample s, LaneStretch stretch, bool limitLength = true)
         {
             if (s.Footprint == null) return;
             foreach (Vec3 point in s.Footprint)
@@ -208,52 +208,5 @@ namespace DrivenRides.Core.Testing
             EntrySpeed = result.EntrySpeed, MaxIntrusion = result.MaxIntrusion, NearMiss = result.NearMiss, PlainDeviationMax = result.PlainDeviationMax,
             LastGateLateral = result.LastGateLateral, LastGateHeadingError = result.LastGateHeadingError, IntrusionDetail = result.IntrusionDetail
         };
-
-        private sealed class Stretch
-        {
-            private readonly Vec3 start, end;
-            private readonly float dx, dz;
-            public readonly int Index;
-            public readonly float Length;
-            public float Min, Max;
-            public float Left = float.NegativeInfinity, Right = float.PositiveInfinity;
-
-            public Stretch(LaneGraph graph, Vec3 start, Vec3 end, int index)
-            {
-                this.start = start;
-                this.end = end;
-                Index = index;
-                Geometry.Direction(start, end, out dx, out dz);
-                Length = Vec3.HorizontalDistance(start, end);
-                Max = Length;
-                float left = float.NegativeInfinity, right = float.PositiveInfinity;
-                var same = new List<float> { 0 };
-                foreach (int w in graph.Near(start, 12f))
-                {
-                    Vec3 p = graph.Position(w);
-                    if (Math.Abs(p.Y - start.Y) > 1f || !graph.PlainHeading(w, out float x, out float z)) continue;
-                    float dot = dx * x + dz * z, side = Side(p);
-                    if (dot > 0.5f) same.Add(side);
-                    // An oncoming waypoint less than 2.5 m to the side is no lane beside: the game reuses a lane both
-                    // ways in places, and a Hamptons lane road is too narrow for any car to keep to its half.
-                    else if (dot < -0.5f && Math.Abs(side) >= 2.5f)
-                    {
-                        if (side < 0) left = Math.Max(left, side);
-                        else if (side > 0) right = Math.Min(right, side);
-                    }
-                }
-                float ownLeft = 0, ownRight = 0;
-                foreach (float side in same)
-                {
-                    if (side < ownLeft && side > left) ownLeft = side;
-                    if (side > ownRight && side < right) ownRight = side;
-                }
-                if (!float.IsNegativeInfinity(left)) Left = (left + ownLeft) / 2;
-                if (!float.IsPositiveInfinity(right)) Right = (right + ownRight) / 2;
-            }
-            public float Along(Vec3 p) => (p.X - start.X) * dx + (p.Z - start.Z) * dz;
-            public float Side(Vec3 p) => (p.X - start.X) * dz - (p.Z - start.Z) * dx;
-            public float Height(float along) => Length == 0 ? start.Y : start.Y + (end.Y - start.Y) * along / Length;
-        }
     }
 }
