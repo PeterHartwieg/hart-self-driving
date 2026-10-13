@@ -31,7 +31,7 @@ public sealed class TrafficTests
         Parallel.For(0, seeds, seed =>
         {
             var r = Run(TrafficTemplates.Build(template, seed));
-            if (r.Failure != null) failures.Add((seed, r.Failure));
+            if (r.Failure != null || r.Blocked != null) failures.Add((seed, r.Failure ?? "blocked: " + r.Blocked));
             else System.Threading.Interlocked.Increment(ref arrived);
         });
         output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed");
@@ -39,14 +39,17 @@ public sealed class TrafficTests
         Assert.Empty(failures);
     }
 
-    // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second.
+    // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
     [Fact]
     public void TraceOneSeed()
     {
         var which = Environment.GetEnvironmentVariable("FT_TRAFFIC_TRACE");
         if (string.IsNullOrEmpty(which)) return;
         var parts = which.Split(':');
-        var r = Run(TrafficTemplates.Build(parts[0], int.Parse(parts[1])), true);
+        var scenario = parts[0] == "file"
+            ? TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, parts[1])))
+            : TrafficTemplates.Build(parts[0], int.Parse(parts[1]));
+        var r = Run(scenario, true);
         output.WriteLine(r.ToString());
         output.WriteLine(r.Trace.ToString());
     }

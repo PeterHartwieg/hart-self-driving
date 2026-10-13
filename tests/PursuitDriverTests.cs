@@ -208,4 +208,29 @@ public sealed class PursuitDriverTests
         // Out of it: on at its own speed (T3 20261013-185723, ride 8: 4 s at 2 m/s after the turn).
         Assert.Null(Decide(line, 26f, 3f, waiting).MaxSpeed);
     }
+
+    [Fact]
+    public void BacksOffFromACarHoldingItAtAnyAngle()
+    {
+        var line = DriveLine.Build(Straight(new Vec3(0, 0, -50), new Vec3(0, 0, 200)), Array.Empty<(int, Polyline)>());
+        // Standing, the ride car's front at z 24; a traffic car that stopped for it 0.8 m ahead, at 30, 60 and 90
+        // degrees across its way (T3 20261013-191420: the back-off only knew nose to nose).
+        foreach (var degrees in new[] { 30f, 60f, 90f })
+        {
+            var a = degrees * (float)Math.PI / 180f;
+            var waiting = Other(1, 0f, 0f, 0f, 0f);
+            waiting.Heading = -a;
+            // Its nearest corner 0.8 m from the front bumper, its body across the line.
+            waiting.X = 0f;
+            waiting.Z = 24.8f + 2.25f * (float)Math.Cos(a) + 0.95f * (float)Math.Sin(a);
+            waiting.StoppedForUs = true;
+            var d = Decide(line, 20f, 0f, waiting);
+            Assert.True(d.BackOff, $"{degrees} degrees: {d.Why}");
+            // Not holding the ride car: no back-off, it is ground (a gap).
+            waiting.StoppedForUs = false;
+            var ground = Decide(line, 20f, 0f, waiting);
+            Assert.False(ground.BackOff);
+            Assert.NotNull(ground.GapAhead);
+        }
+    }
 }

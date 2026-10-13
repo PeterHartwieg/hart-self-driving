@@ -312,12 +312,19 @@ namespace DrivenRides
         private bool BlockedRule(DriveOutput o, float speed, float? gap)
         {
             var dt = Time.fixedDeltaTime;
+            // A traffic car in the way that won't move (TrafficDriver.Stuck: one standing at the end of a lane that
+            // leads nowhere, as Gley's do for good): blocked like a parked car.
+            if (decision.BlockedBy >= 0) return Block(o, decision.BlockedWhy);
             pushSeconds = o.Throttle > 0.5f && Mathf.Abs(speed) < 0.2f ? pushSeconds + dt : 0f;
             var still = gap != null && WaitingNow && lastBlockerLayer >= 0
                 && (lastBlockerLayer == LayerHelper.ParkedVehiclesLayerIndex || (TestCar.ObstacleMask & (1 << lastBlockerLayer)) != 0);
             staticHeldSeconds = still ? staticHeldSeconds + dt : 0f;
             if (pushSeconds < 2f && staticHeldSeconds < 3f) return false;
-            var what = pushSeconds >= 2f ? "no motion at full throttle" : $"held by '{lastBlocker}' {gap:0.0} m ahead, which doesn't move";
+            return Block(o, pushSeconds >= 2f ? "no motion at full throttle" : $"held by '{lastBlocker}' {gap:0.0} m ahead, which doesn't move");
+        }
+
+        private bool Block(DriveOutput o, string what)
+        {
             var front = o.Along + Car.FrontAhead;
             var position = 0;
             while (position + 1 < path.Count && line.AlongOf[position + 1] <= front) position++;

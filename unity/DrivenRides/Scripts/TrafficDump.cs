@@ -112,8 +112,16 @@ namespace DrivenRides
             {
                 var x = traffic.Intersection(j);
                 var spec = new ScenarioJunction { Id = j, Kind = x is PriorityIntersection ? "priority" : "replay" };
+                // Each road's entries (a light's roads too, so the simulation can go on cycling it after the replay),
+                // and a light's own green and amber times.
                 if (x is PriorityIntersection p)
                     foreach (var r in p.enterWaypoints) spec.Roads.Add(r.roadWaypoints.Where(local.ContainsKey).Select(w => local[w]).ToArray());
+                if (x is TrafficLightsIntersection l)
+                {
+                    foreach (var r in l.stopWaypoints) spec.Roads.Add(r.roadWaypoints.Where(local.ContainsKey).Select(w => local[w]).ToArray());
+                    spec.Green = l.greenLightTime;
+                    spec.Yellow = l.yellowLightTime;
+                }
                 s.Junctions.Add(spec);
             }
             // Light changes over the window, replayed.
