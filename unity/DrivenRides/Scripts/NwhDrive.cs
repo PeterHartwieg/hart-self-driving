@@ -27,6 +27,8 @@ namespace DrivenRides
         public float TrackWidth;
         // Lane steps passed on a line moved sideways (DrivePlan.Shifts), set before Begin.
         public List<(int Position, float From, float To, float Offset)> Shifts = new List<(int, float, float, float)>();
+        // Plain lane corners rounded off on the line (DrivePlan.Fillets), set before Begin.
+        public HashSet<int>? Fillets;
         private PursuitDriver driver = null!;
         private TrafficDriver traffic = null!;
         private GleyTraffic gley = null!;
@@ -98,6 +100,7 @@ namespace DrivenRides
         {
             gley.LeaveAll();
             Shifts = plan.Shifts;
+            Fillets = plan.Fillets;
             UsePath(plan.Path, plan.Arcs, plan.Slow);
             lastProgressAlong = 0f;
             lastProgressTime = Time.time;
@@ -119,7 +122,7 @@ namespace DrivenRides
             var all = GleyGraph.Waypoints!;
             var points = new List<Vec3>(path.Count);
             foreach (var i in path) points.Add(GleyGraph.ToVec(all[i].position));
-            line = DriveLine.Build(points, arcs).Shifted(Shifts);
+            line = DriveLine.Build(points, arcs, Fillets).Shifted(Shifts);
             driver = new PursuitDriver(line, car.Wheelbase, car.FrontAhead, topMs, TrackWidth);
             // A slow position covers the stretch from it to the next position.
             foreach (var (position, kmh) in slow)

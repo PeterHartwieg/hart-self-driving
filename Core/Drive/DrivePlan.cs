@@ -20,6 +20,8 @@ namespace DrivenRides.Core.Drive
         // Lane steps passed with the line moved sideways (DriveLine.Shifted): path position, metres along the step
         // where the obstacle begins and ends, the offset (right positive).
         public List<(int Position, float From, float To, float Offset)> Shifts { get; } = new List<(int, float, float, float)>();
+        // Path positions of plain lane corners, rounded off on the line (DriveLine.Fillet): both steps are lane steps.
+        public HashSet<int> Fillets { get; } = new HashSet<int>();
 
         private DrivePlan(ExpandedPath expanded, float topKmh) { Expanded = expanded; TopKmh = topKmh; }
 
@@ -32,6 +34,8 @@ namespace DrivenRides.Core.Drive
             var expanded = PathExpander.Expand(graph, route, clear, (e, x) => arc(e, x) != null);
             var plan = new DrivePlan(expanded, car.TopKmh);
             var path = expanded.Path;
+            for (var k = 1; k + 1 < path.Count; k++)
+                if (Has(graph.Successors(path[k - 1]), path[k]) && Has(graph.Successors(path[k]), path[k + 1])) plan.Fillets.Add(k);
             if (shift != null)
                 for (var k = 0; k + 1 < path.Count; k++)
                     if (shift(path[k], path[k + 1]) is var (from, to, offset)) plan.Shifts.Add((k, from, to, offset));
@@ -81,7 +85,13 @@ namespace DrivenRides.Core.Drive
         {
             var points = new List<Vec3>(Path.Count);
             foreach (var i in Path) points.Add(graph.Position(i));
-            return DriveLine.Build(points, Arcs).Shifted(Shifts);
+            return DriveLine.Build(points, Arcs, Fillets).Shifted(Shifts);
+        }
+
+        private static bool Has(IReadOnlyList<int> list, int value)
+        {
+            for (var k = 0; k < list.Count; k++) if (list[k] == value) return true;
+            return false;
         }
 
         // The driver for this plan's line: a slow position covers the stretch from it to the next position.

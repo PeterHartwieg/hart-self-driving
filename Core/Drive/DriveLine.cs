@@ -21,7 +21,8 @@ namespace DrivenRides.Core.Drive
 
         // points: the path's waypoint positions. arcs: path position of each arc turn's entry (its exit is the next
         // position) and the arc, which starts TurnArc.LeadIn before the entry and runs out down the exit lane.
-        public static DriveLine Build(IReadOnlyList<Vec3> points, IReadOnlyList<(int Entry, Polyline Arc)> arcs)
+        // fillets: path positions of plain lane corners (both steps lane steps) to round off (Fillet).
+        public static DriveLine Build(IReadOnlyList<Vec3> points, IReadOnlyList<(int Entry, Polyline Arc)> arcs, ICollection<int>? fillets = null)
         {
             var line = new List<Vec3>();
             var along = new float[points.Count];
@@ -40,12 +41,29 @@ namespace DrivenRides.Core.Drive
             var curves = new List<(float, float)>();
             var byEntry = new Dictionary<int, Polyline>();
             foreach (var (entry, arc) in arcs) if (entry >= 0 && entry + 1 < points.Count) byEntry[entry] = arc;
+            var previousWaypoint = -1;
             for (var k = 0; k < points.Count; k++)
             {
-                Add(points[k]);
-                along[k] = sum;
+                // A plain lane's corner, between two waypoints the line runs straight to and from, is rounded off.
+                if (fillets != null && fillets.Contains(k) && previousWaypoint == k - 1 && k + 1 < points.Count && !byEntry.ContainsKey(k)
+                    && Fillet(points[k - 1], points[k], points[k + 1]) is List<Vec3> round)
+                {
+                    var middle = round.Count / 2;
+                    for (var i = 0; i < round.Count; i++)
+                    {
+                        Add(round[i]);
+                        if (i == middle) along[k] = sum;
+                    }
+                }
+                else
+                {
+                    Add(points[k]);
+                    along[k] = sum;
+                }
                 known[k] = true;
+                previousWaypoint = k;
                 if (!byEntry.TryGetValue(k, out var turn) || turn.Points.Count < 2) continue;
+                previousWaypoint = -1;
                 // The arc from the entry waypoint on (its lead-in is the entry lane, already on the line).
                 var from = 0;
                 var walked = 0f;
@@ -162,6 +180,36 @@ namespace DrivenRides.Core.Drive
             t = Math.Max(0f, Math.Min(1f, t));
             return t * t * (3f - 2f * t);
         }
+
+        // A plain lane's corner at v rounded off as a driver takes it (Peter, T3: a Hamptons drive whose waypoints
+        // kink 35 degrees round a gate pillar's island): a smooth curve from a point on the way in to one on the way
+        // out, at most half way along either side, cutting the corner by at most 1 m. Null for a corner under 8
+        // degrees (nothing to round) or over 100 (no lane corner).
+        public static List<Vec3>? Fillet(Vec3 a, Vec3 v, Vec3 b)
+        {
+            float ax = v.X - a.X, az = v.Z - a.Z, bx = b.X - v.X, bz = b.Z - v.Z;
+            float la = (float)Math.Sqrt(ax * ax + az * az), lb = (float)Math.Sqrt(bx * bx + bz * bz);
+            if (la < 1f || lb < 1f) return null;
+            ax /= la; az /= la; bx /= lb; bz /= lb;
+            var turn = Math.Acos(Math.Max(-1f, Math.Min(1f, ax * bx + az * bz)));
+            if (turn < 8 * Math.PI / 180 || turn > 100 * Math.PI / 180) return null;
+            // A quadratic curve through the corner as its control point: it cuts the corner by t sin(turn / 2) / 2.
+            var t = Math.Min(Math.Min(la, lb) / 2f, (float)(2.0 * FilletCut / Math.Sin(turn / 2)));
+            var t1 = new Vec3(v.X - ax * t, a.Y + (v.Y - a.Y) * (1f - t / la), v.Z - az * t);
+            var t2 = new Vec3(v.X + bx * t, v.Y + (b.Y - v.Y) * (t / lb), v.Z + bz * t);
+            var steps = Math.Max(4, (int)Math.Ceiling(2 * t / 0.5f));
+            var round = new List<Vec3>(steps + 1);
+            for (var i = 0; i <= steps; i++)
+            {
+                var f = (float)i / steps;
+                float w0 = (1 - f) * (1 - f), w1 = 2 * (1 - f) * f, w2 = f * f;
+                round.Add(new Vec3(w0 * t1.X + w1 * v.X + w2 * t2.X, w0 * t1.Y + w1 * v.Y + w2 * t2.Y, w0 * t1.Z + w1 * v.Z + w2 * t2.Z));
+            }
+            return round;
+        }
+
+        // How far a rounded corner may cut inside the lane's waypoints (a lane is about 4 m wide).
+        public const float FilletCut = 1f;
 
         // Where a point is relative to the line, searching `range` metres on from `from`: metres along, and metres
         // to the side (right positive).

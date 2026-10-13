@@ -177,8 +177,40 @@ namespace DrivenRides.Core.Testing
                 if (within) result.PlainDeviationMax = Math.Max(result.PlainDeviationMax, distance);
                 // During a turn only the receiving road is checked: crossing the approach road's oncoming lane is legal.
                 if (!entered || Finished || stretch.Index >= fixture.ExitIndex || (fixture.Manoeuvre != CaseKind.Turn && fixture.Manoeuvre != CaseKind.UTurn))
-                    Intrusion(s, stretch);
+                    PlainIntrusion(s, stretch);
                 break;
+            }
+        }
+
+        // A plain stretch's intrusion, with its neighbours: at a sharp waypoint corner the body still finishing one
+        // segment lies across the next one's boundary (T3: 0.97 m "intrusion" on a Hamptons drive kinking 35
+        // degrees round a gate pillar, the car on its line). A point is past the lane only if it is past every one
+        // of the stretches before, at and after the car's that it lies along.
+        private void PlainIntrusion(Sample s, LaneStretch stretch)
+        {
+            if (s.Footprint == null) return;
+            foreach (Vec3 point in s.Footprint)
+            {
+                float best = float.PositiveInfinity;
+                LaneStretch? worst = null;
+                float side = 0, along = 0;
+                foreach (LaneStretch other in plain)
+                {
+                    if (other.Index < stretch.Index - 1 || other.Index > stretch.Index + 1) continue;
+                    float a = other.Along(point);
+                    if (a < other.Min || a > other.Max || Math.Abs(point.Y - other.Height(a)) > 2f) continue;
+                    float sd = other.Side(point);
+                    float d = Math.Max(0, Math.Max(other.Left - sd, sd - other.Right));
+                    if (d < best) { best = d; worst = other; side = sd; along = a; }
+                }
+                if (worst == null) continue;
+                result.MaxIntrusion = Math.Max(result.MaxIntrusion, best);
+                if (best > 0.3f)
+                {
+                    result.IntrusionDetail ??= FormattableString.Invariant(
+                        $"step {s.Step}, route segment {worst.Index}, point ({point.X:0.0}, {point.Z:0.0}) {side:0.00} m across, boundaries {worst.Left:0.00} / {worst.Right:0.00}, {along:0.0} m along");
+                    Fail(s.Step, "intrusion");
+                }
             }
         }
 
