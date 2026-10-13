@@ -68,6 +68,9 @@ namespace DrivenRides.Core.Drive
                 if (graph.Successors(target).Count == 0) Add(Box.Along(fx, fz, fx + hx * 3f, fz + hz * 3f, half), 0f);
             }
             else Walk(graph, flags, roadHeld, fx, fz, 0f, target, reach, half, 0);
+            // A car about to overtake: also the lanes beside its target (Gley's otherLanes), as it would move over.
+            if (car.MayChangeLane)
+                foreach (var side in graph.Lateral(target)) Walk(graph, flags, roadHeld, fx, fz, 0f, side, reach, half, 0);
         }
 
         private void Walk(LaneGraph graph, ILiveFlags flags, Func<int, int> roadHeld, float x, float z, float u, int w, float reach, float half, int depth)

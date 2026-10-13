@@ -32,6 +32,8 @@ namespace DrivenRides.Core.Testing
             var masks = new int[n];
             var junction = new bool[n];
             var kmh = new float[n];
+            var lateral = new int[n][];
+            var anyLateral = false;
             for (var i = 0; i < n; i++)
             {
                 var w = Waypoints[i];
@@ -40,8 +42,11 @@ namespace DrivenRides.Core.Testing
                 masks[i] = 1;
                 junction[i] = w.InJunction;
                 kmh[i] = w.Kmh;
+                lateral[i] = w.Lateral ?? Array.Empty<int>();
+                anyLateral |= w.Lateral != null;
             }
-            return new LaneGraph(positions, next, masks, junction, kmh);
+            // The lanes beside each waypoint, as the game's graph had them; an older dump without them infers them.
+            return new LaneGraph(positions, next, masks, junction, kmh, otherLanes: lateral, inferLanes: !anyLateral);
         }
 
         public string ToJson()
@@ -53,6 +58,7 @@ namespace DrivenRides.Core.Testing
                 var w = Waypoints[i];
                 j.Append("{\"p\":[").Append(F(w.X)).Append(',').Append(F(w.Y)).Append(',').Append(F(w.Z)).Append("],\"n\":").Append(Ints(w.Next))
                  .Append(",\"x\":").Append(w.InJunction ? 1 : 0).Append(",\"s\":").Append(F(w.Kmh));
+                if (w.Lateral != null && w.Lateral.Length > 0) j.Append(",\"o\":").Append(Ints(w.Lateral));
                 var flags = (w.Stop ? "S" : "") + (w.GiveWay ? "G" : "") + (w.Enter ? "E" : "") + (w.Exit ? "X" : "");
                 if (flags.Length > 0) j.Append(",\"f\":").Append(Str(flags));
                 if (w.Junction >= 0) j.Append(",\"j\":").Append(w.Junction);
@@ -146,6 +152,8 @@ namespace DrivenRides.Core.Testing
     {
         public float X, Y, Z;
         public int[] Next = Array.Empty<int>();
+        // The lanes beside it a car can change to (Gley's otherLanes and the lane graph's inferred ones), or null.
+        public int[]? Lateral;
         public bool InJunction;
         public float Kmh;
         // Gley's flags at the start (a simulated or replayed junction changes `Stop` as it runs).

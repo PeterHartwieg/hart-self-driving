@@ -33,6 +33,7 @@ internal static class TrafficScenarioJson
                 Stop = flags.Contains('S'), GiveWay = flags.Contains('G'), Enter = flags.Contains('E'), Exit = flags.Contains('X'),
                 Junction = w.TryGetProperty("j", out var j) ? j.GetInt32() : -1, Road = w.TryGetProperty("r", out var r) ? r.GetInt32() : -1,
                 Source = w.TryGetProperty("src", out var src) ? src.GetInt32() : -1,
+                Lateral = w.TryGetProperty("o", out var o) ? Ints(o) : null,
             });
         }
         foreach (var x in root.GetProperty("junctions").EnumerateArray())

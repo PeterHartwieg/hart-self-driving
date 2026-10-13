@@ -72,10 +72,16 @@ namespace DrivenRides
                 {
                     Id = v.GetIndex(), X = middle.x, Z = middle.z, Heading = Mathf.Atan2(forward.x, forward.z), Vx = vel.x, Vz = vel.z,
                     Length = length, Width = v.colliderWidth > 0.5f ? v.colliderWidth : 1.9f, TriggerLength = TriggerLength(v),
-                    Target = target, StoppedForUs = HoldsUs(v),
+                    Target = target, StoppedForUs = HoldsUs(v), MayChangeLane = MayChangeLane(v),
                 });
                 Components.Add(v);
             }
+        }
+
+        private static bool MayChangeLane(VehicleComponent v)
+        {
+            var action = v.GetCurrentAction();
+            return action == SpecialDriveActionTypes.Follow || action == SpecialDriveActionTypes.Overtake;
         }
 
         // Whether the ride car's collider is in this car's obstacleList: what its front trigger stops it for.

@@ -36,6 +36,10 @@ namespace DrivenRides.Core.Drive
         public int Target;
         // It has the ride car's collider in its obstacleList: it stands, or brakes, because of the ride car.
         public bool StoppedForUs;
+        // It follows a slower car or is overtaking (Gley's Follow and Overtake actions): it may change lanes into a
+        // lane beside it at its next waypoint. Gley checks that lane only for its own cars' targets, so it doesn't
+        // see the ride car there (WaypointManager.IsTargetFree; T3 20261013-211205, ride 18).
+        public bool MayChangeLane;
 
         public float Speed => (float)System.Math.Sqrt(Vx * Vx + Vz * Vz);
     }
