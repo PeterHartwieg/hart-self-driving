@@ -22,28 +22,7 @@ namespace DrivenRides.Core.Testing
                 if (graph.IsJunctionEntryWaypoint(i))
                     foreach (int x in graph.MissingTurns(i))
                         Add(graph, options, cases, Make(graph, options, CaseKind.Turn, new List<int> { i, x }));
-                int target = graph.UTurn(i);
-                if (target >= 0)
-                {
-                    var middle = new List<int> { i, target };
-                    var seen = new HashSet<int>(middle);
-                    Geometry.Heading(graph, middle, 1, out float dx, out float dz);
-                    int current = target;
-                    while (graph.IsIntersection(current))
-                    {
-                        int next = Geometry.Next(graph, current, false, dx, dz);
-                        if (next < 0 || !seen.Add(next)) break;
-                        Geometry.Direction(graph.Position(current), graph.Position(next), out dx, out dz);
-                        middle.Add(next);
-                        current = next;
-                    }
-                    if (!graph.IsIntersection(current))
-                    {
-                        Fixture fixture = Make(graph, options, CaseKind.UTurn, middle);
-                        fixture.TurnGateWaypoint = graph.UTurnStart(i);
-                        Add(graph, options, cases, fixture);
-                    }
-                }
+                if (UTurnCase(graph, options, i) is Fixture uTurn) Add(graph, options, cases, uTurn);
                 if (graph.IsIntersection(i) || graph.IsJunctionExitWaypoint(i) || graph.Lateral(i).Count == 0) continue;
                 float distance = JunctionDistance(graph, i, junctions);
                 foreach (int beside in graph.Lateral(i))
@@ -71,6 +50,43 @@ namespace DrivenRides.Core.Testing
             Ramps(graph, options, cases);
             cases.Sort((a, b) => { int order = b.SharpnessDegrees.CompareTo(a.SharpnessDegrees); return order != 0 ? order : string.CompareOrdinal(a.Id, b.Id); });
             return cases;
+        }
+
+        // The case for one added step of a route (a missing turn or a U-turn from entry to exit), as the catalogue
+        // builds it: run-up, the manoeuvre, run-out. The feasibility check drives this case, so the planner asks the
+        // question the rig asks. Null for any other step, or a case the bridge rules out.
+        public static Fixture? ForStep(LaneGraph graph, int entry, int exit, CatalogueOptions options)
+        {
+            Fixture? fixture = null;
+            if (graph.UTurn(entry) == exit) fixture = UTurnCase(graph, options, entry);
+            else
+                foreach (int x in graph.MissingTurns(entry))
+                    if (x == exit) { fixture = Make(graph, options, CaseKind.Turn, new List<int> { entry, exit }); break; }
+            return fixture == null || NearBridge(graph, options, fixture.Route) ? null : fixture;
+        }
+
+        // A U-turn's case: from the entry to its target, on through the junction to the first plain waypoint of the far
+        // carriageway.
+        private static Fixture? UTurnCase(LaneGraph graph, CatalogueOptions options, int i)
+        {
+            int target = graph.UTurn(i);
+            if (target < 0) return null;
+            var middle = new List<int> { i, target };
+            var seen = new HashSet<int>(middle);
+            Geometry.Heading(graph, middle, 1, out float dx, out float dz);
+            int current = target;
+            while (graph.IsIntersection(current))
+            {
+                int next = Geometry.Next(graph, current, false, dx, dz);
+                if (next < 0 || !seen.Add(next)) break;
+                Geometry.Direction(graph.Position(current), graph.Position(next), out dx, out dz);
+                middle.Add(next);
+                current = next;
+            }
+            if (graph.IsIntersection(current)) return null;
+            Fixture fixture = Make(graph, options, CaseKind.UTurn, middle);
+            fixture.TurnGateWaypoint = graph.UTurnStart(i);
+            return fixture;
         }
 
         public static List<Fixture> FromRide(LaneGraph graph, IReadOnlyList<int> route, int line, CatalogueOptions options)

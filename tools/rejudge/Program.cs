@@ -1,12 +1,19 @@
 // Judges turn test runs again from their recorded samples, with the current Core judge, so a rule can be fixed and
 // checked without the game (docs/turn-tests.md).
 // Usage: dotnet run --project tools/rejudge -- <lane-graph.json> <results-*.jsonl> [runs folder, default: beside the results]
+//        dotnet run --project tools/rejudge -- <lane-graph.json> feasible <car> [options]: T1, see Feasible.cs
 using System.Globalization;
 using System.Text.Json;
 using DrivenRides.Core.Routing;
 using DrivenRides.Core.Testing;
 
 var graph = LoadGraph(args[0]);
+if (args[1] == "feasible")
+{
+    // T1 (docs/implementation-plan.md, "Tests"): every catalogue turn and U-turn simulated and judged for an NWH car.
+    Feasible.Run(args[0], args.Skip(2).ToArray());
+    return;
+}
 if (args[1] == "stats")
 {
     Console.WriteLine($"{graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} U-turns, {graph.TrimmedChains} straight ways in cut back");
@@ -215,19 +222,4 @@ static Fixture ToFixture(JsonElement j)
 static float Env(string name, float fallback) =>
     float.TryParse(Environment.GetEnvironmentVariable(name), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : fallback;
 
-static LaneGraph LoadGraph(string path)
-{
-    var root = JsonDocument.Parse(File.ReadAllText(path)).RootElement;
-    int n = root.GetArrayLength();
-    var pos = new Vec3[n]; var nb = new int[n][]; var ol = new int[n][]; var mask = new int[n]; var inter = new bool[n]; var spd = new float[n];
-    var i = 0;
-    foreach (var w in root.EnumerateArray())
-    {
-        var p = w.GetProperty("p"); pos[i] = new Vec3(p[0].GetSingle(), p[1].GetSingle(), p[2].GetSingle());
-        nb[i] = w.GetProperty("n").EnumerateArray().Select(x => x.GetInt32()).ToArray();
-        ol[i] = w.GetProperty("o").EnumerateArray().Select(x => x.GetInt32()).ToArray();
-        foreach (var a in w.GetProperty("a").EnumerateArray()) mask[i] |= 1 << a.GetInt32();
-        inter[i] = w.GetProperty("x").GetInt32() == 1; spd[i] = w.GetProperty("s").GetSingle(); i++;
-    }
-    return new LaneGraph(pos, nb, mask, inter, spd, otherLanes: ol, inferLanes: true, inferTurns: true);
-}
+static LaneGraph LoadGraph(string path) => GraphFile.Load(path, out _);
