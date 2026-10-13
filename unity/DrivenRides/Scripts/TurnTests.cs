@@ -666,6 +666,7 @@ namespace DrivenRides
             // The planner's questions before the car is loaded, as a ride asks them when it is planned: can this car
             // make the manoeuvre, and are the case's lanes free of parked cars (loaded now, near the anchor).
             var planner = s.NwhCheck && fixture.Path == null ? (NwhCar.HasPrefab(model.Name) ? NwhPlanner.For(model.Name, model.TopSpeed) : NwhPlanner.ForTrafficPrefab(model.Prefab, model.TopSpeed)) : null;
+            DrivenRides.Core.Drive.DrivePlan? ridePlan = null;
             if (planner != null)
             {
                 planner.BeginRide();
@@ -676,8 +677,9 @@ namespace DrivenRides
                     // to its end, wider U-turns allowed, every added step checked for this car and the first 200 m
                     // of lanes swept, a blocked step blocked and the route planned again (T3, session
                     // 20261013-191420: the recorded Gley route opened with an inner U-turn round a median's nose).
-                    var (plannedRoute, summary) = planner.PlanRoute(graph, route[0], new[] { new Goal(route[route.Count - 1], 0f) }, (int)VehicleTypes.Car);
+                    var (plannedRoute, plannedPlan, summary) = planner.PlanRoute(graph, route[0], new[] { new Goal(route[route.Count - 1], 0f) }, (int)VehicleTypes.Car);
                     var planned = plannedRoute?.Waypoints.ToList();
+                    ridePlan = plannedPlan;
                     line["plan"] = summary;
                     if (planned == null) { Record(s, line, "avoided", "no route this car can drive: " + summary, null, fixture); yield break; }
                     fixture = new Fixture
@@ -754,6 +756,7 @@ namespace DrivenRides
             var slow = new List<(int Position, float SpeedKmh)>();
             List<(int, float, float, float)>? shifts = null;
             HashSet<int>? fillets = null;
+            DrivenRides.Core.Drive.DrivePlan? firstPlan = null;
             if (fixture.Path != null)
             {
                 path = fixture.Path;
@@ -761,7 +764,20 @@ namespace DrivenRides
             }
             else if (planner != null)
             {
-                var plan = planner.Plan(graph, route);
+                // The ride's plan as PlanRoute checked it; a case's own, checked as driven (a part of it that fails
+                // leaves no plan to drive: Feasibility.Validate).
+                var plan = ridePlan;
+                if (plan == null)
+                {
+                    plan = planner.Plan(graph, route, out var failed);
+                    if (plan == null)
+                    {
+                        EndNwh(s);
+                        Record(s, line, "avoided", $"the line fails as driven: step {failed[0].From} -> {failed[0].To}: {failed[0].What}", null, fixture);
+                        yield break;
+                    }
+                }
+                firstPlan = plan;
                 path = plan.Path;
                 arcs.AddRange(plan.Arcs);
                 slow.AddRange(plan.Slow);
@@ -820,12 +836,13 @@ namespace DrivenRides
             };
             var goals = new[] { new Goal(rideEnd, 0f) };
             var watch = new NwhPlanner.Watch();
+            if (firstPlan != null) watch.Installed(firstPlan);
             // Takes a new way on: the drive gets its plan, the judge the old route up to where the car left it and
             // the new one after (Judge.Reroute).
-            DrivenRides.Core.Drive.DrivePlan? TakeUp((DrivenRides.Core.Drive.DrivePlan Plan, List<int> Route, string Note)? found, int position, string kind)
+            DrivenRides.Core.Drive.DrivePlan? TakeUp((DrivenRides.Core.Drive.DrivePlan Plan, List<int> Route, string Note)? found, int position, string kind, string failure)
             {
                 var r = NwhPlanner.RouteStepAt(driveRoute, path, position);
-                replans.Add(found != null ? kind + ": " + found.Value.Note : kind + ": no way on joins the car");
+                replans.Add(found != null ? kind + ": " + found.Value.Note : kind + ": " + (failure.Length > 0 ? failure : "no way on joins the car"));
                 line["replanned"] = string.Join(" | ", replans);
                 Log.Info($"Turn test {s.RunId}: {replans[replans.Count - 1]}.");
                 if (found == null || r < 0) return null;
@@ -848,16 +865,14 @@ namespace DrivenRides
                 s.Geometry = rerouted;
                 s.DrivenPath = path;
                 extraSeconds += 30f + Route.Fixed(graph, next).LengthMetres / 4f;
+                watch.Installed(plan);
                 return plan;
             }
             if (planner != null && fixture.Kind == CaseKind.Ride)
             {
-                drive.Replan = (position, what, x, z, h) => TakeUp(planner.PlanRoundBlock(graph, driveRoute, path, position, what, new Vec3(x, 0f, z), h, goals, (int)VehicleTypes.Car), position, "replanned");
-                drive.LookAhead = (position, x, z, h) =>
-                {
-                    var found = planner.LookAhead(graph, driveRoute, path, position, new Vec3(x, 0f, z), h, goals, (int)VehicleTypes.Car, watch);
-                    return found == null ? null : TakeUp(found, position, "ahead");
-                };
+                drive.Replan = (position, what, pose) => planner.PlanRoundBlock(graph, driveRoute, path, position, what, pose, goals, (int)VehicleTypes.Car);
+                drive.LookAhead = (position, pose) => planner.LookAhead(graph, driveRoute, path, position, pose, goals, (int)VehicleTypes.Car, watch);
+                drive.Take = job => TakeUp(job.Found, job.Position, job.Kind, job.Note);
             }
             s.NwhDrive = drive;
             testCar.Waiting = () => drive.WaitingNow;

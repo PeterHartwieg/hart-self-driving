@@ -213,12 +213,16 @@ namespace DrivenRides.Core.Drive
 
         // Whether a car at a pose (rear axle, heading as atan2(dx, dz)) can take up this line where it stands: within
         // 1.5 m of it, its heading within 30 degrees of the line's there, and the line going on at least 15 m (review
-        // round 1: a replanned route was installed from a waypoint behind the car, whatever the car's pose).
+        // round 1: a replanned route was installed from a waypoint behind the car, whatever the car's pose). The
+        // distance is to the nearest point of the line, not the sideways part of it: a line that starts 20 m ahead of
+        // the car or ends behind it is that far off (review round 2: a start beyond the blocked step passed).
         public bool Joins(float x, float z, double heading, out float along)
         {
-            var (at, lateral) = Locate(x, z, 0f, Line.Length);
+            var (at, _) = Locate(x, z, 0f, Line.Length);
             along = at;
-            if (Math.Abs(lateral) > JoinLateral || at > Line.Length - 15f) return false;
+            var nearest = Line.At(at);
+            var distance = (float)Math.Sqrt((x - nearest.X) * (x - nearest.X) + (z - nearest.Z) * (z - nearest.Z));
+            if (distance > JoinLateral || at > Line.Length - 15f) return false;
             Vec3 a = Line.At(at), b = Line.At(at + 1f);
             var lineHeading = Math.Atan2(b.X - a.X, b.Z - a.Z);
             return Math.Abs(Wrap(lineHeading - heading)) <= JoinHeading * Math.PI / 180;

@@ -24,8 +24,7 @@ namespace DrivenRides.Core.Testing
         // game marks runs up to a lane's edge in places (a promenade by the pier, measured 0.5 m from a lane centre).
         public const float PavementInset = 0.3f;
         public const float PavementEvery = 0.5f;
-        private bool pavementChecked;
-        private Vec3 pavementAt;
+        private Vec3[]? pavementCorners;
         private Sample previous;
         private bool hasPrevious, turnPassed, entered;
         private int nextGate, segment;
@@ -139,12 +138,13 @@ namespace DrivenRides.Core.Testing
                 if (s.NearMiss <= 0.1f) Fail(s.Step, "near-miss");
             }
             Plain(s);
-            // Every PavementEvery metres (the planner's check simulates at 50 steps a second; review round 1).
-            if (!Finished && s.Footprint != null && !result.Reasons.Contains("pavement")
-                && (!pavementChecked || Vec3.HorizontalDistance(s.Centre, pavementAt) >= PavementEvery))
+            // Each time a corner of the footprint has moved PavementEvery metres (the planner's check simulates at 50
+            // steps a second, review round 1; measured at the corners, which swing round a slow turn much farther than
+            // the centre moves, review round 2).
+            if (!Finished && s.Footprint != null && !result.Reasons.Contains("pavement") && CornersMoved(s.Footprint))
             {
-                pavementChecked = true;
-                pavementAt = s.Centre;
+                if (pavementCorners == null || pavementCorners.Length != Math.Min(4, s.Footprint.Length)) pavementCorners = new Vec3[Math.Min(4, s.Footprint.Length)];
+                for (var c = 0; c < pavementCorners.Length; c++) pavementCorners[c] = s.Footprint[c];
                 if ((PavementAt != null ? OnPedestrianGround(s) : pavement.Past(s.Footprint)) is string onPavement)
                     OnThePavement(s.Step, onPavement);
             }
@@ -273,6 +273,14 @@ namespace DrivenRides.Core.Testing
         // direction there, the local tangent of a bend if it ends in one (review round 1: the finish had moved to a
         // straight stretch before a terminal bend, which then went unjudged).
         public const float ArrivalHeading = 15f;
+        private bool CornersMoved(Vec3[] footprint)
+        {
+            if (pavementCorners == null || pavementCorners.Length != Math.Min(4, footprint.Length)) return true;
+            for (var c = 0; c < pavementCorners.Length; c++)
+                if (Vec3.HorizontalDistance(footprint[c], pavementCorners[c]) >= PavementEvery) return true;
+            return false;
+        }
+
         private bool RideToItsEnd => fixture.Manoeuvre == CaseKind.Ride && fixture.ExitIndex >= fixture.Route.Count - 1;
 
         public void Arrive()

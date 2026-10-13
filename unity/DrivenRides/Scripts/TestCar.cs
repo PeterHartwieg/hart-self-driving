@@ -36,6 +36,8 @@ namespace DrivenRides
         public NWH.Common.Vehicles.WheelUAPI[]? Wheels;
         private int[]? kerbSteps;
         private bool[]? kerbReported;
+        private int rollSteps;
+        private bool rollReported;
         // A wheel this far above the plane of the other three, for this many physics steps in a row, is on a kerb. A
         // road's camber across the car is a few centimetres; a kerb is about 15.
         private const float KerbRise = 0.1f;
@@ -213,6 +215,42 @@ namespace DrivenRides
                 Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n');
                 if (!failedBefore && Judge.Failed) Latch(Outline(), transform.TransformPoint(boxCenter));
             }
+            Roll(wheels);
+        }
+
+        // Both wheels of one side up (a car run wide onto the pavement): each wheel lies in the plane of the other
+        // three then, so the rise above misses it; the car leans beyond the road's own cross-fall (Core WheelPlane.Roll,
+        // as the planner's check; review round 2).
+        private void Roll(NWH.Common.Vehicles.WheelUAPI[] wheels)
+        {
+            var graph = GleyGraph.Graph;
+            if (wheels.Length != 4 || graph == null || rollReported) return;
+            // Rear left, rear right, front left, front right, by where each wheel sits on the car.
+            var ordered = new Core.Routing.Vec3[4];
+            var local = new Vector3[4];
+            for (var i = 0; i < 4; i++) local[i] = transform.InverseTransformPoint(wheels[i].transform.position);
+            var middleZ = (local[0].z + local[1].z + local[2].z + local[3].z) / 4f;
+            var filled = 0;
+            for (var i = 0; i < 4; i++)
+            {
+                var slot = (local[i].z > middleZ ? 2 : 0) + (local[i].x > 0f ? 1 : 0);
+                ordered[slot] = GleyGraph.ToVec(wheels[i].HitPoint);
+                filled |= 1 << slot;
+            }
+            if (filled != 15) return;
+            var centre = transform.TransformPoint(boxCenter);
+            var forward = transform.forward;
+            var width = Core.Routing.Vec3.HorizontalDistance(ordered[0], ordered[1]);
+            if (!(Core.Drive.WheelPlane.CrossFall(graph, GleyGraph.ToVec(centre), Mathf.Atan2(forward.x, forward.z), p => NwhPlanner.GroundBelow(p, transform)) is float fall)) return;
+            var roll = Core.Drive.WheelPlane.Roll(ordered, fall * width);
+            rollSteps = Mathf.Abs(roll) > KerbRise ? rollSteps + 1 : 0;
+            if (rollSteps < KerbSteps) return;
+            rollReported = true;
+            var what = $"kerb: the {(roll > 0f ? "left" : "right")} wheels {Mathf.Abs(roll):0.00} m above the {(roll > 0f ? "right" : "left")} ones beyond the road's cross-fall at {centre}";
+            var failedBefore = Judge!.Failed;
+            Judge.Contact(Step, what);
+            Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n');
+            if (!failedBefore && Judge.Failed) Latch(Outline(), centre);
         }
 
         private void Record(Sample s)

@@ -35,6 +35,21 @@ namespace DrivenRides.Core.Drive
         public JudgeResult? Judge;
         public int Steps;
 
+        // Whether another verdict drives the step the same way: the same form and, on an arc, the same curve within
+        // ShapeTolerance at its ends and middle and in length. A check run again builds a new arc object for the same
+        // curve (review round 2: comparing the objects replanned the ride at every added turn).
+        public bool SameShape(Verdict other)
+        {
+            if (Feasible != other.Feasible || Form != other.Form) return false;
+            if (Arc == null || other.Arc == null) return Arc == null && other.Arc == null;
+            if (Math.Abs(Arc.Length - other.Arc.Length) > ShapeTolerance) return false;
+            foreach (var f in new[] { 0f, 0.5f, 1f })
+                if (Vec3.HorizontalDistance(Arc.At(Arc.Length * f), other.Arc.At(other.Arc.Length * f)) > ShapeTolerance) return false;
+            return true;
+        }
+
+        public const float ShapeTolerance = 0.25f;
+
         // A copy with more said about why not.
         public Verdict With(string reason)
         {
@@ -67,6 +82,9 @@ namespace DrivenRides.Core.Drive
         // A step with no case to drive it on (Catalogue.ForStep: a U-turn whose far side doesn't leave the junction)
         // can't be checked, so it isn't driven (review round 1: it was taken as feasible unchecked).
         public const string NoCase = "no case to check it on";
+        // The world callback names what it found with this in front when it can move away (a parked car): a
+        // manoeuvre failed by it is checked again later, one failed by the built world is not (NwhPlanner.CauseOf).
+        public const string Movable = "movable: ";
         // Settled in its lane: the rear axle this close to the line and the wheel this straight.
         private const float SettledOff = 0.2f;
         private const float SettledWheel = 5f;
@@ -162,6 +180,9 @@ namespace DrivenRides.Core.Drive
             steps[(entry, exit)] = verdict;
             return verdict;
         }
+
+        // Whether a step's verdict is known (cached): one forgotten (Forget) is checked afresh when next asked.
+        public bool Knows(int entry, int exit) => steps.ContainsKey((entry, exit));
 
         // Forgets what is known about a step, so it is checked again: the world near it may have loaded since (the
         // game parks cars only near the player, and they are part of the world check).
@@ -283,10 +304,10 @@ namespace DrivenRides.Core.Drive
             for (var step = 1; time < limit; step++)
             {
                 var o = driver.Step(model.Input(StepSeconds));
-                double x0 = model.X, z0 = model.Z;
+                double x0 = model.X, z0 = model.Z, h0 = model.Heading;
                 model.Step(o, StepSeconds);
                 time += StepSeconds;
-                travelled += Math.Sqrt((model.X - x0) * (model.X - x0) + (model.Z - z0) * (model.Z - z0));
+                travelled += CornerTravel(x0, z0, h0, model);
                 var ground = line.Line.At(driver.Along).Y;
                 var pose = new Pose((float)model.X, ground, (float)model.Z, (float)model.Heading);
                 var off = Math.Abs(o.Lateral);
@@ -366,6 +387,10 @@ namespace DrivenRides.Core.Drive
             for (var i = 0; i < 4 && up == null; i++)
                 if (WheelPlane.Rise(ground, i) is float rise && rise > KerbRise)
                     up = FormattableString.Invariant($"kerb: a {(i < 2 ? "rear" : "front")} wheel {rise:0.00} m above the plane of the others at ({wheels[i].X:0.0}, {wheels[i].Z:0.0})");
+            // Both wheels of one side up (a car run wide onto the pavement): the car leans beyond the road's cross-fall.
+            if (up == null && WheelPlane.CrossFall(graph, Local(pose, car.BodyCentre), pose.Heading, GroundAt!) is float fall
+                && WheelPlane.Roll(ground, fall * 2f * half) is var roll && Math.Abs(roll) > KerbRise)
+                up = FormattableString.Invariant($"kerb: the {(roll > 0 ? "left" : "right")} wheels {Math.Abs(roll):0.00} m above the {(roll > 0 ? "right" : "left")} ones beyond the road's cross-fall at ({pose.X:0.0}, {pose.Z:0.0})");
             samples = up != null ? samples + 1 : 0;
             return samples >= KerbSamples ? up : null;
         }
@@ -383,16 +408,48 @@ namespace DrivenRides.Core.Drive
             var model = car.Model(p0.X, p0.Z, Math.Atan2(p1.X - p0.X, p1.Z - p0.Z));
             driver.StartAt(p0.X, p0.Z);
             model.Speed = driver.PlannedSpeed(start, car.TopKmh / 3.6f);
+            return Follow(driver, model, line, from, to, out _);
+        }
+
+        // The drive from where the car stands onto a new line (review round 2: a new way on was taken up when the line
+        // passed near the car, never driven from the car's pose): the model starts at the car's rear axle, heading,
+        // speed and wheel angle and follows the line for JoinMetres, its body, corners and wheels checked as a
+        // sweep's, and must have settled within JoinSettled of the line by then. What it meets, or null.
+        public string? Join(DrivePlan plan, DriveLine line, CarPose pose)
+        {
+            Simulations++;
+            var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
+            driver.StartAt(pose.X, pose.Z);
+            var model = car.Model(pose.X, pose.Z, pose.Heading, pose.Speed);
+            model.SetWheel(pose.Wheel);
+            var from = driver.Along;
+            var to = Math.Min(from + JoinMetres, line.Line.Length - car.FrontAhead - 2f);
+            if (Follow(driver, model, line, from, to, out var lateral) is string hit) return "joining the new line: " + hit;
+            return Math.Abs(lateral) > JoinSettled
+                ? FormattableString.Invariant($"joining the new line: still {lateral:+0.00;-0.00} m off it after {to - from:0} m")
+                : null;
+        }
+
+        public const float JoinMetres = 30f;
+        public const float JoinSettled = 0.5f;
+
+        // The model driven along a line from `from` to `to`, checked from the start: its body against the world, its
+        // corners against the pavement, its wheels against kerbs, each time a corner of the body has moved WorldEvery
+        // metres. What it meets, or null; the rear axle's last distance from the line.
+        private string? Follow(PursuitDriver driver, CarModel model, DriveLine line, float from, float to, out float lateral)
+        {
             var turningHalf = new Vec3(car.BodyHalf.X + Margin, car.BodyHalf.Y, car.BodyHalf.Z + Margin);
             var lastCheck = double.NegativeInfinity;
             var travelled = 0.0;
             var kerbSamples = 0;
+            lateral = 0f;
             for (var time = 0f; time < 60f && driver.Along < Math.Min(to, line.Line.Length - car.FrontAhead - 2f); time += StepSeconds)
             {
                 var o = driver.Step(model.Input(StepSeconds));
-                double x0 = model.X, z0 = model.Z;
+                double x0 = model.X, z0 = model.Z, h0 = model.Heading;
                 model.Step(o, StepSeconds);
-                travelled += Math.Sqrt((model.X - x0) * (model.X - x0) + (model.Z - z0) * (model.Z - z0));
+                travelled += CornerTravel(x0, z0, h0, model);
+                lateral = o.Lateral;
                 if (driver.Along < from || travelled - lastCheck < WorldEvery) continue;
                 lastCheck = travelled;
                 var pose = new Pose((float)model.X, line.Line.At(driver.Along).Y, (float)model.Z, (float)model.Heading);
@@ -408,7 +465,74 @@ namespace DrivenRides.Core.Drive
             return null;
         }
 
-        // A point given in the car's own space        // A point given in the car's own space (from the rear axle on the ground) at a pose.
+        // How far the body's farthest corner moved in a step, at most: the rear axle's move and the turn times the
+        // corner's reach from it (review round 2: sampled by the rear axle's travel, a corner swinging round a slow
+        // turn moved several times as far between samples).
+        private double CornerTravel(double x0, double z0, double h0, CarModel model)
+        {
+            var reach = Math.Sqrt(Math.Pow(Math.Abs(car.BodyCentre.X) + car.BodyHalf.X, 2) + Math.Pow(Math.Abs(car.BodyCentre.Z) + car.BodyHalf.Z, 2));
+            return Math.Sqrt((model.X - x0) * (model.X - x0) + (model.Z - z0) * (model.Z - z0)) + Math.Abs(DriveLine.Wrap(model.Heading - h0)) * reach;
+        }
+
+        // The line a plan gives, checked as it will be driven (review rounds 1 and 2): each rounded corner and each
+        // sideways move driven by the model over its stretch (Sweep). A rounded corner that fails is left sharp, and
+        // the sharp corner is then swept on the final line too; a move that fails is dropped, and as the lane without
+        // it is the one found blocked, its step fails. Each failure goes in `failed` (the step to block, and why),
+        // and a plan with any failure must not be driven. Yields after each sweep, so a caller can spread the work.
+        public IEnumerable<object?> Validate(DrivePlan plan, List<(int From, int To, string What)> failed, List<string>? notes = null)
+        {
+            var sharp = new HashSet<int>();
+            var settled = false;
+            for (var round = 0; round < ValidateRounds && !settled; round++)
+            {
+                var line = plan.Line(graph);
+                var changed = false;
+                foreach (var k in new List<int>(plan.Fillets))
+                {
+                    if (k <= 0 || k >= line.AlongOf.Length) continue;
+                    var what = Sweep(plan, line, line.AlongOf[k] - 10f, line.AlongOf[k] + 10f);
+                    yield return null;
+                    if (what == null) continue;
+                    plan.Fillets.Remove(k);
+                    sharp.Add(k);
+                    notes?.Add($"corner at {plan.Path[k]} left sharp ({what})");
+                    changed = true;
+                }
+                foreach (var shift in new List<(int Position, float From, float To, float Offset)>(plan.Shifts))
+                {
+                    var start = line.AlongOf[shift.Position];
+                    var what = Sweep(plan, line, start + shift.From - 10f, start + shift.To + 10f);
+                    yield return null;
+                    if (what == null) continue;
+                    plan.Shifts.Remove(shift);
+                    failed.Add((plan.Path[shift.Position], plan.Path[shift.Position + 1], "no way past within the lane: " + what));
+                    changed = true;
+                }
+                settled = !changed;
+            }
+            var final = plan.Line(graph);
+            foreach (var k in sharp)
+            {
+                var what = Sweep(plan, final, final.AlongOf[k] - 10f, final.AlongOf[k] + 10f);
+                yield return null;
+                if (what != null && k + 1 < plan.Path.Count) failed.Add((plan.Path[k], plan.Path[k + 1], $"corner at {plan.Path[k]}, neither rounded nor sharp: {what}"));
+            }
+            if (!settled)
+                foreach (var shift in plan.Shifts)
+                    failed.Add((plan.Path[shift.Position], plan.Path[shift.Position + 1], "the line didn't settle in " + ValidateRounds + " rounds"));
+        }
+
+        public const int ValidateRounds = 6;
+
+        // Validate run to its end: the steps that failed (none: the plan may be driven).
+        public List<(int From, int To, string What)> ValidateNow(DrivePlan plan, List<string>? notes = null)
+        {
+            var failed = new List<(int From, int To, string What)>();
+            foreach (var _ in Validate(plan, failed, notes)) { }
+            return failed;
+        }
+
+        // A point given in the car's own space (from the rear axle on the ground) at a pose.
         private static Vec3 Local(Pose pose, Vec3 p)
         {
             float s = (float)Math.Sin(pose.Heading), c = (float)Math.Cos(pose.Heading);
