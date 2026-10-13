@@ -117,6 +117,10 @@ namespace DrivenRides.Core.Drive
         // emergency rule, TrafficDriver.GoOn), and the car it was for; counted in T0 and T3 (review round 3, V2).
         public bool ForcedCommit;
         public int ForcedFor = -1;
+        // The least time to spare that forced commit was judged with, seconds (review round 4, X4).
+        public float ForcedMargin;
+        // The car whose way the speed is capped short of, to keep a stopping option (TrafficDriver.Approach), or -1.
+        public int ApproachFor = -1;
         // Layer 3: backing off along the line, away from a car standing nose to nose with the ride car.
         public bool BackOff;
         public int BackOffFrom = -1;
@@ -134,7 +138,8 @@ namespace DrivenRides.Core.Drive
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
             StopIsRed = BackOff = NoseIn = ForcedCommit = false;
-            ForcedFor = -1;
+            ForcedFor = ApproachFor = -1;
+            ForcedMargin = 0f;
             Events.Clear();
             Why = "";
             Note = default;

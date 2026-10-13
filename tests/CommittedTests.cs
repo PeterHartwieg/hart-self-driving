@@ -104,8 +104,8 @@ public sealed class CommittedTests
         Assert.True(d.ForcedCommit);
         Assert.Equal(1, d.ForcedFor);
         Assert.Null(d.YieldAlong);
-        // The same with a trigger that stops the car for the body: a plain stop, nothing forced.
-        var safe = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -16f, crossMs: 10f, standingAtZ: null);
+        // The same with a trigger long enough to stop the car short of the body: a plain stop, nothing forced.
+        var safe = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -16f, crossMs: 10f, standingAtZ: null, trigger: 5f);
         Assert.False(safe.ForcedCommit);
         Assert.True(safe.YieldAlong <= 30.5f);
     }

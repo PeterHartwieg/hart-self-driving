@@ -17,6 +17,11 @@ namespace DrivenRides.Core.Drive
         public const float Ease = 1.5f;
         // A traffic car stops for a `stop` waypoint it can stop for at this braking or less.
         public const float StopDecel = 4.5f;
+        // How hard a car giving way brakes when it can't stop at its line at StopDecel (the T0 simulation's cars: 4).
+        public const float GiveWayOvershootDecel = 4f;
+        // How hard a car brakes in its last half metre to its line (Gley's StopInPoint brings its target speed to 0 at
+        // the waypoint).
+        public const float HeldStopDecel = 8f;
         // Below this it is still pulling away.
         public const float StartingMs = 5f;
         public const float SideMargin = 0.2f;
@@ -32,6 +37,8 @@ namespace DrivenRides.Core.Drive
         public readonly List<Segment> Segments = new List<Segment>();
         public float Speed, TopSpeed, Length;
         public bool SpeedingUp;
+        // The road's limit where it is (with Gley's 10 %): the most it may reach.
+        public float Limit;
         public float MinX, MinZ, MaxX, MaxZ;
 
         // Builds the corridor of `car` as far as it can get in `seconds` and `beyond` metres more, from the lane graph
@@ -52,6 +59,7 @@ namespace DrivenRides.Core.Drive
             // car its own top speed below the limit, VehicleComponent.maxSpeed), give or take a little.
             var limit = (target >= 0 ? graph.SpeedMs(target) : LaneGraph.DefaultSpeedMs) * 1.1f;
             SpeedingUp = speedingUp;
+            Limit = limit;
             TopSpeed = Speed < StartingMs || speedingUp ? Math.Max(Speed, limit) : Math.Max(Speed, Math.Min(limit, Speed + 1f));
             if (leaderMs < TopSpeed) TopSpeed = Math.Max(Speed, leaderMs + 1f);
             var reach = Math.Min(160f, Far(seconds) + 2f + beyond);
@@ -70,6 +78,11 @@ namespace DrivenRides.Core.Drive
             }
             // A target the front has already reached is passed: Gley moves on from it.
             var tp = graph.Position(target);
+            // Unless it is held there: a car at its line (a red, a give-way to the road the ride car holds), slow enough
+            // to stop within half a metre past it at HeldStopDecel, has its front at the waypoint and goes nowhere (T0
+            // priority: one stopping at its give-way at 1 m/s counted as coming through; review round 4).
+            var toTarget = (tp.X - fx) * hx + (tp.Z - fz) * hz;
+            if (toTarget < 0.5f && Speed * Speed / (2f * HeldStopDecel) <= toTarget + 0.5f && HeldAt(target, flags, roadHeld)) return;
             if ((tp.X - fx) * hx + (tp.Z - fz) * hz < 0.5f)
             {
                 // Indexed, not foreach: an interface's enumerator is boxed, garbage every physics step.
@@ -86,6 +99,14 @@ namespace DrivenRides.Core.Drive
             }
         }
 
+        private static bool HeldAt(int w, ILiveFlags flags, Func<int, int> roadHeld)
+        {
+            if (flags.Stop(w)) return true;
+            if (!flags.GiveWayEntry(w, out var junction, out var road) || road < 0) return false;
+            var held = roadHeld(junction);
+            return held >= 0 && held != road;
+        }
+
         private void Walk(LaneGraph graph, ILiveFlags flags, Func<int, int> roadHeld, float x, float z, float u, int w, float reach, float half, int depth)
         {
             while (Segments.Count < MaxSegments && depth < 60)
@@ -95,15 +116,33 @@ namespace DrivenRides.Core.Drive
                 var end = u + step;
                 // Where it will stop: it stops with its front at the line, if it can at StopDecel.
                 var stops = false;
+                var givesWay = false;
                 if (flags.Stop(w)) stops = true;
                 else if (flags.GiveWayEntry(w, out var junction, out var road) && road >= 0)
                 {
                     var held = roadHeld(junction);
-                    stops = held >= 0 && held != road;
+                    stops = givesWay = held >= 0 && held != road;
                 }
                 if (stops && Speed * Speed / (2f * Math.Max(0.1f, end)) <= StopDecel)
                 {
                     if (step > 0.05f) Add(Box.Along(x, z, p.X, p.Z, half), u);
+                    return;
+                }
+                // Giving way to the road the ride car holds, too fast to stop at the line: it still brakes for it, and
+                // stops past it by what it couldn't shed at GiveWayOvershootDecel, not through the whole junction (T0
+                // priority: such a car counted as coming through forced the ride car's commitment; review round 4).
+                if (givesWay)
+                {
+                    var past = Speed * Speed / (2f * GiveWayOvershootDecel) - end;
+                    if (step > 0.05f) Add(Box.Along(x, z, p.X, p.Z, half), u);
+                    var next0 = graph.Successors(w);
+                    if (past > 0f && next0.Count > 0)
+                    {
+                        var q = graph.Position(next0[0]);
+                        var qs = (float)Math.Sqrt((q.X - p.X) * (q.X - p.X) + (q.Z - p.Z) * (q.Z - p.Z));
+                        var f = qs > 0.05f ? Math.Min(1f, (past + Length) / qs) : 0f;
+                        Add(Box.Along(p.X, p.Z, p.X + (q.X - p.X) * f, p.Z + (q.Z - p.Z) * f, half), end);
+                    }
                     return;
                 }
                 if (end >= reach)

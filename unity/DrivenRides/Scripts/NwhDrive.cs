@@ -74,6 +74,13 @@ namespace DrivenRides
         // TrafficDecision.ForcedCommit; review round 3, V2).
         public int ForcedCommits;
         private bool forcedBefore;
+        // The last reasons given, for the forced-commit log line (review round 4, X4).
+        private readonly Queue<string> recentWhys = new Queue<string>();
+        // Gley cars that have the ride car in their trigger (obstacleList), from where and how fast when it came in:
+        // how far each runs on to a standstill is logged, to measure Gley's stop (TrafficDriver.TriggerStopMetres;
+        // review round 4, X3).
+        private readonly Dictionary<int, (Vector3 At, float Ms, float Time)> triggerStarts = new Dictionary<int, (Vector3, float, float)>();
+        public readonly List<(float Ms, float Metres, float Seconds)> TriggerStops = new List<(float, float, float)>();
         // This car's velocity at the start of the physics step: before an impact changes it (U2).
         private Vector3 preVelocity;
         private float standing;
@@ -197,6 +204,7 @@ namespace DrivenRides
             var read = Stopwatch.GetTimestamp();
             ReadCost?.Add((float)((read - ticks) * MicrosPerTick));
             CarsRead?.Add(cars.Count);
+            TriggerStopsStep();
             if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, driver.Integral, cars, gley.Components);
             // What the cast sees ahead (parked cars, people): the traffic rules count on it before committing past a
             // traffic car's way (review round 2, U1), and the driver stops for it.
@@ -229,13 +237,15 @@ namespace DrivenRides
             if (decision.ForcedCommit && !forcedBefore)
             {
                 ForcedCommits++;
-                Log.Info($"NWH drive: going on past traffic car {decision.ForcedFor}'s way: standing there would be hit ({speed:0.0} m/s, {driver.Along:0} m).");
+                Log.Info($"NWH drive: going on past traffic car {decision.ForcedFor}'s way: standing there would be hit ({speed:0.0} m/s, {driver.Along:0} m, {decision.ForcedMargin:0.00} s to spare); before: {string.Join(" | ", recentWhys)}.");
             }
             forcedBefore = decision.ForcedCommit;
             if (decision.Why != lastWhy)
             {
                 if (decision.Why.Length > 0) Log.Info($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");
                 lastWhy = decision.Why;
+                recentWhys.Enqueue($"{Time.time - startedAt:0.0} s {decision.Why} ({speed:0.0} m/s)");
+                if (recentWhys.Count > 4) recentWhys.Dequeue();
             }
 
             var input = vehicle.input;
@@ -435,6 +445,25 @@ namespace DrivenRides
             if (caused) ContactsCaused++;
             Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s before it ({towards:0.0} along the contact normal), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
             Dump("contact", $"contact with traffic car {other.GetIndex()}: this car {ours:0.0} m/s, it {theirs:0.0} m/s");
+        }
+
+        private void TriggerStopsStep()
+        {
+            for (var i = 0; i < cars.Count; i++)
+            {
+                var c = cars[i];
+                var at = new Vector3(c.X, 0f, c.Z);
+                if (triggerStarts.TryGetValue(c.Id, out var start))
+                {
+                    if (!c.StoppedForUs) { triggerStarts.Remove(c.Id); continue; }
+                    if (c.Speed >= 0.1f) continue;
+                    var metres = Vector3.Distance(start.At, at);
+                    TriggerStops.Add((start.Ms, metres, Time.time - start.Time));
+                    Log.Info($"NWH drive: traffic car {c.Id} stopped for this car in its trigger: {metres:0.00} m and {Time.time - start.Time:0.00} s from {start.Ms:0.0} m/s.");
+                    triggerStarts.Remove(c.Id);
+                }
+                else if (c.StoppedForUs && c.Speed >= 0.5f) triggerStarts[c.Id] = (at, c.Speed, Time.time);
+            }
         }
 
         private void Dump(string kind, string what)
