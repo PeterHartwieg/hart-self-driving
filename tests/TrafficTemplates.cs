@@ -158,7 +158,7 @@ internal sealed record RideCar(string Name, float Wheelbase, float Lock, float F
 // The five T0 templates and the spike's three failures (docs/implementation-plan.md, "Tests").
 internal static class TrafficTemplates
 {
-    public static readonly string[] Names = { "lights", "priority", "merge", "uturn", "headon" };
+    public static readonly string[] Names = { "lights", "priority", "merge", "uturn", "headon", "pullaway" };
 
     public static TrafficScenario Build(string name, int seed) => name switch
     {
@@ -167,6 +167,7 @@ internal static class TrafficTemplates
         "merge" => Merge(seed),
         "uturn" => UTurn(seed),
         "headon" => HeadOn(seed),
+        "pullaway" => PullAway(seed),
         _ => throw new ArgumentException(name),
     };
 
@@ -443,6 +444,74 @@ internal static class TrafficTemplates
         b.S.Name = "spike-nose-to-nose";
         b.S.Note = "nwh5/nwh6: touched a traffic car that stops for it at 1 m/s, then both stood for good.";
         b.S.Seconds = 40f;
+        return b.S;
+    }
+
+    // Review round 1 (O1): a car ahead is held at a second light just past the first, holding the ride car short of
+    // the first, which turns red as the ride car comes up behind it. The car ahead leaves at 15 s, the first light
+    // stays red until 30 s: the ride car must wait for the green, and a pass from its standstill would count as a red
+    // run whatever it decided when it first saw the red (TrafficSim). The amber "through" that later becomes "stop"
+    // is tested on JunctionRules (ThroughOnAmberBecomesStopWhenHeldShortOfTheLine).
+    public static TrafficScenario AmberThroughThenHeldShort(float amberAt = 5.5f)
+    {
+        var b = new ScenarioBuilder();
+        var lane = b.Lane(-200f, 0f, 200f, 0f, 2f);
+        var line = Array.FindIndex(lane, w => Math.Abs(b.S.Waypoints[w].X) < 0.1f);
+        var hold = Array.FindIndex(lane, w => Math.Abs(b.S.Waypoints[w].X - 6f) < 0.1f);
+        b.Flags(lane[line], enter: true, junction: 0, road: 0);
+        b.Flags(lane[hold], stop: true, enter: true, junction: 1, road: 0);
+        b.S.Junctions.Add(new ScenarioJunction { Id = 0, Kind = "replay", Roads = new() { new[] { lane[line] } }, Green = 30f, Yellow = 1f });
+        b.S.Junctions.Add(new ScenarioJunction { Id = 1, Kind = "replay", Roads = new() { new[] { lane[hold] } }, Green = 30f, Yellow = 1f });
+        var red = new ScenarioTimeline { Waypoint = lane[line] };
+        red.At.AddRange(new[] { amberAt, 30f });
+        red.Stop.AddRange(new[] { true, false });
+        var held = new ScenarioTimeline { Waypoint = lane[hold] };
+        held.At.Add(15f);
+        held.Stop.Add(false);
+        b.S.Timelines.Add(red);
+        b.S.Timelines.Add(held);
+        b.Ride(lane.Skip(line - 30).Take(120), RideCar.Limo with { StartMs = 13.9f });
+        // A car ahead at the limit that stops at the second light just past the first, holding the ride car short of it.
+        b.CarAt(lane, 200f - 38f, 1f, 13.9f);
+        b.S.Name = "amber-through-then-held-short";
+        b.S.Seconds = 60f;
+        return b.S;
+    }
+
+    // Template 6 (review round 1, O2): a queue pulls away from a light upstream as the ride car comes out of a side
+    // road into its lane; the cars accelerate past the side road, slow at first. Nosing in must judge them at the
+    // speed they will have, not the speed they have.
+    public static TrafficScenario PullAway(int seed)
+    {
+        var r = new Random(seed);
+        var b = new ScenarioBuilder();
+        var east = b.Lane(-160f, -1.75f, 160f, -1.75f, 4f);
+        var line = Array.FindIndex(east, w => b.S.Waypoints[w].X >= -40f + (float)r.NextDouble() * 16f);
+        var join = Array.FindIndex(east, w => b.S.Waypoints[w].X >= 10f);
+        b.Flags(east[line], enter: true, junction: 0, road: 0);
+        b.S.Junctions.Add(new ScenarioJunction { Id = 0, Kind = "replay", Roads = new() { new[] { east[line] } }, Green = 60f, Yellow = 1f });
+        // Red, then green for 25 s, then red again: the stream behind the queue lasts one green.
+        var goAt = Range(r, 0f, 8f);
+        var green = new ScenarioTimeline { Waypoint = east[line] };
+        green.At.AddRange(new[] { 0f, goAt, goAt + 25f });
+        green.Stop.AddRange(new[] { true, false, true });
+        b.S.Timelines.Add(green);
+        var side = b.Lane(2.5f, -90f, 2.5f, -9f);
+        var turn = b.Curve(side[^1], east[join], 2.5f, 25f);
+        var car = r.Next(2) == 0 ? RideCar.Limo : RideCar.Dash;
+        b.Ride(Path(Tail(side, Range(r, 30f, 70f)), turn, east.Skip(join).Take(15)), car with { StartMs = Range(r, 0f, 9f) });
+        // The queue: standing nose to tail behind the line.
+        var queue = 3 + r.Next(5);
+        var lineX = b.S.Waypoints[east[line]].X;
+        for (var k = 0; k < queue; k++)
+        {
+            var x = lineX - 3.5f - k * Range(r, 6.5f, 8f);
+            b.CarAt(east, x + 160f, Range(r, 0.7f, 1f), 0f);
+        }
+        // Then more traffic arriving through the same green.
+        Stream(b, r, () => east, 4f, goAt + 25f, 3.5f, 10f);
+        b.S.Name = $"pullaway-{seed}";
+        b.S.Seconds = 90f;
         return b.S;
     }
 }

@@ -90,6 +90,9 @@ namespace DrivenRides.Core.Drive
         private readonly HashSet<int> present = new HashSet<int>();
         private readonly HashSet<int> moving = new HashSet<int>();
         private readonly Dictionary<int, float> standingSince = new Dictionary<int, float>();
+        // Each car's speed a moment ago and how fast it has been gaining speed (m/s², smoothed): a car pulling away
+        // from a light (T0 pullaway) passed for one keeping its pace.
+        private readonly Dictionary<int, (float Speed, float Time, float Gain)> pace = new Dictionary<int, (float, float, float)>();
         // The cars the ride car gave way to lately: where, and when it last found the conflict.
         private readonly Dictionary<int, (float Along, float Time)> yieldMemory = new Dictionary<int, (float, float)>();
         private int backingFrom = -1;
@@ -97,12 +100,15 @@ namespace DrivenRides.Core.Drive
 
         private const int MaxPoses = 64;
         private readonly Box[] poses = new Box[MaxPoses];
-        private readonly float[] rearAt = new float[MaxPoses], early = new float[MaxPoses], late = new float[MaxPoses], slowSpeed = new float[MaxPoses];
+        private readonly float[] rearAt = new float[MaxPoses], early = new float[MaxPoses], late = new float[MaxPoses], slowSpeed = new float[MaxPoses], fastSpeed = new float[MaxPoses];
         // Per pose: the earliest pose where the body enters a moving car's way that this pose is in, or -1.
+        private readonly float[] headings = new float[MaxPoses];
         private readonly int[] keepClearFrom = new int[MaxPoses], keepClearFor = new int[MaxPoses];
         private int count;
-        private string conflictNote = "";
+        private YieldNote conflictNote;
         private float headway = Headway;
+        private int whyKind, whyId = -1;
+        private string whyText = "";
         private bool noseIn;
         // The nearest gap to a standing car: where the ride car will come to a stop behind it.
         private float? standingGap;
@@ -114,8 +120,20 @@ namespace DrivenRides.Core.Drive
         public JunctionRules Rules { get; } = new JunctionRules();
         private readonly Func<int, int> roadHeld;
 
+        private readonly Predicate<int> absent;
+        private readonly List<int> scratch = new List<int>();
+
+        private void Forget<T>(Dictionary<int, T> memory)
+        {
+            if (memory.Count == 0) return;
+            scratch.Clear();
+            foreach (var id in memory.Keys) if (!present.Contains(id)) scratch.Add(id);
+            for (var i = 0; i < scratch.Count; i++) memory.Remove(scratch[i]);
+        }
+
         public TrafficDriver(LaneGraph graph, DriveLine line, PursuitDriver driver, RideBody body)
         {
+            absent = id => !present.Contains(id);
             this.graph = graph;
             this.line = line;
             this.driver = driver;
@@ -159,12 +177,23 @@ namespace DrivenRides.Core.Drive
 
             // Layer 3 first: cars standing for the ride car, ground, backing off.
             present.Clear();
-            foreach (var c in s.Cars) present.Add(c.Id);
-            heldFor.RemoveWhere(id => !present.Contains(id));
-            moving.RemoveWhere(id => !present.Contains(id));
-            if (yieldMemory.Count > 0) foreach (var id in new List<int>(yieldMemory.Keys)) if (!present.Contains(id)) yieldMemory.Remove(id);
-            foreach (var c in s.Cars)
+            for (var i = 0; i < s.Cars.Count; i++) present.Add(s.Cars[i].Id);
+            // Whatever is remembered of a car goes when it is out of reading range: Gley reuses pooled indices, and a
+            // new car under an old id must not inherit its standing time or its yield (review round 1, O nit).
+            heldFor.RemoveWhere(absent);
+            moving.RemoveWhere(absent);
+            Forget(yieldMemory);
+            Forget(standingSince);
+            Forget(pace);
+            for (var i = 0; i < s.Cars.Count; i++)
             {
+                var c = s.Cars[i];
+                if (pace.TryGetValue(c.Id, out var was) && s.Time - was.Time > 0.05f)
+                {
+                    var gain = (c.Speed - was.Speed) / (s.Time - was.Time);
+                    pace[c.Id] = (c.Speed, s.Time, was.Gain + (gain - was.Gain) * Math.Min(1f, (s.Time - was.Time) / 0.5f));
+                }
+                else if (!pace.ContainsKey(c.Id)) pace[c.Id] = (c.Speed, s.Time, 0f);
                 if (moving.Contains(c.Id) ? c.Speed < StandingMs : c.Speed <= MovingMs)
                 {
                     moving.Remove(c.Id);
@@ -172,7 +201,7 @@ namespace DrivenRides.Core.Drive
                 }
                 else { moving.Add(c.Id); standingSince.Remove(c.Id); }
             }
-            if (standingSince.Count > present.Count * 2) foreach (var id in new List<int>(standingSince.Keys)) if (!present.Contains(id)) standingSince.Remove(id);
+
             var backCandidate = -1;
             var standing = Math.Abs(speed) < 0.3f;
             var cars = s.Cars;
@@ -185,18 +214,23 @@ namespace DrivenRides.Core.Drive
                 var touch = FirstTouch(other, GroundMargin, 0);
                 if (!heldFor.Contains(c.Id))
                 {
-                    if (touch < 0 || !Ahead(c)) continue;
+                    if (touch < 0 || !Ahead(c, touch)) continue;
                     // Only the margin touches: squeeze past at a crawl (a long car finishing a turn beside a car
                     // waiting at its line; T0 priority). Where the body itself would touch, stop short.
                     var body0 = FirstTouch(other, SqueezeMargin, 0);
                     if (body0 >= 0) Gap(d, body0, along, c.Id);
-                    if (body0 < 0 || body0 > touch) Creep(touch, k => poses[k].Grown(GroundMargin, 0f).Overlaps(other), SqueezeMs);
+                    if (body0 < 0 || body0 > touch)
+                    {
+                        var last = touch;
+                        while (last + 1 < count && poses[last + 1].Grown(GroundMargin, 0f).Overlaps(other)) last++;
+                        Creep(touch, last, SqueezeMs);
+                    }
                     continue;
                 }
                 // It waits for the ride car: its trigger is ground too. Nose to nose with it, whatever the angle: back
                 // off out of its trigger, then wait for it to go.
                 var trigger = TriggerOf(c);
-                if (standing && touch >= 0 && rearAt[touch] - along <= NoseRoom && Ahead(c))
+                if (standing && touch >= 0 && rearAt[touch] - along <= NoseRoom && Ahead(c, touch))
                 {
                     Gap(d, touch, along, c.Id);
                     if (backCandidate < 0) backCandidate = c.Id;
@@ -212,7 +246,12 @@ namespace DrivenRides.Core.Drive
                     var tr = trigger.Grown(PassingNear, PassingNear);
                     var near = -1;
                     for (var k = 0; k < count && near < 0; k++) if (poses[k].Overlaps(o) || poses[k].Overlaps(tr)) near = k;
-                    if (near >= 0) Creep(near, k => poses[k].Overlaps(o) || poses[k].Overlaps(tr), CreepMs);
+                    if (near >= 0)
+                    {
+                        var last = near;
+                        while (last + 1 < count && (poses[last + 1].Overlaps(o) || poses[last + 1].Overlaps(tr))) last++;
+                        Creep(near, last, CreepMs);
+                    }
                     continue;
                 }
                 var exit = FirstOutOfZone(other, trigger);
@@ -223,10 +262,15 @@ namespace DrivenRides.Core.Drive
                     if (standing && backCandidate < 0) backCandidate = c.Id;
                 }
                 // Through its trigger, out before its body: at a creep until out of it, then on.
-                else Creep(0, k => exit < 0 || k < exit, CreepMs);
+                else Creep(0, exit < 0 ? count - 1 : Math.Max(0, exit - 1), CreepMs);
             }
             Back(s, d, backCandidate);
-            if (d.BackOff) { d.Why = $"backing off from {d.BackOffFrom}"; return d; }
+            if (d.BackOff)
+            {
+                if (whyKind != 7 || whyId != d.BackOffFrom) { whyKind = 7; whyId = d.BackOffFrom; whyText = $"backing off from {d.BackOffFrom}"; }
+                d.Why = whyText;
+                return d;
+            }
             if (creeps.Count > 0)
             {
                 var now = CapAt(along);
@@ -255,9 +299,9 @@ namespace DrivenRides.Core.Drive
                 var touch = FirstTouch(BodyOf(c), GroundMargin, 0);
                 // A car ahead on the ride car's way, moving: followed at its speed along that way where the body
                 // would meet it (PursuitDriver.Follow).
-                if (touch >= 0 && Ahead(c)) Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
+                if (touch >= 0 && Ahead(c, touch)) Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
                 if (OutOfReach(c, horizon)) continue;
-                corridor.Build(graph, c, s.Flags, horizon, SweepMetres, roadHeld);
+                corridor.Build(graph, c, s.Flags, horizon, SweepMetres, roadHeld, SpeedingUp(c.Id));
                 if (corridor.MaxX < sweepMinX || corridor.MinX > sweepMaxX || corridor.MaxZ < sweepMinZ || corridor.MinZ > sweepMaxZ) continue;
                 corridor.Clip(sweepMinX, sweepMinZ, sweepMaxX, sweepMaxZ);
                 var give = Conflict(c, front);
@@ -270,7 +314,7 @@ namespace DrivenRides.Core.Drive
                     if (s.Time - kept.Time <= ConflictMemory && kept.Along > front - 0.5f && StillInTheWay())
                     {
                         give = kept.Along;
-                        conflictNote = "still giving way";
+                        conflictNote = new YieldNote { Kind = YieldNoteKind.Still };
                     }
                     else yieldMemory.Remove(c.Id);
                 }
@@ -278,7 +322,7 @@ namespace DrivenRides.Core.Drive
                 {
                     d.YieldAlong = g;
                     d.YieldFor = c.Id;
-                    d.YieldNote = conflictNote;
+                    d.Note = conflictNote;
                 }
             }
             if (noseIn)
@@ -289,14 +333,26 @@ namespace DrivenRides.Core.Drive
             }
             KeepClear(d, front);
             Stuck(s, d, standing);
-            // The reason given is the nearest of the stops ahead.
-            var why = "";
+            // The reason given is the nearest of the stops ahead; the string is made only when it changes.
+            var kind = 0;
+            var id = -1;
             var nearest = float.MaxValue;
-            void Consider(float? at, string what) { if (at is float a && a < nearest) { nearest = a; why = what; } }
-            Consider(d.StopAlong, d.StopIsRed ? "stop line" : "give-way line");
-            Consider(d.YieldAlong, $"giving way to {d.YieldFor}");
-            Consider(d.GapAhead is float g2 ? front + Math.Max(0f, g2 - PursuitDriver.StopGap) : (float?)null, $"behind {d.GapFor}");
-            d.Why = d.BlockedBy >= 0 ? "blocked: " + d.BlockedWhy : why.Length > 0 && nearest - front < 60f ? why : d.MaxSpeed != null ? "creeping" : "";
+            if (d.StopAlong is float sa && sa < nearest) { nearest = sa; kind = d.StopIsRed ? 1 : 2; }
+            if (d.YieldAlong is float ya && ya < nearest) { nearest = ya; kind = 3; id = d.YieldFor; }
+            if (d.GapAhead is float ga && front + Math.Max(0f, ga - PursuitDriver.StopGap) < nearest) { nearest = front + Math.Max(0f, ga - PursuitDriver.StopGap); kind = 4; id = d.GapFor; }
+            if (nearest - front >= 60f) kind = 0;
+            if (kind == 0 && d.MaxSpeed != null) kind = 5;
+            if (d.BlockedBy >= 0) { kind = 6; id = d.BlockedBy; }
+            if (kind != whyKind || id != whyId)
+            {
+                whyKind = kind;
+                whyId = id;
+                whyText = kind switch
+                {
+                    1 => "stop line", 2 => "give-way line", 3 => $"giving way to {id}", 4 => $"behind {id}", 5 => "creeping", 6 => "blocked: " + d.BlockedWhy, _ => "",
+                };
+            }
+            d.Why = whyText;
             return d;
         }
 
@@ -304,9 +360,10 @@ namespace DrivenRides.Core.Drive
         private void Sweep(in TrafficSnapshot s, float along, float end)
         {
             poses[0] = BodyAt(s.RearX, s.RearZ, s.Heading);
+            headings[0] = s.Heading;
             rearAt[0] = along;
             early[0] = late[0] = 0f;
-            slowSpeed[0] = Math.Max(0f, s.Speed);
+            slowSpeed[0] = fastSpeed[0] = Math.Max(0f, s.Speed);
             count = 1;
             float fast = Math.Max(0f, s.Speed), slow = fast;
             var pts = line.Line.Points;
@@ -321,6 +378,7 @@ namespace DrivenRides.Core.Drive
                 var f = span > 1e-4f ? Math.Max(0f, Math.Min(1f, (at - line.Along(Math.Max(0, k - 1))) / span)) : 1f;
                 float x = a.X + (b.X - a.X) * f, z = a.Z + (b.Z - a.Z) * f;
                 var heading = (float)Math.Atan2(b.X - a.X, b.Z - a.Z);
+                headings[count] = heading;
                 poses[count] = BodyAt(x, z, heading);
                 rearAt[count] = at;
                 var limit = driver.PlannedSpeed(at, fast);
@@ -332,12 +390,19 @@ namespace DrivenRides.Core.Drive
                 fast = nextFast;
                 slow = nextSlow;
                 slowSpeed[count] = slow;
+                fastSpeed[count] = fast;
                 count++;
             }
         }
 
-        // Ahead of the ride car's rear axle: a car behind is not in its way.
-        private bool Ahead(in OtherCar c) => (c.X - poses[0].X) * poses[0].Sin + (c.Z - poses[0].Z) * poses[0].Cos > 0f;
+        // In the ride car's way where its body first touches the car (pose k): ahead of the middle of that pose,
+        // seen along that pose's heading. A car behind the middle of every pose that touches it is not in the way.
+        // On a U-turn the car standing in the lane turned into lies behind the ride car as it stands now, but ahead
+        // of the pose that reaches it (review round 1, O6). The heading now still counts, so no car is dropped that
+        // was ahead before.
+        private bool Ahead(in OtherCar c, int k) => Before(c, poses[0]) || (k > 0 && Before(c, poses[k]));
+
+        private static bool Before(in OtherCar c, in Box pose) => (c.X - pose.X) * pose.Sin + (c.Z - pose.Z) * pose.Cos > 0f;
 
         private int FirstTouch(in Box other, float margin, int from)
         {
@@ -365,13 +430,8 @@ namespace DrivenRides.Core.Drive
             return -1;
         }
 
-        // A creep from pose `from` for as long as `while` holds of the poses after it.
-        private void Creep(int from, Func<int, bool> @while, float ms)
-        {
-            var last = from;
-            while (last + 1 < count && @while(last + 1)) last++;
-            creeps.Add((rearAt[from], rearAt[last] + SweepStep, ms));
-        }
+        // A creep from pose `from` to pose `last` (loops at the callers, not a predicate: no garbage per step).
+        private void Creep(int from, int last, float ms) => creeps.Add((rearAt[from], rearAt[last] + SweepStep, ms));
 
         // The speed allowed at `at` metres along: a creep inside a creep stretch, slowing to it before one.
         private float CapAt(float at)
@@ -405,7 +465,7 @@ namespace DrivenRides.Core.Drive
             }
             if (backingFrom < 0) return;
             OtherCar? from = null;
-            foreach (var c in s.Cars) if (c.Id == backingFrom) { from = c; break; }
+            for (var i = 0; i < s.Cars.Count; i++) if (s.Cars[i].Id == backingFrom) { from = s.Cars[i]; break; }
             var backed = (float)Math.Sqrt((s.RearX - backStartX) * (s.RearX - backStartX) + (s.RearZ - backStartZ) * (s.RearZ - backStartZ));
             var keep = from is OtherCar && !moving.Contains(backingFrom) && backed < MaxBackOff && HasRoomBehind(s);
             if (keep)
@@ -426,8 +486,9 @@ namespace DrivenRides.Core.Drive
             if (s.GapBehind is float g && g < RoomBehind) return false;
             float hx = poses[0].Sin, hz = poses[0].Cos;
             var behind = new Box(poses[0].X - hx * RoomBehind, poses[0].Z - hz * RoomBehind, (float)Math.Atan2(hx, hz), poses[0].HalfWidth, poses[0].HalfLength);
-            foreach (var c in s.Cars)
+            for (var i = 0; i < s.Cars.Count; i++)
             {
+                var c = s.Cars[i];
                 if (c.Id == backingFrom) continue;
                 var other = BodyOf(c);
                 if ((c.X - poses[0].X) * hx + (c.Z - poses[0].Z) * hz > 0f) continue;
@@ -441,8 +502,9 @@ namespace DrivenRides.Core.Drive
         private void Stuck(in TrafficSnapshot s, TrafficDecision d, bool standing)
         {
             if (!standing || !(d.GapAhead is float gap) || gap > PursuitDriver.StopGap + 2f || d.GapFor < 0 || heldFor.Contains(d.GapFor)) return;
-            foreach (var c in s.Cars)
+            for (var i = 0; i < s.Cars.Count; i++)
             {
+                var c = s.Cars[i];
                 if (c.Id != d.GapFor || moving.Contains(c.Id) || !standingSince.TryGetValue(c.Id, out var since)) continue;
                 var laneEnd = c.Target >= 0 && c.Target < graph.Count && graph.Successors(c.Target).Count == 0;
                 if (laneEnd && s.Time - since > 3f) d.BlockedBy = c.Id;
@@ -472,7 +534,7 @@ namespace DrivenRides.Core.Drive
                 if (d.YieldAlong is float old && old <= clear) return;
                 d.YieldAlong = clear;
                 d.YieldFor = keepClearFor[p];
-                d.YieldNote = $"keeping clear of car {keepClearFor[p]}'s way";
+                d.Note = new YieldNote { Kind = YieldNoteKind.KeepClear, Car = keepClearFor[p] };
             }
         }
 
@@ -499,8 +561,18 @@ namespace DrivenRides.Core.Drive
         }
 
         // Slow enough to stop within its trigger, with a metre to spare, braking as Gley's cars do.
-        private static bool WillStopForUs(in OtherCar c) =>
-            c.Speed <= NoseInMs && c.Speed * c.Speed / (2f * PursuitDriver.LeaderBrake) + 1f < c.TriggerLength;
+        // Judged at the speed the car can have reached by the time the ride car's body comes into its way (it may be
+        // pulling away; review round 1, O2), and with the room it has left by then.
+        private bool WillStopForUs(in OtherCar c, int runStart, float runFrom)
+        {
+            var t = late[runStart];
+            var then = Math.Min(corridor.TopSpeed, c.Speed + Corridor.Accel * t);
+            var stopping = then * then / (2f * PursuitDriver.LeaderBrake);
+            return then <= NoseInMs && stopping + 1f < c.TriggerLength && runFrom - corridor.Far(t) >= stopping + 2f;
+        }
+
+        // Gaining speed at more than half a metre a second each second.
+        private bool SpeedingUp(int id) => pace.TryGetValue(id, out var p) && p.Gain > 0.5f;
 
         // The car's front is behind the ride car's rear bumper.
         private bool BehindRear(in OtherCar c)
@@ -515,6 +587,29 @@ namespace DrivenRides.Core.Drive
         // turned across its lane counted as ahead with its cab past the middle, and the ride car turned into its side
         // (T3 20261013-211205, ride 9).
         private bool AheadBy(float t, float ub) => corridor.Speed * t - corridor.Length >= ub;
+
+        // Going on as fast as the car can from now (the early times and their speeds): clear of the car's corridor run
+        // from runStart before it arrives, or, joining its lane, far enough ahead that it can follow at FollowBrake.
+        private bool CommittedClear(int runStart)
+        {
+            var from = float.MaxValue;
+            for (var k = runStart; k < count; k++)
+            {
+                if (!corridor.Covers(poses[k].Grown(SideMargin, EndMargin), out var ua, out var ub, out var sin, out var cos))
+                    return early[k] < corridor.Reach(from);
+                from = Math.Min(from, ua);
+                if (sin * poses[k].Sin + cos * poses[k].Cos > 0.64f)
+                {
+                    if (AheadBy(early[k], ub)) continue;
+                    var their = corridor.SpeedingUp ? Math.Min(corridor.TopSpeed, corridor.Speed + Corridor.Accel * early[k]) : corridor.Speed;
+                    // Committed, the car behind is left HardDecel to stay behind, not FollowBrake.
+                    var braking = Math.Max(0f, their * their - fastSpeed[k] * fastSpeed[k]) / (2f * PursuitDriver.HardDecel);
+                    if (corridor.Far(early[k]) + braking + FollowGap >= ua) return false;
+                }
+                else if (corridor.Far(early[k]) >= ua && corridor.Near(early[k]) - corridor.Length <= ub) return false;
+            }
+            return true;
+        }
 
         // Whether the poses a few metres on lie further along the corridor than pose 0 (at `ua`): the ride car moves
         // along the other car's way, ahead of it.
@@ -560,7 +655,8 @@ namespace DrivenRides.Core.Drive
                     // 13 m/s close behind).
                     else
                     {
-                        var their = corridor.Speed;
+                        // At the pace it has, or, pulling away, at the speed it will have reached by then.
+                        var their = corridor.SpeedingUp ? Math.Min(corridor.TopSpeed, corridor.Speed + Corridor.Accel * late[k]) : corridor.Speed;
                         var braking = Math.Max(0f, their * their - slowSpeed[k] * slowSpeed[k]) / (2f * FollowBrake);
                         conflict = corridor.Far(late[k]) + braking + FollowGap >= ua;
                     }
@@ -574,7 +670,7 @@ namespace DrivenRides.Core.Drive
                 // further ahead of its front than it needs to stop: the ride car noses in at a creep
                 // instead of waiting for it, as drivers get out of a jam (T3 20261013-213209, ride 17: 62 s at a
                 // merge, giving way to one crawling car after another).
-                if (WillStopForUs(c) && runFrom >= c.Speed * c.Speed / (2f * PursuitDriver.LeaderBrake) + 2f)
+                if (WillStopForUs(c, runStart, runFrom))
                 {
                     var last = k;
                     while (last + 1 < count && corridor.Covers(poses[last + 1].Grown(SideMargin, EndMargin), out _, out _, out _, out _)) last++;
@@ -582,8 +678,24 @@ namespace DrivenRides.Core.Drive
                     noseIn = true;
                     return null;
                 }
-                conflictNote = $"pose {k} ({rearAt[k] - rearAt[0]:0} m on) u {ua:0.0}..{ub:0.0}, us {early[k]:0.0}..{late[k]:0.0} s, it {corridor.Speed:0.0} m/s{(same ? " same way" : dot < -0.64f ? " head-on" : "")}";
-                if (runStart > 0) return rearAt[runStart - 1] + body.FrontAhead;
+                conflictNote = new YieldNote
+                {
+                    Kind = YieldNoteKind.Conflict, Pose = k, On = rearAt[k] - rearAt[0], From = ua, To = ub, Early = early[k], Late = late[k], Speed = corridor.Speed,
+                    Same = same, HeadOn = dot < -0.64f,
+                };
+                if (runStart > 0)
+                {
+                    var stopAt = rearAt[runStart - 1] + body.FrontAhead;
+                    // Too close to stop short of its way without braking harder than HardDecel: committed. Going on
+                    // as fast as the car can, is it out of the way (crossing) or far enough ahead (joining its lane)
+                    // before the car comes? Then on; a stop it can't make would leave the nose in the car's way (T0
+                    // pullaway: a conflict found a metre short of the lane at 5 m/s).
+                    var room = stopAt - front;
+                    var v = fastSpeed[0];
+                    if (room < 0.5f || v * v / (2f * room) > PursuitDriver.HardDecel)
+                        return CommittedClear(runStart) ? (float?)null : front;
+                    return stopAt;
+                }
                 // Already inside its corridor: on if out before it can arrive, else stop here.
                 var exit = -1;
                 for (var j = k + 1; j < count; j++)
@@ -592,6 +704,9 @@ namespace DrivenRides.Core.Drive
                     runFrom = Math.Min(runFrom, ja);
                 }
                 if (exit >= 0 && late[exit] < corridor.Reach(runFrom)) return null;
+                // Joining its lane (no way out of it ahead): on if, going as fast as it can, the car behind is left
+                // HardDecel to stay behind; stopping would leave the body in its way.
+                if (CommittedClear(0)) return null;
                 return front;
             }
             return null;

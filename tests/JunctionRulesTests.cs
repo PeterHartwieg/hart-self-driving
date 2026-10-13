@@ -95,4 +95,24 @@ public sealed class JunctionRulesTests
         Assert.Null(Step(fresh, red, 246f, 241f, 12f, 0.1f).StopAlong);
         Assert.Null(Step(fresh, red, 249f, 244f, 3f, 0.4f).StopAlong);
     }
+
+    [Fact]
+    public void ThroughOnAmberBecomesStopWhenHeldShortOfTheLine()
+    {
+        // Seen too late at 14 m/s 8 m short: through. Then held 3 m short by a person and standing: stop, and it
+        // stays stop however close it creeps.
+        var rules = new JunctionRules();
+        var red = new List<PathMark> { Mark(4, 100f, stop: true, enter: true, junction: 0) };
+        Assert.Null(Step(rules, red, 92f, 87f, 14f, 0f).StopAlong);
+        Assert.NotNull(Step(rules, red, 97f, 92f, 0.2f, 2f).StopAlong);
+        Assert.NotNull(Step(rules, red, 99.5f, 94.5f, 1.5f, 3f).StopAlong);
+        // Slowed enough to stop at Decel (5 m/s, 6 m): stop as well.
+        var slowed = new JunctionRules();
+        Assert.Null(Step(slowed, red, 92f, 87f, 14f, 0f).StopAlong);
+        Assert.NotNull(Step(slowed, red, 94f, 89f, 5f, 0.5f).StopAlong);
+        // Never stop -> through: a stop decided at first sight stays a stop.
+        var stopping = new JunctionRules();
+        Assert.NotNull(Step(stopping, red, 80f, 75f, 10f, 0f).StopAlong);
+        Assert.NotNull(Step(stopping, red, 99.9f, 95f, 3f, 2f).StopAlong);
+    }
 }

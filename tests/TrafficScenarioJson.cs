@@ -57,6 +57,14 @@ internal static class TrafficScenarioJson
             }).ToList(),
             Slow = ride.GetProperty("slow").EnumerateArray().Select(q => (q[0].GetSingle(), q[1].GetSingle(), q[2].GetSingle())).ToList(),
         };
+        // The calibrated car and the driven line (newer dumps).
+        if (ride.TryGetProperty("lockCurve", out var curve)) s.Ride.LockCurve = curve.EnumerateArray().Select(q => (q[0].GetSingle(), q[1].GetSingle())).ToList();
+        if (ride.TryGetProperty("track", out var track)) s.Ride.TrackWidth = track.GetSingle();
+        if (ride.TryGetProperty("yawFactor", out var yaw)) s.Ride.YawFactor = yaw.GetSingle();
+        if (ride.TryGetProperty("wheelRate", out var rate)) s.Ride.WheelRate = rate.GetSingle();
+        if (ride.TryGetProperty("steer", out var steer)) s.Ride.Steer = steer.GetSingle();
+        if (ride.TryGetProperty("line", out var linePoints)) s.Ride.Line = linePoints.EnumerateArray().Select(q => new Vec3(q[0].GetSingle(), q[1].GetSingle(), q[2].GetSingle())).ToList();
+        if (ride.TryGetProperty("lineAlong", out var lineAlong)) s.Ride.LineAlong = lineAlong.EnumerateArray().Select(q => q.GetSingle()).ToArray();
         foreach (var c in root.GetProperty("cars").EnumerateArray())
         {
             var car = new ScenarioCar

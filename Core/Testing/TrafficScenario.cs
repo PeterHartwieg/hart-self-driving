@@ -89,6 +89,11 @@ namespace DrivenRides.Core.Testing
              .Append(",\"pose\":[").Append(F(ride.X)).Append(',').Append(F(ride.Z)).Append(',').Append(F(ride.Heading)).Append(',').Append(F(ride.Speed)).Append("],\"slow\":[");
             for (var i = 0; i < ride.Slow.Count; i++)
                 j.Append(i > 0 ? "," : "").Append('[').Append(F(ride.Slow[i].From)).Append(',').Append(F(ride.Slow[i].To)).Append(',').Append(F(ride.Slow[i].Ms)).Append(']');
+            j.Append("],\"lockCurve\":[");
+            for (var i = 0; i < ride.LockCurve.Count; i++) j.Append(i > 0 ? "," : "").Append('[').Append(F(ride.LockCurve[i].Ms)).Append(',').Append(F(ride.LockCurve[i].Degrees)).Append(']');
+            j.Append("],\"track\":").Append(F(ride.TrackWidth)).Append(",\"yawFactor\":").Append(F(ride.YawFactor)).Append(",\"wheelRate\":").Append(F(ride.WheelRate))
+             .Append(",\"steer\":").Append(F(ride.Steer)).Append(",\"line\":").Append(Points(ride.Line)).Append(",\"lineAlong\":[");
+            for (var i = 0; i < ride.LineAlong.Length; i++) j.Append(i > 0 ? "," : "").Append(F(ride.LineAlong[i]));
             j.Append("]},\n\"cars\":[");
             for (var i = 0; i < Cars.Count; i++)
             {
@@ -193,6 +198,58 @@ namespace DrivenRides.Core.Testing
         // Rear axle, heading (radians, as atan2(dx, dz)), speed.
         public float X, Z, Heading, Speed;
         public List<(float From, float To, float Ms)> Slow = new List<(float, float, float)>();
+        // The car as the game measured it (review round 1, S10): the lock at speeds (m/s, degrees; empty: Lock at any
+        // speed), the front track for NWH's Ackermann, the model's yaw factor, the wheel's rate (degrees a second),
+        // and the wheel's angle at the start.
+        public List<(float Ms, float Degrees)> LockCurve = new List<(float, float)>();
+        public float TrackWidth, YawFactor = 1f, WheelRate = 180f, Steer;
+        // The line the car drove, as built (arcs, fillets, shifts), and how far along it each path position is; empty:
+        // the line is built from the path and the arcs.
+        public List<Vec3> Line = new List<Vec3>();
+        public float[] LineAlong = Array.Empty<float>();
+
+        // The line the car drives: the one the game drove, or else one built from the path and arcs as NwhDrive builds
+        // it; pathAlong: how far along it each path position is.
+        public DrivenRides.Core.Drive.DriveLine BuildLine(LaneGraph graph, out float[] pathAlong)
+        {
+            if (Line.Count >= 2 && LineAlong.Length == Path.Length)
+            {
+                pathAlong = LineAlong;
+                return DrivenRides.Core.Drive.DriveLine.Build(Line, Array.Empty<(int, DrivenRides.Core.Ride.Polyline)>());
+            }
+            var points = new List<Vec3>(Path.Length);
+            foreach (var i in Path) points.Add(graph.Position(i));
+            var arcs = new List<(int, DrivenRides.Core.Ride.Polyline)>();
+            foreach (var a in Arcs) arcs.Add((a.Entry, new DrivenRides.Core.Ride.Polyline(a.Points) { Radius = a.Radius }));
+            var line = DrivenRides.Core.Drive.DriveLine.Build(points, arcs);
+            pathAlong = line.AlongOf;
+            return line;
+        }
+
+        public DrivenRides.Core.Drive.PursuitDriver BuildDriver(DrivenRides.Core.Drive.DriveLine line)
+        {
+            var driver = new DrivenRides.Core.Drive.PursuitDriver(line, Wheelbase, FrontAhead, TopMs, TrackWidth);
+            foreach (var (from, to, ms) in Slow) driver.Slow(from, to, ms);
+            driver.StartAt(X, Z);
+            return driver;
+        }
+
+        public DrivenRides.Core.Drive.CarModel BuildCar() =>
+            new DrivenRides.Core.Drive.CarModel(Wheelbase, LockAt, X, Z, Heading, Speed) { TrackWidth = TrackWidth, Rate = WheelRate, YawFactor = YawFactor, Steer = Steer };
+
+        // The lock at a speed, from the curve (linear between samples) or the constant Lock.
+        public float LockAt(float ms)
+        {
+            if (LockCurve.Count == 0) return Lock;
+            if (ms <= LockCurve[0].Ms) return LockCurve[0].Degrees;
+            for (var i = 1; i < LockCurve.Count; i++)
+            {
+                if (ms > LockCurve[i].Ms) continue;
+                var (a, b) = (LockCurve[i - 1], LockCurve[i]);
+                return a.Degrees + (b.Degrees - a.Degrees) * (ms - a.Ms) / Math.Max(1e-3f, b.Ms - a.Ms);
+            }
+            return LockCurve[LockCurve.Count - 1].Degrees;
+        }
     }
 
     public sealed class ScenarioCar

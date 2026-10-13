@@ -21,6 +21,12 @@ internal sealed class SimResult
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
+    // Bytes allocated inside TrafficDriver.Decide, and its calls (review round 1, O7).
+    public long DecideBytes;
+    public int Decides;
+    // Of them, those after the first second that allocated anything with the reason given unchanged: only buffers
+    // growing to a new number of cars should.
+    public int DecidesAllocating;
     public readonly StringBuilder Trace = new();
     public override string ToString() => Failure ?? (Arrived ? (LeftArea ? $"left the recorded area at {Time:0.0} s" : $"arrived at {Time:0.0} s") : Blocked != null ? $"blocked at {Time:0.0} s: {Blocked}" : "not arrived");
 }
@@ -50,6 +56,7 @@ internal sealed class TrafficSim : ILiveFlags
     private readonly TrafficDriver traffic;
     private readonly RideBody body;
     private readonly int[] path;
+    private readonly float[] pathAlong;
     private readonly List<PathMark> marks = new();
     private readonly List<OtherCar> near = new();
     private readonly TrafficDecision decision = new();
@@ -68,14 +75,12 @@ internal sealed class TrafficSim : ILiveFlags
         foreach (var c in sc.Cars) cars.Add(new Car(c));
         var r = sc.Ride;
         path = r.Path;
-        var points = path.Select(i => graph.Position(i)).ToList();
-        var arcs = r.Arcs.Select(a => (a.Entry, new Polyline(a.Points) { Radius = a.Radius })).ToList();
-        line = DriveLine.Build(points, arcs);
+        // The car and the line as the game had them, when the scenario carries them (a dump), else as built from
+        // the path (review round 1, S10).
+        line = r.BuildLine(graph, out pathAlong);
         body = new RideBody { Wheelbase = r.Wheelbase, FrontAhead = r.FrontAhead, RearBehind = r.RearBehind, HalfWidth = r.HalfWidth };
-        driver = new PursuitDriver(line, r.Wheelbase, r.FrontAhead, r.TopMs);
-        foreach (var (from, to, ms) in r.Slow) driver.Slow(from, to, ms);
-        ride = new CarModel(r.Wheelbase, r.Lock, r.X, r.Z, r.Heading, r.Speed);
-        driver.StartAt(r.X, r.Z);
+        driver = r.BuildDriver(line);
+        ride = r.BuildCar();
         traffic = new TrafficDriver(graph, line, driver, body);
         // Time enough for the whole line at 3 m/s on average, lights included (a dump runs 400 m on from its window).
         seconds = Math.Max(sc.Seconds, 30f + line.Line.Length / 3f);
@@ -123,7 +128,7 @@ internal sealed class TrafficSim : ILiveFlags
             marks.Clear();
             for (var k = 0; k < path.Length; k++)
             {
-                var along = line.AlongOf[k];
+                var along = pathAlong[k];
                 if (along < driver.Along - body.RearBehind - 10f || along > front + 80f) continue;
                 var w = sc.Waypoints[path[k]];
                 var m = new PathMark
@@ -148,7 +153,16 @@ internal sealed class TrafficSim : ILiveFlags
             };
             // NwhDrive decides every physics step; the simulation every other one (25 a second), to keep the soak
             // short. Junction events are never lost: a step without a decision keeps the last one's answers only.
-            if (step % DecideEvery == 0) traffic.Decide(snapshot, decision);
+            if (step % DecideEvery == 0)
+            {
+                var whyBefore = decision.Why;
+                var before = GC.GetAllocatedBytesForCurrentThread();
+                traffic.Decide(snapshot, decision);
+                var bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                result.DecideBytes += bytes;
+                if (bytes > 0 && result.Decides > 25 && ReferenceEquals(whyBefore, decision.Why)) result.DecidesAllocating++;
+                result.Decides++;
+            }
             else decision.Events.Clear();
             foreach (var e in decision.Events)
                 if (junctions.TryGetValue(e.Junction, out var jn))
@@ -194,11 +208,13 @@ internal sealed class TrafficSim : ILiveFlags
             front = driver.Along + body.FrontAhead;
             for (var k = 0; k < path.Length; k++)
             {
-                var along = line.AlongOf[k];
+                var along = pathAlong[k];
                 if (!stop[path[k]]) { stoppable.Remove(k); continue; }
                 if (!stoppable.ContainsKey(k) && along > prevFront)
                     // With a tenth of a second to see it (the game's lights change between physics steps too).
                     stoppable[k] = along - prevFront - ride.Speed * 0.1 > ride.Speed * ride.Speed / (2 * PursuitDriver.HardDecel);
+                // Standing short of a set stop: whatever it saw first, a pass from here is a red run.
+                if (Math.Abs(ride.Speed) < 0.5 && along > prevFront && along - prevFront < 10f) stoppable[k] = true;
                 if (prevFront < along && front >= along && stoppable.TryGetValue(k, out var could) && could)
                 {
                     result.Failure = $"past the stop at path position {k} while set, at {time:0.00} s";

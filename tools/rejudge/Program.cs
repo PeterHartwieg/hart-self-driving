@@ -203,6 +203,13 @@ foreach (var line in File.ReadLines(resultsPath))
     // A ride is judged on to its arrival.
     if (end == "arrived") judge.Arrive();
     var result = judge.Result(end == "time limit");
+    // T3's traffic invariants, as the rig applied them (older results: contactsMoving for contacts caused).
+    if (run.TryGetProperty("contacts", out var contactsJ))
+    {
+        int Int(string name) => run.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
+        var caused = run.TryGetProperty("contactsCaused", out _) ? Int("contactsCaused") : Int("contactsMoving");
+        TrafficVerdict.Apply(result, caused, contactsJ.GetInt32() - caused, Int("redRuns"), Int("stalls"));
+    }
     var oldVerdict = run.GetProperty("verdict").GetString();
     var oldReasons = run.TryGetProperty("judge", out var j) ? string.Join(" ", j.GetProperty("Reasons").EnumerateArray().Select(x => x.GetString())) : "";
     var newReasons = string.Join(" ", result.Reasons);

@@ -70,6 +70,11 @@ namespace DrivenRides.Core.Drive
                 if (m.Stop)
                 {
                     if (!redDecision.TryGetValue(m.Position, out var through)) redDecision[m.Position] = through = room <= 0f || tooLate;
+                    // Through may become stop, never the reverse: a car that was to go through on amber but has been held
+                    // short of the line since (a person, a car ahead, keeping clear), or can now stop comfortably, stops
+                    // there; it doesn't drive on into the red later (review round 1, O1).
+                    if (through && room > 0f && (speed < 1f || speed * speed / (2f * room) <= PursuitDriver.Decel))
+                        redDecision[m.Position] = through = false;
                     if (through) continue;
                     d.StopAlong = m.Along - ShortOfLine;
                     d.StopPosition = m.Position;
