@@ -329,24 +329,39 @@ namespace DrivenRides
                     {
                         var c = hits[h];
                         if (Ignore != null && c.transform.IsChildOf(Ignore)) continue;
-                        var probe = centre + Vector3.up * 0.9f;
-                        var nearest = c is MeshCollider mesh && !mesh.convex ? c.bounds.ClosestPoint(probe) : c.ClosestPoint(probe);
-                        var side = Vector3.Dot(nearest - probe, right);
+                        // Its edge nearest the line at this point, sideways: a ray each way from the line at a height the
+                        // obstacle has (a guardrail is 0.8 m tall). Not its bounds: a long curved guardrail's box
+                        // (34 x 33 m in the Hamptons) holds the whole lane, and every step along it was blocked.
+                        var height = Mathf.Clamp(c.bounds.max.y - ground - 0.15f, lowest + 0.05f, 0.9f);
+                        var probe = centre + Vector3.up * height;
+                        float? side = null;
+                        if (c.Raycast(new Ray(probe, right), out var toRight, 3f)) side = toRight.distance;
+                        if (c.Raycast(new Ray(probe, -right), out var toLeft, 3f) && (side == null || toLeft.distance < side.Value)) side = -toLeft.distance;
+                        // Neither way: the line runs through it (a convex one holds the point), or it is only ahead or
+                        // behind within this metre's box.
+                        if (side == null)
+                        {
+                            if (c is MeshCollider mesh && !mesh.convex) continue;
+                            if ((c.ClosestPoint(probe) - probe).sqrMagnitude > 0.0025f) continue;
+                            side = 0f;
+                        }
                         var need = half + clear;
-                        if (Mathf.Abs(side) >= need) continue;
+                        if (Mathf.Abs(side.Value) >= need) continue;
                         first ??= f * length;
                         last = f * length;
                         what ??= (hit == CarsMask ? "parked in the lane: " : "in the lane: ") + Name(c) + $" (bounds {c.bounds.min} to {c.bounds.max})";
                         // Standing on the line itself: no side to pass on.
-                        if (Mathf.Abs(side) < 0.05f) { lo = 1f; hi = 0f; continue; }
-                        if (side > 0f) hi = Mathf.Min(hi, side - need);
-                        else lo = Mathf.Max(lo, side + need);
+                        if (Mathf.Abs(side.Value) < 0.05f) { lo = 1f; hi = 0f; continue; }
+                        if (side.Value > 0f) hi = Mathf.Min(hi, side.Value - need);
+                        else lo = Mathf.Max(lo, side.Value + need);
                     }
                 }
             }
             if (first == null) { shifts.Remove((from, to)); return null; }
             if (lo > hi) return what + ", no room to pass within the lane";
             var offset = Mathf.Clamp(0f, lo, hi);
+            // A move of a few centimetres is within the margins: the line stays (T3 listed shifts of 0.06 m).
+            if (Mathf.Abs(offset) < 0.1f) { shifts.Remove((from, to)); return null; }
             // The rear axle moves over before the front reaches the obstacle and back once the rear has passed it.
             var rear = Car.BodyHalf.Z - Car.BodyCentre.Z;
             shifts[(from, to)] = (first.Value - Car.FrontAhead - 1f, last!.Value + rear + 1f, offset);
