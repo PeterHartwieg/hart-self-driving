@@ -18,6 +18,8 @@ internal sealed class SimResult
     public bool LeftArea;
     public float LongestStall;
     public int BackOffs;
+    // Decisions that nosed in at a creep in front of a crawling car.
+    public int NoseIns;
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
@@ -196,6 +198,7 @@ internal sealed class TrafficSim : ILiveFlags
             }
             backing = decision.BackOff;
             if (decision.YieldFor >= 0) result.GaveWayTo.Add(decision.YieldFor);
+            if (decision.NoseIn) result.NoseIns++;
 
             // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);

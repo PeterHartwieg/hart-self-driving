@@ -115,7 +115,11 @@ namespace DrivenRides.Core.Drive
         // Conflicts found too late to stop short of: decided once every other car's yield is known (Committed).
         private readonly List<(int Car, int RunStart, int Exit, float RunFrom, YieldNote Note)> deferred = new List<(int, int, int, float, YieldNote)>();
         private readonly List<bool> deferredClear = new List<bool>();
+        // Moving cars the ride car comes up behind on its way (their rear ahead of its front where it meets them):
+        // followed at their speed (Gap), never given way to as if they were coming from behind.
+        private readonly HashSet<int> followed = new HashSet<int>();
         private bool deferNow;
+        private int nosedInFor = -1;
         // Per pose: the earliest pose where the body enters a moving car's way that this pose is in, or -1.
         private readonly float[] headings = new float[MaxPoses];
         private readonly int[] keepClearFrom = new int[MaxPoses], keepClearFor = new int[MaxPoses];
@@ -307,6 +311,7 @@ namespace DrivenRides.Core.Drive
                 sweepMaxZ = Math.Max(sweepMaxZ, p.Z + p.ExtentZ);
             }
             for (var k = 0; k < count; k++) keepClearFrom[k] = -1;
+            followed.Clear();
             for (var i = 0; i < cars.Count; i++)
             {
                 var c = cars[i];
@@ -314,7 +319,11 @@ namespace DrivenRides.Core.Drive
                 var touch = FirstTouch(BodyOf(c), GroundMargin, 0);
                 // A car ahead on the ride car's way, moving: followed at its speed along that way where the body
                 // would meet it (PursuitDriver.Follow).
-                if (touch >= 0 && Ahead(c, touch)) Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
+                if (touch >= 0 && Ahead(c, touch))
+                {
+                    Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
+                    if (RearAhead(c, poses[touch])) followed.Add(c.Id);
+                }
             }
             // The stops known so far (stop line, cars ahead, parked cars and people), and the times under them.
             holdFront = Holds(d, s, front);
@@ -326,13 +335,18 @@ namespace DrivenRides.Core.Drive
                 if (!moving.Contains(c.Id) || heldFor.Contains(c.Id) || OutOfReach(c, horizon)) continue;
                 if (!BuildCorridor(c, s, horizon)) continue;
                 deferNow = false;
+                nosedInFor = -1;
                 var give = Conflict(c, front, i);
                 if (deferNow) continue;
+                // Nosing in in front of it is a decision, not a different reading: the yield remembered from a moment
+                // ago doesn't hold the ride car back (review round 2, U4).
+                if (nosedInFor == c.Id) yieldMemory.Remove(c.Id);
                 Give(d, c, give, s.Time, front);
             }
             Committed(d, s, front, horizon);
             if (noseIn)
             {
+                d.NoseIn = true;
                 var now = CapAt(along);
                 if (now < 100f && (d.MaxSpeed == null || now < d.MaxSpeed)) d.MaxSpeed = now;
                 noseIn = false;
@@ -366,10 +380,34 @@ namespace DrivenRides.Core.Drive
         // The corridor of a moving car, clipped to the sweep's area; false if it doesn't come near it.
         private bool BuildCorridor(in OtherCar c, in TrafficSnapshot s, float horizon)
         {
-            corridor.Build(graph, c, s.Flags, horizon, SweepMetres, roadHeld, SpeedingUp(c.Id));
+            corridor.Build(graph, c, s.Flags, horizon, SweepMetres, roadHeld, SpeedingUp(c.Id), LeaderOf(c, s.Cars));
             if (corridor.MaxX < sweepMinX || corridor.MinX > sweepMaxX || corridor.MaxZ < sweepMinZ || corridor.MinZ > sweepMaxZ) return false;
             corridor.Clip(sweepMinX, sweepMinZ, sweepMaxX, sweepMaxZ);
             return true;
+        }
+
+        // The speed of the nearest traffic car close ahead of `c` on its way (in its lane, going the same way, within
+        // what it covers in 4 s and 15 m more), which it can't pass; float.MaxValue if none, or if that car is pulling
+        // away itself (a queue setting off from a light).
+        private float LeaderOf(in OtherCar c, IReadOnlyList<OtherCar> cars)
+        {
+            float hx = (float)Math.Sin(c.Heading), hz = (float)Math.Cos(c.Heading);
+            var best = float.MaxValue;
+            var leader = float.MaxValue;
+            var within = c.Speed * 4f + 15f;
+            for (var i = 0; i < cars.Count; i++)
+            {
+                var o = cars[i];
+                if (o.Id == c.Id) continue;
+                float dx = o.X - c.X, dz = o.Z - c.Z;
+                var ahead = dx * hx + dz * hz;
+                if (ahead <= 0f || ahead > within || ahead >= best) continue;
+                if (Math.Abs(dx * hz - dz * hx) > 2f) continue;
+                if (Math.Sin(o.Heading) * hx + Math.Cos(o.Heading) * hz < 0.8) continue;
+                best = ahead;
+                leader = SpeedingUp(o.Id) ? float.MaxValue : o.Speed;
+            }
+            return leader;
         }
 
         // A car's answer from Conflict, with the memory of the yields of a moment ago, into the decision. The
@@ -566,6 +604,14 @@ namespace DrivenRides.Core.Drive
 
         private static bool Before(in OtherCar c, in Box pose) => (c.X - pose.X) * pose.Sin + (c.Z - pose.Z) * pose.Cos > 0f;
 
+        // The car's rear is ahead of the middle of the pose that first touches it, along that pose's heading: the body
+        // comes up behind it, not beside it (an 11 m truck alongside has its rear beside or behind the body: ride 9).
+        private static bool RearAhead(in OtherCar c, in Box pose)
+        {
+            float rx = c.X - (float)Math.Sin(c.Heading) * c.Length / 2f, rz = c.Z - (float)Math.Cos(c.Heading) * c.Length / 2f;
+            return (rx - pose.X) * pose.Sin + (rz - pose.Z) * pose.Cos > 0f;
+        }
+
         private int FirstTouch(in Box other, float margin, int from)
         {
             for (var k = from; k < count; k++) if (poses[k].Grown(margin, 0f).Overlaps(other)) return k;
@@ -723,14 +769,17 @@ namespace DrivenRides.Core.Drive
         }
 
         // Slow enough to stop within its trigger, with a metre to spare, braking as Gley's cars do.
-        // Judged at the speed the car can have reached by the time the ride car's body comes into its way (it may be
-        // pulling away; review round 1, O2), and with the room it has left by then.
+        // Judged at the speed the car can have when its front comes up to where the body is in its way (it may be
+        // pulling away, and the ride car nosing in at a creep takes longer than its sweep's times; review round 1,
+        // O2, round 2, U4), and with the room it has left once the body is there.
         private bool WillStopForUs(in OtherCar c, int runStart, float runFrom)
         {
             var t = late[runStart];
-            var then = Math.Min(corridor.TopSpeed, c.Speed + Corridor.Accel * t);
+            var then = Math.Min(corridor.TopSpeed, (float)Math.Sqrt(c.Speed * c.Speed + 2f * Corridor.Accel * Math.Max(0f, runFrom)));
             var stopping = then * then / (2f * PursuitDriver.LeaderBrake);
-            return then <= NoseInMs && stopping + 1f < c.TriggerLength && runFrom - corridor.Far(t) >= stopping + 2f;
+            // Only ahead of its front (a car the body would come up behind is followed, not nosed in on), and with a
+            // metre to spare once it has stopped (two kept the ride car out of a crawl's gaps; review round 2, U4).
+            return runFrom > 0f && then <= NoseInMs && stopping + 1f < c.TriggerLength && runFrom - corridor.Far(t) >= stopping + 1f;
         }
 
         // Gaining speed at more than half a metre a second each second.
@@ -859,7 +908,8 @@ namespace DrivenRides.Core.Drive
                 // One alongside about to move over isn't following it, though (ride 18): it must be behind its rear.
                 if (k == 0 && ua > 0f && (same || AheadAlong(ua)) && (!c.MayChangeLane || BehindRear(c))) return null;
                 // Ground ahead of the car that it is coming into: the ride car must not come to a stop there.
-                if (runStart > 0 && ua > 0f && !(same && AheadBy(early[k], ub)) && (keepClearFrom[k] < 0 || runStart < keepClearFrom[k]))
+                var comingUpBehind = same && followed.Contains(c.Id);
+                if (runStart > 0 && ua > 0f && !(same && (AheadBy(early[k], ub) || comingUpBehind)) && (keepClearFrom[k] < 0 || runStart < keepClearFrom[k]))
                 {
                     keepClearFrom[k] = runStart;
                     keepClearFor[k] = c.Id;
@@ -871,6 +921,9 @@ namespace DrivenRides.Core.Drive
                 {
                     // A car ahead of the ride car on the same way by then is caught up with, not crossed: the gap.
                     if (AheadBy(early[k], ub)) conflict = false;
+                    // One the body comes up behind, its rear ahead where they meet: followed at its speed (Gap); a
+                    // crawling car ahead was given way to as if it came from behind (review round 2, U4).
+                    else if (comingUpBehind) conflict = false;
                     // One behind, in the lane the ride car joins, follows it once it is in: it must not need to brake
                     // harder than FollowBrake to stay behind (NWH spike U-turns: slow out of the turn, a car at
                     // 13 m/s close behind).
@@ -897,6 +950,7 @@ namespace DrivenRides.Core.Drive
                     while (last + 1 < count && corridor.Covers(poses[last + 1].Grown(SideMargin, EndMargin), out _, out _, out _, out _)) last++;
                     creeps.Add((rearAt[runStart], rearAt[last] + SweepStep, CreepMs));
                     noseIn = true;
+                    nosedInFor = c.Id;
                     return null;
                 }
                 conflictNote = new YieldNote

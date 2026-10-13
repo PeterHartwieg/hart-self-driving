@@ -1,6 +1,6 @@
 {
 "name":"stall-1",
-"note":"standing 30 s (giving way to 7); ba:vehicletype_limo, version 0.1.70. Pending: in game a merge into a dense stream of cars; the simulation's cars jam in the junction there and the ride car never gets a gap. Replay test: Ride17GivesWayOnlyToCarsThatAreComing.",
+"note":"standing 30 s (giving way to 7); ba:vehicletype_limo, version 0.1.70. Pending: a merge into a stream moving at 3.7 to 11.7 m/s, cars a second or two apart. No gap meets the headway, and nosing in needs a car that will stop in its 3 m trigger: the slowest one here (3.7 m/s, 14 m off) can be at 8 m/s by the merge point, so the driver can't count on it. The dump keeps the last 10 s of a 62 s wait, without the moment a gap came; the simulation's stream doesn't thin out either. Replay test: Ride17WaitsAtTheMergeForCarsThatAreComing (crawling streams: NosesIntoACrawlingStream).",
 "seconds":40,
 "waypoints":[
 {"p":[-132.158,0,-204.583],"n":[591],"x":1,"s":50,"src":4},
