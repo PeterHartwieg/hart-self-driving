@@ -907,6 +907,10 @@ namespace DrivenRides
                 line["stalls"] = drive.Stalls;
                 line["redRuns"] = drive.RedRuns;
                 line["forcedCommits"] = drive.ForcedCommits;
+                // Gley's stop for the ride car in its trigger, as measured: speed, metres and seconds to a standstill.
+                var stops = new JArray();
+                foreach (var (ms, metres, seconds) in drive.TriggerStops) stops.Add(new JArray(ms, metres, seconds));
+                line["triggerStops"] = stops;
                 // The traffic cost per physics step, microseconds (review round 1, O7).
                 if (drive.DecideCost != null && drive.ReadCost != null && drive.CarsRead != null)
                     line["trafficCost"] = new JObject
