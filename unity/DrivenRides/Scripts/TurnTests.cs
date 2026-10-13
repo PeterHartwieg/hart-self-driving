@@ -794,6 +794,7 @@ namespace DrivenRides
             s.Geometry = geometry;
             s.DrivenPath = path;
             var drive = car.Root.AddComponent<NwhDrive>();
+            drive.Recording = true;
             // The driver steers for NWH's Ackermann, as the planner's check assumed (CarModel.TrackWidth).
             if (planner != null) drive.TrackWidth = planner.Car.TrackWidth;
             if (shifts != null) drive.Shifts = shifts;
@@ -870,13 +871,21 @@ namespace DrivenRides
             {
                 File.WriteAllText(Path.Combine(Folder, s.RunId + "-samples.csv"), testCar.Samples.ToString());
                 line["samples"] = s.RunId + "-samples.csv";
-                File.WriteAllText(Path.Combine(Folder, s.RunId + "-nwh.csv"), drive.Trace.ToString());
+                File.WriteAllText(Path.Combine(Folder, s.RunId + "-nwh.csv"), drive.TraceText());
                 line["trace"] = s.RunId + "-nwh.csv";
                 // T3: traffic contacts (this car moving), standstills, red runs; each failure's T0 scenario beside the trace.
                 line["contacts"] = drive.Contacts;
                 line["contactsCaused"] = drive.ContactsCaused;
                 line["stalls"] = drive.Stalls;
                 line["redRuns"] = drive.RedRuns;
+                // The traffic cost per physics step, microseconds (review round 1, O7).
+                line["trafficCost"] = new JObject
+                {
+                    ["steps"] = drive.DecideCost.Total,
+                    ["readP50"] = drive.ReadCost.Percentile(50), ["readP99"] = drive.ReadCost.Percentile(99),
+                    ["decideP50"] = drive.DecideCost.Percentile(50), ["decideP99"] = drive.DecideCost.Percentile(99), ["decideMax"] = drive.DecideCost.Max,
+                    ["carsP50"] = drive.CarsRead.Percentile(50), ["carsMax"] = drive.CarsRead.Max,
+                };
                 var dumps = new JArray();
                 for (var k = 0; k < drive.Dumps.Count; k++)
                 {

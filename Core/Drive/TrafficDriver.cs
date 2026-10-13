@@ -214,18 +214,23 @@ namespace DrivenRides.Core.Drive
                 var touch = FirstTouch(other, GroundMargin, 0);
                 if (!heldFor.Contains(c.Id))
                 {
-                    if (touch < 0 || !Ahead(c)) continue;
+                    if (touch < 0 || !Ahead(c, touch)) continue;
                     // Only the margin touches: squeeze past at a crawl (a long car finishing a turn beside a car
                     // waiting at its line; T0 priority). Where the body itself would touch, stop short.
                     var body0 = FirstTouch(other, SqueezeMargin, 0);
                     if (body0 >= 0) Gap(d, body0, along, c.Id);
-                    if (body0 < 0 || body0 > touch) Creep(touch, k => poses[k].Grown(GroundMargin, 0f).Overlaps(other), SqueezeMs);
+                    if (body0 < 0 || body0 > touch)
+                    {
+                        var last = touch;
+                        while (last + 1 < count && poses[last + 1].Grown(GroundMargin, 0f).Overlaps(other)) last++;
+                        Creep(touch, last, SqueezeMs);
+                    }
                     continue;
                 }
                 // It waits for the ride car: its trigger is ground too. Nose to nose with it, whatever the angle: back
                 // off out of its trigger, then wait for it to go.
                 var trigger = TriggerOf(c);
-                if (standing && touch >= 0 && rearAt[touch] - along <= NoseRoom && Ahead(c))
+                if (standing && touch >= 0 && rearAt[touch] - along <= NoseRoom && Ahead(c, touch))
                 {
                     Gap(d, touch, along, c.Id);
                     if (backCandidate < 0) backCandidate = c.Id;
@@ -241,7 +246,12 @@ namespace DrivenRides.Core.Drive
                     var tr = trigger.Grown(PassingNear, PassingNear);
                     var near = -1;
                     for (var k = 0; k < count && near < 0; k++) if (poses[k].Overlaps(o) || poses[k].Overlaps(tr)) near = k;
-                    if (near >= 0) Creep(near, k => poses[k].Overlaps(o) || poses[k].Overlaps(tr), CreepMs);
+                    if (near >= 0)
+                    {
+                        var last = near;
+                        while (last + 1 < count && (poses[last + 1].Overlaps(o) || poses[last + 1].Overlaps(tr))) last++;
+                        Creep(near, last, CreepMs);
+                    }
                     continue;
                 }
                 var exit = FirstOutOfZone(other, trigger);
@@ -252,7 +262,7 @@ namespace DrivenRides.Core.Drive
                     if (standing && backCandidate < 0) backCandidate = c.Id;
                 }
                 // Through its trigger, out before its body: at a creep until out of it, then on.
-                else Creep(0, k => exit < 0 || k < exit, CreepMs);
+                else Creep(0, exit < 0 ? count - 1 : Math.Max(0, exit - 1), CreepMs);
             }
             Back(s, d, backCandidate);
             if (d.BackOff)
@@ -289,7 +299,7 @@ namespace DrivenRides.Core.Drive
                 var touch = FirstTouch(BodyOf(c), GroundMargin, 0);
                 // A car ahead on the ride car's way, moving: followed at its speed along that way where the body
                 // would meet it (PursuitDriver.Follow).
-                if (touch >= 0 && Ahead(c)) Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
+                if (touch >= 0 && Ahead(c, touch)) Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
                 if (OutOfReach(c, horizon)) continue;
                 corridor.Build(graph, c, s.Flags, horizon, SweepMetres, roadHeld, SpeedingUp(c.Id));
                 if (corridor.MaxX < sweepMinX || corridor.MinX > sweepMaxX || corridor.MaxZ < sweepMinZ || corridor.MinZ > sweepMaxZ) continue;
@@ -385,8 +395,14 @@ namespace DrivenRides.Core.Drive
             }
         }
 
-        // Ahead of the ride car's rear axle: a car behind is not in its way.
-        private bool Ahead(in OtherCar c) => (c.X - poses[0].X) * poses[0].Sin + (c.Z - poses[0].Z) * poses[0].Cos > 0f;
+        // In the ride car's way where its body first touches the car (pose k): ahead of the middle of that pose,
+        // seen along that pose's heading. A car behind the middle of every pose that touches it is not in the way.
+        // On a U-turn the car standing in the lane turned into lies behind the ride car as it stands now, but ahead
+        // of the pose that reaches it (review round 1, O6). The heading now still counts, so no car is dropped that
+        // was ahead before.
+        private bool Ahead(in OtherCar c, int k) => Before(c, poses[0]) || (k > 0 && Before(c, poses[k]));
+
+        private static bool Before(in OtherCar c, in Box pose) => (c.X - pose.X) * pose.Sin + (c.Z - pose.Z) * pose.Cos > 0f;
 
         private int FirstTouch(in Box other, float margin, int from)
         {
@@ -414,13 +430,8 @@ namespace DrivenRides.Core.Drive
             return -1;
         }
 
-        // A creep from pose `from` for as long as `while` holds of the poses after it.
-        private void Creep(int from, Func<int, bool> @while, float ms)
-        {
-            var last = from;
-            while (last + 1 < count && @while(last + 1)) last++;
-            creeps.Add((rearAt[from], rearAt[last] + SweepStep, ms));
-        }
+        // A creep from pose `from` to pose `last` (loops at the callers, not a predicate: no garbage per step).
+        private void Creep(int from, int last, float ms) => creeps.Add((rearAt[from], rearAt[last] + SweepStep, ms));
 
         // The speed allowed at `at` metres along: a creep inside a creep stretch, slowing to it before one.
         private float CapAt(float at)

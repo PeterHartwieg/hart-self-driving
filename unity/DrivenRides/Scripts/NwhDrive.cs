@@ -9,6 +9,7 @@ using DrivenRides.Core.Routing;
 using GleyTrafficSystem;
 using Helpers;
 using UnityEngine;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace DrivenRides
 {
@@ -80,7 +81,18 @@ namespace DrivenRides
         public string EndReason { get; private set; } = "";
         public bool WaitingNow { get; private set; }
         public float Along => driver.Along;
-        public readonly StringBuilder Trace = new StringBuilder("t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic\n");
+        // The rig's records (TurnTests sets it before Begin): the per-step trace, kept as a ring of the last
+        // TraceLines steps, and the traffic recorder behind the scenario dumps. Off on a ride: nothing kept.
+        public bool Recording;
+        private const int TraceLines = 30000;
+        private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic\n";
+        private readonly string[] traceRing = new string[TraceLines];
+        private int traceNext, traceCount;
+        private readonly StringBuilder traceLine = new StringBuilder(160);
+        // Per-step traffic cost (review round 1, O7): reading Gley's cars within TrafficDriver.SeeMetres and Decide,
+        // in microseconds, and the cars read; logged as percentiles when the drive ends.
+        public readonly CostSamples ReadCost = new CostSamples(), DecideCost = new CostSamples(), CarsRead = new CostSamples();
+        private static readonly double MicrosPerTick = 1e6 / Stopwatch.Frequency;
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         // The ride's path (waypoint indices) and its added turns' arcs (path position of the entry, the arc), the
@@ -160,13 +172,20 @@ namespace DrivenRides
 
             // The traffic snapshot: the path's waypoints from a little behind to 80 m ahead, the Gley cars round it.
             Marks(front);
+            var ticks = Stopwatch.GetTimestamp();
             gley.ReadCars(rear, TrafficDriver.SeeMetres, cars);
-            recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, cars, gley.Components);
-            traffic.Decide(new TrafficSnapshot
+            var read = Stopwatch.GetTimestamp();
+            ReadCost.Add((float)((read - ticks) * MicrosPerTick));
+            CarsRead.Add(cars.Count);
+            if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, cars, gley.Components);
+            var snapshot = new TrafficSnapshot
             {
                 Time = Time.time, RearX = rear.x, RearZ = rear.z, Heading = heading, Speed = speed, Marks = marks, Cars = cars, Flags = gley,
                 GapBehind = traffic.BackingOff || decision.GapAhead < 4f ? GapBehind() : null,
-            }, decision);
+            };
+            ticks = Stopwatch.GetTimestamp();
+            traffic.Decide(snapshot, decision);
+            DecideCost.Add((float)((Stopwatch.GetTimestamp() - ticks) * MicrosPerTick));
             foreach (var e in decision.Events)
             {
                 gley.Apply(e);
@@ -235,13 +254,7 @@ namespace DrivenRides
             if (o.Throttle > 0.05f && transmission.Gear <= 0) transmission.ShiftInto(1);
             WaitingNow = o.Holding && speed < 0.5f;
 
-            Trace.Append((Time.time - startedAt).ToString("0.00", Inv)).Append(',').Append(o.Along.ToString("0.0", Inv)).Append(',')
-                .Append(o.Lateral.ToString("0.00", Inv)).Append(',').Append(speed.ToString("0.00", Inv)).Append(',').Append(o.Desired.ToString("0.00", Inv)).Append(',')
-                .Append(o.SteerDegrees.ToString("0.0", Inv)).Append(',').Append(steerInput.ToString("0.00", Inv)).Append(',').Append(vehicle.steering.angle.ToString("0.0", Inv)).Append(',')
-                .Append(o.Throttle.ToString("0.00", Inv)).Append(',').Append(o.Brake.ToString("0.00", Inv)).Append(',').Append(o.Handbrake.ToString("0", Inv)).Append(',')
-                .Append(transmission.Gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
-                .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
-                .Append(decision.Why.Replace(',', ';')).Append('\n');
+            if (Recording) TraceStep(o, speed, steerInput, transmission.Gear, gap);
 
             Tally(speed, o.Along + Car.FrontAhead);
             if (Ended) return;
@@ -252,6 +265,31 @@ namespace DrivenRides
             else if (Time.time - lastProgressTime > 30f) { End("stuck", false); return; }
             stillSeconds = Mathf.Abs(speed) < 0.2f && !WaitingNow && o.Desired > 1f ? stillSeconds + Time.fixedDeltaTime : 0f;
             if (stillSeconds > 1f && stillSeconds < 1.03f) Log.Info($"NWH drive: standing with throttle {o.Throttle:0.00}, gear {transmission.Gear}, engine {(vehicle.powertrain.engine.IsRunning ? "running" : "off")}, rpm {vehicle.powertrain.engine.OutputRPM:0}.");
+        }
+
+        private void TraceStep(DriveOutput o, float speed, float steerInput, int gear, float? gap)
+        {
+            var vehicle = Car.Vehicle;
+            var sb = traceLine.Clear();
+            sb.Append((Time.time - startedAt).ToString("0.00", Inv)).Append(',').Append(o.Along.ToString("0.0", Inv)).Append(',')
+                .Append(o.Lateral.ToString("0.00", Inv)).Append(',').Append(speed.ToString("0.00", Inv)).Append(',').Append(o.Desired.ToString("0.00", Inv)).Append(',')
+                .Append(o.SteerDegrees.ToString("0.0", Inv)).Append(',').Append(steerInput.ToString("0.00", Inv)).Append(',').Append(vehicle.steering.angle.ToString("0.0", Inv)).Append(',')
+                .Append(o.Throttle.ToString("0.00", Inv)).Append(',').Append(o.Brake.ToString("0.00", Inv)).Append(',').Append(o.Handbrake.ToString("0", Inv)).Append(',')
+                .Append(gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
+                .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
+                .Append(decision.Why.Replace(',', ';')).Append('\n');
+            traceRing[traceNext] = sb.ToString();
+            traceNext = (traceNext + 1) % TraceLines;
+            if (traceCount < TraceLines) traceCount++;
+        }
+
+        // The trace's kept steps, oldest first, under the CSV header.
+        public string TraceText()
+        {
+            var all = new StringBuilder(TraceHeader, 64 + traceCount * 120);
+            var first = (traceNext - traceCount + TraceLines) % TraceLines;
+            for (var k = 0; k < traceCount; k++) all.Append(traceRing[(first + k) % TraceLines]);
+            return all.ToString();
         }
 
         // The path's waypoints round the car, with Gley's live flags; CanChange() asked only where the rules want it.
@@ -413,12 +451,20 @@ namespace DrivenRides
 
         private void End(string reason, bool arrived)
         {
+            if (!Ended && DecideCost.Total > 0) Log.Info(CostLine());
             Ended = true;
             Arrived = arrived;
             EndReason = reason;
             gley?.LeaveAll();
             if (Car?.Vehicle != null) { Car.Vehicle.input.Throttle = 0f; Car.Vehicle.input.Handbrake = 1f; }
         }
+
+        // The traffic cost over the drive (review round 1, O7): Gley's cars read within TrafficDriver.SeeMetres and
+        // TrafficDriver.Decide, per physics step.
+        public string CostLine() =>
+            $"NWH drive: traffic cost over {DecideCost.Total} steps: reading Gley's cars within {TrafficDriver.SeeMetres:0} m " +
+            $"({CarsRead.Percentile(50):0} cars at the median, {CarsRead.Max:0} at most) p50 {ReadCost.Percentile(50):0} µs, p99 {ReadCost.Percentile(99):0} µs; " +
+            $"deciding p50 {DecideCost.Percentile(50):0} µs, p99 {DecideCost.Percentile(99):0} µs, max {DecideCost.Max:0} µs.";
 
         public void Stop(string reason) { if (!Ended) End(reason, false); }
 

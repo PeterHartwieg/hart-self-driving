@@ -69,13 +69,18 @@ namespace DrivenRides.Core.Drive
             var tp = graph.Position(target);
             if ((tp.X - fx) * hx + (tp.Z - fz) * hz < 0.5f)
             {
-                foreach (var next in graph.Successors(target)) Walk(graph, flags, roadHeld, fx, fz, 0f, next, reach, half, 0);
-                if (graph.Successors(target).Count == 0) Add(Box.Along(fx, fz, fx + hx * 3f, fz + hz * 3f, half), 0f);
+                // Indexed, not foreach: an interface's enumerator is boxed, garbage every physics step.
+                var next = graph.Successors(target);
+                for (var k = 0; k < next.Count; k++) Walk(graph, flags, roadHeld, fx, fz, 0f, next[k], reach, half, 0);
+                if (next.Count == 0) Add(Box.Along(fx, fz, fx + hx * 3f, fz + hz * 3f, half), 0f);
             }
             else Walk(graph, flags, roadHeld, fx, fz, 0f, target, reach, half, 0);
             // A car about to overtake: also the lanes beside its target (Gley's otherLanes), as it would move over.
             if (car.MayChangeLane)
-                foreach (var side in graph.Lateral(target)) Walk(graph, flags, roadHeld, fx, fz, 0f, side, reach, half, 0);
+            {
+                var sides = graph.Lateral(target);
+                for (var k = 0; k < sides.Count; k++) Walk(graph, flags, roadHeld, fx, fz, 0f, sides[k], reach, half, 0);
+            }
         }
 
         private void Walk(LaneGraph graph, ILiveFlags flags, Func<int, int> roadHeld, float x, float z, float u, int w, float reach, float half, int depth)
@@ -155,7 +160,15 @@ namespace DrivenRides.Core.Drive
         // Drops the segments outside an area (the ride car's sweep), so each pose tests only the ones near it.
         public void Clip(float minX, float minZ, float maxX, float maxZ)
         {
-            Segments.RemoveAll(seg => seg.Box.X + seg.Box.ExtentX < minX || seg.Box.X - seg.Box.ExtentX > maxX || seg.Box.Z + seg.Box.ExtentZ < minZ || seg.Box.Z - seg.Box.ExtentZ > maxZ);
+            // In place, without a predicate: Decide runs every physics step and must make no garbage.
+            var kept = 0;
+            for (var i = 0; i < Segments.Count; i++)
+            {
+                var seg = Segments[i];
+                if (seg.Box.X + seg.Box.ExtentX < minX || seg.Box.X - seg.Box.ExtentX > maxX || seg.Box.Z + seg.Box.ExtentZ < minZ || seg.Box.Z - seg.Box.ExtentZ > maxZ) continue;
+                Segments[kept++] = seg;
+            }
+            Segments.RemoveRange(kept, Segments.Count - kept);
         }
 
         public bool BoundsTouch(in Box b) =>

@@ -21,6 +21,12 @@ internal sealed class SimResult
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
+    // Bytes allocated inside TrafficDriver.Decide, and its calls (review round 1, O7).
+    public long DecideBytes;
+    public int Decides;
+    // Of them, those after the first second that allocated anything with the reason given unchanged: only buffers
+    // growing to a new number of cars should.
+    public int DecidesAllocating;
     public readonly StringBuilder Trace = new();
     public override string ToString() => Failure ?? (Arrived ? (LeftArea ? $"left the recorded area at {Time:0.0} s" : $"arrived at {Time:0.0} s") : Blocked != null ? $"blocked at {Time:0.0} s: {Blocked}" : "not arrived");
 }
@@ -147,7 +153,16 @@ internal sealed class TrafficSim : ILiveFlags
             };
             // NwhDrive decides every physics step; the simulation every other one (25 a second), to keep the soak
             // short. Junction events are never lost: a step without a decision keeps the last one's answers only.
-            if (step % DecideEvery == 0) traffic.Decide(snapshot, decision);
+            if (step % DecideEvery == 0)
+            {
+                var whyBefore = decision.Why;
+                var before = GC.GetAllocatedBytesForCurrentThread();
+                traffic.Decide(snapshot, decision);
+                var bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                result.DecideBytes += bytes;
+                if (bytes > 0 && result.Decides > 25 && ReferenceEquals(whyBefore, decision.Why)) result.DecidesAllocating++;
+                result.Decides++;
+            }
             else decision.Events.Clear();
             foreach (var e in decision.Events)
                 if (junctions.TryGetValue(e.Junction, out var jn))
