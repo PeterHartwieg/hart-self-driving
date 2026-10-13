@@ -975,13 +975,13 @@ namespace DrivenRides
             string where;
             // Where the dressed body sat, which for a dressed stand-in isn't its root.
             var standInAt = standIn != null ? standIn.BodyPosition : car != null ? car.transform.position : real.transform.position;
-            if (outcome == Outcome.Complete && OwnsCar) { position = standInAt; rotation = car.transform.rotation; where = "where the stand-in stopped"; }
+            if (outcome == Outcome.Complete && OwnsCar) { position = standInAt; rotation = car!.transform.rotation; where = "where the stand-in stopped"; }
             else
             {
                 var y = destination.y;
                 var lane = TrafficManager.Instance.GetClosestWaypoint(destination, 50f, w => IsValidForLeaving(w, y), prefab);
                 if (lane != null) { position = lane.position; rotation = TrafficManager.Instance.GetWaypointOrientation(lane); where = $"on the lane at waypoint {lane.listIndex}"; }
-                else if (OwnsCar) { position = standInAt; rotation = car.transform.rotation; where = "where the stand-in was"; }
+                else if (OwnsCar) { position = standInAt; rotation = car!.transform.rotation; where = "where the stand-in was"; }
                 else { position = real.transform.position; rotation = real.transform.rotation; where = "where it was parked (no lane near the destination)"; }
             }
             RemoveStandIn();
