@@ -906,6 +906,7 @@ namespace DrivenRides
                 line["contactsCaused"] = drive.ContactsCaused;
                 line["stalls"] = drive.Stalls;
                 line["redRuns"] = drive.RedRuns;
+                line["forcedCommits"] = drive.ForcedCommits;
                 // The traffic cost per physics step, microseconds (review round 1, O7).
                 if (drive.DecideCost != null && drive.ReadCost != null && drive.CarsRead != null)
                     line["trafficCost"] = new JObject

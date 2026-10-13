@@ -75,7 +75,8 @@ namespace DrivenRides.Core.Drive
         // sees), or null. Committing past a traffic car's way counts on it (review round 2, U1).
         public float? GapAhead;
         // Metres along the line where the front must stop for the planner (a step ahead it must not enter:
-        // WayOnControl.HoldAlong), or null; set before Decide, a hold found this step included (review round 3).
+        // WayOnControl.HoldAlong), or null; set before Decide, a hold found this step included. A firm stop like the
+        // stop line: committing past a traffic car's way counts on it (review round 3, R7 and V1).
         public float? PlannerHoldAlong;
     }
 
@@ -112,6 +113,10 @@ namespace DrivenRides.Core.Drive
         public float? MaxSpeed;
         // Nosing in at a creep in front of a crawling car that will stop for the ride car in its trigger.
         public bool NoseIn;
+        // Gone on past a car's way only because stopping there would be hit and going on clears it by time (the
+        // emergency rule, TrafficDriver.GoOn), and the car it was for; counted in T0 and T3 (review round 3, V2).
+        public bool ForcedCommit;
+        public int ForcedFor = -1;
         // Layer 3: backing off along the line, away from a car standing nose to nose with the ride car.
         public bool BackOff;
         public int BackOffFrom = -1;
@@ -128,7 +133,8 @@ namespace DrivenRides.Core.Drive
             GapSpeed = 0f;
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
-            StopIsRed = BackOff = NoseIn = false;
+            StopIsRed = BackOff = NoseIn = ForcedCommit = false;
+            ForcedFor = -1;
             Events.Clear();
             Why = "";
             Note = default;

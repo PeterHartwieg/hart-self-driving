@@ -70,6 +70,10 @@ namespace DrivenRides
         // T3's tally: contacts with traffic cars (all, and those this car caused), standstills over 30 s away from a
         // red, red runs (TrafficVerdict).
         public int Contacts, ContactsCaused, Stalls, RedRuns;
+        // Times it went on past a traffic car's way only because standing there would be hit (the emergency rule,
+        // TrafficDecision.ForcedCommit; review round 3, V2).
+        public int ForcedCommits;
+        private bool forcedBefore;
         // This car's velocity at the start of the physics step: before an impact changes it (U2).
         private Vector3 preVelocity;
         private float standing;
@@ -89,7 +93,7 @@ namespace DrivenRides
         // kept, and none of their buffers made (review round 2, U5).
         public bool Recording;
         private const int TraceLines = 30000;
-        private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic\n";
+        private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic,forced\n";
         private string[]? traceRing;
         private int traceNext, traceCount;
         private readonly StringBuilder traceLine = new StringBuilder(160);
@@ -222,6 +226,12 @@ namespace DrivenRides
                 gley.Apply(e);
                 Log.Info($"NWH drive: {(e.Kind == JunctionEventKind.Enter ? "in" : "out of")} intersection {e.Junction} at {driver.Along:0} m.");
             }
+            if (decision.ForcedCommit && !forcedBefore)
+            {
+                ForcedCommits++;
+                Log.Info($"NWH drive: going on past traffic car {decision.ForcedFor}'s way: standing there would be hit ({speed:0.0} m/s, {driver.Along:0} m).");
+            }
+            forcedBefore = decision.ForcedCommit;
             if (decision.Why != lastWhy)
             {
                 if (decision.Why.Length > 0) Log.Info($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");
@@ -324,7 +334,7 @@ namespace DrivenRides
                 .Append(o.Throttle.ToString("0.00", Inv)).Append(',').Append(o.Brake.ToString("0.00", Inv)).Append(',').Append(o.Handbrake.ToString("0", Inv)).Append(',')
                 .Append(gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
-                .Append(decision.Why.Replace(',', ';')).Append('\n');
+                .Append(decision.Why.Replace(',', ';')).Append(',').Append(decision.ForcedCommit ? decision.ForcedFor.ToString(Inv) : "").Append('\n');
             if (traceRing == null) return;
             traceRing[traceNext] = sb.ToString();
             traceNext = (traceNext + 1) % TraceLines;
@@ -408,15 +418,17 @@ namespace DrivenRides
             Contacts++;
             // Who caused it, from both cars' velocities before the impact (this physics step's start: ours from
             // FixedUpdate, theirs from this step's reading of the Gley cars) and the contact's normal; anything
-            // unclear counts as this car's (TrafficVerdict.CausedByRide, review round 2, U2). A car not in the reading
-            // falls back to its velocity now.
-            var theirV = other.rb != null ? other.rb.velocity : Vector3.zero;
+            // unclear counts as this car's (TrafficVerdict.CausedByRide, review round 2, U2).
+            var theirV = Vector3.zero;
+            var sampled = false;
             for (var i = 0; i < gley.Components.Count && i < cars.Count; i++)
-                if (gley.Components[i] == other) { theirV = new Vector3(cars[i].Vx, 0f, cars[i].Vz); break; }
+                if (gley.Components[i] == other) { theirV = new Vector3(cars[i].Vx, 0f, cars[i].Vz); sampled = true; break; }
             var normal = collision.contactCount > 0 ? collision.GetContact(0).normal : Vector3.zero;
             var ourC = Car.Body.worldCenterOfMass;
             var theirC = other.rb != null ? other.rb.worldCenterOfMass : other.transform.position;
-            var caused = TrafficVerdict.CausedByRide(preVelocity.x, preVelocity.z, ourC.x, ourC.z, theirV.x, theirV.z, theirC.x, theirC.z, normal.x, normal.z);
+            // A car not in this step's reading has no velocity from before the impact: unknown, so this car's (review
+            // round 3, V4).
+            var caused = !sampled || TrafficVerdict.CausedByRide(preVelocity.x, preVelocity.z, ourC.x, ourC.z, theirV.x, theirV.z, theirC.x, theirC.z, normal.x, normal.z);
             var ours = new Vector2(preVelocity.x, preVelocity.z).magnitude;
             var theirs = new Vector2(theirV.x, theirV.z).magnitude;
             var towards = normal.sqrMagnitude > 0f ? Mathf.Abs(Vector3.Dot(preVelocity, Vector3.ProjectOnPlane(normal, Vector3.up).normalized)) : 0f;
