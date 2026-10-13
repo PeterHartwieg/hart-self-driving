@@ -14,12 +14,9 @@ namespace DrivenRides.Core.Drive
         public List<int> Path => Expanded.Path;
         // The arc turns: path position of the entry (the exit is the next position) and the arc.
         public List<(int Entry, Polyline Arc)> Arcs { get; } = new List<(int, Polyline)>();
-        // Path positions driven at no more than a speed: a long car's U-turns, and the roads' limits.
+        // Path positions driven at no more than a speed: the roads' limits.
         public List<(int Position, float SpeedKmh)> Slow { get; } = new List<(int, float)>();
         public float TopKmh { get; }
-
-        // A U-turn in a long car is taken at a crawl; other cars take it at the line's corner speed (12 km/h or more).
-        public const float LongUTurnKmh = 15f;
 
         private DrivePlan(ExpandedPath expanded, float topKmh) { Expanded = expanded; TopKmh = topKmh; }
 
@@ -38,9 +35,10 @@ namespace DrivenRides.Core.Drive
                 var line = at >= 0 ? arc(entry, exit) : null;
                 if (line != null) plan.Arcs.Add((at, line));
             }
-            // No flat 25 km/h for added turns: the corner speed comes from the line's curvature, so a wide turn is
-            // driven faster than a tight one (Peter, NWH spike).
-            if (car.Long) foreach (var k in expanded.UTurnPath) plan.Slow.Add((k, LongUTurnKmh));
+            // No flat speed for added turns or U-turns: the corner speed comes from the line's curvature (never under
+            // PursuitDriver.MinCornerMs), so a wide turn is driven faster than a tight one (Peter, NWH spike). The
+            // Gley-era 15 km/h for a long car's U-turn covered the whole straight way into the junction too, and held
+            // the car at a crawl before the turn began (T3 20261013-185723, ride 8: "taking a turn super slow").
             // Gley caps every car at the road's limit; so does this driver.
             if (limitKmh != null)
                 for (var k = 0; k < path.Count; k++)

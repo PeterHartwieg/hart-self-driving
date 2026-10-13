@@ -142,11 +142,12 @@ public sealed class PursuitDriverTests
     private static TrafficDecision Decide(DriveLine line, float rearZ, float speed, params OtherCar[] cars)
     {
         var driver = new PursuitDriver(line, 3f, 4f, 14f);
+        driver.StartAt(0, rearZ);
         driver.Step(new DriveInput { RearX = 0, RearZ = rearZ, Heading = 0, SpeedMs = speed, Dt = 0.02f });
         var graph = new TurnTestGraph();
         graph.Add(0, 0);
         var traffic = new TrafficDriver(graph.Build(), line, driver, new RideBody { Wheelbase = 3f, FrontAhead = 4f, RearBehind = 1f, HalfWidth = 0.95f });
-        var at = line.Line.Project(0, rearZ, 0);
+        var at = driver.Along;
         var heading = 0f;
         return traffic.Decide(new TrafficSnapshot
         {
@@ -190,5 +191,21 @@ public sealed class PursuitDriverTests
         var lineMeets = 0f;
         for (var s = 0f; s < line.Line.Length; s += 0.1f) if (line.Line.At(s).X <= -2.35f) { lineMeets = s; break; }
         Assert.True(give!.Value - 4f < lineMeets - 2f, $"gives way with the front at {give} m, the line meets their lane at {lineMeets} m");
+    }
+
+    [Fact]
+    public void CreepsThroughTheTriggerOfACarWaitingForItAndNoFurther()
+    {
+        var line = DriveLine.Build(Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 200)), Array.Empty<(int, Polyline)>());
+        // Standing for the ride car, nose 1 m right of its body, its 3 m trigger across the ride car's way at z 20.
+        var waiting = Other(1, 4.2f, 20f, 0f, 0f);
+        waiting.StoppedForUs = true;
+        waiting.Heading = -(float)Math.PI / 2;
+        // In its trigger: the creep, and the car's body is no gap (it isn't in the way).
+        var inside = Decide(line, 18f, 3f, waiting);
+        Assert.InRange(inside.MaxSpeed ?? 99f, TrafficDriver.CreepMs - 0.01f, TrafficDriver.CreepMs + 0.01f);
+        Assert.Null(inside.GapAhead);
+        // Out of it: on at its own speed (T3 20261013-185723, ride 8: 4 s at 2 m/s after the turn).
+        Assert.Null(Decide(line, 26f, 3f, waiting).MaxSpeed);
     }
 }

@@ -172,7 +172,7 @@ namespace DrivenRides
                 return;
             }
             backing = false;
-            var gap = GapAhead(speed);
+            var gap = HoldForCast(GapAhead(speed));
             if (decision.GapAhead is float carGap && (gap == null || carGap < gap)) { gap = carGap; lastBlockerLayer = -1; }
             var o = driver.Step(new DriveInput
             {
@@ -287,6 +287,22 @@ namespace DrivenRides
                 if (s != null) Dumps.Add((kind, s.ToJson()));
             }
             catch (Exception ex) { Log.Error("Traffic dump: " + ex); }
+        }
+
+        // People crossing in front come and go from the cast ahead: once it holds the car (within StopGap + 1 m), the
+        // car waits until the cast has stayed clear beyond StopGap + 3 m for CastClearSeconds, instead of stopping and
+        // going with each step a person takes (T3 20261013-185723, ride 8: the gap flickered 0.5, 10.5, 8.5, 0.5 m).
+        private const float CastClearSeconds = 0.8f;
+        private float? castHold;
+        private float castClearFor;
+
+        private float? HoldForCast(float? gap)
+        {
+            if (gap is float g && g < PursuitDriver.StopGap + 1f) { castHold = g; castClearFor = 0f; return gap; }
+            if (castHold is not float held) return gap;
+            castClearFor = gap == null || gap > PursuitDriver.StopGap + 3f ? castClearFor + Time.fixedDeltaTime : 0f;
+            if (castClearFor >= CastClearSeconds) { castHold = null; return gap; }
+            return gap is float now ? Mathf.Min(now, held) : held;
         }
 
         // The car can't get on, whatever the driver does: pushing with no motion for 2 s (against a kerb nose or a

@@ -730,9 +730,7 @@ namespace DrivenRides
                     var arc = at >= 0 ? TurnArc.Fit(graph, entry, exit, minRadius) : null;
                     if (arc != null) arcs.Add((at, arc));
                 }
-                // No flat 25 km/h for added turns: the corner speed comes from the line's curvature, so a wide turn is
-                // driven faster than a tight one (Peter). U-turns in a long car stay at a crawl.
-                if (car.Length >= 5.5f) foreach (var k in expanded.UTurnPath) slow.Add((k, 15f));
+                // No flat speed for added turns or U-turns: the corner speed comes from the line's curvature (DrivePlan).
             }
             // Gley caps every car at the road's limit; so does this driver (the planner's plan has them already).
             if (planner == null)
