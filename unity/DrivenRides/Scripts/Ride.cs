@@ -593,7 +593,7 @@ namespace DrivenRides
         private readonly struct Steering
         {
             public readonly CarShape Shape;
-            public readonly float HalfWidth, Length;
+            public readonly float HalfWidth, Length, Pivot;
             public readonly Vector3 BodyCentre, BodyHalf;
 
             public Steering(VehicleComponent copy)
@@ -604,14 +604,36 @@ namespace DrivenRides
                 TestCar.BodyBox(copy, out BodyCentre, out BodyHalf);
                 // Gley puts the centre of mass between the wheels when it builds the pool.
                 var mass = copy.rb != null ? copy.rb.centerOfMass : BodyCentre;
-                Shape = new CarShape(copy.wheelDistance, copy.maxSteer, front, mass.y, mass.z);
+                // The car turns as the player's drivable version of it does (DrivableSteering); the ride gives Gley
+                // these numbers for its car. A car the player can't drive (the taxi) keeps Gley's wheel distance with
+                // its lock held to a FallbackRadius circle.
+                var drivable = DrivableSteering.For(copy.prefab != null ? copy.prefab : copy.gameObject, ManoeuvreSpeed / 3.6f);
+                var wheelDistance = drivable?.Wheelbase ?? copy.wheelDistance;
+                var steer = drivable?.Steer ?? Mathf.Min(copy.maxSteer, Mathf.Atan(copy.wheelDistance / FallbackRadius) * Mathf.Rad2Deg);
+                // The ride turns the car about its centre of mass (TurnAboutMiddle), so that is the model's pivot: the
+                // front axle and the body box are measured from it.
+                Pivot = mass.z;
+                Shape = new CarShape(wheelDistance, steer, front - mass.z, mass.y, 0f);
+                BodyCentre.z -= mass.z;
                 if (Logged.Add(copy.name))
-                    Log.Info($"Steering for {copy.name}: wheel distance {Shape.WheelDistance:0.00} m, max steer {Shape.MaxSteerDegrees:0.0}, front axle {Shape.FrontAxle:0.00} m ahead, centre of mass {Shape.CentreAhead:0.00} m ahead and {Shape.CentreHeight:0.00} m up, body {BodyHalf * 2f} at {BodyCentre}.");
+                    Log.Info($"Steering for {copy.name}: pivot {Pivot:0.00} m ahead of the origin, wheel distance {Shape.WheelDistance:0.00} m, lock {Shape.MaxSteerDegrees:0.0} ({(drivable != null ? "its drivable version" : "Gley's, held to " + FallbackRadius + " m")}; Gley {copy.wheelDistance:0.00} m, {copy.maxSteer:0.0}), circle {MinRadius:0.0} m, front axle {Shape.FrontAxle:0.00} m ahead, centre of mass {Shape.CentreAhead:0.00} m ahead and {Shape.CentreHeight:0.00} m up, body {BodyHalf * 2f} at {BodyCentre}.");
             }
 
             private static readonly HashSet<string> Logged = new HashSet<string>();
+            // The tightest circle for a car without a drivable version: about the drivable cars' own.
+            private const float FallbackRadius = 5f;
+            // The lock is the drivable car's at this speed (NWH narrows it as the car goes faster): a driver makes a
+            // tight turn slowly. At 25 km/h the 6.7 m car's circle was 8.1 m and it lost all but one U-turn (turn test
+            // 0.1.49).
+            private const float ManoeuvreSpeed = 10f;
 
             public float MinRadius => Shape.WheelDistance / Mathf.Tan(Shape.MaxSteerDegrees * Mathf.Deg2Rad);
+
+            // How much quicker than Gley the ride car's driver turns the wheel: three times for a car with a wide
+            // turning circle (the 6.7 m car lagged into turns at Gley's rate), Gley's own rate for a nimble one, which
+            // at 3x cut its U-turns across to the far side early (taxi and limo, turn test 0.1.47; at Gley's rate in
+            // 0.1.31 they passed).
+            public float SteeringFactor => Mathf.Clamp(1f + (MinRadius - 3.5f), 1f, 3f);
         }
 
         // Room kept around the body box on an added turn: the drive model was up to 0.15 m off the recorded track,
@@ -634,7 +656,7 @@ namespace DrivenRides
             targets.Add(graph.Position(aim));
             // Gley moves on from the aim while the car is still turning; the rest of the swing, 20 m down the lane.
             targets.AddRange(TurnDrive.LaneAfter(graph, aim, 20f));
-            return BodyClear(TurnDrive.Drive(graph.Position(entry), dx, dz, targets, car.Shape, speedKmh / 3.6f, SteeringFactor), car, out what);
+            return BodyClear(TurnDrive.Drive(graph.Position(entry), dx, dz, targets, car.Shape, speedKmh / 3.6f, car.SteeringFactor), car, out what);
         }
 
         // The car's body box, TurnMargin larger, at each pose of a modelled drive; null poses: the car never got there.
@@ -663,9 +685,13 @@ namespace DrivenRides
             return true;
         }
 
-        // How far ahead of the car's pivot, along a turn's arc, the ride puts Gley's target: with 3.5 m the modelled
-        // Dash kept its front axle, middle and rear axle within 0.3 m of every catalogue arc (TurnDrive.Pursue).
-        private const float ArcLookahead = 3.5f;
+        // How far ahead of the car's pivot, along a turn's arc, the ride puts Gley's target: its front axle and this
+        // much more. The modelled 6.7 m car kept its front axle, middle and rear axle within 0.3 m of every catalogue
+        // arc with it (TurnDrive.Pursue); a fixed 3.5 m from the pivot put the limo's target behind its front axle and
+        // its wheel flicked from side to side (Peter, turn test 0.1.47).
+        private const float ArcLead = 1.1f;
+
+        private static float ArcLookahead(Steering car) => car.Shape.FrontAxle + ArcLead;
 
         // An added turn's driver's arc, if the junction has room for one this car can follow and the car, pursuing it
         // as Gley will, touches nothing.
@@ -674,7 +700,7 @@ namespace DrivenRides
             if (car.Shape.WheelDistance <= 0f) return null;
             var line = TurnArc.Fit(graph, entry, exit, car.MinRadius);
             if (line == null) return null;
-            var poses = TurnDrive.Pursue(line, car.Shape, TurnSpeed / 3.6f, SteeringFactor, ArcLookahead);
+            var poses = TurnDrive.Pursue(line, car.Shape, TurnSpeed / 3.6f, car.SteeringFactor, ArcLookahead(car));
             if (poses == null) return null;
             // The lead-in is the entry lane, driven as any lane is; the check starts where the car's nose reaches the
             // entry waypoint.
@@ -1313,11 +1339,14 @@ namespace DrivenRides
         private static readonly MethodInfo? SetMaxSpeedMethod = AccessTools.Method(typeof(DrivingAI), "setVehMaxSpeed");
         private static readonly FieldInfo? PowerStepField = AccessTools.Field(typeof(TrafficManager), "vehiclePowerStep");
         // Gley turns the wheel to full lock in one second (VehicleComponent.GetSteeringStep); at 25 km/h that is 7 m of
-        // an 8 m U-turn. The ride car's driver turns it three times as fast, as a driver does at low speed. The pool
-        // slot gets its own step back when the ride lets the car go.
+        // an 8 m U-turn. The ride car's driver turns it up to three times as fast (Steering.SteeringFactor), as a
+        // driver does at low speed. The pool slot gets its own step back when the ride lets the car go.
         private static readonly FieldInfo? SteeringStepField = AccessTools.Field(typeof(TrafficManager), "vehicleSteeringStep");
-        private const float SteeringFactor = 3f;
         private float steeringWas = -1f;
+        private float wheelDistanceWas = -1f;
+        private float maxSteerWas = -1f;
+        private static readonly FieldInfo? WheelDistanceField = AccessTools.Field(typeof(TrafficManager), "vehicleWheelDistance");
+        private static readonly FieldInfo? MaxSteerField = AccessTools.Field(typeof(TrafficManager), "vehicleMaxSteer");
         private const float AccelerationSeconds = 5f;
 
         private float TopSpeed => testTopSpeed > 0 ? testTopSpeed : driverTopSpeed > 0 ? driverTopSpeed : car.maxPossibleSpeed;
@@ -1350,10 +1379,18 @@ namespace DrivenRides
                 // (10 s by default): slow off the line. The ride car reaches its top speed in AccelerationSeconds.
                 if (PowerStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> power && carIndex < power.Length)
                     power[carIndex] = top / 3.6f / (AccelerationSeconds / Time.fixedDeltaTime);
-                if (SteeringStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> steering && carIndex < steering.Length && steeringWas < 0f)
+                if (SteeringStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> steering && carIndex < steering.Length && steeringWas < 0f
+                    && WheelDistanceField?.GetValue(TrafficManager.Instance) is NativeArray<float> wheels && carIndex < wheels.Length
+                    && MaxSteerField?.GetValue(TrafficManager.Instance) is NativeArray<float> lockArray && carIndex < lockArray.Length)
                 {
                     steeringWas = steering[carIndex];
-                    steering[carIndex] = steeringWas * SteeringFactor;
+                    wheelDistanceWas = wheels[carIndex];
+                    maxSteerWas = lockArray[carIndex];
+                    // The drivable car's wheelbase and lock (Steering), its wheel turned to full lock in a third of a
+                    // second or more (SteeringFactor), as TurnDrive models it.
+                    wheels[carIndex] = carSteering.Shape.WheelDistance;
+                    lockArray[carIndex] = carSteering.Shape.MaxSteerDegrees;
+                    steering[carIndex] = carSteering.Shape.MaxSteerDegrees * Time.fixedDeltaTime * carSteering.SteeringFactor;
                 }
                 Log.Info($"Top speed {top} km/h ({(driverTopSpeed > 0 ? $"vehicle type {driverVehicleType}" : "traffic model")}; Gley model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
             }
@@ -1391,10 +1428,11 @@ namespace DrivenRides
                 arcAlong = 0f;
                 Event($"Turn {entry} -> {exit}: steering along its {line.Length:0} m arc.");
             }
-            var pivot = car.transform.position;
+            var pivot = car.rb != null ? car.rb.worldCenterOfMass : car.transform.position;
             arcAlong = line.Project(pivot.x, pivot.z, arcAlong);
-            if (arcAlong + ArcLookahead >= line.Length) { EndArc(); return; }
-            var carrot = line.At(arcAlong + ArcLookahead);
+            var lookahead = ArcLookahead(carSteering);
+            if (arcAlong + lookahead >= line.Length) { EndArc(); return; }
+            var carrot = line.At(arcAlong + lookahead);
             SetTarget(new Vector3(carrot.X, carrot.Y, carrot.Z));
         }
 
@@ -1410,6 +1448,32 @@ namespace DrivenRides
         {
             var target = TrafficManager.Instance.GetTargetWaypoint(carIndex);
             if (target != null) SetTarget(target.position);
+        }
+
+        // After TrafficManager.FixedUpdate: Gley turns a car about its origin, which on the taxi and the limo is the
+        // rear axle, so the ride car pivoted visibly on its back wheels (Peter, turn test 0.1.49). The ride car turns
+        // about its centre of mass instead: after the step's rotation (MoveRotation, applied in this physics step) the
+        // body is moved by the few centimetres that keep the centre of mass where rotating about it would. Moved, not
+        // pushed: added velocity built up through Gley's drive force and threw the car off at 400 m/s (turn test
+        // 0.1.50).
+        private static readonly FieldInfo? RotationAngleField = AccessTools.Field(typeof(TrafficManager), "vehicleRotationAngle");
+
+        internal static void TurnAboutMiddle() => Active?.TurnAboutCentre();
+
+        private void TurnAboutCentre()
+        {
+            if (!departed || finished || cancelled || car == null || car.rb == null || !OwnsCar) return;
+            if (!(RotationAngleField?.GetValue(TrafficManager.Instance) is NativeArray<float> angles) || carIndex >= angles.Length) return;
+            var degrees = angles[carIndex];
+            if (Mathf.Abs(degrees) < 0.0001f) return;
+            var rb = car.rb;
+            // From the centre of mass to the origin, flat; rotating the origin about the centre of mass by the step's
+            // angle moves it by (R - 1) of that.
+            var offset = rb.position - rb.worldCenterOfMass;
+            offset.y = 0f;
+            var moved = Quaternion.Euler(0f, degrees, 0f) * offset - offset;
+            if (moved.sqrMagnitude > 0.04f) return;
+            rb.position += moved;
         }
 
         // Gley's float3 array, written by reflection: the mod doesn't reference Unity.Mathematics. The boxed copy
@@ -1969,6 +2033,10 @@ namespace DrivenRides
                 {
                     if (TrafficManager.HasInstance && SteeringStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> steering && steering.IsCreated && carIndex < steering.Length)
                         steering[carIndex] = steeringWas;
+                    if (TrafficManager.HasInstance && WheelDistanceField?.GetValue(TrafficManager.Instance) is NativeArray<float> wheels && wheels.IsCreated && carIndex < wheels.Length && wheelDistanceWas > 0f)
+                        wheels[carIndex] = wheelDistanceWas;
+                    if (TrafficManager.HasInstance && MaxSteerField?.GetValue(TrafficManager.Instance) is NativeArray<float> lockArray && lockArray.IsCreated && carIndex < lockArray.Length && maxSteerWas > 0f)
+                        lockArray[carIndex] = maxSteerWas;
                 }
                 catch (Exception ex) { Log.Error("Steering restore: " + ex.Message); }
                 steeringWas = -1f;

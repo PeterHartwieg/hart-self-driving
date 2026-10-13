@@ -71,6 +71,10 @@ namespace DrivenRides.Core.Ride
         // The arc must be this much wider than the car's tightest circle, so pursuit has room to follow it.
         public const float RadiusSlack = 1.15f;
         private const float MaxRadius = 30f;
+        // No arc is tighter than this, whatever the car: the taxi's and the limo's turning circles in Gley (3.2 m and
+        // 2 m) let them pivot round a corner on their back wheels (Peter, turn test 0.1.47). The 6.7 m car's
+        // tightest followable arc, 6.6 m, looked right.
+        public const float MinDriveRadius = 6.5f;
         // The arc may end this far past the exit waypoint, and the line runs this far on down the exit lane.
         private const float ExitSlack = 2f;
         private const float RunOut = 10f;
@@ -149,8 +153,9 @@ namespace DrivenRides.Core.Ride
             if (room <= 0f) return null;
             var half = Math.Tan(turn / 2);
             var box = Math.Max(0f, Math.Min(a - startFrom, endBy - b));
-            var r = radius ?? (float)Math.Min(MaxRadius, Math.Max(box / half, minRadius * RadiusSlack));
-            if (r < minRadius * RadiusSlack || r * half > room + 0.01f) return null;
+            var least = Math.Max(minRadius * RadiusSlack, MinDriveRadius);
+            var r = radius ?? (float)Math.Min(MaxRadius, Math.Max(box / half, least));
+            if (r < least || r * half > room + 0.01f) return null;
             var t = (float)(r * half);
             var t1 = new Vec3(e.X + ux * (a - t), e.Y, e.Z + uz * (a - t));
             var t2 = new Vec3(x.X + vx * (b + t), x.Y, x.Z + vz * (b + t));
