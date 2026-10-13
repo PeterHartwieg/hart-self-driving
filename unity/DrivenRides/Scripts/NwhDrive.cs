@@ -55,6 +55,11 @@ namespace DrivenRides
         // The car can't get on: raised with the path position its front had reached and what blocked it, for the
         // planner to block that step and plan again (NwhPlanner.Block).
         public event Action<int, string>? Blocked;
+        // Asked once the car has backed off from a blocked step, with the path position and what blocked it: the
+        // path to drive on instead (the planner blocks the step and plans again from where the car is), or null to
+        // give up. Without it, the drive ends "blocked".
+        public Func<int, string, DrivePlan?>? Replan;
+        private int blockedPosition;
 
         // T3's tally: contacts with traffic cars (and who was moving), standstills over 30 s away from a red, red runs.
         public int Contacts, ContactsMoving, Stalls, RedRuns;
@@ -78,13 +83,40 @@ namespace DrivenRides
         public void Begin(NwhCar car, List<int> path, IReadOnlyList<(int Entry, Polyline Arc)> arcs, IEnumerable<(int Position, float SpeedKmh)> slow, float topKmh)
         {
             Car = car;
+            topMs = topKmh / 3.6f;
+            UsePath(path, arcs, slow);
+            gley = new GleyTraffic(car.Root);
+            startedAt = Time.time;
+            lastProgressTime = Time.time;
+        }
+
+        // Drives on along a new path from where the car is (a blocked step planned round, Replan): the line, the
+        // driver and the traffic rules start afresh on it, and no intersection keeps counting the car.
+        private void Restart(DrivePlan plan)
+        {
+            gley.LeaveAll();
+            UsePath(plan.Path, plan.Arcs, plan.Slow);
+            lastProgressAlong = 0f;
+            lastProgressTime = Time.time;
+            stillSeconds = standing = 0f;
+            prevFront = Car.FrontAhead;
+            stoppable.Clear();
+            castHold = null;
+            castClearFor = 0f;
+            Log.Info($"NWH drive: driving on along a new path of {plan.Path.Count} waypoints, {line.Line.Length:0} m.");
+        }
+
+        private void UsePath(List<int> path, IReadOnlyList<(int Entry, Polyline Arc)> arcs, IEnumerable<(int Position, float SpeedKmh)> slow)
+        {
+            var car = Car;
             this.path = path;
+            this.arcs.Clear();
+            slowStretches.Clear();
             this.arcs.AddRange(arcs);
             var all = GleyGraph.Waypoints!;
             var points = new List<Vec3>(path.Count);
             foreach (var i in path) points.Add(GleyGraph.ToVec(all[i].position));
             line = DriveLine.Build(points, arcs);
-            topMs = topKmh / 3.6f;
             driver = new PursuitDriver(line, car.Wheelbase, car.FrontAhead, topMs, TrackWidth);
             // A slow position covers the stretch from it to the next position.
             foreach (var (position, kmh) in slow)
@@ -98,9 +130,6 @@ namespace DrivenRides
             rearBehind = car.RearZ - (car.BodyCentre.z - car.BodyHalf.z);
             var body = new RideBody { Wheelbase = car.Wheelbase, FrontAhead = car.FrontAhead, RearBehind = rearBehind, HalfWidth = car.BodyHalf.x };
             traffic = new TrafficDriver(GleyGraph.Graph!, line, driver, body);
-            gley = new GleyTraffic(car.Root);
-            startedAt = Time.time;
-            lastProgressTime = Time.time;
         }
 
         private void FixedUpdate()
@@ -146,8 +175,17 @@ namespace DrivenRides
             var transmission = vehicle.powertrain.transmission;
             if (blockedWhat != null)
             {
-                // Blocked: a little back along the line, then the step is given up.
-                if (Time.time >= blockedUntil) { End("blocked: " + blockedWhat, false); return; }
+                // Blocked: a little back along the line, then the step is given up, and the car drives on round it if
+                // the planner has a way (Replan).
+                if (Time.time >= blockedUntil)
+                {
+                    DrivePlan? next = null;
+                    try { next = Replan?.Invoke(blockedPosition, blockedWhat); } catch (Exception ex) { Log.Error("NWH drive, replan: " + ex); }
+                    if (next == null || next.Path.Count < 2) { End("blocked: " + blockedWhat, false); return; }
+                    blockedWhat = null;
+                    Restart(next);
+                    return;
+                }
                 input.Steering = 0f;
                 input.Throttle = 0f;
                 input.Handbrake = 0f;
@@ -332,6 +370,7 @@ namespace DrivenRides
             while (position + 1 < path.Count && line.AlongOf[position + 1] <= front) position++;
             Log.Info($"NWH drive: blocked ({what}) at path position {position}, {front:0} m along; backing off.");
             blockedWhat = what;
+            blockedPosition = position;
             blockedUntil = Time.time + 1.5f;
             pushSeconds = staticHeldSeconds = 0f;
             try { Blocked?.Invoke(position, what); } catch (Exception ex) { Log.Error("NWH drive, blocked: " + ex.Message); }

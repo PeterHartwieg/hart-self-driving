@@ -6,12 +6,12 @@ namespace DrivenRides.Core.Testing
 {
     public sealed class Judge
     {
-        private readonly CaseGeometry geometry;
-        private readonly Fixture fixture;
+        private CaseGeometry geometry;
+        private Fixture fixture;
         private readonly List<LaneStretch> plain = new List<LaneStretch>();
         private readonly List<LaneStretch> exitRoad = new List<LaneStretch>();
         private readonly JudgeResult result = new JudgeResult();
-        private readonly Pavement pavement;
+        private Pavement pavement;
         private readonly LaneGraph graph;
 
         // Whether a point is pedestrian ground (in game: the NavMesh under the pedestrians' filter, NwhMeasure.Ground:
@@ -31,11 +31,27 @@ namespace DrivenRides.Core.Testing
 
         public Judge(LaneGraph graph, CaseGeometry geometry, Fixture fixture)
         {
+            this.graph = graph;
             this.geometry = geometry;
             this.fixture = fixture;
-            this.graph = graph;
+            pavement = Stretches();
+        }
+
+        // A ride planned again on the way (its car found a step blocked): the rest of it is judged on the new route,
+        // which runs as the old one did up to where the car left it. Gates passed and what was found stay.
+        public void Reroute(CaseGeometry geometry, Fixture fixture)
+        {
+            this.geometry = geometry;
+            this.fixture = fixture;
+            pavement = Stretches();
+        }
+
+        private Pavement Stretches()
+        {
+            plain.Clear();
+            exitRoad.Clear();
             // The pavement past the manoeuvre (the whole route for a ride or a ramp).
-            pavement = new Pavement(graph, fixture.Route, fixture.Manoeuvre == CaseKind.Turn || fixture.Manoeuvre == CaseKind.UTurn ? fixture.EntryIndex + 1 : 0);
+            var pavement = new Pavement(graph, fixture.Route, fixture.Manoeuvre == CaseKind.Turn || fixture.Manoeuvre == CaseKind.UTurn ? fixture.EntryIndex + 1 : 0);
             // Lane stretches only: an added turn's or a lane change's step is a chord across lanes, not a lane.
             for (int k = 0; k + 1 < fixture.Route.Count; k++)
                 if (!graph.IsIntersection(fixture.Route[k]) && !graph.IsIntersection(fixture.Route[k + 1]) && Has(graph.Successors(fixture.Route[k]), fixture.Route[k + 1]))
@@ -43,7 +59,7 @@ namespace DrivenRides.Core.Testing
             // The oncoming lanes of the road turned into, from its mouth on: inside the junction a correct left turn
             // sweeps across them, and a U-turn's own approach lanes are that road's oncoming lanes (the far-side check
             // covers U-turns).
-            if (fixture.Manoeuvre != CaseKind.Turn) return;
+            if (fixture.Manoeuvre != CaseKind.Turn) return pavement;
             float length = 0;
             for (int k = fixture.ExitIndex; k + 1 < fixture.Route.Count && length < 25f; k++)
             {
@@ -60,6 +76,7 @@ namespace DrivenRides.Core.Testing
                 stretch.Min = 0;
                 exitRoad.Add(stretch);
             }
+            return pavement;
         }
 
         public bool Failed { get; private set; }

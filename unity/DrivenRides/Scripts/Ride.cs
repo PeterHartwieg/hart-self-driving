@@ -7,6 +7,7 @@ using System.Reflection;
 using BigAmbitions.DayNightCycle;
 using Buildings;
 using DG.Tweening;
+using DrivenRides.Core.Drive;
 using DrivenRides.Core.Ride;
 using DrivenRides.Core.Routing;
 using GleyTrafficSystem;
@@ -1171,6 +1172,7 @@ namespace DrivenRides
             if (nwhPlanner != null && graph != null)
             {
                 var plan = nwhPlanner.Plan(graph, r.Waypoints);
+                nwhPlan = plan;
                 arcs.Clear();
                 arcAt = 0;
                 arcAlong = -1f;
@@ -1733,6 +1735,37 @@ namespace DrivenRides
             });
             replanSeconds = 0f;
             Log.Info("Watchdog: replanning (" + watch!.LastReason + ").");
+        }
+
+        // The NWH ride's plan for the present route (its path is `path`), for the NwhDrive that drives it.
+        private DrivePlan? nwhPlan;
+
+        // NwhDrive.Replan for an NWH ride (phase 5 hands it to the ride's NwhDrive): the step the car found blocked is
+        // blocked for this car, the rest of the ride planned again from it to the ride's goals by the NWH planner,
+        // and the new route taken as a replan is (progress, waypoint index, watchdog); the new path goes back to the
+        // drive, which drives on without stopping. Null: no way round, the drive ends and the watchdog finishes the
+        // ride the vanilla way.
+        internal DrivePlan? NwhBlocked(int position, string what)
+        {
+            var graph = GleyGraph.Graph;
+            if (nwhPlanner == null || graph == null) return null;
+            var w = route.Waypoints;
+            var r = NwhPlanner.RouteStepAt(w, path, position);
+            if (r < 0) return null;
+            int from = w[r], to = w[r + 1];
+            nwhPlanner.Block(from, to);
+            var (next, summary) = nwhPlanner.PlanRoute(graph, from, goals, vehicleType);
+            Event($"Step {from} -> {to} blocked by {what}; {(next != null ? "replanned: " + summary : "no route round it")}.");
+            if (next == null) return null;
+            alongOffset += progress!.AlongMetres;
+            route = next;
+            path = Expand(route);
+            owned.Clear();
+            owned.AddRange(path);
+            progress = new RouteProgress(Points(path));
+            IndexRoute();
+            watch?.Replanned(unpausedSeconds);
+            return nwhPlan;
         }
 
         private void StepReplan()

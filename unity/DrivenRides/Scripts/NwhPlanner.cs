@@ -327,6 +327,69 @@ namespace DrivenRides
             return null;
         }
 
+        // A route planned for this car, as an NWH ride is planned (Ride.TryCreateRide; the rig's ride cases): wider
+        // U-turns allowed, up to eight rounds of planning, each finding the steps this car can't drive
+        // (BlockedSteps) and blocking them. The route or null, and a short summary of the added steps driven and
+        // the ones blocked.
+        public (Route? Route, string Summary) PlanRoute(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds = 8)
+        {
+            var blockedNotes = new List<string>();
+            Route? route = null;
+            for (var attempt = 0; attempt < rounds; attempt++)
+            {
+                var job = RoutePlanner.Plan(graph, new RouteRequest
+                {
+                    Start = start, Goals = goals, VehicleType = vehicleType, IsDisabled = GleyGraph.IsDisabled,
+                    IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || IsBlocked(a, b), WideUTurns = true,
+                }, 200000);
+                route = job.Status == PlanStatus.Found ? job.Result : null;
+                if (route == null) break;
+                var found = BlockedSteps(graph, route.Waypoints);
+                if (found.Count == 0) break;
+                foreach (var (from, to, what) in found)
+                {
+                    Block(from, to);
+                    blockedNotes.Add($"{StepKind(graph, from, to)} {from}->{to} ({(what.Length > 60 ? what.Substring(0, 60) + "..." : what)})");
+                }
+                route = null;
+            }
+            var driven = new List<string>();
+            var changes = 0;
+            if (route != null)
+            {
+                var w = route.Waypoints;
+                for (var k = 0; k + 1 < w.Count; k++)
+                {
+                    if (Contains(graph.Successors(w[k]), w[k + 1])) continue;
+                    var kind = StepKind(graph, w[k], w[k + 1]);
+                    if (kind == "lane change") { changes++; continue; }
+                    var verdict = Check.Step(w[k], w[k + 1]);
+                    driven.Add(kind == "wide U-turn" ? $"{kind} {graph.UTurnWidth(w[k], w[k + 1]):0} m ({verdict.Form})" : $"{kind} ({verdict.Form})");
+                }
+            }
+            var summary = (route != null ? $"{(driven.Count > 0 ? string.Join(", ", driven) : "no added turns")}, {changes} lane changes" : "no route")
+                + (blockedNotes.Count > 0 ? $"; blocked {blockedNotes.Count}: {string.Join("; ", blockedNotes.GetRange(0, Math.Min(4, blockedNotes.Count)))}{(blockedNotes.Count > 4 ? "; ..." : "")}" : "");
+            return (route, summary);
+        }
+
+        private static string StepKind(LaneGraph graph, int from, int to) =>
+            graph.IsWideUTurn(from, to) ? "wide U-turn" : graph.IsUTurn(from, to) ? "U-turn" : Contains(graph.MissingTurns(from), to) ? "turn"
+            : Contains(graph.Successors(from), to) ? "lane" : "lane change";
+
+        // The step of a route that a path position lies on: the last route waypoint at or before it in the path. The
+        // index of the step's start in the route, or -1.
+        public static int RouteStepAt(IReadOnlyList<int> route, IReadOnlyList<int> path, int position)
+        {
+            int r = -1, k = 0;
+            for (var q = 0; q < route.Count && k < path.Count; q++)
+            {
+                while (k < path.Count && path[k] != route[q]) k++;
+                if (k >= path.Count || k > position) break;
+                r = q;
+            }
+            return r >= 0 && r + 1 < route.Count ? r : -1;
+        }
+
         // The ride's expansion of a route for this car: added turns on an arc the car can drive cleanly, else through
         // vias it can; the slow stretches and the road limits (DrivePlan).
         public DrivePlan Plan(LaneGraph graph, IReadOnlyList<int> route) => DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, LimitKmh);

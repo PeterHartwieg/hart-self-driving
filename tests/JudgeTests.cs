@@ -99,6 +99,27 @@ public sealed class JudgeTests
     }
 
     [Fact]
+    public void ARideReplannedOnTheWayIsJudgedOnItsNewRoute()
+    {
+        // A ride planned again at 40 m (a blocked step): its gates move to the new route's end; what was passed stays.
+        var b = new TurnTestGraph();
+        int[] lane = Enumerable.Range(0, 16).Select(i => b.Add(0, i * 10)).ToArray(); b.Link(lane);
+        var graph = b.Build();
+        var first = new Fixture { Route = lane.Take(8).ToList(), Kind = CaseKind.Ride, Manoeuvre = CaseKind.Ride, ExitIndex = 7 };
+        var judge = Make(graph, first);
+        for (var z = 0; z <= 40; z += 4) judge.Add(At(z, 0, z));
+        var longer = new Fixture { Route = lane.ToList(), Kind = CaseKind.Ride, Manoeuvre = CaseKind.Ride, ExitIndex = 15 };
+        judge.Reroute(CaseGeometry.Build(graph, longer), longer);
+        for (var z = 44; z <= 100; z += 4) judge.Add(At(z, 0, z));
+        Assert.False(judge.Finished);
+        for (var z = 104; z <= 146; z += 4) judge.Add(At(z, 0, z));
+        Assert.True(judge.Finished);
+        var result = judge.Result(false);
+        Assert.Equal("pass", result.Verdict);
+        Assert.Equal(new[] { "entry", "exit", "last" }, result.GatesPassed);
+    }
+
+    [Fact]
     public void ThePedestriansGroundIsThePavementWhereTheGameGivesIt()
     {
         // Pedestrian ground from 3 m right of the lane: a corner there (pulled 0.3 m in) is on the pavement; the
