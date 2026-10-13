@@ -165,6 +165,7 @@ internal static class TrafficTemplates
         "lights" => FourWayLights(seed),
         "priority" => PriorityT(seed),
         "merge" => Merge(seed),
+        "crawl" => Crawl(seed),
         "uturn" => UTurn(seed),
         "headon" => HeadOn(seed),
         "pullaway" => PullAway(seed),
@@ -288,6 +289,29 @@ internal static class TrafficTemplates
         b.Ride(Path(Tail(slip, Range(r, 40f, 75f)), merge, main.Skip(join).Take(15)), car with { StartMs = Range(r, 3f, 12f) });
         Stream(b, r, () => main, -10f, 70f, 1.5f, 7f, 0.6f, 1f);
         b.S.Name = $"merge-{seed}";
+        b.S.Seconds = 90f;
+        return b.S;
+    }
+
+    // A side street joining a crawling stream (review round 2, U4): no gap the ride car could take with the headway at
+    // the stream's pace, so it noses in at a creep in front of a car slow enough to stop for it in its trigger.
+    public static TrafficScenario Crawl(int seed)
+    {
+        var r = new Random(seed);
+        var b = new ScenarioBuilder();
+        var east = b.Lane(-160f, -1.75f, 160f, -1.75f, 4f);
+        var join = Array.FindIndex(east, w => b.S.Waypoints[w].X >= 10f);
+        var side = b.Lane(2.5f, -90f, 2.5f, -9f);
+        var turn = b.Curve(side[^1], east[join], 2.5f, 25f);
+        var car = r.Next(2) == 0 ? RideCar.Limo : RideCar.Dash;
+        b.Ride(Path(Tail(side, Range(r, 30f, 60f)), turn, east.Skip(join).Take(15)), car with { StartMs = Range(r, 3f, 8f) });
+        // Crawling at one pace (1.5 to 2.5 m/s, so the cars don't bunch up), 9 to 12 m between cars: from far back to
+        // past the junction, and more arriving behind them as closely.
+        var pace = Range(r, 0.11f, 0.18f);
+        var ms = 13.9f * pace;
+        for (var x = 150f + 40f; x > 5f; x -= Range(r, 13.5f, 16.5f)) b.CarAt(east, x, pace, ms);
+        for (var t = Range(r, 13.5f, 16.5f) / ms; t < 60f; t += Range(r, 13.5f, 16.5f) / ms) b.Car(t, east, pace, 4.5f, Range(r, 2.5f, 4f));
+        b.S.Name = $"crawl-{seed}";
         b.S.Seconds = 90f;
         return b.S;
     }

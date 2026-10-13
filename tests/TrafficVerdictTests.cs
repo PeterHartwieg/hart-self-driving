@@ -36,4 +36,32 @@ public sealed class TrafficVerdictTests
         TrafficVerdict.Apply(avoided, 1, 0, 1, 1);
         Assert.Equal("avoided", avoided.Verdict);
     }
+
+    // Review round 2 (U2): judged on the velocities before the impact and the contact's normal (either sign).
+    [Fact]
+    public void RearEndedWhileStandingIsTheOtherCars()
+    {
+        // The ride car stands at the origin facing north; a car comes up behind it at 6 m/s and hits its rear.
+        Assert.False(TrafficVerdict.CausedByRide(0f, 0f, 0f, 0f, 0f, 6f, 0f, -4.6f, 0f, 1f));
+    }
+
+    [Fact]
+    public void DrivingIntoACarIsTheRideCarsEvenIfTheImpactStoppedIt()
+    {
+        // Before the impact the ride car went north at 5 m/s into a car standing across its way.
+        Assert.True(TrafficVerdict.CausedByRide(0f, 5f, 0f, 0f, 0f, 0f, 0f, 4f, 0f, -1f));
+    }
+
+    [Fact]
+    public void BothComingAtThePointIsTheRideCars()
+    {
+        Assert.True(TrafficVerdict.CausedByRide(0f, 3f, 0f, 0f, -4f, 0f, 3f, 3f, 0.7f, 0.7f));
+    }
+
+    [Fact]
+    public void CutInOnFromTheSideIsTheOtherCars()
+    {
+        // The ride car goes north at 4 m/s; a car beside it swerves into its flank.
+        Assert.False(TrafficVerdict.CausedByRide(0f, 4f, 0f, 0f, -2f, 4f, 2.2f, 0.5f, -1f, 0f));
+    }
 }

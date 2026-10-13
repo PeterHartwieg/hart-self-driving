@@ -43,6 +43,8 @@ namespace DrivenRides.Core.Drive
         private readonly List<(float From, float To, float Speed)> slow = new List<(float, float, float)>();
         private float along;
         private float integral;
+        // The pedals' integral term: a replay starting mid-drive restores it with the rest (review round 2, U3).
+        public float Integral { get => integral; set => integral = value; }
 
         // Comfortable braking and the limit past which a red is driven through (amber), m/s².
         public const float Decel = 2.5f;

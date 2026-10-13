@@ -15,5 +15,23 @@ namespace DrivenRides.Core.Testing
             if (stalls > 0) { result.Reasons.Add("standstill"); failed = true; }
             if (failed && result.Verdict == "pass") result.Verdict = "fail";
         }
+
+        // Who caused a contact, from both cars' velocities the physics step before it (the impact changes them: a car
+        // stopped dead by it looked as if it had stood) and the contact's normal (review round 2, U2). Each car's speed
+        // along the normal towards the other: the other car caused it only if it was coming on (over 0.5 m/s) and the
+        // ride car was not (under 0.3 m/s). Anything less clear counts as the ride car's. The normal's sign doesn't
+        // matter: it is turned to point from the ride car's centre towards the other car's.
+        public static bool CausedByRide(float ourVx, float ourVz, float ourX, float ourZ, float theirVx, float theirVz, float theirX, float theirZ, float normalX, float normalZ)
+        {
+            var length = (float)System.Math.Sqrt(normalX * normalX + normalZ * normalZ);
+            if (length < 1e-3f) { normalX = theirX - ourX; normalZ = theirZ - ourZ; length = (float)System.Math.Sqrt(normalX * normalX + normalZ * normalZ); }
+            if (length < 1e-3f) return true;
+            normalX /= length;
+            normalZ /= length;
+            if (normalX * (theirX - ourX) + normalZ * (theirZ - ourZ) < 0f) { normalX = -normalX; normalZ = -normalZ; }
+            var ours = ourVx * normalX + ourVz * normalZ;
+            var theirs = -(theirVx * normalX + theirVz * normalZ);
+            return !(theirs > 0.5f && ours < 0.3f);
+        }
     }
 }

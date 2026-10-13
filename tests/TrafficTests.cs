@@ -121,7 +121,7 @@ public sealed class TrafficTests
 
     // Dumps the simulation can't resolve yet, kept visible: tests/traffic-scenarios/pending/ (each one's note says why).
     // Each has a replay test of the decision it took in the game.
-    [Fact(Skip = "pending: tests/traffic-scenarios/pending/ (ride 17: a merge into dense traffic the simulation's traffic jams at)")]
+    [Fact(Skip = "pending: tests/traffic-scenarios/pending/ (ride 17: a merge into a stream with no gap and no car slow enough to nose in on; see its note)")]
     public void PendingScenarios()
     {
         foreach (var file in System.IO.Directory.GetFiles(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "pending"), "*.json"))
@@ -131,15 +131,27 @@ public sealed class TrafficTests
         }
     }
 
-    // T3 20261013-213209, ride 17 (62 s at a merge): fed the recorded frames, the ride car only ever gives way to a
-    // car that is moving and coming (none standing, none moving away from where it would meet the ride car).
+    // T3 20261013-213209, ride 17 (62 s at a merge): fed the recorded frames, the ride car waits at the merge point
+    // (where it gives way is never short of its front: it has come up as far as it may) and only ever for a car that
+    // is moving and coming (none standing, none moving away from where it would meet the ride car). Why it doesn't
+    // resolve in these frames is in the dump's note (review round 2, U4): no car in them is slow enough to nose in
+    // on, and the 10 s kept hold no gap.
     [Fact]
-    public void Ride17GivesWayOnlyToCarsThatAreComing()
+    public void Ride17WaitsAtTheMergeForCarsThatAreComing()
     {
         var s = TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "pending", "t3d-213209-ride17-stall.json")));
         var lines = ReplayDecisions(s);
+        var waits = 0;
         for (var i = 0; i < lines.Count; i++)
         {
+            var y = System.Text.RegularExpressions.Regex.Match(lines[i], @"along +(-?[\d,.]+) yield +(-?[\d,.]+)");
+            if (y.Success)
+            {
+                waits++;
+                var along = float.Parse(y.Groups[1].Value.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture);
+                var yield = float.Parse(y.Groups[2].Value.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture);
+                Assert.True(yield >= along + s.Ride.FrontAhead - 0.5f, $"frame {i}: gives way short of where it stands: {lines[i]}");
+            }
             var m = System.Text.RegularExpressions.Regex.Match(lines[i], @"for +(\d+)");
             if (!m.Success) continue;
             var id = int.Parse(m.Groups[1].Value);
@@ -148,6 +160,27 @@ public sealed class TrafficTests
             var speed = Math.Sqrt(car.Vx * car.Vx + car.Vz * car.Vz);
             Assert.True(speed > DrivenRides.Core.Drive.TrafficDriver.StandingMs, $"frame {i}: gives way to car {id} standing ({speed:0.0} m/s): {lines[i]}");
         }
+        Assert.True(waits > lines.Count / 2, $"gives way in only {waits} of {lines.Count} frames");
+    }
+
+    // Review round 2 (U4): nosing in resolves a merge into a crawling stream: the ride car gets in front of a car that
+    // stops for it in its trigger, without a contact, where waiting for a gap would stall.
+    [Fact]
+    public void NosesIntoACrawlingStream()
+    {
+        var failed = new List<string>();
+        var nosed = 0;
+        const int seeds = 20;
+        for (var seed = 0; seed < seeds; seed++)
+        {
+            var r = Run(TrafficTemplates.Crawl(seed));
+            if (r.Failure != null || !r.Arrived) failed.Add($"seed {seed}: {r}");
+            if (r.NoseIns > 0) nosed++;
+        }
+        output.WriteLine($"crawl: {seeds} seeds, {nosed} nosed in, {failed.Count} failed");
+        foreach (var f in failed) output.WriteLine("  " + f);
+        Assert.Empty(failed);
+        Assert.True(nosed >= seeds * 3 / 4, $"only {nosed} of {seeds} nosed in");
     }
 
     // A dump's recorded frames fed to TrafficDriver as they were seen in the game (no simulation): what it decided

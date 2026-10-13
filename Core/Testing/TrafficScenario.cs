@@ -94,6 +94,8 @@ namespace DrivenRides.Core.Testing
             j.Append("],\"track\":").Append(F(ride.TrackWidth)).Append(",\"yawFactor\":").Append(F(ride.YawFactor)).Append(",\"wheelRate\":").Append(F(ride.WheelRate))
              .Append(",\"steer\":").Append(F(ride.Steer)).Append(",\"line\":").Append(Points(ride.Line)).Append(",\"lineAlong\":[");
             for (var i = 0; i < ride.LineAlong.Length; i++) j.Append(i > 0 ? "," : "").Append(F(ride.LineAlong[i]));
+            j.Append("],\"wheelSmooth\":").Append(F(ride.WheelSmooth)).Append(",\"integral\":").Append(F(ride.Integral)).Append(",\"curves\":[");
+            for (var i = 0; i < ride.Curves.Count; i++) j.Append(i > 0 ? "," : "").Append('[').Append(F(ride.Curves[i].From)).Append(',').Append(F(ride.Curves[i].To)).Append(']');
             j.Append("]},\n\"cars\":[");
             for (var i = 0; i < Cars.Count; i++)
             {
@@ -203,6 +205,11 @@ namespace DrivenRides.Core.Testing
         // and the wheel's angle at the start.
         public List<(float Ms, float Degrees)> LockCurve = new List<(float, float)>();
         public float TrackWidth, YawFactor = 1f, WheelRate = 180f, Steer;
+        // The wheel's smoothing (seconds), the pedals' integral term at the start, and the line's curve spans
+        // (DriveLine.Curves, metres along Line: where the driver steers ahead for the curvature), so a restored drive
+        // continues as the game's did (review round 2, U3).
+        public float WheelSmooth = DrivenRides.Core.Drive.CarModel.SmoothSeconds, Integral;
+        public List<(float From, float To)> Curves = new List<(float, float)>();
         // The line the car drove, as built (arcs, fillets, shifts), and how far along it each path position is; empty:
         // the line is built from the path and the arcs.
         public List<Vec3> Line = new List<Vec3>();
@@ -215,7 +222,9 @@ namespace DrivenRides.Core.Testing
             if (Line.Count >= 2 && LineAlong.Length == Path.Length)
             {
                 pathAlong = LineAlong;
-                return DrivenRides.Core.Drive.DriveLine.Build(Line, Array.Empty<(int, DrivenRides.Core.Ride.Polyline)>());
+                var driven = DrivenRides.Core.Drive.DriveLine.Build(Line, Array.Empty<(int, DrivenRides.Core.Ride.Polyline)>());
+                driven.Curves.AddRange(Curves);
+                return driven;
             }
             var points = new List<Vec3>(Path.Length);
             foreach (var i in Path) points.Add(graph.Position(i));
@@ -231,11 +240,17 @@ namespace DrivenRides.Core.Testing
             var driver = new DrivenRides.Core.Drive.PursuitDriver(line, Wheelbase, FrontAhead, TopMs, TrackWidth);
             foreach (var (from, to, ms) in Slow) driver.Slow(from, to, ms);
             driver.StartAt(X, Z);
+            driver.Integral = Integral;
             return driver;
         }
 
-        public DrivenRides.Core.Drive.CarModel BuildCar() =>
-            new DrivenRides.Core.Drive.CarModel(Wheelbase, LockAt, X, Z, Heading, Speed) { TrackWidth = TrackWidth, Rate = WheelRate, YawFactor = YawFactor, Steer = Steer };
+        // The wheel is set with its smoothing state (SetWheel), so it holds its angle rather than easing back to 0.
+        public DrivenRides.Core.Drive.CarModel BuildCar()
+        {
+            var car = new DrivenRides.Core.Drive.CarModel(Wheelbase, LockAt, X, Z, Heading, Speed) { TrackWidth = TrackWidth, Rate = WheelRate, YawFactor = YawFactor, Smooth = WheelSmooth };
+            car.SetWheel(Steer);
+            return car;
+        }
 
         // The lock at a speed, from the curve (linear between samples) or the constant Lock.
         public float LockAt(float ms)

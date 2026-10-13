@@ -907,13 +907,14 @@ namespace DrivenRides
                 line["stalls"] = drive.Stalls;
                 line["redRuns"] = drive.RedRuns;
                 // The traffic cost per physics step, microseconds (review round 1, O7).
-                line["trafficCost"] = new JObject
-                {
-                    ["steps"] = drive.DecideCost.Total,
-                    ["readP50"] = drive.ReadCost.Percentile(50), ["readP99"] = drive.ReadCost.Percentile(99),
-                    ["decideP50"] = drive.DecideCost.Percentile(50), ["decideP99"] = drive.DecideCost.Percentile(99), ["decideMax"] = drive.DecideCost.Max,
-                    ["carsP50"] = drive.CarsRead.Percentile(50), ["carsMax"] = drive.CarsRead.Max,
-                };
+                if (drive.DecideCost != null && drive.ReadCost != null && drive.CarsRead != null)
+                    line["trafficCost"] = new JObject
+                    {
+                        ["steps"] = drive.DecideCost.Total,
+                        ["readP50"] = drive.ReadCost.Percentile(50), ["readP99"] = drive.ReadCost.Percentile(99),
+                        ["decideP50"] = drive.DecideCost.Percentile(50), ["decideP99"] = drive.DecideCost.Percentile(99), ["decideMax"] = drive.DecideCost.Max,
+                        ["carsP50"] = drive.CarsRead.Percentile(50), ["carsMax"] = drive.CarsRead.Max,
+                    };
                 var dumps = new JArray();
                 for (var k = 0; k < drive.Dumps.Count; k++)
                 {

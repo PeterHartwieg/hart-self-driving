@@ -6,6 +6,7 @@ using System.Text;
 using DrivenRides.Core.Drive;
 using DrivenRides.Core.Ride;
 using DrivenRides.Core.Routing;
+using DrivenRides.Core.Testing;
 using GleyTrafficSystem;
 using Helpers;
 using UnityEngine;
@@ -87,6 +88,8 @@ namespace DrivenRides
         // T3's tally: contacts with traffic cars (all, and those this car caused), standstills over 30 s away from a
         // red, red runs (TrafficVerdict).
         public int Contacts, ContactsCaused, Stalls, RedRuns;
+        // This car's velocity at the start of the physics step: before an impact changes it (U2).
+        private Vector3 preVelocity;
         private float standing;
         private float prevFront;
         private readonly Dictionary<int, bool> stoppable = new Dictionary<int, bool>();
@@ -100,16 +103,17 @@ namespace DrivenRides
         public bool WaitingNow { get; private set; }
         public float Along => driver.Along;
         // The rig's records (TurnTests sets it before Begin): the per-step trace, kept as a ring of the last
-        // TraceLines steps, and the traffic recorder behind the scenario dumps. Off on a ride: nothing kept.
+        // TraceLines steps, the traffic recorder behind the scenario dumps, and the traffic cost. Off on a ride: nothing
+        // kept, and none of their buffers made (review round 2, U5).
         public bool Recording;
         private const int TraceLines = 30000;
         private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic\n";
-        private readonly string[] traceRing = new string[TraceLines];
+        private string[]? traceRing;
         private int traceNext, traceCount;
         private readonly StringBuilder traceLine = new StringBuilder(160);
         // Per-step traffic cost (review round 1, O7): reading Gley's cars within TrafficDriver.SeeMetres and Decide,
         // in microseconds, and the cars read; logged as percentiles when the drive ends.
-        public readonly CostSamples ReadCost = new CostSamples(), DecideCost = new CostSamples(), CarsRead = new CostSamples();
+        public CostSamples? ReadCost, DecideCost, CarsRead;
         private static readonly double MicrosPerTick = 1e6 / Stopwatch.Frequency;
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -119,6 +123,13 @@ namespace DrivenRides
         {
             Car = car;
             topMs = topKmh / 3.6f;
+            if (Recording && traceRing == null)
+            {
+                traceRing = new string[TraceLines];
+                ReadCost = new CostSamples();
+                DecideCost = new CostSamples();
+                CarsRead = new CostSamples();
+            }
             UsePath(path, arcs, slow);
             gley = new GleyTraffic(car.Root);
             startedAt = Time.time;
@@ -190,6 +201,7 @@ namespace DrivenRides
             var t = Car.Root.transform;
             var forward = t.forward;
             var rear = Car.RearAxle;
+            preVelocity = Car.Body.velocity;
             var speed = Vector3.Dot(Car.Body.velocity, forward);
             var heading = Mathf.Atan2(forward.x, forward.z);
             var front = driver.Along + Car.FrontAhead;
@@ -199,17 +211,20 @@ namespace DrivenRides
             var ticks = Stopwatch.GetTimestamp();
             gley.ReadCars(rear, TrafficDriver.SeeMetres, cars);
             var read = Stopwatch.GetTimestamp();
-            ReadCost.Add((float)((read - ticks) * MicrosPerTick));
-            CarsRead.Add(cars.Count);
-            if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, cars, gley.Components);
+            ReadCost?.Add((float)((read - ticks) * MicrosPerTick));
+            CarsRead?.Add(cars.Count);
+            if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, driver.Integral, cars, gley.Components);
+            // What the cast sees ahead (parked cars, people): the traffic rules count on it before committing past a
+            // traffic car's way (review round 2, U1), and the driver stops for it.
+            var castGap = HoldForCast(GapAhead(speed));
             var snapshot = new TrafficSnapshot
             {
                 Time = Time.time, RearX = rear.x, RearZ = rear.z, Heading = heading, Speed = speed, Marks = marks, Cars = cars, Flags = gley,
-                GapBehind = traffic.BackingOff || decision.GapAhead < 4f ? GapBehind() : null,
+                GapBehind = traffic.BackingOff || decision.GapAhead < 4f ? GapBehind() : null, GapAhead = castGap,
             };
             ticks = Stopwatch.GetTimestamp();
             traffic.Decide(snapshot, decision);
-            DecideCost.Add((float)((Stopwatch.GetTimestamp() - ticks) * MicrosPerTick));
+            DecideCost?.Add((float)((Stopwatch.GetTimestamp() - ticks) * MicrosPerTick));
             foreach (var e in decision.Events)
             {
                 gley.Apply(e);
@@ -321,7 +336,7 @@ namespace DrivenRides
                     if (finished.Changed && finished.Found == null) nextLook = Time.time + 3f;
                 }
             }
-            var gap = HoldForCast(GapAhead(speed));
+            var gap = castGap;
             // People and parked cars stand; a traffic car ahead is followed at its own speed.
             var gapSpeed = 0f;
             if (decision.GapAhead is float carGap && (gap == null || carGap < gap)) { gap = carGap; gapSpeed = decision.GapSpeed; lastBlockerLayer = -1; }
@@ -368,6 +383,7 @@ namespace DrivenRides
                 .Append(gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.Why.Replace(',', ';')).Append('\n');
+            if (traceRing == null) return;
             traceRing[traceNext] = sb.ToString();
             traceNext = (traceNext + 1) % TraceLines;
             if (traceCount < TraceLines) traceCount++;
@@ -378,7 +394,7 @@ namespace DrivenRides
         {
             var all = new StringBuilder(TraceHeader, 64 + traceCount * 120);
             var first = (traceNext - traceCount + TraceLines) % TraceLines;
-            for (var k = 0; k < traceCount; k++) all.Append(traceRing[(first + k) % TraceLines]);
+            if (traceRing != null) for (var k = 0; k < traceCount; k++) all.Append(traceRing[(first + k) % TraceLines]);
             return all.ToString();
         }
 
@@ -447,16 +463,23 @@ namespace DrivenRides
             if (Ended || collision.rigidbody == null) return;
             var other = collision.rigidbody.GetComponent<VehicleComponent>();
             if (other == null) return;
-            var ours = Car.Body.velocity.magnitude;
-            var theirs = other.rb != null ? other.rb.velocity.magnitude : 0f;
             Contacts++;
-            // Caused by this car when it was moving towards the point of contact; a car that ran into it standing or
-            // moving away (rear-ended, cut in on) caused it itself.
-            var at = collision.contactCount > 0 ? collision.GetContact(0).point : other.transform.position;
-            var towards = Vector3.Dot(Car.Body.velocity, Vector3.ProjectOnPlane(at - Car.Body.worldCenterOfMass, Vector3.up).normalized);
-            var caused = ours > 0.5f && towards > 0.5f;
+            // Who caused it, from both cars' velocities before the impact (this physics step's start: ours from
+            // FixedUpdate, theirs from this step's reading of the Gley cars) and the contact's normal; anything
+            // unclear counts as this car's (TrafficVerdict.CausedByRide, review round 2, U2). A car not in the reading
+            // falls back to its velocity now.
+            var theirV = other.rb != null ? other.rb.velocity : Vector3.zero;
+            for (var i = 0; i < gley.Components.Count && i < cars.Count; i++)
+                if (gley.Components[i] == other) { theirV = new Vector3(cars[i].Vx, 0f, cars[i].Vz); break; }
+            var normal = collision.contactCount > 0 ? collision.GetContact(0).normal : Vector3.zero;
+            var ourC = Car.Body.worldCenterOfMass;
+            var theirC = other.rb != null ? other.rb.worldCenterOfMass : other.transform.position;
+            var caused = TrafficVerdict.CausedByRide(preVelocity.x, preVelocity.z, ourC.x, ourC.z, theirV.x, theirV.z, theirC.x, theirC.z, normal.x, normal.z);
+            var ours = new Vector2(preVelocity.x, preVelocity.z).magnitude;
+            var theirs = new Vector2(theirV.x, theirV.z).magnitude;
+            var towards = normal.sqrMagnitude > 0f ? Mathf.Abs(Vector3.Dot(preVelocity, Vector3.ProjectOnPlane(normal, Vector3.up).normalized)) : 0f;
             if (caused) ContactsCaused++;
-            Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s ({towards:0.0} towards it), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
+            Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s before it ({towards:0.0} along the contact normal), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
             Dump("contact", $"contact with traffic car {other.GetIndex()}: this car {ours:0.0} m/s, it {theirs:0.0} m/s");
         }
 
@@ -569,7 +592,7 @@ namespace DrivenRides
 
         private void End(string reason, bool arrived)
         {
-            if (!Ended && DecideCost.Total > 0) Log.Info(CostLine());
+            if (!Ended && DecideCost != null && DecideCost.Total > 0) Log.Info(CostLine());
             Ended = true;
             Arrived = arrived;
             EndReason = reason;
@@ -579,7 +602,7 @@ namespace DrivenRides
 
         // The traffic cost over the drive (review round 1, O7): Gley's cars read within TrafficDriver.SeeMetres and
         // TrafficDriver.Decide, per physics step.
-        public string CostLine() =>
+        public string CostLine() => DecideCost == null || ReadCost == null || CarsRead == null ? "NWH drive: traffic cost not recorded." :
             $"NWH drive: traffic cost over {DecideCost.Total} steps: reading Gley's cars within {TrafficDriver.SeeMetres:0} m " +
             $"({CarsRead.Percentile(50):0} cars at the median, {CarsRead.Max:0} at most) p50 {ReadCost.Percentile(50):0} µs, p99 {ReadCost.Percentile(99):0} µs; " +
             $"deciding p50 {DecideCost.Percentile(50):0} µs, p99 {DecideCost.Percentile(99):0} µs, max {DecideCost.Max:0} µs.";

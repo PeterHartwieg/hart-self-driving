@@ -71,6 +71,9 @@ namespace DrivenRides.Core.Drive
         public ILiveFlags Flags;
         // Metres free behind the rear bumper (parked cars, people), or null when nothing is near.
         public float? GapBehind;
+        // Metres free ahead of the front bumper on the car's way (parked cars, people: what the adapter's own cast
+        // sees), or null. Committing past a traffic car's way counts on it (review round 2, U1).
+        public float? GapAhead;
     }
 
     public enum JunctionEventKind { Enter, Leave }
@@ -104,6 +107,8 @@ namespace DrivenRides.Core.Drive
         public float GapSpeed;
         // Layer 3: creeping past a car that stands for the ride car.
         public float? MaxSpeed;
+        // Nosing in at a creep in front of a crawling car that will stop for the ride car in its trigger.
+        public bool NoseIn;
         // Layer 3: backing off along the line, away from a car standing nose to nose with the ride car.
         public bool BackOff;
         public int BackOffFrom = -1;
@@ -120,7 +125,7 @@ namespace DrivenRides.Core.Drive
             GapSpeed = 0f;
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
-            StopIsRed = BackOff = false;
+            StopIsRed = BackOff = NoseIn = false;
             Events.Clear();
             Why = "";
             Note = default;
