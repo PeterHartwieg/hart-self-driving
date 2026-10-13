@@ -36,8 +36,8 @@ namespace DrivenRides
         public NWH.Common.Vehicles.WheelUAPI[]? Wheels;
         private int[]? kerbSteps;
         private bool[]? kerbReported;
-        // A wheel this much higher than the lowest wheel, for this many physics steps in a row, is on a kerb. A road's
-        // camber across the car is a few centimetres; a kerb is about 15.
+        // A wheel this far above the plane of the other three, for this many physics steps in a row, is on a kerb. A
+        // road's camber across the car is a few centimetres; a kerb is about 15.
         private const float KerbRise = 0.1f;
         private const int KerbSteps = 5;
         private readonly Collider[] hits = new Collider[32];
@@ -191,20 +191,26 @@ namespace DrivenRides
         private void Kerb()
         {
             var wheels = Wheels;
-            if (wheels == null || wheels.Length < 2 || Judge == null) return;
+            if (wheels == null || wheels.Length < 4 || Judge == null) return;
             kerbSteps ??= new int[wheels.Length];
             kerbReported ??= new bool[wheels.Length];
-            var lowest = float.MaxValue;
-            foreach (var w in wheels) if (w != null && w.IsGrounded) lowest = Mathf.Min(lowest, w.HitPoint.y);
-            if (lowest == float.MaxValue) return;
+            foreach (var w in wheels) if (w == null || !w.IsGrounded) return;
             for (var i = 0; i < wheels.Length; i++)
             {
+                // Off the plane through three other wheels: a slope or a ramp tilts all four together (turn test 0.1.59:
+                // the rear wheels 0.49 m above the front ones on a Hamptons highway ramp read as a kerb).
+                var others = new List<Vector3>(3);
+                for (var j = 0; j < wheels.Length && others.Count < 3; j++) if (j != i) others.Add(wheels[j].HitPoint);
+                var normal = Vector3.Cross(others[1] - others[0], others[2] - others[0]);
+                if (normal.sqrMagnitude < 1e-6f) continue;
+                normal.Normalize();
+                if (normal.y < 0f) normal = -normal;
                 var w = wheels[i];
-                var up = w != null && w.IsGrounded && w.HitPoint.y - lowest > KerbRise;
-                kerbSteps[i] = up ? kerbSteps[i] + 1 : 0;
+                var rise = Vector3.Dot(w.HitPoint - others[0], normal);
+                kerbSteps[i] = rise > KerbRise ? kerbSteps[i] + 1 : 0;
                 if (kerbSteps[i] < KerbSteps || kerbReported[i]) continue;
                 kerbReported[i] = true;
-                var what = $"kerb: wheel '{w!.name}' {w.HitPoint.y - lowest:0.00} m above the lowest, on '{(w.HitCollider != null ? w.HitCollider.name : "?")}' ({(w.HitCollider != null ? LayerMask.LayerToName(w.HitCollider.gameObject.layer) : "?")}) at {w.HitPoint}";
+                var what = $"kerb: wheel '{w.name}' {rise:0.00} m above the plane of the other wheels, on '{(w.HitCollider != null ? w.HitCollider.name : "?")}' ({(w.HitCollider != null ? LayerMask.LayerToName(w.HitCollider.gameObject.layer) : "?")}) at {w.HitPoint}";
                 var failedBefore = Judge.Failed;
                 Judge.Contact(Step, what);
                 Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n');
