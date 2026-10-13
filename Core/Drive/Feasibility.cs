@@ -88,6 +88,14 @@ namespace DrivenRides.Core.Drive
         private readonly Dictionary<(int, int), Verdict> steps = new Dictionary<(int, int), Verdict>();
 
         public float Margin { get; }
+        // The ground's height under a point (the game casts a ray down onto the road, the pavement), or null; null
+        // for no ground (offline). With it, the wheels must stay on the carriageway: NWH's wheels ride on ray casts,
+        // so a wheel up on the pavement touches no collider (main's 0.1.56 rig kerb check, Peter, turn test 0.1.55).
+        public Func<Vec3, float?>? GroundAt { get; set; }
+        // As the rig's kerb check: a wheel this much above the lowest is on a kerb (a road's camber across the car is
+        // a few centimetres, a kerb about 15), here at two world samples in a row (1 m).
+        public const float KerbRise = 0.1f;
+        private const int KerbSamples = 2;
         public CarSpec Car => car;
         public int Simulations { get; private set; }
 
@@ -235,6 +243,7 @@ namespace DrivenRides.Core.Drive
             var limit = 30.0 + length / 4.0;
             var verdict = new Verdict { Form = form };
             var lastWorld = double.NegativeInfinity;
+            var kerbSamples = 0;
             var travelled = 0.0;
             var time = 0.0;
             var timedOut = true;
@@ -264,6 +273,11 @@ namespace DrivenRides.Core.Drive
                         judge.Contact(step, hit);
                         verdict.Hit = hit;
                     }
+                    if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples) is string wheel)
+                    {
+                        judge.Reject(step, "kerb", wheel);
+                        verdict.Hit = wheel;
+                    }
                     if (!judge.Failed && Kerb(kerbs, footprint) is string past)
                     {
                         judge.Reject(step, "carriageway", past);
@@ -285,6 +299,31 @@ namespace DrivenRides.Core.Drive
             verdict.Feasible = result.Verdict == "pass";
             if (!verdict.Feasible) verdict.Reason = (result.Reasons.Count > 0 ? string.Join(" ", result.Reasons) : result.Verdict) + (verdict.Hit != null ? " (" + verdict.Hit + ")" : "");
             return verdict;
+        }
+
+        // The four wheels at a pose, the margin further out each side; one higher than the lowest by KerbRise, for
+        // KerbSamples samples in a row, is on a kerb.
+        private string? WheelOnKerb(Pose pose, ref int samples)
+        {
+            var half = (car.TrackWidth > 0f ? car.TrackWidth / 2f : Math.Max(0.5f, car.BodyHalf.X - 0.25f)) + Margin;
+            var wheels = new[]
+            {
+                Local(pose, new Vec3(-half, 0f, 0f)), Local(pose, new Vec3(half, 0f, 0f)),
+                Local(pose, new Vec3(-half, 0f, car.Wheelbase)), Local(pose, new Vec3(half, 0f, car.Wheelbase)),
+            };
+            var heights = new float?[4];
+            var lowest = float.MaxValue;
+            for (var i = 0; i < 4; i++)
+            {
+                heights[i] = GroundAt!(wheels[i]);
+                if (heights[i] is float h) lowest = Math.Min(lowest, h);
+            }
+            string? up = null;
+            for (var i = 0; i < 4 && up == null; i++)
+                if (heights[i] is float h && h - lowest > KerbRise)
+                    up = FormattableString.Invariant($"kerb: a {(i < 2 ? "rear" : "front")} wheel {h - lowest:0.00} m above the lowest at ({wheels[i].X:0.0}, {wheels[i].Z:0.0})");
+            samples = up != null ? samples + 1 : 0;
+            return samples >= KerbSamples ? up : null;
         }
 
         // A point given in the car's own space (from the rear axle on the ground) at a pose.

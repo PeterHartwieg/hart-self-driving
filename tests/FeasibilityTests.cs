@@ -129,6 +129,21 @@ public sealed class FeasibilityTests
     }
 
     [Fact]
+    public void AWheelUpOnTheKerbFailsTheStep()
+    {
+        // NWH's wheels are ray casts: a wheel on the pavement touches nothing, so the ground under each wheel is asked.
+        var (graph, entry, exit) = TurnTestGraph.Turn();
+        var flat = new Feasibility(graph, Small(), _ => null) { GroundAt = _ => 0f };
+        Assert.True(flat.Step(entry, exit).Feasible);
+        // A pavement 0.15 m up, starting just left of the approach lane: the left wheels (with the margin) are on it.
+        var kerb = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -1f ? 0.15f : 0f };
+        var verdict = kerb.Step(entry, exit);
+        output.WriteLine(verdict.ToString());
+        Assert.False(verdict.Feasible);
+        Assert.Contains("kerb", verdict.Reason);
+    }
+
+    [Fact]
     public void TheArcFitsTheCarsCircleAtCornerSpeed()
     {
         var car = Small();

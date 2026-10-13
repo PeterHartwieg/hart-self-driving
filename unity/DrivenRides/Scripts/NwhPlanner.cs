@@ -141,7 +141,7 @@ namespace DrivenRides
         private NwhPlanner(CarSpec car)
         {
             Car = car;
-            Check = new Feasibility(GleyGraph.Graph!, car, WorldHit, Feasibility.DefaultMargin, LimitKmh);
+            Check = new Feasibility(GleyGraph.Graph!, car, WorldHit, Feasibility.DefaultMargin, LimitKmh) { GroundAt = GroundAt };
             var h = car.BodyHalf;
             worldHalf = new Vector3(h.X + Feasibility.DefaultMargin + Feasibility.NearMiss, h.Y, h.Z + Feasibility.DefaultMargin + Feasibility.NearMiss);
             // The driver stops for anything within its half width and 0.4 m of its line (NwhDrive.GapAhead).
@@ -192,6 +192,27 @@ namespace DrivenRides
             var centre = new Vector3(box.Centre.X, box.Centre.Y, box.Centre.Z);
             if (Overlap(centre, worldHalf, rotation, ParkedMask) is string hit) return hit;
             return Raised(centre, worldHalf, rotation, centre.y - Car.BodyCentre.Y) is string raised ? "road edge " + raised : null;
+        }
+
+        // What a wheel stands on: the road, the pavement, a kerb; not cars, people, props or buildings (the body sweep
+        // has those).
+        private static int groundMask;
+        private static int GroundMask => groundMask != 0 ? groundMask
+            : groundMask = Physics.DefaultRaycastLayers & ~(ParkedMask | (1 << LayerHelper.VehiclesLayerIndex) | (NwhCar.GleyLayer >= 0 ? 1 << NwhCar.GleyLayer : 0)
+                | LayerMask.GetMask("Human", "Ignore Raycast"));
+        private readonly RaycastHit[] groundHits = new RaycastHit[8];
+
+        // The ground's height under a point, from 2 m above it down to 2 m below.
+        private float? GroundAt(Vec3 p)
+        {
+            var n = Physics.RaycastNonAlloc(new Vector3(p.X, p.Y + 2f, p.Z), Vector3.down, groundHits, 4f, GroundMask, QueryTriggerInteraction.Ignore);
+            float? highest = null;
+            for (var h = 0; h < n; h++)
+            {
+                if (Ignore != null && groundHits[h].transform.IsChildOf(Ignore)) continue;
+                if (highest == null || groundHits[h].point.y > highest) highest = groundHits[h].point.y;
+            }
+            return highest;
         }
 
         // A box against the given layers, leaving out the ride car itself.
