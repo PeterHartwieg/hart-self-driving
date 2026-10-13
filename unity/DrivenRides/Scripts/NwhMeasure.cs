@@ -9,6 +9,7 @@ using GleyTrafficSystem;
 using GleyUrbanAssets;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace DrivenRides
 {
@@ -43,6 +44,64 @@ namespace DrivenRides
                 yield return step;
             }
             Log.Info("NWH measure: done.");
+        }
+
+        // `measure ground [x= z=]`: what tells pavement from road at a place (Peter, turn test 0.1.55: the limo ended
+        // U-turns on the pavement, which here is flush with the road and has no collider of its own). From the lane
+        // waypoint nearest (x, z), points every 0.5 m across the street, 15 m each way: the NavMesh area under each
+        // (all areas, and the filter the game's pedestrians walk with) and the ground collider a ray down hits.
+        public static void Ground(Vector3 near)
+        {
+            var all = GleyGraph.Waypoints;
+            if (all == null) { Log.Info("NWH measure, ground: no waypoints."); return; }
+            Waypoint? w = null;
+            var best = float.MaxValue;
+            foreach (var p in all)
+            {
+                if (p == null || p.neighbors == null || p.neighbors.Count == 0) continue;
+                var d = (p.position - near).sqrMagnitude;
+                if (d < best) { best = d; w = p; }
+            }
+            if (w == null) return;
+            var next = all[w.neighbors[0]].position;
+            var along = next - w.position;
+            along.y = 0f;
+            along.Normalize();
+            var across = new Vector3(along.z, 0f, -along.x);
+            // The game's pedestrian filter (Helpers.NavMeshHelper.NpcNavMeshFilter), found by name.
+            NavMeshQueryFilter? npc = null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type? t = null;
+                try { t = asm.GetTypes().FirstOrDefault(x => x.Name == "NavMeshHelper"); } catch { }
+                if (t == null) continue;
+                var f = AccessTools.Field(t, "NpcNavMeshFilter");
+                var pr = AccessTools.Property(t, "NpcNavMeshFilter");
+                var v = f != null ? f.GetValue(null) : pr?.GetValue(null);
+                if (v is NavMeshQueryFilter q) { npc = q; break; }
+            }
+            var names = new[] { "Walkable", "Not Walkable", "Jump", "Road", "Roads", "Street", "Sidewalk", "Pavement", "Crosswalk", "Crossing", "Pedestrian", "Pedestrians", "Car", "Cars", "Grass", "Park", "Indoor", "Building", "NPC", "Npc", "Player" };
+            var areas = names.Select(n => (n, NavMesh.GetAreaFromName(n))).Where(p => p.Item2 >= 0).Select(p => $"{p.n}={p.Item2}");
+            Log.Info($"NWH measure, ground: lane waypoint {w.listIndex} at ({w.position.x:0.0}, {w.position.z:0.0}), heading ({along.x:0.00}, {along.z:0.00}); NavMesh areas {string.Join(" ", areas)}; pedestrian filter {(npc != null ? $"areaMask {npc.Value.areaMask:X}, agent {npc.Value.agentTypeID}" : "not found")}.");
+            var row = new System.Text.StringBuilder();
+            string? lastGround = null;
+            for (var k = -30; k <= 30; k++)
+            {
+                var at = w.position + across * (k * 0.5f);
+                var area = NavMesh.SamplePosition(at, out var hit, 0.4f, NavMesh.AllAreas) ? Area(hit.mask) : ".";
+                var walk = npc != null && NavMesh.SamplePosition(at, out var h2, 0.4f, npc.Value) ? "p" : "-";
+                var ground = Physics.Raycast(at + Vector3.up * 3f, Vector3.down, out var rh, 6f, ~0, QueryTriggerInteraction.Ignore)
+                    ? $"{rh.collider.name}/{LayerMask.LayerToName(rh.collider.gameObject.layer)}@{rh.point.y:0.00}" : "none";
+                row.Append($" {k * 0.5f:+0.0;-0.0}:{area}{walk}");
+                if (ground != lastGround) { row.Append($"[{ground}]"); lastGround = ground; }
+            }
+            Log.Info("NWH measure, ground across (metres right of the lane: area index, p = pedestrian filter, [ground collider where it changes]):" + row);
+        }
+
+        private static string Area(int mask)
+        {
+            for (var i = 0; i < 32; i++) if ((mask & (1 << i)) != 0) return i.ToString();
+            return "?";
         }
 
         private static void Try(string what, Action a)
