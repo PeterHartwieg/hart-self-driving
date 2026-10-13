@@ -6,6 +6,7 @@ using System.Text;
 using DrivenRides.Core.Drive;
 using DrivenRides.Core.Ride;
 using DrivenRides.Core.Routing;
+using DrivenRides.Core.Testing;
 using GleyTrafficSystem;
 using Helpers;
 using UnityEngine;
@@ -75,6 +76,8 @@ namespace DrivenRides
         // T3's tally: contacts with traffic cars (all, and those this car caused), standstills over 30 s away from a
         // red, red runs (TrafficVerdict).
         public int Contacts, ContactsCaused, Stalls, RedRuns;
+        // This car's velocity at the start of the physics step: before an impact changes it (U2).
+        private Vector3 preVelocity;
         private float standing;
         private float prevFront;
         private readonly Dictionary<int, bool> stoppable = new Dictionary<int, bool>();
@@ -175,6 +178,7 @@ namespace DrivenRides
             var t = Car.Root.transform;
             var forward = t.forward;
             var rear = Car.RearAxle;
+            preVelocity = Car.Body.velocity;
             var speed = Vector3.Dot(Car.Body.velocity, forward);
             var heading = Mathf.Atan2(forward.x, forward.z);
             var front = driver.Along + Car.FrontAhead;
@@ -187,10 +191,13 @@ namespace DrivenRides
             ReadCost.Add((float)((read - ticks) * MicrosPerTick));
             CarsRead.Add(cars.Count);
             if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, cars, gley.Components);
+            // What the cast sees ahead (parked cars, people): the traffic rules count on it before committing past a
+            // traffic car's way (review round 2, U1), and the driver stops for it.
+            var castGap = HoldForCast(GapAhead(speed));
             var snapshot = new TrafficSnapshot
             {
                 Time = Time.time, RearX = rear.x, RearZ = rear.z, Heading = heading, Speed = speed, Marks = marks, Cars = cars, Flags = gley,
-                GapBehind = traffic.BackingOff || decision.GapAhead < 4f ? GapBehind() : null,
+                GapBehind = traffic.BackingOff || decision.GapAhead < 4f ? GapBehind() : null, GapAhead = castGap,
             };
             ticks = Stopwatch.GetTimestamp();
             traffic.Decide(snapshot, decision);
@@ -266,7 +273,7 @@ namespace DrivenRides
                 try { ahead = LookAhead(at, rear.x, rear.z, heading); } catch (Exception ex) { Log.Error("NWH drive, look-ahead: " + ex); }
                 if (ahead != null && ahead.Path.Count >= 2) { Restart(ahead); return; }
             }
-            var gap = HoldForCast(GapAhead(speed));
+            var gap = castGap;
             // People and parked cars stand; a traffic car ahead is followed at its own speed.
             var gapSpeed = 0f;
             if (decision.GapAhead is float carGap && (gap == null || carGap < gap)) { gap = carGap; gapSpeed = decision.GapSpeed; lastBlockerLayer = -1; }
@@ -387,16 +394,23 @@ namespace DrivenRides
             if (Ended || collision.rigidbody == null) return;
             var other = collision.rigidbody.GetComponent<VehicleComponent>();
             if (other == null) return;
-            var ours = Car.Body.velocity.magnitude;
-            var theirs = other.rb != null ? other.rb.velocity.magnitude : 0f;
             Contacts++;
-            // Caused by this car when it was moving towards the point of contact; a car that ran into it standing or
-            // moving away (rear-ended, cut in on) caused it itself.
-            var at = collision.contactCount > 0 ? collision.GetContact(0).point : other.transform.position;
-            var towards = Vector3.Dot(Car.Body.velocity, Vector3.ProjectOnPlane(at - Car.Body.worldCenterOfMass, Vector3.up).normalized);
-            var caused = ours > 0.5f && towards > 0.5f;
+            // Who caused it, from both cars' velocities before the impact (this physics step's start: ours from
+            // FixedUpdate, theirs from this step's reading of the Gley cars) and the contact's normal; anything
+            // unclear counts as this car's (TrafficVerdict.CausedByRide, review round 2, U2). A car not in the reading
+            // falls back to its velocity now.
+            var theirV = other.rb != null ? other.rb.velocity : Vector3.zero;
+            for (var i = 0; i < gley.Components.Count && i < cars.Count; i++)
+                if (gley.Components[i] == other) { theirV = new Vector3(cars[i].Vx, 0f, cars[i].Vz); break; }
+            var normal = collision.contactCount > 0 ? collision.GetContact(0).normal : Vector3.zero;
+            var ourC = Car.Body.worldCenterOfMass;
+            var theirC = other.rb != null ? other.rb.worldCenterOfMass : other.transform.position;
+            var caused = TrafficVerdict.CausedByRide(preVelocity.x, preVelocity.z, ourC.x, ourC.z, theirV.x, theirV.z, theirC.x, theirC.z, normal.x, normal.z);
+            var ours = new Vector2(preVelocity.x, preVelocity.z).magnitude;
+            var theirs = new Vector2(theirV.x, theirV.z).magnitude;
+            var towards = normal.sqrMagnitude > 0f ? Mathf.Abs(Vector3.Dot(preVelocity, Vector3.ProjectOnPlane(normal, Vector3.up).normalized)) : 0f;
             if (caused) ContactsCaused++;
-            Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s ({towards:0.0} towards it), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
+            Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s before it ({towards:0.0} along the contact normal), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
             Dump("contact", $"contact with traffic car {other.GetIndex()}: this car {ours:0.0} m/s, it {theirs:0.0} m/s");
         }
 
