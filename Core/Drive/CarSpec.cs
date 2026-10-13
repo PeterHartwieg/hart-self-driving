@@ -22,8 +22,13 @@ namespace DrivenRides.Core.Drive
         // The front wheels' track with NWH's Ackermann, 0 without (CarModel.TrackWidth).
         public float TrackWidth { get; }
 
-        public CarSpec(string name, float wheelbase, Func<float, float> lockAt, Vec3 bodyCentre, Vec3 bodyHalf, float topKmh, float trackWidth)
+        // How fast the wheel turns, degrees a second (NWH's degreesPerSecondLimit: 140 on the cars measured so far).
+        public float WheelRate { get; }
+
+        public CarSpec(string name, float wheelbase, Func<float, float> lockAt, Vec3 bodyCentre, Vec3 bodyHalf, float topKmh, float trackWidth,
+            float wheelRate = CarModel.WheelRate)
         {
+            WheelRate = wheelRate > 0f ? wheelRate : CarModel.WheelRate;
             TrackWidth = Math.Max(0f, trackWidth);
             Name = name;
             Wheelbase = Math.Max(1f, wheelbase);
@@ -46,7 +51,7 @@ namespace DrivenRides.Core.Drive
         public float RadiusAt(float speedMs) => (float)(1 / CarModel.Curvature(Math.Max(5f, LockAt(speedMs)), Wheelbase, TrackWidth));
 
         // The model of this car at a pose.
-        public CarModel Model(double x, double z, double heading, double speed = 0) => new CarModel(Wheelbase, LockAt, x, z, heading, speed) { TrackWidth = TrackWidth };
+        public CarModel Model(double x, double z, double heading, double speed = 0) => new CarModel(Wheelbase, LockAt, x, z, heading, speed) { TrackWidth = TrackWidth, Rate = WheelRate };
 
         // The car's circle at the speed it takes the tightest arc a junction may get for it: TurnArc.Fit makes an arc
         // RadiusSlack wider than this (and never under MinDriveRadius), and the driver takes an arc at its corner speed
@@ -81,7 +86,7 @@ namespace DrivenRides.Core.Drive
             return points[points.Count - 1].Degrees;
         };
 
-        // For the tools: "name;wheelbase;top km/h;body centre x,y,z;body half x,y,z;km/h=lock,km/h=lock,...;track width",
+        // For the tools: "name;wheelbase;top km/h;body centre x,y,z;body half x,y,z;km/h=lock,km/h=lock,...;track width[;wheel rate]",
         // lengths from the rear axle, as the game log's "NWH shape" line gives them.
         public static CarSpec Parse(string text)
         {
@@ -96,7 +101,7 @@ namespace DrivenRides.Core.Drive
                 points.Add((F(kv[0]), F(kv[1])));
             }
             points.Sort((a, b) => a.Item1.CompareTo(b.Item1));
-            return new CarSpec(parts[0], F(parts[1]), LockCurve(points), V(parts[3]), V(parts[4]), F(parts[2]), F(parts[6]));
+            return new CarSpec(parts[0], F(parts[1]), LockCurve(points), V(parts[3]), V(parts[4]), F(parts[2]), F(parts[6]), parts.Length > 7 ? F(parts[7]) : CarModel.WheelRate);
         }
 
         public override string ToString() => FormattableString.Invariant(

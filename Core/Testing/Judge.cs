@@ -184,6 +184,12 @@ namespace DrivenRides.Core.Testing
             Fail(step, "contact");
         }
         public void Incident(int step, string what) => result.Incidents.Add(step + ": " + what);
+        // A failure found outside the judge (the feasibility check's carriageway and lane rules).
+        public void Reject(int step, string reason, string what)
+        {
+            result.Incidents.Add(step + ": " + what);
+            Fail(step, reason);
+        }
         public void Replanned(string why)
         {
             result.Incidents.Add("replanned: " + why);

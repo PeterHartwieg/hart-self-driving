@@ -43,6 +43,14 @@ namespace DrivenRides
             return Vector3.Angle(Vector3.ProjectOnPlane(lastBlockerBody.transform.forward, Vector3.up), Vector3.ProjectOnPlane(forward, Vector3.up)) > 30f;
         }
         private float backOffUntil;
+        // Blocked (BlockedRule): what, once the car has backed off.
+        private string? blockedWhat;
+        private float pushSeconds, staticHeldSeconds;
+        private int lastBlockerLayer = -1;
+
+        // The car can't get on: raised with the path position its front had reached and what blocked it, for the
+        // planner to block that step and plan again (NwhPlanner.Block).
+        public event Action<int, string>? Blocked;
         private readonly List<(float, float, float, float)> traffic = new List<(float, float, float, float)>();
         private static readonly System.Reflection.FieldInfo? TrafficVehiclesField = HarmonyLib.AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
 
@@ -126,6 +134,7 @@ namespace DrivenRides
                 lastProgressTime = Time.time;
                 return;
             }
+            if (blockedWhat != null) { End("blocked: " + blockedWhat, false); return; }
             var stop = RedAhead(speed);
             var gap = GapAhead(speed);
             var give = driver.YieldAlong(MovingTraffic(rear), speed);
@@ -166,11 +175,36 @@ namespace DrivenRides
                 .Append(transmission.Gear).Append(',').Append(stop?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',').Append(give?.ToString("0.0", Inv) ?? "").Append('\n');
 
             if (o.Along + Car.FrontAhead >= driver.Length - 1.5f && Mathf.Abs(speed) < 0.3f) { End("arrived", true); return; }
+            if (BlockedRule(o, speed, gap)) return;
             // Stuck: 30 s without 2 m of progress while nothing holds the car.
             if (o.Along > lastProgressAlong + 2f || WaitingNow) { lastProgressAlong = o.Along; lastProgressTime = Time.time; }
             else if (Time.time - lastProgressTime > 30f) { End("stuck", false); return; }
             stillSeconds = Mathf.Abs(speed) < 0.2f && !WaitingNow && o.Desired > 1f ? stillSeconds + Time.fixedDeltaTime : 0f;
             if (stillSeconds > 1f && stillSeconds < 1.03f) Log.Info($"NWH drive: standing with throttle {o.Throttle:0.00}, gear {transmission.Gear}, engine {(vehicle.powertrain.engine.IsRunning ? "running" : "off")}, rpm {vehicle.powertrain.engine.OutputRPM:0}.");
+        }
+
+        // The car can't get on, whatever the driver does: pushing with no motion for 2 s (against a kerb nose or a
+        // parked car the gap didn't see), or held 3 s by something that never moves (a parked car, a prop). T2: four
+        // runs ended at full throttle and no speed for 20 s. It backs off a little along its way and gives up the
+        // step, so the planner can go round it.
+        private bool BlockedRule(DriveOutput o, float speed, float? gap)
+        {
+            var dt = Time.fixedDeltaTime;
+            pushSeconds = o.Throttle > 0.5f && Mathf.Abs(speed) < 0.2f ? pushSeconds + dt : 0f;
+            var still = gap != null && WaitingNow && lastBlockerLayer >= 0
+                && (lastBlockerLayer == LayerHelper.ParkedVehiclesLayerIndex || (TestCar.ObstacleMask & (1 << lastBlockerLayer)) != 0);
+            staticHeldSeconds = still ? staticHeldSeconds + dt : 0f;
+            if (pushSeconds < 2f && staticHeldSeconds < 3f) return false;
+            var what = pushSeconds >= 2f ? "no motion at full throttle" : $"held by '{lastBlocker}' {gap:0.0} m ahead, which doesn't move";
+            var front = o.Along + Car.FrontAhead;
+            var position = 0;
+            while (position + 1 < path.Count && line.AlongOf[position + 1] <= front) position++;
+            Log.Info($"NWH drive: blocked ({what}) at path position {position}, {front:0} m along; backing off.");
+            blockedWhat = what;
+            backOffUntil = Time.time + 1.5f;
+            pushSeconds = staticHeldSeconds = 0f;
+            try { Blocked?.Invoke(position, what); } catch (Exception ex) { Log.Error("NWH drive, blocked: " + ex.Message); }
+            return true;
         }
 
         private void End(string reason, bool arrived)
@@ -204,6 +238,26 @@ namespace DrivenRides
             return null;
         }
 
+        // Whether a point is on the arc the car drives at its present wheel angle, within its half width and a little.
+        // Off its line (a U-turn run wide), what stands straight ahead of the body is in its way though the line isn't
+        // there (T2, turn rig 20261013-182118-0008: nosed into a parked van at full throttle with nothing in the
+        // gap); round a corner the arc bends away from the parked cars the cast finds straight ahead, as the line does.
+        private bool OnOwnPath(Vector3 point)
+        {
+            var local = Car.Root.transform.InverseTransformPoint(point);
+            local.z -= Car.RearZ;
+            if (local.z <= 0f) return false;
+            var curvature = (float)CarModel.Curvature(Car.Vehicle.steering.angle, Car.Wheelbase, TrackWidth);
+            float off;
+            if (Mathf.Abs(curvature) < 1e-3f) off = Mathf.Abs(local.x);
+            else
+            {
+                var radius = 1f / curvature;
+                off = Mathf.Abs(Mathf.Sqrt((local.x - radius) * (local.x - radius) + local.z * local.z) - Mathf.Abs(radius));
+            }
+            return off <= Car.BodyHalf.x + 0.3f;
+        }
+
         private static int obstacleMask = -1;
         private readonly RaycastHit[] hits = new RaycastHit[16];
 
@@ -233,12 +287,13 @@ namespace DrivenRides
             {
                 var h = hits[i];
                 if (h.rigidbody == Car.Body || h.collider.transform.IsChildOf(t)) continue;
-                // Only what stands on the car's way: within its half width and a little of the line.
+                // Only what stands on the car's way: within its half width and a little of the line, or of the path the
+                // car itself sweeps at its present wheel angle (OnOwnPath).
                 var point = h.distance > 0f ? h.point : h.collider.bounds.center;
                 var (_, side) = line.Locate(point.x, point.z, driver.Along, reach + 10f);
-                if (Mathf.Abs(side) > Car.BodyHalf.x + 0.4f) continue;
+                if (Mathf.Abs(side) > Car.BodyHalf.x + 0.4f && !OnOwnPath(point)) continue;
                 var d = h.distance + 0.3f;
-                if (best == null || d < best) { best = d; lastBlocker = $"{h.collider.name} ({LayerMask.LayerToName(h.collider.gameObject.layer)})"; lastBlockerBody = h.rigidbody; }
+                if (best == null || d < best) { best = d; lastBlocker = $"{h.collider.name} ({LayerMask.LayerToName(h.collider.gameObject.layer)})"; lastBlockerBody = h.rigidbody; lastBlockerLayer = h.collider.gameObject.layer; }
             }
             return best;
         }

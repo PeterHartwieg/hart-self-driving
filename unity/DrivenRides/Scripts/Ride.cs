@@ -1670,6 +1670,8 @@ namespace DrivenRides
                 for (var q = k; q < w.Count && q <= k + 4; q++) ahead.Add(w[q]);
                 var from = w[k];
                 var to = w[k + 1];
+                // The NWH check is asked afresh: the parked cars near the step are loaded now.
+                nwhPlanner?.Check.Forget(from, to);
                 var blocked = (nwhPlanner != null ? nwhPlanner.BlockedSteps(graph, ahead, 0f) : FindBlockedSteps(graph, ahead, carSteering)).FindAll(b => b.From == from && b.To == to);
                 if (blocked.Count == 0) continue;
                 // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.

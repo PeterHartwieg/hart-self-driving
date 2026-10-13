@@ -749,6 +749,15 @@ namespace DrivenRides
             // The driver steers for NWH's Ackermann, as the planner's check assumed (CarModel.TrackWidth).
             if (planner != null) drive.TrackWidth = planner.Car.TrackWidth;
             drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);
+            // A car that can't get on gives up the step it is on; the planner blocks it for this car, as a ride would
+            // before planning again.
+            drive.Blocked += (position, what) =>
+            {
+                var r = RouteStepAt(route, path, position);
+                if (r < 0) return;
+                planner?.Block(route[r], route[r + 1]);
+                line["blocked"] = $"step {route[r]} -> {route[r + 1]}: {what}";
+            };
             s.NwhDrive = drive;
             testCar.Waiting = () => drive.WaitingNow;
             s.Anchor.Target = car.Root.transform;
@@ -762,6 +771,7 @@ namespace DrivenRides
                 yield return null;
             }
             var timedOut = Time.time >= limit;
+            if (drive.Ended && drive.EndReason.StartsWith("blocked", StringComparison.Ordinal)) judge.Replanned(drive.EndReason);
             yield return null;
             RestoreNwhScale(s);
 
@@ -780,6 +790,19 @@ namespace DrivenRides
             EndNwh(s);
             Record(s, line, result.Verdict, null, result, fixture);
             done(result);
+        }
+
+        // The step of a route that a path position lies on: the last route waypoint at or before it in the path.
+        private static int RouteStepAt(List<int> route, List<int> path, int position)
+        {
+            int r = -1, k = 0;
+            for (var q = 0; q < route.Count && k < path.Count; q++)
+            {
+                while (k < path.Count && path[k] != route[q]) k++;
+                if (k >= path.Count || k > position) break;
+                r = q;
+            }
+            return r >= 0 && r + 1 < route.Count ? r : -1;
         }
 
         private static void EndNwh(Session s)

@@ -11,17 +11,18 @@ using DrivenRides.Core.Testing;
 //   feasible <car> [--ids a,b,...|@file] [--kinds turn,uturn] [--margin m] [--out file] [--previous file]
 //            [--rig results.jsonl]
 //
-// <car>: limo, mersaididash (Cars.cs) or name;wheelbase;top km/h;cx,cy,cz;hx,hy,hz;kmh=deg,... (CarSpec.Parse; the game
+// <car>: limo, mersaididash, taxi (Cars.cs) or name;wheelbase;top km/h;cx,cy,cz;hx,hy,hz;kmh=deg,... (CarSpec.Parse; the game
 // log's "NWH shape" line). --rig: compare with a rig run's NWH results for that car; each case
 // is also driven as that run drove it (the arc whenever one fitted the lock at 10 km/h, no check), which says how well
-// the model matches NWH on the same line.
+// the model matches NWH on the same line. A rig verdict "avoided" (the game's check, with the world, left the case out)
+// counts as the rig saying no.
 static class Feasible
 {
     public static void Run(string graphPath, string[] args)
     {
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         string? Opt(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : null; }
-        var car = Cars.Get(args[0]);
+        var car = Cars.Get(args[0]) ?? throw new ArgumentException("no measured car " + args[0]);
         var margin = Opt("--margin") is string m ? float.Parse(m, CultureInfo.InvariantCulture) : Feasibility.DefaultMargin;
         var graph = GraphFile.Load(graphPath, out var limits);
         float Limit(int w) => limits[w];
@@ -67,12 +68,13 @@ static class Feasible
                 // As the rig drove it: the arc if one fitted its radius, else the vias; no check of either.
                 var arc = r.Arcs > 0 && rigRadius != null ? (Func<int, int, Polyline?>)((e, x) => TurnArc.Fit(graph, e, x, rigRadius.Value)) : (e, x) => null;
                 var asRig = check.Drive(f, DrivePlan.Build(graph, f.Route, car, arc, null, Limit), "as rig");
+                // An avoided case is one the game's check (with the world) left out: the rig says the car can't.
                 var rigPass = r.Verdict == "pass";
                 compared++;
                 if (rigPass == v.Feasible) agree++;
                 asRigCompared++;
                 if (rigPass == asRig.Feasible) asRigAgree++;
-                var key = $"{f.Kind} rig {(rigPass ? "pass" : "fail")}, check {(v.Feasible ? "feasible" : "blocked")}";
+                var key = $"{f.Kind} rig {r.Verdict}, check {(v.Feasible ? "feasible" : "blocked")}";
                 confusion[key] = confusion.GetValueOrDefault(key) + 1;
                 extra = $"\trig {r.Verdict} [{r.Reasons}]; as the rig drove it: {(asRig.Feasible ? "pass" : "fail [" + asRig.Reason + "]")}, off {asRig.WorstOff:0.00} m";
             }

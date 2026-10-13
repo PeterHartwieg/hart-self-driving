@@ -20,7 +20,9 @@ var graph = GraphFile.Load(args[0], out _);
 var runs = new List<Run>();
 foreach (var path in args.Skip(1))
 {
-    var run = Run.Load(path);
+    Run? run;
+    try { run = Run.Load(path); }
+    catch (InvalidDataException ex) { Console.WriteLine($"{Path.GetFileName(path)}: {ex.Message}"); continue; }
     if (run == null) { Console.WriteLine($"{Path.GetFileName(path)}: no samples or results beside it"); continue; }
     runs.Add(run);
     Console.WriteLine($"{run.Name}: {run.Case} ({run.Car.Name}, {run.Version}), {run.Rows.Count} steps, samples offset {run.Offset}");
@@ -133,21 +135,47 @@ foreach (var group in runs.GroupBy(r => r.Car.Name))
                       $"a plain bicycle {Error(0f):0.00} m; the spec's {car.TrackWidth:0.00} m {Error(car.TrackWidth):0.00} m.");
 }
 
-// 3. Closed loop on rig cases driven by nwh1's driver.
-var closed = new List<double>();
-foreach (var run in runs.Where(r => r.Fixture != null && r.Version.EndsWith("nwh1", StringComparison.Ordinal)))
+// 3. Closed loop on rig cases that passed: nwh1's driver for the spike's runs, Core's PursuitDriver (steering for the
+// car's track, as NwhDrive does since 0.1.55) for the planner's runs, each on the line the rig built.
+var closed = new Dictionary<string, List<double>>();
+foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && (r.Version.EndsWith("nwh1", StringComparison.Ordinal) || r.Plan != null)))
 {
     var f = run.Fixture!;
-    var arc = run.Arcs > 0 ? (Func<int, int, Polyline?>)((e, x) => TurnArc.Fit(graph, e, x, run.MinRadius)) : (e, x) => null;
+    var nwh1 = run.Plan == null;
+    var spec = run.Car;
+    int entry = f.Route[f.EntryIndex], exit = f.Route[f.EntryIndex + 1];
+    var least = Math.Max(spec.ArcMinRadius() * TurnArc.RadiusSlack, TurnArc.MinDriveRadius);
+    Func<int, int, Polyline?> arc = nwh1
+        ? (run.Arcs > 0 ? (e, x) => TurnArc.Fit(graph, e, x, run.MinRadius) : (e, x) => null)
+        : (e, x) => e != entry || x != exit ? null
+            : run.Plan == "arc" ? TurnArc.Fit(graph, e, x, spec.ArcMinRadius())
+            : run.Plan == "tight arc" ? TurnArc.Fit(graph, e, x, spec.ArcMinRadius(), least) : null;
     var plan = DrivePlan.Build(graph, f.Route, run.Car, arc);
     var line = plan.Line(graph);
+    var driver = nwh1 ? null : plan.Driver(line, spec.Wheelbase, spec.FrontAhead, spec.TrackWidth);
     // The recorded speed by distance along the line, and the car's lateral offset there.
     var byAlong = run.Rows.Where(r => r.Speed > 0.05f).Select(r => (r.Along, r.Speed, r.Lateral)).ToList();
     if (byAlong.Count < 10) continue;
+    // The line rebuilt here must be the one the car drove: the recorded rear axle, located on it, at the recorded
+    // distance along (a lane graph dumped by another game build infers other vias).
+    var mismatch = 0.0;
+    var checkedRows = 0;
+    var from = 0f;
+    for (var k = 0; k < run.Rows.Count; k += 10)
+    {
+        if (run.Pose(k) is not var (px, pz, _)) continue;
+        var (at, _) = line.Locate((float)px, (float)pz, Math.Max(0f, from - 5f), 30f);
+        from = at;
+        mismatch = Math.Max(mismatch, Math.Abs(at - run.Rows[k].Along));
+        checkedRows++;
+    }
+    if (checkedRows == 0 || mismatch > 3) { Console.WriteLine($"Closed loop {run.Name} ({run.Case}): left out, its line isn't the one rebuilt here ({mismatch:0.0} m apart)."); continue; }
     var start = graph.Position(plan.Path[0]);
     var next = line.Line.At(1f);
+    // The model's track: the prefab's (as the planner uses it), the fitted one with TRACK=fit, none with BICYCLE=1.
+    var modelTrack = Environment.GetEnvironmentVariable("BICYCLE") == "1" ? 0f : Environment.GetEnvironmentVariable("TRACK") == "fit" ? tracks[run.Car.Name] : spec.TrackWidth;
     var car = new CarModel(run.Car.Wheelbase, run.Car.LockAt, start.X, start.Z, Math.Atan2(next.X - start.X, next.Z - start.Z))
-        { Smooth = best.Smooth, Rate = best.Rate, TrackWidth = Environment.GetEnvironmentVariable("BICYCLE") == "1" ? 0f : tracks[run.Car.Name] };
+        { Smooth = best.Smooth, Rate = best.Rate, TrackWidth = modelTrack };
     var along = 0f;
     double worst = 0, worstAt = 0, widestModel = 0, widestCar = 0;
     var lastAlong = byAlong[^1].Along;
@@ -164,19 +192,27 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Version.EndsWith("nwh
             Console.WriteLine($"    {along,6:0.0} m: speed {speed:0.0}, model {lateral,6:0.00}, car {recordedLateral,6:0.00}");
         widestModel = Math.Max(widestModel, Math.Abs(lateral));
         widestCar = Math.Max(widestCar, Math.Abs(recordedLateral));
-        // nwh1's steering: pure pursuit from the rear axle, max(wheelbase + 1.5, 1.5 + 0.45 v) ahead.
-        var look = Math.Max(run.Car.Wheelbase + 1.5f, 1.5f + 0.45f * speed);
-        var target = line.Line.At(along + look);
-        double tx = target.X - car.X, tz = target.Z - car.Z;
-        var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - car.Heading);
-        var steer = Math.Atan(run.Car.Wheelbase * 2 * Math.Sin(alpha) / Math.Max(1, Math.Sqrt(tx * tx + tz * tz))) * 180 / Math.PI;
+        double steer;
         car.Speed = Math.Max(0.3f, speed);
+        if (driver != null) steer = driver.Step(car.Input(Dt)).SteerDegrees;
+        else
+        {
+            // nwh1's steering: pure pursuit from the rear axle, max(wheelbase + 1.5, 1.5 + 0.45 v) ahead.
+            var look = Math.Max(run.Car.Wheelbase + 1.5f, 1.5f + 0.45f * speed);
+            var target = line.Line.At(along + look);
+            double tx = target.X - car.X, tz = target.Z - car.Z;
+            var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - car.Heading);
+            steer = Math.Atan(run.Car.Wheelbase * 2 * Math.Sin(alpha) / Math.Max(1, Math.Sqrt(tx * tx + tz * tz))) * 180 / Math.PI;
+        }
         car.Step(new DriveOutput { SteerDegrees = (float)steer, Desired = (float)car.Speed }, Dt);
     }
-    closed.Add(worst);
-    Console.WriteLine($"Closed loop {run.Name} ({run.Case}): model off the car's lateral by up to {worst:0.00} m (at {worstAt:0} m along); widest off the line: model {widestModel:0.00} m, car {widestCar:0.00} m.");
+    if (!closed.TryGetValue(run.Car.Name, out var list)) closed[run.Car.Name] = list = new List<double>();
+    list.Add(worst);
+    if (Environment.GetEnvironmentVariable("VERBOSE") == "1" || worst > 0.3)
+        Console.WriteLine($"Closed loop {run.Name} ({run.Case}, {run.Car.Name}, {run.Plan ?? "nwh1"}): model off the car's lateral by up to {worst:0.00} m (at {worstAt:0} m along); widest off the line: model {widestModel:0.00} m, car {widestCar:0.00} m.");
 }
-if (closed.Count > 0) Console.WriteLine($"Closed loop over {closed.Count} runs: {Spread(closed)}. Margin to use: {closed.Max():0.00} m{(closed.Max() > 0.5 ? " (over 0.5 m: the plan says wider margins, not more model)" : "")}.");
+foreach (var (name, list) in closed)
+    Console.WriteLine($"Closed loop, {name}, {list.Count} passed runs: {Spread(list)}. Margin to use: {list.Max():0.00} m{(list.Max() > 0.5 ? " (over 0.5 m: the plan says wider margins, not more model)" : "")}.");
 
 static (float Speed, float Lateral) At(List<(float Along, float Speed, float Lateral)> rows, float along)
 {
@@ -200,7 +236,9 @@ static string Spread(List<double> values)
 
 sealed class Run
 {
-    public string Name = "", Case = "", Version = "";
+    public string Name = "", Case = "", Version = "", Verdict = "";
+    // The planner's form for the manoeuvre (0.1.55 on: arc, tight arc, vias); null for the spike's runs.
+    public string? Plan;
     public CarSpec Car = null!;
     public DrivenRides.Core.Testing.Fixture? Fixture;
     public int Arcs, Offset;
@@ -232,8 +270,9 @@ sealed class Run
         var run = new Run
         {
             Name = name, Case = r.GetProperty("case").GetString()!, Version = r.GetProperty("version").GetString()!,
-            Car = Cars.Get(r.GetProperty("car").GetString()!),
+            Car = Cars.Get(r.GetProperty("car").GetString()!) ?? throw new InvalidDataException("no measured car " + r.GetProperty("car").GetString()),
             Arcs = r.TryGetProperty("arcs", out var a) ? a.GetInt32() : 0, MinRadius = r.TryGetProperty("minRadius", out var m) ? m.GetSingle() : 0f,
+            Verdict = r.GetProperty("verdict").GetString() ?? "", Plan = r.TryGetProperty("plan", out var p) ? p.GetString() : null,
         };
         if (r.TryGetProperty("fixture", out var fx) && fx.ValueKind == JsonValueKind.Object)
             run.Fixture = new DrivenRides.Core.Testing.Fixture

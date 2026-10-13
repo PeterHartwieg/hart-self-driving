@@ -39,11 +39,56 @@ public sealed class FeasibilityTests
         var turn = check.Step(entry, exit);
         output.WriteLine(turn.ToString());
         Assert.True(turn.Feasible, turn.ToString());
-        var (u, uEntry, _) = TurnTestGraph.UTurn();
+        var (u, uEntry) = TwoLaneUTurn();
         var uTurn = new Feasibility(u, Small()).Step(uEntry, u.UTurn(uEntry));
         output.WriteLine(uTurn.ToString());
         Assert.True(uTurn.Feasible, uTurn.ToString());
         Assert.Equal("vias", uTurn.Form);
+    }
+
+    // TurnTestGraph.UTurn with a second lane on the far carriageway, outside the target lane: room to swing into.
+    private static (LaneGraph Graph, int Entry) TwoLaneUTurn()
+    {
+        var b = new TurnTestGraph();
+        int a = b.Add(-30, 0), e = b.Add(-5, 0), j1 = b.Add(5, 0, true), j2 = b.Add(12, 0, true), j3 = b.Add(25, 0, true);
+        int straight = b.Add(35, 0), end = b.Add(45, 0);
+        b.Link(a, e, j1, j2, j3, straight, end);
+        int w0 = b.Add(35, 15), wj1 = b.Add(20, 15, true), wj2 = b.Add(10, 15, true), wj3 = b.Add(0, 15, true), wj4 = b.Add(-10, 15, true);
+        int exit = b.Add(-15, 15), w1 = b.Add(-30, 15), w2 = b.Add(-50, 15), w3 = b.Add(-70, 15);
+        b.Link(w0, wj1, wj2, wj3, wj4, exit, w1, w2, w3);
+        int o0 = b.Add(35, 19), oj1 = b.Add(20, 19, true), oj2 = b.Add(10, 19, true), oj3 = b.Add(0, 19, true), oj4 = b.Add(-10, 19, true);
+        int o5 = b.Add(-15, 19), o6 = b.Add(-30, 19), o7 = b.Add(-50, 19), o8 = b.Add(-70, 19);
+        b.Link(o0, oj1, oj2, oj3, oj4, o5, o6, o7, o8);
+        b.Beside(w1, o6);
+        b.Beside(o6, w1);
+        return (b.Build(true), e);
+    }
+
+    [Fact]
+    public void ACarThatEndsUpOffItsLanePastTheExitIsNotFeasible()
+    {
+        // The turn case driven on a path that swings 7 m to the right of the exit lane after the exit: what a U-turn
+        // run wide into the parking lane looked like in T2 (the car nosed into a parked van; the check had passed it).
+        var b = new TurnTestGraph();
+        var (_, entry, exit) = TurnTestGraph.Turn();
+        int a = b.Add(0, -30), run = b.Add(0, -20), e = b.Add(0, -10);
+        int j1 = b.Add(0, -5, true), j2 = b.Add(0, 5, true), straight = b.Add(0, 10), end = b.Add(0, 20);
+        b.Link(a, run, e, j1, j2, straight, end);
+        int west = b.Add(-20, -2), crossEntry = b.Add(-10, -2), cj1 = b.Add(-5, -2, true), cj2 = b.Add(5, -2, true);
+        int x = b.Add(10, -2), x2 = b.Add(20, -2), x3 = b.Add(30, -2), x4 = b.Add(40, -2), x5 = b.Add(50, -2);
+        b.Link(west, crossEntry, cj1, cj2, x, x2, x3, x4, x5);
+        var wide = b.Add(28, -9);
+        var graph = b.Build(true);
+        Assert.Equal((entry, exit), (e, x));
+        var fixture = Catalogue.ForStep(graph, e, x, new CatalogueOptions())!;
+        var path = fixture.Route.ToList();
+        path.Insert(path.IndexOf(x2) + 1, wide);
+        var check = new Feasibility(graph, Small());
+        var verdict = check.Drive(fixture, DrivePlan.Fixed(path, null, 50f), "vias");
+        output.WriteLine(verdict.ToString());
+        Assert.False(verdict.Feasible);
+        Assert.True(verdict.Reason.Contains("carriageway") || verdict.Reason.Contains("off-lane"), verdict.Reason);
+        Assert.True(check.Drive(fixture, DrivePlan.Fixed(fixture.Route.ToList(), null, 50f), "vias").Feasible);
     }
 
     [Fact]

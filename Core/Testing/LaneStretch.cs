@@ -17,7 +17,9 @@ namespace DrivenRides.Core.Testing
         public float Left = float.NegativeInfinity, Right = float.PositiveInfinity;
         public readonly float OwnLeft, OwnRight;
 
-        public LaneStretch(LaneGraph graph, Vec3 start, Vec3 end, int index)
+        // edges: read the lanes beside from every lane edge near (junction waypoints have no plain heading), for the
+        // feasibility check's carriageway through a junction; the judge reads plain waypoints only.
+        public LaneStretch(LaneGraph graph, Vec3 start, Vec3 end, int index, bool edges = false)
         {
             this.start = start;
             this.end = end;
@@ -30,7 +32,10 @@ namespace DrivenRides.Core.Testing
             foreach (int w in graph.Near(start, 12f))
             {
                 Vec3 p = graph.Position(w);
-                if (Math.Abs(p.Y - start.Y) > 1f || !graph.PlainHeading(w, out float x, out float z)) continue;
+                if (Math.Abs(p.Y - start.Y) > 1f) continue;
+                float x, z;
+                if (graph.PlainHeading(w, out x, out z)) { }
+                else if (!edges || !AlignedEdge(graph, w, out x, out z)) continue;
                 float dot = dx * x + dz * z, side = Side(p);
                 if (dot > 0.5f) same.Add(side);
                 // An oncoming waypoint less than 2.5 m to the side is no lane beside: the game reuses a lane both
@@ -51,6 +56,21 @@ namespace DrivenRides.Core.Testing
             OwnRight = ownRight;
             if (!float.IsNegativeInfinity(left)) Left = (left + ownLeft) / 2;
             if (!float.IsPositiveInfinity(right)) Right = (right + ownRight) / 2;
+        }
+
+        // The direction of a lane edge from w that runs along this stretch or against it, if any.
+        private bool AlignedEdge(LaneGraph graph, int w, out float x, out float z)
+        {
+            x = z = 0;
+            foreach (int n in graph.Successors(w))
+            {
+                if (!Geometry.Direction(graph.Position(w), graph.Position(n), out float ex, out float ez)) continue;
+                if (Math.Abs(dx * ex + dz * ez) < 0.9f) continue;
+                x = ex;
+                z = ez;
+                return true;
+            }
+            return false;
         }
 
         public float Along(Vec3 p) => (p.X - start.X) * dx + (p.Z - start.Z) * dz;
