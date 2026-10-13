@@ -104,6 +104,7 @@ namespace DrivenRides
                 s.Waypoints.Add(new ScenarioWaypoint
                 {
                     X = g.position.x, Y = g.position.y, Z = g.position.z, Next = graph.Successors(w).Where(local.ContainsKey).Select(n => local[n]).ToArray(),
+                    Lateral = graph.Lateral(w).Where(local.ContainsKey).Select(n => local[n]).ToArray(),
                     InJunction = graph.IsIntersection(w), Kmh = g.maxSpeed, Stop = first.Stops.Contains(w) || (!watched.Contains(w) && g.stop),
                     GiveWay = g.giveWay, Enter = g.enter, Exit = g.exit, Junction = junction, Road = road, Source = w,
                 });

@@ -134,7 +134,7 @@ public sealed class TrafficTests
             var cars = f.Cars.Where(c => sizes.ContainsKey(c.Id)).Select(c => new DrivenRides.Core.Drive.OtherCar
             {
                 Id = c.Id, X = c.X, Z = c.Z, Heading = c.Heading, Vx = c.Vx, Vz = c.Vz, Length = sizes[c.Id].Length, Width = sizes[c.Id].Width,
-                TriggerLength = sizes[c.Id].Trigger, Target = c.Target, StoppedForUs = c.ForUs,
+                TriggerLength = sizes[c.Id].Trigger, Target = c.Target, StoppedForUs = c.ForUs, MayChangeLane = c.Action == "Follow" || c.Action == "Overtake",
             }).ToList();
             traffic.Decide(new DrivenRides.Core.Drive.TrafficSnapshot
             {
@@ -174,5 +174,20 @@ public sealed class TrafficTests
         var dropped = lines.Skip(first).Where(l => !l.Contains("for   0")).ToList();
         foreach (var l in lines.Skip(first)) output.WriteLine(l);
         Assert.True(dropped.Count == 0, $"dropped car 0 at:\n{string.Join("\n", dropped.Take(5))}");
+    }
+
+    // T3 20261013-211205, ride 18: a car in the lane beside, following a slower car, overtook into the ride car's
+    // lane while alongside (Gley's lane change checks only its own cars' targets). From when it starts to overtake
+    // (Overtake, 1 s before it moves over) to the contact, the ride car must be giving way to it.
+    [Fact]
+    public void Ride18GivesWayToACarOvertakingIntoItsLane()
+    {
+        var s = TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "t3c-211205-ride18-contact-1.json")));
+        var lines = ReplayDecisions(s);
+        var overtaking = s.History.FindIndex(f => f.Cars.Any(c => c.Id == 20 && c.Action == "Overtake"));
+        Assert.True(overtaking >= 0);
+        var after = lines.Skip(overtaking).ToList();
+        foreach (var l in after) output.WriteLine(l);
+        Assert.All(after, l => Assert.Contains("for  20", l));
     }
 }

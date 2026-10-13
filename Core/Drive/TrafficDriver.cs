@@ -489,6 +489,14 @@ namespace DrivenRides.Core.Drive
             return false;
         }
 
+        // The car's front is behind the ride car's rear bumper.
+        private bool BehindRear(in OtherCar c)
+        {
+            float hx = poses[0].Sin, hz = poses[0].Cos;
+            var front = (c.X - poses[0].X) * hx + (c.Z - poses[0].Z) * hz + c.Length / 2f * ((float)Math.Sin(c.Heading) * hx + (float)Math.Cos(c.Heading) * hz);
+            return front < -poses[0].HalfLength;
+        }
+
         // A car on the same way is ahead of the ride car (to be followed, not given way to) only once its rear, not
         // its front, is past the stretch the ride car's body takes: an 11 m truck coming up beside the ride car as it
         // turned across its lane counted as ahead with its cab past the middle, and the ride car turned into its side
@@ -519,7 +527,8 @@ namespace DrivenRides.Core.Drive
                 var same = dot > 0.64f;
                 // A car the ride car is ahead of on its way, going the same way along it, follows the ride car: not
                 // its business (in a turn the body is across the lane, so the poses ahead tell the way, not pose 0).
-                if (k == 0 && ua > 0f && (same || AheadAlong(ua))) return null;
+                // One alongside about to move over isn't following it, though (ride 18): it must be behind its rear.
+                if (k == 0 && ua > 0f && (same || AheadAlong(ua)) && (!c.MayChangeLane || BehindRear(c))) return null;
                 // Ground ahead of the car that it is coming into: the ride car must not come to a stop there.
                 if (runStart > 0 && ua > 0f && !(same && AheadBy(early[k], ub)) && (keepClearFrom[k] < 0 || runStart < keepClearFrom[k]))
                 {
