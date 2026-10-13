@@ -20,6 +20,8 @@ internal sealed class SimResult
     public int BackOffs;
     // Decisions that nosed in at a creep in front of a crawling car.
     public int NoseIns;
+    // Times the driver went on past a car's way only because standing would be hit (TrafficDecision.ForcedCommit).
+    public int ForcedCommits;
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
@@ -107,6 +109,7 @@ internal sealed class TrafficSim : ILiveFlags
 
     public SimResult Run()
     {
+        var forcedBefore = false;
         var result = new SimResult();
         var stoppable = new Dictionary<int, bool>();
         float stall = 0f, nextTrace = 0f;
@@ -199,6 +202,8 @@ internal sealed class TrafficSim : ILiveFlags
             backing = decision.BackOff;
             if (decision.YieldFor >= 0) result.GaveWayTo.Add(decision.YieldFor);
             if (decision.NoseIn) result.NoseIns++;
+            if (decision.ForcedCommit && !forcedBefore) result.ForcedCommits++;
+            forcedBefore = decision.ForcedCommit;
 
             // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);
@@ -386,6 +391,8 @@ internal sealed class TrafficSim : ILiveFlags
         private int target = -1;
         private readonly HashSet<int> ranThrough = new(), granted = new(), passed = new();
         private float blockedByCar;
+        // Metres left to stop in since something came into its trigger (Gley's StopInDistance), or -1.
+        private float stopLeft = -1f;
         private float ignoreCarsUntil;
         private readonly Box[] ahead = new Box[48];
         public Box Body;
@@ -613,7 +620,17 @@ internal sealed class TrafficSim : ILiveFlags
             // wouldn't): the one waiting longest on a standing car moves on through it after a while.
             var blocker = stoppedByCar >= 0 ? sim.cars.FirstOrDefault(o => o.Spec.Id == stoppedByCar) : null;
             if (blockedByCar > 3f && blocker != null && blocker.V < 0.3f && (blocker.blockedByCar > 0f || blocker.Why != "red") && (blocker.blockedByCar < blockedByCar || Spec.Id < stoppedByCar)) ignoreCarsUntil = t + 2f;
-            if (stopNow) { limit = 0f; brake = 8f; }
+            // Gley's StopInDistance: its target speed falls to 0 over TrafficDriver.TriggerStopMetres from when the
+            // trigger caught something, and the speed follows the target each step (review round 3, V2; before, 8 m/s²
+            // whatever the speed).
+            if (stopNow)
+            {
+                if (stopLeft < 0f) stopLeft = TrafficDriver.TriggerStopMetres;
+                limit = 0f;
+                brake = Math.Max(8f, V * V / (2f * Math.Max(0.05f, stopLeft)));
+                stopLeft = Math.Max(0f, stopLeft - V * Dt);
+            }
+            else stopLeft = -1f;
             V += Math.Max(-brake * Dt, Math.Min(2f * Dt, limit - V));
             V = Math.Max(0f, V);
             U += V * Dt;

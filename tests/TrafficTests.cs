@@ -31,13 +31,15 @@ public sealed class TrafficTests
         var failures = new ConcurrentBag<(int Seed, string Why)>();
         var watch = Stopwatch.StartNew();
         var arrived = 0;
+        var forced = 0;
         Parallel.For(0, seeds, seed =>
         {
             var r = Run(TrafficTemplates.Build(template, seed));
+            System.Threading.Interlocked.Add(ref forced, r.ForcedCommits);
             if (r.Failure != null || r.Blocked != null) failures.Add((seed, r.Failure ?? "blocked: " + r.Blocked));
             else System.Threading.Interlocked.Increment(ref arrived);
         });
-        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed");
+        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {forced} forced commits");
         foreach (var (seed, why) in failures.OrderBy(f => f.Seed).Take(20)) output.WriteLine($"  seed {seed}: {why}");
         Assert.Empty(failures);
     }
@@ -133,7 +135,7 @@ public sealed class TrafficTests
 
     // T3 20261013-213209, ride 17 (62 s at a merge): fed the recorded frames, the ride car waits at the merge point
     // (where it gives way is never short of its front: it has come up as far as it may) and only ever for a car that
-    // is moving and coming (none standing, none moving away from where it would meet the ride car). Why it doesn't
+    // is moving and coming at the merge (none standing, none past where the ride car waits). Why it doesn't
     // resolve in these frames is in the dump's note (review round 2, U4): no car in them is slow enough to nose in
     // on, and the 10 s kept hold no gap.
     [Fact]
@@ -159,6 +161,14 @@ public sealed class TrafficTests
             Assert.True(car.Id == id, $"frame {i}: gives way to car {id}, which isn't there");
             var speed = Math.Sqrt(car.Vx * car.Vx + car.Vz * car.Vz);
             Assert.True(speed > DrivenRides.Core.Drive.TrafficDriver.StandingMs, $"frame {i}: gives way to car {id} standing ({speed:0.0} m/s): {lines[i]}");
+            // Coming at the merge (review round 3, V5): the ride car's front, where it waits, is ahead of the car's rear
+            // along the way the car is going, so the car has yet to pass it.
+            var f = s.History[i];
+            double fx = f.RideX + Math.Sin(f.RideHeading) * s.Ride.FrontAhead, fz = f.RideZ + Math.Cos(f.RideHeading) * s.Ride.FrontAhead;
+            var length = s.Cars.First(c => c.Id == id).Length;
+            double rx = car.X - Math.Sin(car.Heading) * length / 2, rz = car.Z - Math.Cos(car.Heading) * length / 2;
+            var coming = ((fx - rx) * car.Vx + (fz - rz) * car.Vz) / speed;
+            Assert.True(coming > 0, $"frame {i}: gives way to car {id}, past the merge by {-coming:0.0} m: {lines[i]}");
         }
         Assert.True(waits > lines.Count / 2, $"gives way in only {waits} of {lines.Count} frames");
     }
