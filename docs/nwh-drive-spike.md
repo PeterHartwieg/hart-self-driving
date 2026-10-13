@@ -1,6 +1,6 @@
 # NWH drive spike: ride cars on the game's own car physics
 
-A one-session spike, 13 October 2026, on branch `nwh-drive` (builds 0.1.51-nwh1 to nwh6, on top of 0.1.51). The question: should a ride car be driven by the physics the player's own car uses (NWH Vehicle Physics 2) instead of being a Gley traffic car, keeping the mod's route planner? Peter's framing: "decouple the car physics from the pathing".
+A one-session spike, 13 October 2026, on branch `nwh-drive` (builds 0.1.51-nwh1 to nwh7, on top of 0.1.51; nwh7 was built, not run). The question: should a ride car be driven by the physics the player's own car uses (NWH Vehicle Physics 2) instead of being a Gley traffic car, keeping the mod's route planner? Peter's framing: "decouple the car physics from the pathing".
 
 Why: Gley turns a car about its origin, which on the taxi and the limo is the rear axle, so the car visibly pivots on its back wheels; Gley's numbers are also far from the drivable car's (the limo: 1.71 m between the wheels and a 2 m turning circle in Gley, 3.75 m and about 5 m when the player drives it). 0.1.48 to 0.1.51 patched this inside Gley (`DrivableSteering`, `TurnAboutMiddle`); that stays the fallback.
 
@@ -41,7 +41,9 @@ The 30 turn and 33 U-turn cases of `q4`, limo and mersaididash, against the Gley
 
 - nwh3: it followed a car to a stop 1.7 m behind it and pulled away with it, and braked for reds (each turned green before it got there). It ran wide out of corners, by up to 3 m after the U-turn (full throttle with the wheel still at lock), and at the first right turn onto Broadway it pulled into a traffic car that had the right of way (no giving way yet). The first U-turn was "incredibly slow" (Peter): the U-turn's vias read as a 2 to 3 m radius.
 - nwh5 (steering for the lag, speed capped by the wheel, giving way, corners never under 12 km/h): at a light that turned green as it arrived, it U-turned across the oncoming lanes, which had the same green, and was hit at 13 m/s; it had seen the oncoming car but waited at the point where its line crosses theirs, which in a U-turn the body reaches much earlier. Later it gave way, pulled out, touched a traffic car at 1 m/s and both stopped for good: the Gley car stops for anything on the player's layer in its trigger, and this car for the Gley car 0.3 m ahead. To Peter it looked like running a red light.
-- nwh6 (giving way before the bend, backing off): PENDING.
+- nwh6 (giving way before the bend, backing off nose to nose): at the same junction it stopped for oncoming traffic, then stood 9 s after the oncoming cars had passed (the give-way check kept firing; the trace doesn't say for which car), until a traffic car pulled up 2 m away at an angle and both waited for good. nwh7 widens the back-off to a traffic car standing across the way within 3.5 m; it wasn't run.
+
+Three traffic runs, three junction situations a Gley car never meets, because Gley's own cars settle them among themselves.
 
 ### What Gley does with the NWH car
 
@@ -49,7 +51,7 @@ Gley cars see it as the player's car (its colliders are on `Vehicles`, in Gley's
 
 ## Peter's verdict on the look
 
-PENDING.
+Asked how the NWH car looked in the turns that went cleanly, in the rig and in traffic, against the Gley version (0.1.51), Peter answered "like a car I drive" (13 October 2026), over "better, not there yet". During the runs he found the first U-turn "incredibly slow" and asked for larger turns to be faster; nwh2 and nwh4 changed that and were not judged separately.
 
 ## What it would take to switch
 
@@ -69,4 +71,24 @@ The own-car design (`docs/own-car-self-drive.md`, `OwnCar.cs`, `StandIn.cs`) swa
 
 ## Recommendation
 
-PENDING Peter's verdict.
+**Switch every ride to NWH driving** (Peter, 13 October 2026), keeping the route planner, the arcs and the turn rig. The look is what the mod is for, and in Peter's comparison the NWH car has it where the 0.1.48-0.1.51 Gley patches don't. The cost is that traffic behaviour becomes the mod's own code. In order:
+
+1. **Traffic in the rig first.** A `traffic=on` tier of recorded rides at 1x and auto, judged on contacts with traffic and standstills as well as the lane: today's three runs give the first cases (the U-turn junction of ride 15, the right turn onto Broadway). Log which car a give-way or a gap waits for.
+2. **Junction rules** in Core, unit-tested with a kinematic car and moving others: give way to oncoming traffic before turning across it, merge only into a gap, Gley's give-way points, a timeout that lets the car go when nothing moves, backing off (nwh7) as the last resort. Read Gley's intersection state (which road has green) instead of predicting cars where that is simpler.
+3. **The world check with the NWH car's circle** (`TurnDrive` with the drivable wheelbase and lock, the rear axle as pivot), so the planner leaves out U-turns and arcs the car can't make, and parked cars in a lane are driven round or the lane is avoided.
+4. **The own car**, as above: the player's car drives itself, `StandIn` and the swap go.
+5. **The private driver**: the summoned Gley car is swapped for an NWH car of the vehicle type at boarding (the map hides it), or the driver arrives as an NWH car.
+6. **Taxis**: an NWH car under the taxi's look, the reverse of `StandIn`'s dress (the drivable car of the nearest size, the taxi's meshes on it), or taxis stay Gley cars until that exists.
+7. **The ride around it**: watchdog on NWH progress, Skip, cancel, the bridge skip, arrival, time scale at 2x and 3x, and per-car tuning in the rig for all 15 drivable models.
+
+If traffic can't be made to work, the fallback is the hybrid: NWH for the own car, where the player expects their car's physics most, and Gley with the 0.1.51 patches for the rest.
+
+## Running it again
+
+Build 0.1.51-nwh7 from this branch (`tools/build-mod.sh`), install it, and drive the rig over ssh:
+
+- `tools/turn-tests.sh homepc send run driver=nwh kinds=turn,uturn cars=limo,mersaididash speed=auto ids=<the q4 ids>`: the comparison set.
+- `tools/turn-tests.sh homepc send run driver=nwh kinds=ride rides=15,5,6 cars=limo traffic=on speed=1`: traffic, to watch.
+- `tools/compare-drivers.py <NWH results> <Gley results> Turn,UTurn`.
+
+Results of this session are in `build/tests/nwh-<session>/` (not committed): 20261013-082837 (smoke), 20261013-083259 (comparison), 20261013-084745, 085721 and 090918 (traffic on nwh3, nwh5, nwh6).
