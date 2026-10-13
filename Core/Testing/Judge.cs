@@ -23,6 +23,9 @@ namespace DrivenRides.Core.Testing
         // The footprint's corners are pulled this far inward before they are sampled, as the pedestrian ground the
         // game marks runs up to a lane's edge in places (a promenade by the pier, measured 0.5 m from a lane centre).
         public const float PavementInset = 0.3f;
+        public const float PavementEvery = 0.5f;
+        private bool pavementChecked;
+        private Vec3 pavementAt;
         private Sample previous;
         private bool hasPrevious, turnPassed, entered;
         private int nextGate, segment;
@@ -135,9 +138,15 @@ namespace DrivenRides.Core.Testing
                 if (s.NearMiss <= 0.1f) Fail(s.Step, "near-miss");
             }
             Plain(s);
+            // Every PavementEvery metres (the planner's check simulates at 50 steps a second; review round 1).
             if (!Finished && s.Footprint != null && !result.Reasons.Contains("pavement")
-                && (PavementAt != null ? OnPedestrianGround(s) : pavement.Past(s.Footprint)) is string onPavement)
-                OnThePavement(s.Step, onPavement);
+                && (!pavementChecked || Vec3.HorizontalDistance(s.Centre, pavementAt) >= PavementEvery))
+            {
+                pavementChecked = true;
+                pavementAt = s.Centre;
+                if ((PavementAt != null ? OnPedestrianGround(s) : pavement.Past(s.Footprint)) is string onPavement)
+                    OnThePavement(s.Step, onPavement);
+            }
             if (entered && !Finished)
                 foreach (LaneStretch stretch in exitRoad) Intrusion(s, stretch);
             if (fixture.Manoeuvre == CaseKind.UTurn && !turnPassed) FarSide(s);
@@ -256,18 +265,7 @@ namespace DrivenRides.Core.Testing
 
         // A footprint corner, pulled PavementInset inward, on pedestrian ground and not within half a lane of any
         // lane (crosswalks are pedestrian ground too, and lie on the lanes).
-        private string? OnPedestrianGround(Sample s)
-        {
-            for (int k = 0; k < 4 && k < s.Footprint.Length; k++)
-            {
-                Vec3 corner = s.Footprint[k];
-                float dx = s.Centre.X - corner.X, dz = s.Centre.Z - corner.Z, length = (float)Math.Sqrt(dx * dx + dz * dz);
-                if (length > PavementInset) corner = new Vec3(corner.X + dx / length * PavementInset, corner.Y, corner.Z + dz / length * PavementInset);
-                if (!PavementAt!(corner) || Testing.Pavement.OnALane(graph, corner)) continue;
-                return FormattableString.Invariant($"pavement: a corner on pedestrian ground at ({corner.X:0.0}, {corner.Z:0.0})");
-            }
-            return null;
-        }
+        private string? OnPedestrianGround(Sample s) => Testing.Pavement.CornerOnPavement(graph, s.Footprint, s.Centre, PavementAt!);
 
         public void Contact(int step, string what)
         {

@@ -16,6 +16,8 @@ namespace DrivenRides.Core.Testing
     public sealed class Pavement
     {
         public const float LaneHalf = 2f;
+        // Round a junction's lanes: half a lane and a metre more.
+        public const float JunctionReach = LaneHalf + 1f;
         // A parking lane's width beyond the outermost lane; settable for tools/rejudge (--parking) to see how much
         // of it runs use.
         public static float ParkingLane = 2.5f;
@@ -76,12 +78,28 @@ namespace DrivenRides.Core.Testing
             return null;
         }
 
-        // Whether a point is carriageway though pedestrian ground: in a junction's box (its crossings), or within half
-        // a lane of any lane of the graph, junction connectors included, whatever its direction (a promenade beside a
-        // lane by the pier).
+        // A footprint corner, pulled Judge.PavementInset inward, on pedestrian ground (the game's pedestrians' NavMesh)
+        // and not carriageway (OnALane): what and where, or null. The rig's judge and the planner's sweep share it.
+        public static string? CornerOnPavement(LaneGraph graph, Vec3[] footprint, Vec3 centre, Func<Vec3, bool> pedestrianGround)
+        {
+            for (int k = 0; k < 4 && k < footprint.Length; k++)
+            {
+                Vec3 corner = footprint[k];
+                float dx = centre.X - corner.X, dz = centre.Z - corner.Z, length = (float)Math.Sqrt(dx * dx + dz * dz);
+                if (length > Judge.PavementInset) corner = new Vec3(corner.X + dx / length * Judge.PavementInset, corner.Y, corner.Z + dz / length * Judge.PavementInset);
+                if (!pedestrianGround(corner) || OnALane(graph, corner)) continue;
+                return FormattableString.Invariant($"pavement: a corner on pedestrian ground at ({corner.X:0.0}, {corner.Z:0.0})");
+            }
+            return null;
+        }
+
+        // Whether a point is carriageway though pedestrian ground: within half a lane of any lane of the graph, whatever
+        // its direction (a promenade beside a lane by the pier), and within JunctionReach of a lane step into, across or
+        // out of a junction: the zebra crossings in a junction's mouth, where a turning car's corner runs wider of the
+        // lanes (T2, session 20261013-193524). Not the junction's whole hull: that held pavement corners and islands
+        // too (review round 1).
         public static bool OnALane(LaneGraph graph, Vec3 p)
         {
-            if (graph.Junctions.Contains(p)) return true;
             foreach (var w in graph.Near(p, 30f))
             {
                 var a = graph.Position(w);
@@ -92,7 +110,8 @@ namespace DrivenRides.Core.Testing
                     float dx = b.X - a.X, dz = b.Z - a.Z, span = dx * dx + dz * dz;
                     var f = span > 0f ? Math.Max(0f, Math.Min(1f, ((p.X - a.X) * dx + (p.Z - a.Z) * dz) / span)) : 0f;
                     float qx = a.X + dx * f - p.X, qz = a.Z + dz * f - p.Z;
-                    if (qx * qx + qz * qz <= LaneHalf * LaneHalf) return true;
+                    var reach = graph.IsIntersection(w) || graph.IsIntersection(n) ? JunctionReach : LaneHalf;
+                    if (qx * qx + qz * qz <= reach * reach) return true;
                 }
             }
             return false;

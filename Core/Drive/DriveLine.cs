@@ -211,6 +211,22 @@ namespace DrivenRides.Core.Drive
         // How far a rounded corner may cut inside the lane's waypoints (a lane is about 4 m wide).
         public const float FilletCut = 1f;
 
+        // Whether a car at a pose (rear axle, heading as atan2(dx, dz)) can take up this line where it stands: within
+        // 1.5 m of it, its heading within 30 degrees of the line's there, and the line going on at least 15 m (review
+        // round 1: a replanned route was installed from a waypoint behind the car, whatever the car's pose).
+        public bool Joins(float x, float z, double heading, out float along)
+        {
+            var (at, lateral) = Locate(x, z, 0f, Line.Length);
+            along = at;
+            if (Math.Abs(lateral) > JoinLateral || at > Line.Length - 15f) return false;
+            Vec3 a = Line.At(at), b = Line.At(at + 1f);
+            var lineHeading = Math.Atan2(b.X - a.X, b.Z - a.Z);
+            return Math.Abs(Wrap(lineHeading - heading)) <= JoinHeading * Math.PI / 180;
+        }
+
+        public const float JoinLateral = 1.5f;
+        public const float JoinHeading = 30f;
+
         // Where a point is relative to the line, searching `range` metres on from `from`: metres along, and metres
         // to the side (right positive).
         public (float Along, float Lateral) Locate(float x, float z, float from, float range)

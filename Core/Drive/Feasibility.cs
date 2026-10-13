@@ -64,6 +64,9 @@ namespace DrivenRides.Core.Drive
         public const float DefaultMargin = 0.5f;
         // The rig fails a run whose body box, 0.1 m larger, overlaps anything (near-miss).
         public const float NearMiss = 0.1f;
+        // A step with no case to drive it on (Catalogue.ForStep: a U-turn whose far side doesn't leave the junction)
+        // can't be checked, so it isn't driven (review round 1: it was taken as feasible unchecked).
+        public const string NoCase = "no case to check it on";
         // Settled in its lane: the rear axle this close to the line and the wheel this straight.
         private const float SettledOff = 0.2f;
         private const float SettledWheel = 5f;
@@ -188,7 +191,7 @@ namespace DrivenRides.Core.Drive
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
             var widest = TurnArc.Fit(graph, entry, exit, arcMinRadius);
             if (widest == null) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction" };
-            else if (fixture == null) verdict = new Verdict { Feasible = true, Form = "arc", Arc = widest };
+            else if (fixture == null) verdict = new Verdict { Form = "arc", Reason = NoCase };
             else
             {
                 verdict = DriveArc(fixture, entry, exit, widest, "arc");
@@ -216,7 +219,7 @@ namespace DrivenRides.Core.Drive
             var line = TurnArc.FitUTurn(graph, entry, exit, minRadius, out var why);
             if (line == null)
                 verdict = new Verdict { Form = "u-curve", Reason = FormattableString.Invariant($"no U-turn curve, {graph.UTurnWidth(entry, exit):0.0} m across: {why}") };
-            else if (fixture == null) verdict = new Verdict { Feasible = true, Form = "u-curve", Arc = line };
+            else if (fixture == null) verdict = new Verdict { Form = "u-curve", Reason = NoCase };
             else verdict = DriveArc(fixture, entry, exit, line, "u-curve");
             arcs[(entry, exit)] = verdict;
             return verdict;
@@ -235,7 +238,7 @@ namespace DrivenRides.Core.Drive
             if (vias.TryGetValue((entry, exit, aim), out var known)) return known;
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
             Verdict verdict;
-            if (fixture == null) verdict = new Verdict { Feasible = true, Form = "vias" };
+            if (fixture == null) verdict = new Verdict { Form = "vias", Reason = NoCase };
             else
             {
                 // The aim given, if the case's run-out has it; else the one PathExpander picks without a check.
@@ -317,7 +320,7 @@ namespace DrivenRides.Core.Drive
                         judge.Contact(step, hit);
                         verdict.Hit = hit;
                     }
-                    if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples) is string wheel)
+                    if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples, settled) is string wheel)
                     {
                         judge.Reject(step, "kerb", wheel);
                         verdict.Hit = wheel;
@@ -342,30 +345,70 @@ namespace DrivenRides.Core.Drive
 
         // The four wheels at a pose, the margin further out each side; one higher than the lowest by KerbRise, for
         // KerbSamples samples in a row, is on a kerb.
-        private string? WheelOnKerb(Pose pose, ref int samples)
+        // settled: the car keeps to a straight lane within centimetres, so its wheels count where they are (review
+        // round 1: the margin put a settled car's wheels on the kerb beside an outer lane).
+        private string? WheelOnKerb(Pose pose, ref int samples, bool settled)
         {
-            var half = (car.TrackWidth > 0f ? car.TrackWidth / 2f : Math.Max(0.5f, car.BodyHalf.X - 0.25f)) + Margin;
+            var half = (car.TrackWidth > 0f ? car.TrackWidth / 2f : Math.Max(0.5f, car.BodyHalf.X - 0.25f)) + (settled ? 0f : Margin);
             var wheels = new[]
             {
                 Local(pose, new Vec3(-half, 0f, 0f)), Local(pose, new Vec3(half, 0f, 0f)),
                 Local(pose, new Vec3(-half, 0f, car.Wheelbase)), Local(pose, new Vec3(half, 0f, car.Wheelbase)),
             };
-            var heights = new float?[4];
-            var lowest = float.MaxValue;
+            // Off the plane through the other three wheels (WheelPlane, as the rig's kerb check): a slope tilts all four.
+            var ground = new Vec3[4];
             for (var i = 0; i < 4; i++)
             {
-                heights[i] = GroundAt!(wheels[i]);
-                if (heights[i] is float h) lowest = Math.Min(lowest, h);
+                if (!(GroundAt!(wheels[i]) is float h)) { samples = 0; return null; }
+                ground[i] = new Vec3(wheels[i].X, h, wheels[i].Z);
             }
             string? up = null;
             for (var i = 0; i < 4 && up == null; i++)
-                if (heights[i] is float h && h - lowest > KerbRise)
-                    up = FormattableString.Invariant($"kerb: a {(i < 2 ? "rear" : "front")} wheel {h - lowest:0.00} m above the lowest at ({wheels[i].X:0.0}, {wheels[i].Z:0.0})");
+                if (WheelPlane.Rise(ground, i) is float rise && rise > KerbRise)
+                    up = FormattableString.Invariant($"kerb: a {(i < 2 ? "rear" : "front")} wheel {rise:0.00} m above the plane of the others at ({wheels[i].X:0.0}, {wheels[i].Z:0.0})");
             samples = up != null ? samples + 1 : 0;
             return samples >= KerbSamples ? up : null;
         }
 
-        // A point given in the car's own space (from the rear axle on the ground) at a pose.
+        // A stretch of a planned line driven by the model (review round 1: the rounded corners and the sideways moves
+        // the plan puts on lane steps were never checked): the car starts on the line 25 m before `from` at the
+        // plan's speed there and drives to `to`; from `from` on, its body every WorldEvery metres against the world,
+        // its corners against the pavement and its wheels against kerbs, as a manoeuvre's check. What it meets and
+        // where, or null.
+        public string? Sweep(DrivePlan plan, DriveLine line, float from, float to)
+        {
+            var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
+            var start = Math.Max(0f, from - 25f);
+            Vec3 p0 = line.Line.At(start), p1 = line.Line.At(start + 1f);
+            var model = car.Model(p0.X, p0.Z, Math.Atan2(p1.X - p0.X, p1.Z - p0.Z));
+            driver.StartAt(p0.X, p0.Z);
+            model.Speed = driver.PlannedSpeed(start, car.TopKmh / 3.6f);
+            var turningHalf = new Vec3(car.BodyHalf.X + Margin, car.BodyHalf.Y, car.BodyHalf.Z + Margin);
+            var lastCheck = double.NegativeInfinity;
+            var travelled = 0.0;
+            var kerbSamples = 0;
+            for (var time = 0f; time < 60f && driver.Along < Math.Min(to, line.Line.Length - car.FrontAhead - 2f); time += StepSeconds)
+            {
+                var o = driver.Step(model.Input(StepSeconds));
+                double x0 = model.X, z0 = model.Z;
+                model.Step(o, StepSeconds);
+                travelled += Math.Sqrt((model.X - x0) * (model.X - x0) + (model.Z - z0) * (model.Z - z0));
+                if (driver.Along < from || travelled - lastCheck < WorldEvery) continue;
+                lastCheck = travelled;
+                var pose = new Pose((float)model.X, line.Line.At(driver.Along).Y, (float)model.Z, (float)model.Heading);
+                var settled = Math.Abs(o.Lateral) < SettledOff && Math.Abs(model.Steer) < SettledWheel;
+                var half = settled ? car.BodyHalf : turningHalf;
+                var footprint = Footprint(pose, half);
+                if (world?.Invoke(new BodyBox(Local(pose, car.BodyCentre), new Vec3(half.X + NearMiss, half.Y, half.Z + NearMiss), pose.Heading)) is string hit)
+                    return FormattableString.Invariant($"{hit} at {driver.Along:0} m");
+                if (PavementAt != null && Pavement.CornerOnPavement(graph, footprint, Local(pose, car.BodyCentre), PavementAt) is string pavement)
+                    return pavement;
+                if (GroundAt != null && WheelOnKerb(pose, ref kerbSamples, settled) is string kerb) return kerb;
+            }
+            return null;
+        }
+
+        // A point given in the car's own space        // A point given in the car's own space (from the rear axle on the ground) at a pose.
         private static Vec3 Local(Pose pose, Vec3 p)
         {
             float s = (float)Math.Sin(pose.Heading), c = (float)Math.Cos(pose.Heading);

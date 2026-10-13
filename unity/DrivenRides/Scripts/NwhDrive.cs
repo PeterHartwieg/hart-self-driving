@@ -51,7 +51,7 @@ namespace DrivenRides
         private bool backing;
         // The blocked rule (BlockedRule): what blocked the car, and until when it backs off before giving up.
         private string? blockedWhat;
-        private float blockedUntil;
+        private Recovery? recovery;
         private float pushSeconds, staticHeldSeconds;
         private int lastBlockerLayer = -1;
         private string lastBlocker = "";
@@ -59,11 +59,17 @@ namespace DrivenRides
         // The car can't get on: raised with the path position its front had reached and what blocked it, for the
         // planner to block that step and plan again (NwhPlanner.Block).
         public event Action<int, string>? Blocked;
-        // Asked once the car has backed off from a blocked step, with the path position and what blocked it: the
-        // path to drive on instead (the planner blocks the step and plans again from where the car is), or null to
-        // give up. Without it, the drive ends "blocked".
-        public Func<int, string, DrivePlan?>? Replan;
+        // Asked once the car has backed off from a blocked step (or found it couldn't), with the path position, what
+        // blocked it and the car's rear axle and heading: the path to drive on instead (the planner blocks the step
+        // and plans again from where the car is, joining the car's pose), or null to give up. Without it, the drive
+        // ends "blocked".
+        public Func<int, string, float, float, float, DrivePlan?>? Replan;
         private int blockedPosition;
+        // Asked about once a second while the car drives, with the path position its front has reached and its rear
+        // axle and heading: a new path to drive on from here (the planner's look-ahead found something ahead), or
+        // null to go on.
+        public Func<int, float, float, float, DrivePlan?>? LookAhead;
+        private float nextLook;
 
         // T3's tally: contacts with traffic cars (and who was moving), standstills over 30 s away from a red, red runs.
         public int Contacts, ContactsMoving, Stalls, RedRuns;
@@ -102,7 +108,10 @@ namespace DrivenRides
             Shifts = plan.Shifts;
             Fillets = plan.Fillets;
             UsePath(plan.Path, plan.Arcs, plan.Slow);
-            lastProgressAlong = 0f;
+            // On the new line where the car stands (it may be some way along its first step).
+            var rearNow = Car.RearAxle;
+            driver.StartAt(rearNow.x, rearNow.z);
+            lastProgressAlong = driver.Along;
             lastProgressTime = Time.time;
             stillSeconds = standing = 0f;
             prevFront = Car.FrontAhead;
@@ -181,22 +190,34 @@ namespace DrivenRides
             var transmission = vehicle.powertrain.transmission;
             if (blockedWhat != null)
             {
-                // Blocked: a little back along the line, then the step is given up, and the car drives on round it if
-                // the planner has a way (Replan).
-                if (Time.time >= blockedUntil)
-                {
-                    DrivePlan? next = null;
-                    try { next = Replan?.Invoke(blockedPosition, blockedWhat); } catch (Exception ex) { Log.Error("NWH drive, replan: " + ex); }
-                    if (next == null || next.Path.Count < 2) { End("blocked: " + blockedWhat, false); return; }
-                    blockedWhat = null;
-                    Restart(next);
-                    return;
-                }
+                // Blocked: a little back along the line while there is room behind (Recovery), then the step is given
+                // up, and the car drives on round it if the planner has a way (Replan).
+                recovery ??= new Recovery();
+                var centre = t.TransformPoint(Car.BodyCentre);
+                var next = recovery.Next(centre.x, centre.z, heading, Car.BodyHalf.x, Car.BodyHalf.z, speed, GapBehind(), cars, Time.fixedDeltaTime);
                 input.Steering = 0f;
                 input.Throttle = 0f;
-                input.Handbrake = 0f;
-                input.Brakes = 0.35f;
+                if (next == Recovery.Step.Done)
+                {
+                    input.Brakes = 0f;
+                    input.Handbrake = 1f;
+                    if (Mathf.Abs(speed) > 0.2f) return;
+                    Log.Info($"NWH drive: {recovery.Ended} ({recovery.Backed:0.0} m); asking for another way.");
+                    DrivePlan? plan = null;
+                    try { plan = Replan?.Invoke(blockedPosition, blockedWhat, rear.x, rear.z, heading); } catch (Exception ex) { Log.Error("NWH drive, replan: " + ex); }
+                    if (plan == null || plan.Path.Count < 2) { End("blocked: " + blockedWhat, false); return; }
+                    blockedWhat = null;
+                    recovery = null;
+                    input.Handbrake = 0f;
+                    Restart(plan);
+                    return;
+                }
+                // Reversing: NWH's automatic gearbox reverses on the brake at a standstill; past MaxMs it brakes by
+                // releasing the reverse and holding the handbrake a moment.
+                input.Handbrake = next == Recovery.Step.Brake ? 1f : 0f;
+                input.Brakes = next == Recovery.Step.Reverse ? 0.35f : 0f;
                 driver.BackTo(rear.x, rear.z);
+                lastProgressTime = Time.time;
                 return;
             }
             if (decision.BackOff)
@@ -216,6 +237,15 @@ namespace DrivenRides
                 return;
             }
             backing = false;
+            if (LookAhead != null && Time.time >= nextLook)
+            {
+                nextLook = Time.time + 1f;
+                var at = 0;
+                while (at + 1 < path.Count && line.AlongOf[at + 1] <= front) at++;
+                DrivePlan? ahead = null;
+                try { ahead = LookAhead(at, rear.x, rear.z, heading); } catch (Exception ex) { Log.Error("NWH drive, look-ahead: " + ex); }
+                if (ahead != null && ahead.Path.Count >= 2) { Restart(ahead); return; }
+            }
             var gap = HoldForCast(GapAhead(speed));
             // People and parked cars stand; a traffic car ahead is followed at its own speed.
             var gapSpeed = 0f;
@@ -377,7 +407,7 @@ namespace DrivenRides
             Log.Info($"NWH drive: blocked ({what}) at path position {position}, {front:0} m along; backing off.");
             blockedWhat = what;
             blockedPosition = position;
-            blockedUntil = Time.time + 1.5f;
+            recovery = null;
             pushSeconds = staticHeldSeconds = 0f;
             try { Blocked?.Invoke(position, what); } catch (Exception ex) { Log.Error("NWH drive, blocked: " + ex.Message); }
             return true;

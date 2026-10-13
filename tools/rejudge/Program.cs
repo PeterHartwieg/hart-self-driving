@@ -21,9 +21,9 @@ if (args[1] == "stats")
 }
 if (args[1] == "carriageway")
 {
-    // carriageway x z [y]: whether a point counts as carriageway for the pavement rule (a junction's box, near a lane).
+    // carriageway x z [y]: whether a point counts as carriageway for the pavement rule (near a lane, nearer a junction's).
     var p = new Vec3(float.Parse(args[2], CultureInfo.InvariantCulture), args.Length > 4 ? float.Parse(args[4], CultureInfo.InvariantCulture) : 0f, float.Parse(args[3], CultureInfo.InvariantCulture));
-    Console.WriteLine($"({p.X}, {p.Z}): junction box {graph.Junctions.Contains(p)}, carriageway {Pavement.OnALane(graph, p)} ({graph.Junctions.Count} junction boxes)");
+    Console.WriteLine($"({p.X}, {p.Z}): carriageway {Pavement.OnALane(graph, p)}");
     return;
 }
 if (args[1] == "show")

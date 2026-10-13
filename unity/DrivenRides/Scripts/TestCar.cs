@@ -199,14 +199,11 @@ namespace DrivenRides
             {
                 // Off the plane through three other wheels: a slope or a ramp tilts all four together (turn test 0.1.59:
                 // the rear wheels 0.49 m above the front ones on a Hamptons highway ramp read as a kerb).
-                var others = new List<Vector3>(3);
-                for (var j = 0; j < wheels.Length && others.Count < 3; j++) if (j != i) others.Add(wheels[j].HitPoint);
-                var normal = Vector3.Cross(others[1] - others[0], others[2] - others[0]);
-                if (normal.sqrMagnitude < 1e-6f) continue;
-                normal.Normalize();
-                if (normal.y < 0f) normal = -normal;
+                // The planner's check measures the same way (Core WheelPlane).
+                var points = new Core.Routing.Vec3[wheels.Length];
+                for (var j = 0; j < wheels.Length; j++) points[j] = GleyGraph.ToVec(wheels[j].HitPoint);
+                if (!(Core.Drive.WheelPlane.Rise(points, i) is float rise)) continue;
                 var w = wheels[i];
-                var rise = Vector3.Dot(w.HitPoint - others[0], normal);
                 kerbSteps[i] = rise > KerbRise ? kerbSteps[i] + 1 : 0;
                 if (kerbSteps[i] < KerbSteps || kerbReported[i]) continue;
                 kerbReported[i] = true;

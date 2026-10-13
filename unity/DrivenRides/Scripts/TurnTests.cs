@@ -668,6 +668,7 @@ namespace DrivenRides
             var planner = s.NwhCheck && fixture.Path == null ? (NwhCar.HasPrefab(model.Name) ? NwhPlanner.For(model.Name, model.TopSpeed) : NwhPlanner.ForTrafficPrefab(model.Prefab, model.TopSpeed)) : null;
             if (planner != null)
             {
+                planner.BeginRide();
                 line["minRadius"] = Math.Round(planner.Car.ArcMinRadius(), 2);
                 if (fixture.Kind == CaseKind.Ride)
                 {
@@ -813,39 +814,50 @@ namespace DrivenRides
                 if (drive.Replan != null) return;
                 var r = NwhPlanner.RouteStepAt(driveRoute, path, position);
                 if (r < 0) return;
-                planner?.Block(driveRoute[r], driveRoute[r + 1]);
+                planner?.Block(driveRoute[r], driveRoute[r + 1], NwhPlanner.BlockCause.OnTheWay);
                 line["blocked"] = $"step {driveRoute[r]} -> {driveRoute[r + 1]}: {what}";
             };
-            if (planner != null && fixture.Kind == CaseKind.Ride)
-                drive.Replan = (position, what) =>
-                {
-                    var r = NwhPlanner.RouteStepAt(driveRoute, path, position);
-                    if (r < 0) return null;
-                    int from = driveRoute[r], to = driveRoute[r + 1];
-                    planner.Block(from, to);
-                    var (next, summary) = planner.PlanRoute(graph, from, new[] { new Goal(rideEnd, 0f) }, (int)VehicleTypes.Car);
-                    replans.Add($"step {from} -> {to} blocked by {what}; {(next != null ? summary : "no route round it")}");
-                    line["replanned"] = string.Join(" | ", replans);
-                    Log.Info($"Turn test {s.RunId}: replanned, {replans[replans.Count - 1]}.");
-                    if (next == null) return null;
-                    var plan = planner.Plan(graph, next.Waypoints);
-                    var judged = route.Take(driveOffset + r).Concat(next.Waypoints).ToList();
-                    driveOffset += r;
-                    driveRoute = next.Waypoints.ToList();
-                    route = judged;
-                    path = plan.Path;
+            var goals = new[] { new Goal(rideEnd, 0f) };
+            var watch = new NwhPlanner.Watch();
+            // Takes a new way on: the drive gets its plan, the judge the old route up to where the car left it and
+            // the new one after (Judge.Reroute).
+            DrivenRides.Core.Drive.DrivePlan? TakeUp((DrivenRides.Core.Drive.DrivePlan Plan, List<int> Route, string Note)? found, int position, string kind)
+            {
+                var r = NwhPlanner.RouteStepAt(driveRoute, path, position);
+                replans.Add(found != null ? kind + ": " + found.Value.Note : kind + ": no way on joins the car");
+                line["replanned"] = string.Join(" | ", replans);
+                Log.Info($"Turn test {s.RunId}: {replans[replans.Count - 1]}.");
+                if (found == null || r < 0) return null;
+                var (plan, next, _) = found.Value;
+                // The old route up to the step the car is on, then the new one (from that step's start, or a waypoint
+                // beside or ahead of it).
+                var keep = driveOffset + r + (next[0] == driveRoute[r] ? 0 : 1);
+                var judged = route.Take(keep).Concat(next).ToList();
+                driveOffset = keep;
+                driveRoute = next;
+                route = judged;
+                path = plan.Path;
                     fixture = new Fixture
                     {
                         Id = fixture.Id, Kind = fixture.Kind, Manoeuvre = fixture.Manoeuvre, Route = judged, ExitIndex = judged.Count - 1,
                         RideLine = fixture.RideLine, SharpnessDegrees = fixture.SharpnessDegrees,
                     };
-                    var rerouted = CaseGeometry.Build(graph, fixture);
-                    judge.Reroute(rerouted, fixture);
-                    s.Geometry = rerouted;
-                    s.DrivenPath = path;
-                    extraSeconds += 30f + next.LengthMetres / 4f;
-                    return plan;
+                var rerouted = CaseGeometry.Build(graph, fixture);
+                judge.Reroute(rerouted, fixture);
+                s.Geometry = rerouted;
+                s.DrivenPath = path;
+                extraSeconds += 30f + Route.Fixed(graph, next).LengthMetres / 4f;
+                return plan;
+            }
+            if (planner != null && fixture.Kind == CaseKind.Ride)
+            {
+                drive.Replan = (position, what, x, z, h) => TakeUp(planner.PlanRoundBlock(graph, driveRoute, path, position, what, new Vec3(x, 0f, z), h, goals, (int)VehicleTypes.Car), position, "replanned");
+                drive.LookAhead = (position, x, z, h) =>
+                {
+                    var found = planner.LookAhead(graph, driveRoute, path, position, new Vec3(x, 0f, z), h, goals, (int)VehicleTypes.Car, watch);
+                    return found == null ? null : TakeUp(found, position, "ahead");
                 };
+            }
             s.NwhDrive = drive;
             testCar.Waiting = () => drive.WaitingNow;
             s.Anchor.Target = car.Root.transform;

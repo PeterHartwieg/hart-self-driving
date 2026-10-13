@@ -120,17 +120,13 @@ public sealed class JudgeTests
     }
 
     [Fact]
-    public void AJunctionsCrossingsAreCarriageway()
+    public void AJunctionsCrossingsAreCarriagewayItsCornersAreNot()
     {
-        // The junction's box: its waypoints, the stop lines into it and the first waypoints out of it. A zebra
-        // crossing between a stop line and the junction is inside; a corner's pavement well off it is not.
+        // A zebra crossing in a junction's mouth, beside the lane into it, is carriageway; a pavement corner between
+        // the two roads, 5 m off every lane, is not (review round 1: the junction's hull held it).
         var (graph, _, _) = TurnTestGraph.Turn();
-        Assert.True(graph.Junctions.Contains(new Vec3(0, 0, 0)));
-        Assert.True(graph.Junctions.Contains(new Vec3(0.5f, 0, -8)));
-        Assert.False(graph.Junctions.Contains(new Vec3(9, 0, 9)));
-        Assert.False(graph.Junctions.Contains(new Vec3(0, 0, -25)));
-        // Pedestrian ground everywhere: on a crossing in the junction's mouth, no pavement.
-        Assert.True(DrivenRides.Core.Testing.Pavement.OnALane(graph, new Vec3(3f, 0, -6)));
+        Assert.True(DrivenRides.Core.Testing.Pavement.OnALane(graph, new Vec3(2.6f, 0, -7)));
+        Assert.False(DrivenRides.Core.Testing.Pavement.OnALane(graph, new Vec3(5.5f, 0, -8)));
     }
 
     [Fact]

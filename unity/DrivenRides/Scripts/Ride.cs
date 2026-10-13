@@ -181,6 +181,7 @@ namespace DrivenRides
             carLength = LengthOf(prefab);
             carSteering = new Steering(PooledCopy(prefab));
             nwhPlanner = kind == Kind.Test ? null : planNwh;
+            nwhPlanner?.BeginRide();
             path = Expand(route);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
@@ -421,7 +422,7 @@ namespace DrivenRides
                     if (blocked.Count == 0) break;
                     foreach (var (from, to, what) in blocked)
                     {
-                        if (planNwh != null) planNwh.Block(from, to);
+                        if (planNwh != null) planNwh.Block(from, to, NwhPlanner.CauseOf(graph, from, to));
                         else GleyGraph.BlockStep(from, to);
                         Log.Info($"Step {from} -> {to} blocked by '{what}'.");
                     }
@@ -1679,7 +1680,7 @@ namespace DrivenRides
                 if (blocked.Count == 0) continue;
                 // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
-                if (nwhPlanner != null) nwhPlanner.Block(w[k], w[k + 1]);
+                if (nwhPlanner != null) nwhPlanner.Block(w[k], w[k + 1], NwhPlanner.CauseOf(graph, w[k], w[k + 1]));
                 else GleyGraph.BlockStep(w[k], w[k + 1]);
                 Event($"Step {w[k]} -> {w[k + 1]} ahead blocked by '{blocked[0].What}'; replanning.");
                 return true;
@@ -1741,24 +1742,37 @@ namespace DrivenRides
         private DrivePlan? nwhPlan;
 
         // NwhDrive.Replan for an NWH ride (phase 5 hands it to the ride's NwhDrive): the step the car found blocked is
-        // blocked for this car, the rest of the ride planned again from it to the ride's goals by the NWH planner,
-        // and the new route taken as a replan is (progress, waypoint index, watchdog); the new path goes back to the
-        // drive, which drives on without stopping. Null: no way round, the drive ends and the watchdog finishes the
-        // ride the vanilla way.
-        internal DrivePlan? NwhBlocked(int position, string what)
+        // blocked for this ride, the rest planned again by the NWH planner from where the car stands, joining its
+        // pose (NwhPlanner.PlanRoundBlock), and the new route taken as a replan is (progress, waypoint index,
+        // watchdog); the new path goes back to the drive, which drives on without stopping. Null: no way on, the
+        // drive ends and the watchdog finishes the ride the vanilla way.
+        internal DrivePlan? NwhBlocked(int position, string what, float x, float z, float heading)
         {
             var graph = GleyGraph.Graph;
             if (nwhPlanner == null || graph == null) return null;
-            var w = route.Waypoints;
-            var r = NwhPlanner.RouteStepAt(w, path, position);
-            if (r < 0) return null;
-            int from = w[r], to = w[r + 1];
-            nwhPlanner.Block(from, to);
-            var (next, summary) = nwhPlanner.PlanRoute(graph, from, goals, vehicleType);
-            Event($"Step {from} -> {to} blocked by {what}; {(next != null ? "replanned: " + summary : "no route round it")}.");
-            if (next == null) return null;
+            return TakeNwhPlan(nwhPlanner.PlanRoundBlock(graph, route.Waypoints, path, position, what, new Vec3(x, 0f, z), heading, goals, vehicleType));
+        }
+
+        // NwhDrive.LookAhead for an NWH ride: the planner's look-ahead (lanes loaded since, manoeuvres checked again
+        // near), and a new way on taken up the same way.
+        private readonly NwhPlanner.Watch nwhWatch = new NwhPlanner.Watch();
+
+        internal DrivePlan? NwhLookAhead(int position, float x, float z, float heading)
+        {
+            var graph = GleyGraph.Graph;
+            if (nwhPlanner == null || graph == null) return null;
+            var found = nwhPlanner.LookAhead(graph, route.Waypoints, path, position, new Vec3(x, 0f, z), heading, goals, vehicleType, nwhWatch);
+            return found == null ? null : TakeNwhPlan(found);
+        }
+
+        private DrivePlan? TakeNwhPlan((DrivePlan Plan, List<int> Route, string Note)? found)
+        {
+            if (found == null) { Event("NWH: no way on joins the car."); return null; }
+            var (plan, next, note) = found.Value;
+            Event("NWH: " + note + ".");
+            var graph = GleyGraph.Graph!;
             alongOffset += progress!.AlongMetres;
-            route = next;
+            route = Route.Fixed(graph, next);
             path = Expand(route);
             owned.Clear();
             owned.AddRange(path);
