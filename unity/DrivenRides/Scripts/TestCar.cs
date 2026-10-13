@@ -30,6 +30,16 @@ namespace DrivenRides
         // judge starts.
         public System.Func<Vector3>? FrontAxleOf;
         private Vector3 boxCenter, boxHalf;
+        // An NWH car's wheels, for the kerb check: they ride on ray casts, not colliders, so a wheel rolling up onto the
+        // pavement touches nothing and the body may never hit the kerb (Peter, turn test 0.1.55: "quite a few are on
+        // the sidewalk at the end", while the judge saw no contact).
+        public NWH.Common.Vehicles.WheelUAPI[]? Wheels;
+        private int[]? kerbSteps;
+        private bool[]? kerbReported;
+        // A wheel this much higher than the lowest wheel, for this many physics steps in a row, is on a kerb. A road's
+        // camber across the car is a few centimetres; a kerb is about 15.
+        private const float KerbRise = 0.1f;
+        private const int KerbSteps = 5;
         private readonly Collider[] hits = new Collider[32];
         private static readonly float[] Inflations = { 0.3f, 0.2f, 0.1f };
         private float time;
@@ -164,9 +174,34 @@ namespace DrivenRides
                 NearMiss = NearMiss(),
             };
             Judge.Add(sample);
+            Kerb();
             if (Step % 5 == 0) Track.Add(centre);
             if (!failedBefore && Judge.Failed) Latch(outline, centre);
             Record(sample);
+        }
+
+        private void Kerb()
+        {
+            var wheels = Wheels;
+            if (wheels == null || wheels.Length < 2 || Judge == null) return;
+            kerbSteps ??= new int[wheels.Length];
+            kerbReported ??= new bool[wheels.Length];
+            var lowest = float.MaxValue;
+            foreach (var w in wheels) if (w != null && w.IsGrounded) lowest = Mathf.Min(lowest, w.HitPoint.y);
+            if (lowest == float.MaxValue) return;
+            for (var i = 0; i < wheels.Length; i++)
+            {
+                var w = wheels[i];
+                var up = w != null && w.IsGrounded && w.HitPoint.y - lowest > KerbRise;
+                kerbSteps[i] = up ? kerbSteps[i] + 1 : 0;
+                if (kerbSteps[i] < KerbSteps || kerbReported[i]) continue;
+                kerbReported[i] = true;
+                var what = $"kerb: wheel '{w!.name}' {w.HitPoint.y - lowest:0.00} m above the lowest, on '{(w.HitCollider != null ? w.HitCollider.name : "?")}' ({(w.HitCollider != null ? LayerMask.LayerToName(w.HitCollider.gameObject.layer) : "?")}) at {w.HitPoint}";
+                var failedBefore = Judge.Failed;
+                Judge.Contact(Step, what);
+                Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n');
+                if (!failedBefore && Judge.Failed) Latch(Outline(), transform.TransformPoint(boxCenter));
+            }
         }
 
         private void Record(Sample s)
