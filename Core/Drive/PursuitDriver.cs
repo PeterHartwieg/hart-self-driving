@@ -44,6 +44,7 @@ namespace DrivenRides.Core.Drive
         // Sideways acceleration in a corner: 3.5 m/s² takes a 6.5 m arc at 17 km/h and a 20 m one at 30 (Peter, NWH
         // spike: larger turns faster; at 2.5 every corner felt slow).
         public const float Lateral = 3.5f;
+        public const float MinCornerMs = 12f / 3.6f;
 
         // frontAhead: the car's front bumper, metres ahead of the rear axle.
         public PursuitDriver(DriveLine line, float wheelbase, float frontAhead, float topMs)
@@ -52,7 +53,10 @@ namespace DrivenRides.Core.Drive
             this.wheelbase = Math.Max(1f, wheelbase);
             this.frontAhead = frontAhead;
             top = topMs;
-            cornerSpeeds = line.CornerSpeeds(topMs, Lateral);
+            cornerSpeeds = line.CornerSpeeds(topMs, Lateral, 10f);
+            // A U-turn's vias make sharp kinks in the line that read as a 2 to 3 m radius; no driver goes round a
+            // corner at walking pace (Peter, NWH spike: the first U-turn was incredibly slow).
+            for (var k = 0; k < cornerSpeeds.Length; k++) cornerSpeeds[k] = Math.Max(Math.Min(MinCornerMs, topMs), cornerSpeeds[k]);
         }
 
         public float Along => along;
