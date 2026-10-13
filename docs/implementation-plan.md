@@ -283,6 +283,18 @@ Peter's time goes to T2 and T3 starts and to judging the look; the regressions a
 | Reading every car each physics step is slow | Frame rate drops | Phase 1 measures it; only cars within 60 m |
 | NWH at 2× and 3× | Physics at a larger time step | Phase 5 rides at each speed; physics step stays fixed |
 
+### State, 13 October 2026 (end of day)
+
+Main is 0.1.70 (13bf947), installed on homepc. Built by subagents on branches `nwh-traffic` (traffic rules), `nwh-feasible` (planner, judge) and `nwh-taxi` (dressed taxi), merged into main after each round. Rig results are in `build/tests/` (not committed).
+
+- **Phase 1** done (see above).
+- **Phase 2** done: `JunctionRules`, `TrafficDriver` and `Corridor` in Core, T0 templates at 500 seeds plus every in-game failure dump as a scenario (`tests/traffic-scenarios/`), and replay tests of recorded frames where the simulation can't reproduce a failure. Rules added from T3: following at the leader's speed (about 1.3 s behind), a car counts as ahead only once its rear has passed, conflicts held 1 s, lane changes of following or overtaking Gley cars predicted, back-off from any car that stopped for the ride car, a car standing for good at a lane end reported as a blocked way, a red stoppable at first sight is never dropped.
+- **Phase 3** done: T2 on 0.1.65, 402 runs (63 cases plus 72 wide U-turn pairs, limo, Dash, taxi): 0 failures. The planner leaves out what the car can't drive cleanly. Turns are fitted arcs; U-turns are one fitted curve as wide as the lanes are apart (no curve when the lanes are closer than 1.15 x the car's circle: the car goes round the block, Peter's wish for big cars; the limo makes far fewer U-turns than before). Pavement is the game's pedestrian NavMesh (`NavMeshHelper.NpcNavMeshFilter`), off the carriageway and junction boxes; the ground is one flat collider, so nothing else sees it. Parked cars partly in a lane are passed by moving over in the lane or changing lanes. A blocked way replans and drives on. Car model: bicycle with NWH's Ackermann (front track), yaw factor 0.97, margin 0.5 m (worst measured 0.43 m).
+- **Phase 4** passed in substance: T3 on 0.1.70 (18 recorded rides, 38 legs, limo, traffic on, auto speed): 37 pass, 0 contacts, 0 red runs. Open: one 'intrusion' at a sharp lane kink round a Hamptons gate pillar (judge at kinks; smoothing plain-lane kinks), and two 30 s waits in passing legs (dumps under review). T2 on 0.1.70 was stopped after 7 runs; rerun it.
+- **Taxi:** the dressed taxi (vordtiaravic under the taxi's meshes and engine sound) drives the rig like the others; checked in game by screenshots through the Food Trucks bridge.
+- **Testing:** the game is driven from the Mac through the Food Trucks test bridge (`tools/run-remote.sh`, `tools/ft`) and the rig; sessions share homepc through `C:\Users\Peter\game-lock.txt` (`BA_LOCK_OWNER="Driven Rides session"`).
+- **Next:** finish phase 4's two open items and rerun T2 and T3, then phase 5 (tell the own-car session to start the own car on NWH), then the private driver and taxis on NWH, watchdog, Skip, bridge skip, 2x and 3x.
+
 ### Who does what
 
 One session (this one) takes phases 1 to 4 and the drivable taxi, with subagents in their own worktrees. The own-car session (branch `self-driving`) has paused the stand-in and takes the own-car part of phase 5 once phase 4 passes.
