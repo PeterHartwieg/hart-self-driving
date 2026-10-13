@@ -83,6 +83,9 @@ namespace DrivenRides.Core.Drive
         // for no ground (offline). With it, the wheels must stay on the carriageway: NWH's wheels ride on ray casts,
         // so a wheel up on the pavement touches no collider (main's 0.1.56 rig kerb check, Peter, turn test 0.1.55).
         public Func<Vec3, float?>? GroundAt { get; set; }
+        // Whether a point is pedestrian ground (the judge's PavementAt); null offline, where the judge's geometric
+        // kerb estimate stands in.
+        public Func<Vec3, bool>? PavementAt { get; set; }
         // As the rig's kerb check: a wheel this much above the lowest is on a kerb (a road's camber across the car is
         // a few centimetres, a kerb about 15), here at two world samples in a row (1 m).
         public const float KerbRise = 0.1f;
@@ -219,7 +222,7 @@ namespace DrivenRides.Core.Drive
             var line = plan.Line(graph);
             var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
             var geometry = CaseGeometry.Build(graph, fixture);
-            var judge = new Judge(graph, geometry, fixture);
+            var judge = new Judge(graph, geometry, fixture) { PavementAt = PavementAt };
             var path = plan.Path;
             var start = graph.Position(path[0]);
             var next = line.Line.At(1f);

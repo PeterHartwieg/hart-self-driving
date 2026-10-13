@@ -63,13 +63,13 @@ namespace DrivenRides.Core.Testing
                 if (float.IsPositiveInfinity(nearest.Right))
                 {
                     var past = nearest.Side(p) - nearest.OwnRight - KerbOffset;
-                    if (past > Tolerance && !OnALane(p))
+                    if (past > Tolerance && !OnALane(graph, p))
                         return FormattableString.Invariant($"pavement: {past:0.00} m past the kerb right of route segment {nearest.Index}, at ({p.X:0.0}, {p.Z:0.0})");
                 }
                 if (Left && float.IsNegativeInfinity(nearest.Left))
                 {
                     var past = nearest.OwnLeft - LaneHalf - nearest.Side(p);
-                    if (past > Tolerance && !OnALane(p))
+                    if (past > Tolerance && !OnALane(graph, p))
                         return FormattableString.Invariant($"pavement: {past:0.00} m past the kerb left of route segment {nearest.Index}, at ({p.X:0.0}, {p.Z:0.0})");
                 }
             }
@@ -77,7 +77,7 @@ namespace DrivenRides.Core.Testing
         }
 
         // Whether a point is within half a lane of any lane of the graph, whatever its direction.
-        private bool OnALane(Vec3 p)
+        public static bool OnALane(LaneGraph graph, Vec3 p)
         {
             foreach (var w in graph.Near(p, 15f))
             {

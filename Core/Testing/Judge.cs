@@ -12,6 +12,17 @@ namespace DrivenRides.Core.Testing
         private readonly List<LaneStretch> exitRoad = new List<LaneStretch>();
         private readonly JudgeResult result = new JudgeResult();
         private readonly Pavement pavement;
+        private readonly LaneGraph graph;
+
+        // Whether a point is pedestrian ground (in game: the NavMesh under the pedestrians' filter, NwhMeasure.Ground:
+        // road and pavement are one flat collider, only the pedestrians' NavMesh tells them apart). Set, it replaces
+        // the geometric kerb estimate (Pavement), which stays for T1 offline.
+        public Func<Vec3, bool>? PavementAt { get; set; }
+        // Raised with the step and what, when the car is found on the pavement (the rig records it in its samples).
+        public Action<int, string>? OnPavement { get; set; }
+        // The footprint's corners are pulled this far inward before they are sampled, as the pedestrian ground the
+        // game marks runs up to a lane's edge in places (a promenade by the pier, measured 0.5 m from a lane centre).
+        public const float PavementInset = 0.3f;
         private Sample previous;
         private bool hasPrevious, turnPassed, entered;
         private int nextGate, segment;
@@ -22,6 +33,7 @@ namespace DrivenRides.Core.Testing
         {
             this.geometry = geometry;
             this.fixture = fixture;
+            this.graph = graph;
             // The pavement past the manoeuvre (the whole route for a ride or a ramp).
             pavement = new Pavement(graph, fixture.Route, fixture.Manoeuvre == CaseKind.Turn || fixture.Manoeuvre == CaseKind.UTurn ? fixture.EntryIndex + 1 : 0);
             // Lane stretches only: an added turn's or a lane change's step is a chord across lanes, not a lane.
@@ -106,11 +118,9 @@ namespace DrivenRides.Core.Testing
                 if (s.NearMiss <= 0.1f) Fail(s.Step, "near-miss");
             }
             Plain(s);
-            if (!Finished && s.Footprint != null && !result.Reasons.Contains("pavement") && pavement.Past(s.Footprint) is string onPavement)
-            {
-                result.Incidents.Add(s.Step + ": " + onPavement);
-                Fail(s.Step, "pavement");
-            }
+            if (!Finished && s.Footprint != null && !result.Reasons.Contains("pavement")
+                && (PavementAt != null ? OnPedestrianGround(s) : pavement.Past(s.Footprint)) is string onPavement)
+                OnThePavement(s.Step, onPavement);
             if (entered && !Finished)
                 foreach (LaneStretch stretch in exitRoad) Intrusion(s, stretch);
             if (fixture.Manoeuvre == CaseKind.UTurn && !turnPassed) FarSide(s);
@@ -184,6 +194,30 @@ namespace DrivenRides.Core.Testing
                 if (along >= -20f && along <= 25f && Math.Abs(exit.Lateral(point)) <= 1.75f && Math.Abs(point.Y - exit.Point.Y) <= 2f)
                     Fail(s.Step, "far-side-early");
             }
+        }
+
+        // A pavement finding recorded by the game (a samples file's P line), for rejudging.
+        public void OnThePavement(int step, string what)
+        {
+            if (result.Reasons.Contains("pavement")) return;
+            result.Incidents.Add(step + ": " + what);
+            Fail(step, "pavement");
+            OnPavement?.Invoke(step, what);
+        }
+
+        // A footprint corner, pulled PavementInset inward, on pedestrian ground and not within half a lane of any
+        // lane (crosswalks are pedestrian ground too, and lie on the lanes).
+        private string? OnPedestrianGround(Sample s)
+        {
+            for (int k = 0; k < 4 && k < s.Footprint.Length; k++)
+            {
+                Vec3 corner = s.Footprint[k];
+                float dx = s.Centre.X - corner.X, dz = s.Centre.Z - corner.Z, length = (float)Math.Sqrt(dx * dx + dz * dz);
+                if (length > PavementInset) corner = new Vec3(corner.X + dx / length * PavementInset, corner.Y, corner.Z + dz / length * PavementInset);
+                if (!PavementAt!(corner) || Testing.Pavement.OnALane(graph, corner)) continue;
+                return FormattableString.Invariant($"pavement: a corner on pedestrian ground at ({corner.X:0.0}, {corner.Z:0.0})");
+            }
+            return null;
         }
 
         public void Contact(int step, string what)

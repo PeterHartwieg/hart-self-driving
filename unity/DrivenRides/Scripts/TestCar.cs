@@ -154,6 +154,14 @@ namespace DrivenRides
         private void FixedUpdate()
         {
             if (Judge == null) return;
+            if (Step == 0 && Sidewalk.Available)
+            {
+                // The pavement from the pedestrians' NavMesh (Sidewalk), recorded so tools/rejudge doesn't fall back
+                // on the kerb estimate.
+                Judge.PavementAt = Sidewalk.At;
+                Judge.OnPavement = (step, what) => Samples.Append("P,").Append(step).Append(',').Append(what.Replace(',', ';')).Append('\n');
+                Samples.Append("N,pavement from the pedestrians' NavMesh\n");
+            }
             Step++;
             time += Time.fixedDeltaTime;
             var outline = Outline();

@@ -148,7 +148,9 @@ namespace DrivenRides
         private NwhPlanner(CarSpec car)
         {
             Car = car;
-            Check = new Feasibility(GleyGraph.Graph!, car, WorldHit, Feasibility.DefaultMargin, LimitKmh) { GroundAt = GroundAt };
+            // The pavement from the pedestrians' NavMesh (Sidewalk): no manoeuvre that puts a corner of the body on it.
+            Check = new Feasibility(GleyGraph.Graph!, car, WorldHit, Feasibility.DefaultMargin, LimitKmh)
+                { GroundAt = GroundAt, PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null };
             var h = car.BodyHalf;
             worldHalf = new Vector3(h.X + Feasibility.DefaultMargin + Feasibility.NearMiss, h.Y, h.Z + Feasibility.DefaultMargin + Feasibility.NearMiss);
             // The driver stops for anything within its half width and 0.4 m of its line (NwhDrive.GapAhead).

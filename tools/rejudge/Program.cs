@@ -173,6 +173,9 @@ foreach (var line in File.ReadLines(resultsPath))
             case "C": judge.Contact(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "I": judge.Incident(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "R": judge.Replanned(string.Join(",", f.Skip(1))); break;
+            // Recorded with the game's pavement (the pedestrians' NavMesh): its findings, and no kerb estimate.
+            case "N": judge.PavementAt = _ => false; break;
+            case "P": judge.OnThePavement(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
         }
     }
     var end = run.TryGetProperty("end", out var e) ? e.GetString() : "";

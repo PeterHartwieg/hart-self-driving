@@ -84,6 +84,25 @@ public sealed class JudgeTests
         Assert.DoesNotContain("pavement", judge.Result(false).Reasons);
     }
 
+    [Fact]
+    public void ThePedestriansGroundIsThePavementWhereTheGameGivesIt()
+    {
+        // Pedestrian ground from 3 m right of the lane: a corner there (pulled 0.3 m in) is on the pavement; the
+        // kerb estimate (4.5 m) would not have seen it.
+        var (graph, f) = Straight(); var judge = Make(graph, f);
+        judge.PavementAt = p => p.X > 3f;
+        string? found = null;
+        judge.OnPavement = (_, what) => found = what;
+        judge.Add(At(0, 0, 0)); judge.Add(At(1, 0, 11)); judge.Add(At(2, 3f, 25));
+        Assert.Contains("pavement", judge.Result(false).Reasons);
+        Assert.Contains("pedestrian ground", found);
+        // Pedestrian ground on the lane itself (a crosswalk, a promenade by the lane) is no pavement.
+        (graph, f) = Straight(); judge = Make(graph, f);
+        judge.PavementAt = _ => true;
+        Finish(judge);
+        Assert.DoesNotContain("pavement", judge.Result(false).Reasons);
+    }
+
     [Theory]
     [InlineData(1.1f, 0f, "exit-lane")]
     [InlineData(0f, 11f, "exit-heading")]
