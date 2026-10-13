@@ -729,6 +729,19 @@ namespace DrivenRides
                 line["samples"] = s.RunId + "-samples.csv";
                 File.WriteAllText(Path.Combine(Folder, s.RunId + "-nwh.csv"), drive.Trace.ToString());
                 line["trace"] = s.RunId + "-nwh.csv";
+                // T3: traffic contacts (this car moving), standstills, red runs; each failure's T0 scenario beside the trace.
+                line["contacts"] = drive.Contacts;
+                line["contactsMoving"] = drive.ContactsMoving;
+                line["stalls"] = drive.Stalls;
+                line["redRuns"] = drive.RedRuns;
+                var dumps = new JArray();
+                for (var k = 0; k < drive.Dumps.Count; k++)
+                {
+                    var name = $"{s.RunId}-traffic-{k + 1}-{drive.Dumps[k].Kind}.json";
+                    File.WriteAllText(Path.Combine(Folder, name), drive.Dumps[k].Json);
+                    dumps.Add(name);
+                }
+                if (dumps.Count > 0) line["trafficDumps"] = dumps;
             }
             catch (Exception ex) { Log.Error("Turn tests samples: " + ex.Message); }
             line["end"] = drive.Ended ? drive.EndReason : timedOut ? "time limit" : s.StopRequested ? "stopped" : judge.Finished ? "last gate" : "failed";
