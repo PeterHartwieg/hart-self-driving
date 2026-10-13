@@ -60,6 +60,9 @@ namespace DrivenRides.Core.Drive
         public const float DefaultMargin = 0.5f;
         // The rig fails a run whose body box, 0.1 m larger, overlaps anything (near-miss).
         public const float NearMiss = 0.1f;
+        // Settled in its lane: the rear axle this close to the line and the wheel this straight.
+        private const float SettledOff = 0.2f;
+        private const float SettledWheel = 5f;
         private const float StepSeconds = 0.02f;
         // The world is checked every so many metres, from this far before the manoeuvre's entry on.
         private const float WorldEvery = 0.5f;
@@ -230,8 +233,11 @@ namespace DrivenRides.Core.Drive
             float entryAlong = 0f, exitAlong = float.MaxValue;
             for (var k = 0; k < path.Count; k++) if (path[k] == fixture.Route[fixture.EntryIndex]) { entryAlong = line.AlongOf[k]; break; }
             for (var k = path.Count - 1; k >= 0; k--) if (path[k] == fixture.Route[fixture.ExitIndex]) { exitAlong = line.AlongOf[k]; break; }
-            var half = new Vec3(car.BodyHalf.X + Margin, car.BodyHalf.Y, car.BodyHalf.Z + Margin);
-            var worldHalf = new Vec3(half.X + NearMiss, half.Y, half.Z + NearMiss);
+            // The margin covers the model's error in a manoeuvre; settled in a straight lane, the model and the car keep
+            // to it within centimetres, so there the body counts as it is (an outer lane 1.36 m from a kerb wall is a
+            // normal lane, T3 session 20261013-191420: 'Curb1').
+            var turningHalf = new Vec3(car.BodyHalf.X + Margin, car.BodyHalf.Y, car.BodyHalf.Z + Margin);
+            var settledHalf = car.BodyHalf;
             var length = Route.Fixed(graph, fixture.Route).LengthMetres;
             var limit = 30.0 + length / 4.0;
             var verdict = new Verdict { Form = form };
@@ -251,6 +257,9 @@ namespace DrivenRides.Core.Drive
                 var pose = new Pose((float)model.X, ground, (float)model.Z, (float)model.Heading);
                 var off = Math.Abs(o.Lateral);
                 if (driver.Along > entryAlong - WorldFrom && off > verdict.WorstOff && !judge.Failed) { verdict.WorstOff = off; verdict.Worst = pose; }
+                var settled = off < SettledOff && Math.Abs(model.Steer) < SettledWheel;
+                var half = settled ? settledHalf : turningHalf;
+                var worldHalf = new Vec3(half.X + NearMiss, half.Y, half.Z + NearMiss);
                 var footprint = Footprint(pose, half);
                 judge.Add(new Sample
                 {

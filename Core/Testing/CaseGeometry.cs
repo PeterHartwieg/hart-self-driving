@@ -31,6 +31,18 @@ namespace DrivenRides.Core.Testing
                 Geometry.Heading(graph, fixture.Route, index, out float dx, out float dz);
                 return new Gate(name, route[index], dx, dz);
             }
+            // A case that ends at its exit (a ride: the route's last waypoint) has no run-out to put the last gate in;
+            // its exit and last gates go 16 m and 8 m before the route's end, where the car arrives in its lane and
+            // stops (the NWH driver stops its front 1.5 m short of the end). With the exit gate on the last waypoint
+            // and the last one before it, a clean NWH arrival failed missed-gate:exit (T3, session 20261013-191420).
+            if (fixture.ExitIndex >= route.Count - 1 && fixture.Manoeuvre == CaseKind.Ride)
+            {
+                var total = 0f;
+                for (int k = 1; k < route.Count; k++) total += Vec3.HorizontalDistance(route[k - 1], route[k]);
+                if (total > 24f)
+                    return new CaseGeometry(new List<Gate> { At("entry", fixture.EntryIndex), GateAt("exit", route, total - 16f), GateAt("last", route, total - 8f) },
+                        null, route, expanded);
+            }
             var gates = new List<Gate> { At("entry", fixture.EntryIndex), At("exit", fixture.ExitIndex) };
             Gate last = At("last", route.Count - 2);
             float length = 0;
@@ -54,6 +66,25 @@ namespace DrivenRides.Core.Testing
                 turnGate = new Gate("turn", graph.Position(fixture.TurnGateWaypoint), dx, dz);
             }
             return new CaseGeometry(gates, turnGate, route, expanded);
+        }
+
+        // A gate across the route this far along it, square to its segment there.
+        private static Gate GateAt(string name, List<Vec3> route, float along)
+        {
+            float length = 0;
+            for (int k = 0; k + 1 < route.Count; k++)
+            {
+                float segment = Vec3.HorizontalDistance(route[k], route[k + 1]);
+                if (segment > 0 && length + segment >= along)
+                {
+                    Vec3 point = route[k] + (route[k + 1] - route[k]) * ((along - length) / segment);
+                    Geometry.Direction(route[k], route[k + 1], out float dx, out float dz);
+                    return new Gate(name, point, dx, dz);
+                }
+                length += segment;
+            }
+            Geometry.Direction(route[route.Count - 2], route[route.Count - 1], out float ex, out float ez);
+            return new Gate(name, route[route.Count - 1], ex, ez);
         }
     }
 }

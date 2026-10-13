@@ -85,6 +85,20 @@ public sealed class JudgeTests
     }
 
     [Fact]
+    public void ARideArrivesAtItsEndInItsLane()
+    {
+        // A ride ends at its exit: its exit and last gates lie 16 m and 8 m before the end, crossed in that order by a
+        // car that drives on in its lane and stops short of the end (T3: the exit gate on the last waypoint made a
+        // clean NWH arrival fail missed-gate:exit).
+        var (graph, f) = Straight();
+        f.EntryIndex = 0; f.ExitIndex = f.Route.Count - 1;
+        var judge = Make(graph, f);
+        for (var z = 0; z <= 68; z += 4) judge.Add(At(z, 0, z));
+        Assert.True(judge.Finished);
+        Assert.Equal("pass", judge.Result(false).Verdict);
+    }
+
+    [Fact]
     public void ThePedestriansGroundIsThePavementWhereTheGameGivesIt()
     {
         // Pedestrian ground from 3 m right of the lane: a corner there (pulled 0.3 m in) is on the pavement; the

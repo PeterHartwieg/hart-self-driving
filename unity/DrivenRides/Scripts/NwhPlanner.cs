@@ -118,7 +118,7 @@ namespace DrivenRides
         // every car).
         private readonly HashSet<(int, int)> blocked = new HashSet<(int, int)>();
         private readonly Collider[] hits = new Collider[8];
-        private readonly Vector3 worldHalf, laneHalf, bodyHalf;
+        private readonly Vector3 laneHalf, bodyHalf;
 
         // A turn's way is checked against the road's own colliders from this height above the lane up: a slope or a
         // crown stays under it, a divider built into the road does not (as Ride.BodyClear, turn test 0.1.41).
@@ -152,7 +152,6 @@ namespace DrivenRides
             Check = new Feasibility(GleyGraph.Graph!, car, WorldHit, Feasibility.DefaultMargin, LimitKmh)
                 { GroundAt = GroundAt, PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null };
             var h = car.BodyHalf;
-            worldHalf = new Vector3(h.X + Feasibility.DefaultMargin + Feasibility.NearMiss, h.Y, h.Z + Feasibility.DefaultMargin + Feasibility.NearMiss);
             // The driver stops for anything within its half width and 0.4 m of its line (NwhDrive.GapAhead).
             laneHalf = new Vector3(h.X + 0.4f, 0.6f, 0.5f);
             // The body itself, a near-miss larger, against what is built into the road: the car follows a lane to
@@ -199,8 +198,10 @@ namespace DrivenRides
         {
             var rotation = Quaternion.Euler(0f, box.Heading * Mathf.Rad2Deg, 0f);
             var centre = new Vector3(box.Centre.X, box.Centre.Y, box.Centre.Z);
-            if (Overlap(centre, worldHalf, rotation, ParkedMask) is string hit) return hit;
-            return Raised(centre, worldHalf, rotation, centre.y - Car.BodyCentre.Y) is string raised ? "road edge " + raised : null;
+            // The box as the check sized it: the margin while manoeuvring, the body itself when settled in its lane.
+            var half = new Vector3(box.Half.X, box.Half.Y, box.Half.Z);
+            if (Overlap(centre, half, rotation, ParkedMask) is string hit) return hit;
+            return Raised(centre, half, rotation, centre.y - Car.BodyCentre.Y) is string raised ? "road edge " + raised : null;
         }
 
         // What a wheel stands on: the road, the pavement, a kerb; not cars, people, props or buildings (the body sweep

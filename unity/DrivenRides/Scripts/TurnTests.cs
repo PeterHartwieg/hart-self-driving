@@ -669,6 +669,22 @@ namespace DrivenRides
             if (planner != null)
             {
                 line["minRadius"] = Math.Round(planner.Car.ArcMinRadius(), 2);
+                if (fixture.Kind == CaseKind.Ride)
+                {
+                    // A ride is planned again by the NWH planner end to end, as an NWH ride will be: from its start
+                    // to its end, wider U-turns allowed, every added step checked for this car and the first 200 m
+                    // of lanes swept, a blocked step blocked and the route planned again (T3, session
+                    // 20261013-191420: the recorded Gley route opened with an inner U-turn round a median's nose).
+                    var (planned, summary) = PlanRide(graph, planner, route);
+                    line["plan"] = summary;
+                    if (planned == null) { Record(s, line, "avoided", "no route this car can drive: " + summary, null, fixture); yield break; }
+                    fixture = new Fixture
+                    {
+                        Id = fixture.Id, Kind = fixture.Kind, Manoeuvre = fixture.Manoeuvre, Route = planned, ExitIndex = planned.Count - 1,
+                        RideLine = fixture.RideLine, SharpnessDegrees = fixture.SharpnessDegrees,
+                    };
+                    route = planned;
+                }
                 if (fixture.Kind == CaseKind.Turn || fixture.Kind == CaseKind.UTurn)
                 {
                     var verdict = planner.Check.Step(route[fixture.EntryIndex], route[fixture.EntryIndex + 1]);
@@ -680,7 +696,9 @@ namespace DrivenRides
                 if (parked.Count > 0) { Record(s, line, "avoided", $"step {parked[0].From} -> {parked[0].To}: {parked[0].What}", null, fixture); yield break; }
             }
             var firstPath = fixture.Path ?? PathExpander.Expand(graph, route).Path;
-            var ahead = all[firstPath.Count > 1 ? firstPath[1] : route[1]].position - start.position;
+            // Along the start waypoint's own lane, as a car waiting in it stands (a route that opens with a lane change
+            // pointed the car across it); towards the next waypoint where the lane has no plain heading.
+            var ahead = graph.PlainHeading(route[0], out var lx, out var lz) ? new Vector3(lx, 0f, lz) : all[firstPath.Count > 1 ? firstPath[1] : route[1]].position - start.position;
             ahead.y = 0f;
             var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(ahead) : Quaternion.identity;
             var car = NwhCar.HasPrefab(model.Name)
@@ -697,18 +715,32 @@ namespace DrivenRides
             testCar.SetBody(car.BodyCentre, car.BodyHalf);
             testCar.FrontAxleOf = () => car.FrontAxle;
             testCar.Wheels = car.Vehicle.powertrain.wheels.Where(w => w?.wheelUAPI != null).Select(w => w.wheelUAPI).ToArray();
-            var outline = testCar.Outline();
-            // The body's own width and length, from 0.35 m to 1.5 m above the start waypoint (the car is loaded 0.4 m
-            // up and settles): a kerb along the lane is below it (T3, session 20261013-185723: rides refused for
-            // 'Curb1'). The blocker's bounds go into the message, to see what it is.
-            var middle = (outline[0] + outline[2]) / 2f;
-            middle.y = start.position.y + (0.35f + 1.5f) / 2f;
-            var blockers = Physics.OverlapBox(middle, new Vector3(testCar.HalfWidth, (1.5f - 0.35f) / 2f, car.Length / 2f), car.Root.transform.rotation, TestCar.ObstacleMask, QueryTriggerInteraction.Ignore);
+            // The body itself, 3 cm wider, from 0.35 m to 1.5 m above the start waypoint (the car is loaded 0.4 m up and
+            // settles): a placement on the lane, not a manoeuvre. 'Curb1', a kerb wall 1.36 m from an outer lane's
+            // centre, refused rides (T3, sessions 20261013-185723 and -191420). Where something stands there all the
+            // same, the start moves on along the lane, a metre at a time, up to 10 m.
+            Collider[] blockers = Array.Empty<Collider>();
+            var placed = start.position;
+            for (var nudge = 0; nudge <= 10; nudge++)
+            {
+                placed = start.position + rotation * Vector3.forward * nudge;
+                car.Root.transform.position = placed + Vector3.up * 0.4f - rotation * new Vector3(0f, 0f, car.RearZ);
+                Physics.SyncTransforms();
+                var outline = testCar.Outline();
+                var middle = (outline[0] + outline[2]) / 2f;
+                middle.y = placed.y + (0.35f + 1.5f) / 2f;
+                blockers = Physics.OverlapBox(middle, new Vector3(testCar.HalfWidth + 0.03f, (1.5f - 0.35f) / 2f, car.Length / 2f + 0.03f), car.Root.transform.rotation, TestCar.ObstacleMask, QueryTriggerInteraction.Ignore);
+                if (blockers.Length == 0)
+                {
+                    if (nudge > 0) line["startNudge"] = nudge;
+                    break;
+                }
+            }
             if (blockers.Length > 0)
             {
                 var b = blockers[0].bounds;
                 EndNwh(s);
-                Record(s, line, "setup-error", $"the start is blocked by '{blockers[0].name}' ({LayerMask.LayerToName(blockers[0].gameObject.layer)}, {blockers[0].GetType().Name}, bounds {b.min} to {b.max}; start {start.position})", null, null);
+                Record(s, line, "setup-error", $"the start is blocked by '{blockers[0].name}' ({LayerMask.LayerToName(blockers[0].gameObject.layer)}, {blockers[0].GetType().Name}, bounds {b.min} to {b.max}; start {start.position}) for 10 m along the lane", null, null);
                 yield break;
             }
 
@@ -814,6 +846,55 @@ namespace DrivenRides
             Record(s, line, result.Verdict, null, result, fixture);
             done(result);
         }
+
+        // A ride case's route planned by the NWH planner (NwhPlanner), as Ride.TryCreateRide plans an NWH ride: up to
+        // eight rounds of planning, finding the steps this car can't drive and blocking them. The route, or null, and
+        // a short summary of the added steps driven and the ones blocked.
+        private static (List<int>? Route, string Summary) PlanRide(LaneGraph graph, NwhPlanner planner, List<int> recorded)
+        {
+            var blockedNotes = new List<string>();
+            Route? route = null;
+            for (var attempt = 0; attempt < 8; attempt++)
+            {
+                var job = RoutePlanner.Plan(graph, new RouteRequest
+                {
+                    Start = recorded[0], Goals = new[] { new Goal(recorded[recorded.Count - 1], 0f) }, VehicleType = (int)VehicleTypes.Car,
+                    IsDisabled = GleyGraph.IsDisabled, IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || planner.IsBlocked(a, b), WideUTurns = true,
+                }, 200000);
+                route = job.Status == PlanStatus.Found ? job.Result : null;
+                if (route == null) break;
+                var blocked = planner.BlockedSteps(graph, route.Waypoints);
+                if (blocked.Count == 0) break;
+                foreach (var (from, to, what) in blocked)
+                {
+                    planner.Block(from, to);
+                    blockedNotes.Add($"{StepKind(graph, from, to)} {from}->{to} ({Short(what)})");
+                }
+                route = null;
+            }
+            var driven = new List<string>();
+            int changes = 0;
+            if (route != null)
+            {
+                var w = route.Waypoints;
+                for (var k = 0; k + 1 < w.Count; k++)
+                {
+                    if (graph.Successors(w[k]).Contains(w[k + 1])) continue;
+                    var kind = StepKind(graph, w[k], w[k + 1]);
+                    if (kind == "lane change") { changes++; continue; }
+                    var verdict = planner.Check.Step(w[k], w[k + 1]);
+                    driven.Add(kind == "wide U-turn" ? $"{kind} {graph.UTurnWidth(w[k], w[k + 1]):0} m ({verdict.Form})" : $"{kind} ({verdict.Form})");
+                }
+            }
+            var summary = (route != null ? $"{(driven.Count > 0 ? string.Join(", ", driven) : "no added turns")}, {changes} lane changes" : "no route")
+                + (blockedNotes.Count > 0 ? $"; blocked {blockedNotes.Count}: {string.Join("; ", blockedNotes.Take(4))}{(blockedNotes.Count > 4 ? "; ..." : "")}" : "");
+            return (route != null ? route.Waypoints.ToList() : null, summary);
+        }
+
+        private static string StepKind(LaneGraph graph, int from, int to) =>
+            graph.IsWideUTurn(from, to) ? "wide U-turn" : graph.IsUTurn(from, to) ? "U-turn" : graph.MissingTurns(from).Contains(to) ? "turn" : graph.Successors(from).Contains(to) ? "lane" : "lane change";
+
+        private static string Short(string what) => what.Length > 60 ? what.Substring(0, 60) + "..." : what;
 
         // The step of a route that a path position lies on: the last route waypoint at or before it in the path.
         private static int RouteStepAt(List<int> route, List<int> path, int position)
