@@ -174,11 +174,11 @@ public sealed class ReviewRound3Tests
         w.Shifts[(w.Lane[6], w.Lane[7])] = (2f, 8f, 0.3f);
         var planner = PlannerFor(w);
         var job = planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch);
-        var heldEarly = false;
-        while (!job.Step(0.05)) heldEarly |= job.HoldPosition == 6;
-        Assert.True(heldEarly);
-        Assert.True(job.Changed);
-        Assert.Equal(-1, job.HoldPosition);
+        // The line driven now is swept there first and passes: no hold, not even for a moment, and nothing to act on
+        // (review round 5).
+        while (!job.Step(0.05)) Assert.Equal(-1, job.HoldPosition);
+        Assert.False(job.Changed);
+        Assert.Contains(w.Notes, n => n.Contains("passes there"));
         // The next look: the same change is known to pass, so no hold at all, not even for a moment.
         var next = planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch);
         while (!next.Step(0.05)) Assert.Equal(-1, next.HoldPosition);
@@ -212,11 +212,9 @@ public sealed class ReviewRound3Tests
         var planner = PlannerFor(w);
         Assert.False(Run(planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch)).Changed);
         w.Shifts[(w.Lane[6], w.Lane[7])] = (5f, 8f, 0.4f);
-        var job = Run(planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch));
-        Assert.True(job.Changed);
-        // A way on was found (the lane with the move where it is now).
-        Assert.NotNull(job.Found);
-        Assert.Contains(job.Found!.Value.Plan.Shifts, s => Math.Abs(s.From - 5f) < 0.01f);
+        Run(planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch));
+        // Found, and the line driven now swept there (it passes, so it is kept: review round 5).
+        Assert.Contains(w.Notes, n => n.Contains($"step {w.Lane[6]} -> {w.Lane[7]} passed +0.40 m sideways from 5.0") && n.Contains("passes there"));
     }
 
     [Fact]

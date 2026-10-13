@@ -17,6 +17,13 @@ public sealed class ReviewRound4Tests
     private static Func<CarPose> Standing(float z) => () => new CarPose(0f, z, 0f, 0f);
     private static WayOnPlanner PlannerFor(World w) => new WayOnPlanner(w) { ClockMs = () => w.Clock };
 
+    private static Func<BodyBox, string?> Post(float x, float z) => box =>
+    {
+        float s = (float)Math.Sin(box.Heading), c = (float)Math.Cos(box.Heading);
+        float dx = x - box.Centre.X, dz = z - box.Centre.Z;
+        return Math.Abs(dx * c - dz * s) <= box.Half.X && Math.Abs(dx * s + dz * c) <= box.Half.Z ? "post" : null;
+    };
+
     private static WayOnJob Run(WayOnJob job, double budget = 1000)
     {
         for (var k = 0; k < 100000 && !job.Step(budget); k++) { }
@@ -31,6 +38,8 @@ public sealed class ReviewRound4Tests
         private readonly CarModel model;
         private readonly PursuitDriver driver;
         public float MaxSpeed;
+        public float? StopAlong;
+        public float Front => driver.Along + Small().FrontAhead;
 
         public Car(DrivePlan plan, LaneGraph graph, float z, float speed)
         {
@@ -41,13 +50,15 @@ public sealed class ReviewRound4Tests
             MaxSpeed = speed;
         }
 
-        public CarPose Pose => new((float)model.X, (float)model.Z, (float)model.Heading, (float)model.Speed, (float)model.Steer);
+        // With what it brakes for, as NwhDrive gives it.
+        public CarPose Pose => new((float)model.X, (float)model.Z, (float)model.Heading, (float)model.Speed, (float)model.Steer)
+            { MaxSpeed = MaxSpeed, StopAlong = StopAlong };
 
         public void Step()
         {
             var input = model.Input(0.02f);
-            input.MaxSpeed = Math.Max(1f, MaxSpeed);
-            if (MaxSpeed <= 0f) input.StopAlong = driver.Along + Small().FrontAhead;
+            input.MaxSpeed = MaxSpeed;
+            input.StopAlong = StopAlong;
             model.Step(driver.Step(input), 0.02f);
         }
     }
@@ -67,14 +78,15 @@ public sealed class ReviewRound4Tests
     [Fact]
     public void W1AWayOnFoundWhileTheCarDrivesIsTakenUpWhereItsJoinWasChecked()
     {
-        var w = new World { PerLook = 0.25 };
+        // A van the line driven now touches at 85 m; the lane's new move, 1 m right, passes it.
+        var w = new World(Post(-0.8f, 85f)) { PerLook = 0.25 };
         var route = w.Lane.ToList();
         var watch = new WayOnPlanner.Watch();
-        var plan = w.PlanOf(route);
+        var plan = new World().PlanOf(route);
         watch.Installed(plan);
         var car = new Car(plan, w.Graph, 15f, 8f);
         var start = car.Pose;
-        w.Shifts[(w.Lane[8], w.Lane[9])] = (2f, 8f, 0.5f);
+        w.Shifts[(w.Lane[8], w.Lane[9])] = (2f, 8f, 1.0f);
         var job = Drive(PlannerFor(w).LookAhead(route, route, 1, () => car.Pose, NoGoals, 0, watch), car, 1.0);
         Assert.NotNull(job.Found);
         // The join's check took many physics steps, the car drove on meanwhile, and it was taken up where checked.
@@ -86,29 +98,31 @@ public sealed class ReviewRound4Tests
     [Fact]
     public void W1ACarThatBrakesWhileItsJoinIsCheckedIsNotTakenUpFromTheOldCheck()
     {
-        var w = new World { PerLook = 0.25 };
+        // A van the line driven now touches at 85 m; the lane's new move, 1 m right, passes it.
+        var w = new World(Post(-0.8f, 85f)) { PerLook = 0.25 };
         var route = w.Lane.ToList();
         var watch = new WayOnPlanner.Watch();
-        var plan = w.PlanOf(route);
+        var plan = new World().PlanOf(route);
         watch.Installed(plan);
         var car = new Car(plan, w.Graph, 15f, 8f);
-        w.Shifts[(w.Lane[8], w.Lane[9])] = (2f, 8f, 0.5f);
-        // It brakes to a stop a few physics steps in, as for a light.
-        var job = Drive(PlannerFor(w).LookAhead(route, route, 1, () => car.Pose, NoGoals, 0, watch), car, 1.0, step => { if (step == 5) car.MaxSpeed = 0f; });
-        // Whatever was taken up was checked from where the car then was.
-        if (job.Found != null) Assert.True(WayOnPlanner.JoinEnvelope(car.Pose, job.JoinedFrom!.Value));
-        else Assert.Contains("foreseen", job.Note);
-        Assert.True(car.Pose.Speed < 4f);
+        w.Shifts[(w.Lane[8], w.Lane[9])] = (2f, 8f, 1.0f);
+        // A light 12 m ahead turns red a few physics steps in: the car brakes for it, and is foreseen braking.
+        var job = Drive(PlannerFor(w).LookAhead(route, route, 1, () => car.Pose, NoGoals, 0, watch), car, 1.0, step => { if (step == 5) car.StopAlong = car.Front + 12f; });
+        // Taken up from where the car then was (review round 5: foreseen with the stop, it is).
+        Assert.NotNull(job.Found);
+        Assert.True(WayOnPlanner.JoinEnvelope(car.Pose, job.JoinedFrom!.Value));
+        Assert.True(car.Pose.Speed < 6f);
     }
 
     [Fact]
     public void W2ASidewaysMoveIsHeldShortOfItsRampAsItsLaneIsSwept()
     {
-        var w = new World { NoRoutes = true, PerLane = 0.1 };
+        // A van the line driven now touches at 35 m.
+        var w = new World(Post(0.6f, 35f)) { NoRoutes = true, PerLane = 0.1 };
         var route = w.Lane.ToList();
         var watch = new WayOnPlanner.Watch();
-        watch.Installed(w.PlanOf(route));
-        w.Shifts[(w.Lane[3], w.Lane[4])] = (4f, 8f, 0.4f);
+        watch.Installed(new World().PlanOf(route));
+        w.Shifts[(w.Lane[3], w.Lane[4])] = (4f, 8f, -1.4f);
         var sweptBeforeHold = -1;
         var offset = 0f;
         var swept = 0;
@@ -116,11 +130,11 @@ public sealed class ReviewRound4Tests
         var job = PlannerFor(w).LookAhead(route, route, 1, Standing(15f), NoGoals, 0, watch);
         while (!job.Step(0.05))
             if (sweptBeforeHold < 0 && job.HoldPosition == 3) { sweptBeforeHold = swept; offset = job.HoldOffset; }
-        // Held while the sweep was one step past the lane, long before the sweep and the checks ended, short of the
-        // move's ramp. (No way on, and the line driven now passes there: released at the end.)
+        // Held once the line driven now was swept there and failed, with the sweep one step past the lane, short of
+        // the obstacle the move passes (review round 5); no way on, so still held at the end.
         Assert.InRange(sweptBeforeHold, 3, 4);
-        Assert.Equal(4f - DriveLine.ShiftRamp, offset, 3);
-        Assert.Equal(-1, job.HoldPosition);
+        Assert.Equal(4f - WayOnPlanner.ObstacleClear, offset, 3);
+        Assert.Equal(3, job.HoldPosition);
     }
 
     [Fact]
@@ -171,11 +185,11 @@ public sealed class ReviewRound4Tests
         var watch = new WayOnPlanner.Watch();
         var plan = new World(graph, route).PlanOf(route.ToList());
         watch.Installed(plan);
-        // A move on the lane after the turn: the turn is checked again, a way on planned (its checks, its line), and
-        // its join checked, all within the job.
-        w.Shifts[(exit + 1, exit + 2)] = (2f, 6f, 0.4f);
+        // The plan took the turn through its vias, and it is now an arc: the turn is checked again, a way on planned
+        // (its checks, its line) and its join checked, all within the job.
+        watch.Baseline[(entry, exit)] = new Verdict { Feasible = true, Form = "vias" };
         var job = Run(PlannerFor(w).LookAhead(route, plan.Path, 0, () => new CarPose(0f, -28f, 0f, 0f), NoGoals, 0, watch), 1.0);
-        Assert.NotNull(job.Found);
+        Assert.True(job.Found != null, job.Note + " | " + string.Join(" | ", w.Notes));
         Assert.True(job.Milliseconds > 20.0, $"{job.Milliseconds:0.0} ms");
         Assert.True(job.LongestSlice <= 1.0 + 0.25 + 0.2 + 0.01, $"longest slice {job.LongestSlice:0.00} ms");
     }
@@ -213,7 +227,7 @@ public sealed class ReviewRound4Tests
     [Fact]
     public void W6NoiseInAChangesValuesNeitherMakesANewChangeNorResetsItsTries()
     {
-        var w = new World { NoRoutes = true };
+        var w = new World(Post(-0.6f, 55f)) { NoRoutes = true };
         var route = w.Lane.ToList();
         var watch = new WayOnPlanner.Watch();
         w.Shifts[(w.Lane[5], w.Lane[6])] = (2f, 8f, 0.30f);
@@ -233,5 +247,67 @@ public sealed class ReviewRound4Tests
         // Each try plans from the same starts: MaxTries tries' worth of routes, whatever the wobble.
         Assert.Equal(WayOnPlanner.MaxTries, watch.Tries[$"shift {w.Lane[5]}->{w.Lane[6]}"]);
         Assert.Equal(WayOnPlanner.MaxTries * routes[0], routes[4]);
+    }
+
+    [Fact]
+    public void Z1WhereTheCarWillBeIsForeseenWithWhatItBrakesFor()
+    {
+        var w = new World();
+        var plan = w.PlanOf(w.Lane.ToList());
+        var line = plan.Line(w.Graph);
+        var now = new CarPose(0f, 15f, 0f, 8f);
+        var free = w.Check.Predict(plan, line, now, 3f);
+        Assert.True(free.Z > 15f + 20f);
+        // A red with its line 10 m ahead of the front: foreseen stopping short of it.
+        var front = 15f + Small().FrontAhead;
+        var red = w.Check.Predict(plan, line, new CarPose(0f, 15f, 0f, 8f) { StopAlong = front + 10f }, 4f);
+        Assert.True(red.Speed < 0.5f, $"{red.Speed}");
+        Assert.InRange(red.Z + Small().FrontAhead, front + 6f, front + 10.2f);
+        // A car 8 m ahead going on at 3 m/s: foreseen following it, not overtaking it.
+        var follow = w.Check.Predict(plan, line, new CarPose(0f, 15f, 0f, 8f) { GapAhead = 8f, GapSpeed = 3f }, 3f);
+        Assert.True(follow.Z + Small().FrontAhead < front + 8f + 3f * 3f, $"{follow.Z}");
+    }
+
+    [Fact]
+    public void Z2AMoveTheLineDrivenNowPassesIsNotHeldAndAMoveOnlyRemovedIsNot()
+    {
+        var w = new World { NoRoutes = true };
+        var route = w.Lane.ToList();
+        var watch = new WayOnPlanner.Watch();
+        w.Shifts[(w.Lane[5], w.Lane[6])] = (2f, 8f, 0.6f);
+        watch.Installed(w.PlanOf(route));
+        // The van has gone: the move is only removed, and the line driven now (moved over) passes.
+        w.Shifts.Remove((w.Lane[5], w.Lane[6]));
+        var job = PlannerFor(w).LookAhead(route, route, 1, Standing(15f), NoGoals, 0, watch);
+        while (!job.Step(0.05)) Assert.Equal(-1, job.HoldPosition);
+        Assert.False(job.Changed);
+        Assert.Empty(watch.Holds);
+    }
+
+    [Fact]
+    public void Z3AMoveThatPassedComesBackAfterOneThatFailedAndIsHeldNoLonger()
+    {
+        var van = false;
+        var w = new World(box => van && Post(0.5f, 65f)(box) is string hit ? hit : null) { NoRoutes = true };
+        var route = w.Lane.ToList();
+        var watch = new WayOnPlanner.Watch();
+        watch.Installed(new World().PlanOf(route));
+        var planner = PlannerFor(w);
+        WayOnJob Look() => Run(planner.LookAhead(route, route, 1, Standing(15f), NoGoals, 0, watch));
+        var key = $"shift {w.Lane[6]}->{w.Lane[7]}";
+        // A: passes.
+        w.Shifts[(w.Lane[6], w.Lane[7])] = (3f, 7f, -0.5f);
+        Assert.Equal(-1, Look().HoldPosition);
+        Assert.True(watch.Passed.ContainsKey(key));
+        // B: fails, held, no longer counted as passed.
+        van = true;
+        w.Shifts[(w.Lane[6], w.Lane[7])] = (3f, 7f, -1.4f);
+        Assert.Equal(6, Look().HoldPosition);
+        Assert.False(watch.Passed.ContainsKey(key));
+        // A again, the van gone: swept again since a hold is out, passes, and the hold goes.
+        van = false;
+        w.Shifts[(w.Lane[6], w.Lane[7])] = (3f, 7f, -0.5f);
+        Assert.Equal(-1, Look().HoldPosition);
+        Assert.Empty(watch.Holds);
     }
 }

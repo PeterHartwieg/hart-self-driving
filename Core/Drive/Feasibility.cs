@@ -580,21 +580,29 @@ namespace DrivenRides.Core.Drive
                 result.What = FormattableString.Invariant($"joining the new line: still {result.Lateral:+0.00;-0.00} m off it after {to - from:0} m");
         }
 
-        // Where the car will be in `seconds`, driving the plan it drives now at no more than its present speed (it
-        // may slow for the line's bends): the pose a way on's join is checked from while the car drives on (review
-        // round 4: checked from the pose when the check began, the join was taken up from wherever the car was by
-        // the time it ended).
+        // Where the car will be in `seconds`, driving the plan it drives now as its driver does: braking for the stops it
+        // is braking for (the pose's StopAlong, YieldAlong, the gap ahead closing at its speed, MaxSpeed; review round
+        // 5: it foresaw the car going on at its speed through a red). The pose a way on's join is checked from while
+        // the car drives on (review round 4).
         public CarPose Predict(DrivePlan plan, DriveLine line, CarPose now, float seconds)
         {
             var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
             driver.StartAt(now.X, now.Z);
             var model = car.Model(now.X, now.Z, now.Heading, now.Speed);
             model.SetWheel(now.Wheel);
-            var cap = Math.Max(1f, now.Speed);
+            // What stands ahead, as a point along the line moving on at its speed.
+            float? obstacle = now.GapAhead is float gap ? driver.Along + car.FrontAhead + gap : (float?)null;
             for (var t = 0f; t < seconds; t += StepSeconds)
             {
                 var input = model.Input(StepSeconds);
-                input.MaxSpeed = cap;
+                input.StopAlong = now.StopAlong;
+                input.YieldAlong = now.YieldAlong;
+                input.MaxSpeed = now.MaxSpeed;
+                if (obstacle is float o)
+                {
+                    input.GapAhead = Math.Max(0f, o + now.GapSpeed * t - (driver.Along + car.FrontAhead));
+                    input.GapSpeed = now.GapSpeed;
+                }
                 model.Step(driver.Step(input), StepSeconds);
             }
             return new CarPose((float)model.X, (float)model.Z, (float)model.Heading, (float)model.Speed, (float)model.Steer);

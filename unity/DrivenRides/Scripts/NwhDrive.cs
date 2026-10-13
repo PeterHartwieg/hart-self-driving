@@ -138,6 +138,8 @@ namespace DrivenRides
             Fillets = plan.Fillets;
             UsePath(plan.Path, plan.Arcs, plan.Slow);
             WayOn.Reset();
+            // Its stops were along the old line.
+            lastInput = default;
             // On the new line where the car stands (it may be some way along its first step).
             var rearNow = Car.RearAxle;
             driver.StartAt(rearNow.x, rearNow.z);
@@ -307,11 +309,12 @@ namespace DrivenRides
             // The planner's hold, a fixed point: the driver brakes as hard as it needs (WayOnControl).
             var stopAlong = decision.StopAlong;
             if (WayOn.HoldAlong is float holdAt && (stopAlong == null || holdAt < stopAlong)) stopAlong = holdAt;
-            var o = driver.Step(new DriveInput
+            lastInput = new DriveInput
             {
                 RearX = rear.x, RearZ = rear.z, Heading = heading, SpeedMs = speed, Dt = Time.fixedDeltaTime, WheelDegrees = vehicle.steering.angle,
                 StopAlong = stopAlong, GapAhead = gap, GapSpeed = gapSpeed, YieldAlong = decision.YieldAlong, MaxSpeed = decision.MaxSpeed,
-            });
+            };
+            var o = driver.Step(lastInput);
             var lockNow = Mathf.Max(1f, Car.LockAt(speed));
             var steerInput = Mathf.Clamp(o.SteerDegrees / lockNow, -1f, 1f);
             input.Steering = steerInput;
@@ -494,12 +497,21 @@ namespace DrivenRides
         }
 
         // The car's rear axle, heading, speed and wheel angle now, for the planner's join check (Feasibility.Join).
+        // With what the driver brakes for, as it last drove (and the planner's hold now), so the planner foresees where
+        // it will be as it will drive (Feasibility.Predict; review round 5).
         private CarPose PoseNow()
         {
             var forward = Car.Root.transform.forward;
             var rear = Car.RearAxle;
-            return new CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z), Vector3.Dot(Car.Body.velocity, forward), Car.Vehicle.steering.angle);
+            var stop = lastInput.StopAlong;
+            if (WayOn.HoldAlong is float hold && (stop == null || hold < stop)) stop = hold;
+            return new CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z), Vector3.Dot(Car.Body.velocity, forward), Car.Vehicle.steering.angle)
+            {
+                StopAlong = stop, YieldAlong = lastInput.YieldAlong, GapAhead = lastInput.GapAhead, GapSpeed = lastInput.GapSpeed, MaxSpeed = lastInput.MaxSpeed,
+            };
         }
+
+        private DriveInput lastInput;
 
         // The car can't get on, whatever the driver does: pushing with no motion for 2 s (against a kerb nose or a
         // parked car the gap didn't see), or held 3 s by something that never moves (a parked car, a prop). T2

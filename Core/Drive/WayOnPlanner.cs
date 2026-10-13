@@ -95,6 +95,9 @@ namespace DrivenRides.Core.Drive
             public float Offset;
             public (float From, float To, float Offset)? Shift;
             public Verdict? Shape;
+            // The line driven now, swept where the change is: null until it is.
+            public bool? Passes;
+            public string Failed = "";
             public bool Blocked => Kind == "blocked";
             public string Key => $"{Kind} {From}->{To}";
 
@@ -246,7 +249,9 @@ namespace DrivenRides.Core.Drive
                 foreach (var shift in planned.Shifts) installed[(path[shift.Position], path[shift.Position + 1])] = (shift.From, shift.To, shift.Offset);
             var changes = new List<Change>();
             var found = new Dictionary<string, Change>();
+            var unswept = new List<Change>();
             var holdMetres = float.MaxValue;
+            DriveLine? line = null;
 
             // Metres along the path from the car's position to a waypoint's position, plus an offset.
             float MetresTo(int at, float offset)
@@ -268,13 +273,61 @@ namespace DrivenRides.Core.Drive
                 job.HoldWhat = why;
             }
 
+            // A change found: held short of at once, but a sideways move only once the line driven now is found to fail
+            // there (review round 5: a move that was only removed, or one the line passes anyway, stopped the car).
+            // One the line passed before with the same values isn't a change, unless a hold is still out for it
+            // (review round 5: A passed, B failed and held, A came back and the hold stayed).
             void Found(Change c)
             {
                 if (found.ContainsKey(c.Key)) return;
                 found[c.Key] = c;
-                if (!c.Blocked && watch.Passed.TryGetValue(c.Key, out var passed) && passed.SameValue(c)) return;
+                if (!c.Blocked && watch.Passed.TryGetValue(c.Key, out var passed) && passed.SameValue(c) && !watch.Holds.ContainsKey(c.Key)) return;
+                if (c.Kind == "shift") { unswept.Add(c); return; }
                 changes.Add(c);
                 Hold(c.From, c.Offset, c.What);
+            }
+
+            // The line driven now, swept over a change's step (and the ramps of a sideways move before it).
+            IEnumerable<object?> SweepOnLine(Change c)
+            {
+                var at = PathPosition(path, position, c.From);
+                var end = at >= 0 ? PathPosition(path, at + 1, c.To) : -1;
+                if (planned == null || at < 0 || end < 0) { c.Passes = false; c.Failed = "no plan to check it on"; yield break; }
+                line ??= planned.Line(graph);
+                var swept = new Feasibility.SweepResult();
+                var from = line.AlongOf[at] - 10f - (c.Kind == "shift" ? DriveLine.ShiftRamp : 0f);
+                foreach (var y in check.SweepWork(planned, line, from, line.AlongOf[end] + 10f, swept)) yield return y;
+                c.Passes = swept.What == null;
+                c.Failed = swept.What ?? "";
+            }
+
+            // What a change's sweep says: passes, kept with its values and any hold it left goes (review round 4);
+            // fails, held short of and no longer counted as passed.
+            void Settle(Change c)
+            {
+                if (c.Passes == true)
+                {
+                    watch.Passed[c.Key] = c;
+                    watch.Holds.Remove(c.Key);
+                    return;
+                }
+                watch.Passed.Remove(c.Key);
+                watch.Holds[c.Key] = new Change { Kind = c.Kind, From = c.From, To = c.To, Offset = c.Offset, Shift = c.Shift, Shape = c.Shape, What = $"{c.What}: {c.Failed}" };
+                Hold(c.From, c.Offset, c.What);
+            }
+
+            // The sideways moves found, swept as they come: one the line passes is no change to act on.
+            IEnumerable<object?> SweepMoves()
+            {
+                while (unswept.Count > 0)
+                {
+                    var c = unswept[0];
+                    unswept.RemoveAt(0);
+                    foreach (var y in SweepOnLine(c)) yield return y;
+                    Settle(c);
+                    if (c.Passes == true) world.Note($"ahead: {c.What}; the line driven now passes there");
+                    else changes.Add(c);
+                }
             }
 
             // A lane step's sideways move against the plan's, by where it begins and ends and how far (review round 3).
@@ -284,11 +337,13 @@ namespace DrivenRides.Core.Drive
                 var now = world.ShiftFor(from, to);
                 (float From, float To, float Offset)? had = installed.TryGetValue((from, to), out var h) ? h : ((float, float, float)?)null;
                 if (SameShift(now, had)) return;
-                var ramp = Math.Min(now?.From ?? float.MaxValue, had?.From ?? float.MaxValue) - DriveLine.ShiftRamp;
+                // Held, if at all, short of the obstacle a move passes (review round 5: short of its ramp, 10 m before,
+                // the limit fell behind the car); a move only removed, where the line driven now starts moving over.
+                var limit = now is var (nf, _, _) ? nf - ObstacleClear : had!.Value.From - DriveLine.ShiftRamp;
                 var what = now is var (f, t, o)
                     ? FormattableString.Invariant($"step {from} -> {to} passed {o:+0.00;-0.00} m sideways from {f:0.0} to {t:0.0} m")
                     : $"step {from} -> {to} needs no sideways move now";
-                Found(new Change { Kind = "shift", From = from, To = to, Offset = ramp, Shift = now, What = what });
+                Found(new Change { Kind = "shift", From = from, To = to, Offset = limit, Shift = now, What = what });
             }
 
             void LaneResult((int From, int To, string? What, float At) lane)
@@ -307,6 +362,7 @@ namespace DrivenRides.Core.Drive
             foreach (var y in world.LanesAhead(path, position, AheadMetres, rear, lanes))
             {
                 for (; seen < lanes.Count; seen++) LaneResult(lanes[seen]);
+                foreach (var z in SweepMoves()) yield return z;
                 yield return y;
             }
             for (; seen < lanes.Count; seen++) LaneResult(lanes[seen]);
@@ -317,6 +373,7 @@ namespace DrivenRides.Core.Drive
                 gone += Vec3.HorizontalDistance(graph.Position(path[k]), graph.Position(path[k + 1]));
                 ShiftCheck(path[k], path[k + 1]);
             }
+            foreach (var z in SweepMoves()) yield return z;
 
             // The steps of the route ahead blocked now, by this look or an earlier one, or for every car: held short of
             // where they were found blocked.
@@ -382,33 +439,15 @@ namespace DrivenRides.Core.Drive
                     if (job.Found != null) yield break;
                 }
 
-                // No way on: the plan the car drives, checked against each change.
-                DriveLine? line = null;
+                // No way on: the plan the car drives, checked against each change (the moves were already).
                 foreach (var c in changes)
                 {
                     if (c.Blocked) { watch.Holds[c.Key] = c; continue; }
-                    var at = PathPosition(path, position, c.From);
-                    var end = at >= 0 ? PathPosition(path, at + 1, c.To) : -1;
-                    if (planned == null || at < 0 || end < 0)
-                    {
-                        watch.Holds[c.Key] = new Change { Kind = c.Kind, From = c.From, To = c.To, Offset = c.Offset, Shift = c.Shift, Shape = c.Shape, What = c.What + "; no plan to check it on" };
-                        continue;
-                    }
-                    line ??= planned.Line(graph);
-                    var swept = new Feasibility.SweepResult();
-                    foreach (var y in check.SweepWork(planned, line, line.AlongOf[at] + Math.Min(0f, c.Offset) - 10f, line.AlongOf[end] + 10f, swept)) yield return y;
-                    if (swept.What == null)
-                    {
-                        // Passes: kept with its values, and a hold it left from an earlier look goes (review round 4).
-                        watch.Passed[c.Key] = c;
-                        watch.Holds.Remove(c.Key);
-                        world.Note($"ahead: {c.What}; no way on, and the line driven now passes there");
-                    }
-                    else
-                    {
-                        watch.Holds[c.Key] = new Change { Kind = c.Kind, From = c.From, To = c.To, Offset = c.Offset, Shift = c.Shift, Shape = c.Shape, What = $"{c.What}: {swept.What}" };
-                        world.Note($"ahead: {c.What}; no way on, and the line driven now fails there ({swept.What}); holding short");
-                    }
+                    if (c.Passes == null) foreach (var y in SweepOnLine(c)) yield return y;
+                    Settle(c);
+                    world.Note(c.Passes == true
+                        ? $"ahead: {c.What}; no way on, and the line driven now passes there"
+                        : $"ahead: {c.What}; no way on, and the line driven now fails there ({c.Failed}); holding short");
                 }
             }
             // The hold at the end: where the plan must stop short of first, or nowhere.
