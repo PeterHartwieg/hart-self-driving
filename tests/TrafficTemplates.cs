@@ -304,7 +304,9 @@ internal static class TrafficTemplates
         var turn = b.Curve(east[at], west[back], 2f, 20f);
         var car = r.Next(3) == 0 ? RideCar.Limo : RideCar.Dash;
         b.Ride(Path(east.Skip(at - (int)Range(r, 8f, 16f)).Take(at + 1 - (at - 16)).TakeWhile(w => b.S.Waypoints[w].X <= 0.1f), turn, west.Skip(back).Take(14)), car with { StartMs = Range(r, 0f, 10f) });
-        Stream(b, r, () => west, -12f, 70f, 2f, 12f, 0.6f, 1f);
+        // Oncoming traffic comes in platoons from the light upstream (Manhattan's avenues): about 20 s of cars, then
+        // a gap of 8 to 12 s while that light is red.
+        for (var from = -12f; from < 70f; from += 20f + Range(r, 8f, 12f)) Stream(b, r, () => west, from, from + 20f, 2f, 12f, 0.6f, 1f);
         Stream(b, r, () => east, -12f, 70f, 3f, 10f, 0.6f, 1f);
         b.S.Name = $"uturn-{seed}";
         b.S.Seconds = 90f;

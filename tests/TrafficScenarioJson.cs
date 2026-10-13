@@ -82,7 +82,21 @@ internal static class TrafficScenarioJson
                 line.Stop.AddRange(t.GetProperty("stop").EnumerateArray().Select(e => e.GetInt32() == 1));
                 s.Timelines.Add(line);
             }
-        // The history is for reading; the simulation starts from the cars' poses.
+        // The history: for replaying decisions frame by frame (TrafficTests.ReplayDecisions); the simulation starts
+        // from the cars' poses.
+        if (root.TryGetProperty("history", out var history))
+            foreach (var h in history.EnumerateArray())
+            {
+                var rp = h.GetProperty("ride");
+                var frame = new ScenarioFrame { T = h.GetProperty("t").GetSingle(), RideX = rp[0].GetSingle(), RideZ = rp[1].GetSingle(), RideHeading = rp[2].GetSingle(), RideSpeed = rp[3].GetSingle() };
+                foreach (var c in h.GetProperty("cars").EnumerateArray())
+                    frame.Cars.Add(new ScenarioCarState
+                    {
+                        Id = c[0].GetInt32(), X = c[1].GetSingle(), Z = c[2].GetSingle(), Heading = c[3].GetSingle(), Vx = c[4].GetSingle(), Vz = c[5].GetSingle(),
+                        Target = c[6].GetInt32(), ForUs = c[7].GetInt32() == 1, Action = c[8].GetString(),
+                    });
+                s.History.Add(frame);
+            }
         return s;
     }
 

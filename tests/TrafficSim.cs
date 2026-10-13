@@ -14,13 +14,15 @@ internal sealed class SimResult
     public string? Failure;
     public float Time;
     public bool Arrived;
+    // A dump's run that left the recorded area (TrafficSim) rather than reaching the end of the line.
+    public bool LeftArea;
     public float LongestStall;
     public int BackOffs;
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
     public readonly StringBuilder Trace = new();
-    public override string ToString() => Failure ?? (Arrived ? $"arrived at {Time:0.0} s" : Blocked != null ? $"blocked at {Time:0.0} s: {Blocked}" : "not arrived");
+    public override string ToString() => Failure ?? (Arrived ? (LeftArea ? $"left the recorded area at {Time:0.0} s" : $"arrived at {Time:0.0} s") : Blocked != null ? $"blocked at {Time:0.0} s: {Blocked}" : "not arrived");
 }
 
 // T0's simulation (docs/implementation-plan.md, "Tests"): the ride car is Core's CarModel driven by PursuitDriver
@@ -209,6 +211,14 @@ internal sealed class TrafficSim : ILiveFlags
                 result.Arrived = true;
                 return Finish(result);
             }
+            // A dump covers 170 m round where the ride car was; beyond that its graph is cut and its traffic
+            // jams where the game's wouldn't. Leaving the area ends the run as a pass.
+            if (sc.History.Count > 0 && (ride.X - sc.Ride.X) * (ride.X - sc.Ride.X) + (ride.Z - sc.Ride.Z) * (ride.Z - sc.Ride.Z) > 150 * 150)
+            {
+                result.Arrived = true;
+                result.LeftArea = true;
+                return Finish(result);
+            }
             var atRed = decision.StopIsRed && decision.StopAlong - front < 8f;
             stall = Math.Abs(ride.Speed) < 0.3 && !decision.BackOff && !atRed ? stall + Dt : 0f;
             result.LongestStall = Math.Max(result.LongestStall, stall);
@@ -313,7 +323,9 @@ internal sealed class TrafficSim : ILiveFlags
             }
             if (!IsLights) return;
             if (!amber && t - since > Math.Max(1f, spec.Green)) { amber = true; since = t; Apply(); }
-            else if (amber && t - since > spec.Yellow && Inside.Count == 0)
+            // Amber is held while anyone is inside, as in Gley, but not past 10 s here: the simulation's traffic cars can
+            // jam in a box where the game's don't, and a light held for good would stand everyone still.
+            else if (amber && t - since > spec.Yellow && (Inside.Count == 0 || t - since > spec.Yellow + 10f))
             {
                 current = (current + 1) % roads.Count;
                 amber = false;
@@ -578,7 +590,10 @@ internal sealed class TrafficSim : ILiveFlags
             // Two traffic cars nose to nose: in Gley one of them backs or swings out after a while; here the lower id
             // stops looking at cars for a moment (the ride car is never ignored).
             blockedByCar = stoppedByCar >= 0 && V < 0.3f ? blockedByCar + Dt : 0f;
-            if (blockedByCar > 3f && sim.cars.Any(o => o.Spec.Id == stoppedByCar && o.blockedByCar > 0f) && Spec.Id < stoppedByCar) ignoreCarsUntil = t + 2f;
+            // A jam among traffic cars (a dump's graph is cut at its edges, so its cars can meet where the game's
+            // wouldn't): the one waiting longest on a standing car moves on through it after a while.
+            var blocker = stoppedByCar >= 0 ? sim.cars.FirstOrDefault(o => o.Spec.Id == stoppedByCar) : null;
+            if (blockedByCar > 3f && blocker != null && blocker.V < 0.3f && (blocker.blockedByCar > 0f || blocker.Why != "red") && (blocker.blockedByCar < blockedByCar || Spec.Id < stoppedByCar)) ignoreCarsUntil = t + 2f;
             if (stopNow) { limit = 0f; brake = 8f; }
             V += Math.Max(-brake * Dt, Math.Min(2f * Dt, limit - V));
             V = Math.Max(0f, V);

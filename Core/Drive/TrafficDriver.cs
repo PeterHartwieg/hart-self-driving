@@ -57,6 +57,8 @@ namespace DrivenRides.Core.Drive
         // A standing traffic car in the way that won't move: one at the end of a lane that leads nowhere (Gley's cars
         // wait there for good, T3 20261013-191420, ride 1: 300 s), or any that hasn't moved for StuckSeconds.
         public const float StuckSeconds = 60f;
+        // How long a car given way to stays a conflict once the sweep stops finding one, while it is still in the way.
+        public const float ConflictMemory = 1f;
         // A traffic car behind the ride car in a lane it joins: the braking it is left to stay behind, and the gap.
         public const float FollowBrake = 3f;
         public const float FollowGap = 2f;
@@ -86,6 +88,8 @@ namespace DrivenRides.Core.Drive
         private readonly HashSet<int> present = new HashSet<int>();
         private readonly HashSet<int> moving = new HashSet<int>();
         private readonly Dictionary<int, float> standingSince = new Dictionary<int, float>();
+        // The cars the ride car gave way to lately: where, and when it last found the conflict.
+        private readonly Dictionary<int, (float Along, float Time)> yieldMemory = new Dictionary<int, (float, float)>();
         private int backingFrom = -1;
         private float backStartX, backStartZ;
 
@@ -155,6 +159,7 @@ namespace DrivenRides.Core.Drive
             foreach (var c in s.Cars) present.Add(c.Id);
             heldFor.RemoveWhere(id => !present.Contains(id));
             moving.RemoveWhere(id => !present.Contains(id));
+            if (yieldMemory.Count > 0) foreach (var id in new List<int>(yieldMemory.Keys)) if (!present.Contains(id)) yieldMemory.Remove(id);
             foreach (var c in s.Cars)
             {
                 if (moving.Contains(c.Id) ? c.Speed < StandingMs : c.Speed <= MovingMs)
@@ -253,6 +258,19 @@ namespace DrivenRides.Core.Drive
                 if (corridor.MaxX < sweepMinX || corridor.MinX > sweepMaxX || corridor.MaxZ < sweepMinZ || corridor.MinZ > sweepMaxZ) continue;
                 corridor.Clip(sweepMinX, sweepMinZ, sweepMaxX, sweepMaxZ);
                 var give = Conflict(c, front);
+                if (give is float given) yieldMemory[c.Id] = (given, s.Time);
+                else if (yieldMemory.TryGetValue(c.Id, out var kept))
+                {
+                    // Given way to a moment ago and still in the ride car's way (its body or its way ahead covers the
+                    // sweep): keep giving way for ConflictMemory, so one frame of a different reading doesn't send the
+                    // ride car off in front of it (T3 20261013-211205, ride 9).
+                    if (s.Time - kept.Time <= ConflictMemory && kept.Along > front - 0.5f && StillInTheWay())
+                    {
+                        give = kept.Along;
+                        conflictNote = "still giving way";
+                    }
+                    else yieldMemory.Remove(c.Id);
+                }
                 if (give is float g && (d.YieldAlong == null || g < d.YieldAlong))
                 {
                     d.YieldAlong = g;
@@ -463,6 +481,20 @@ namespace DrivenRides.Core.Drive
             return ahead < -15f;
         }
 
+        // The corridor built last covers a pose of the sweep at or ahead of the car's rear: it is still in the way.
+        private bool StillInTheWay()
+        {
+            for (var k = 0; k < count; k++)
+                if (corridor.Covers(poses[k].Grown(SideMargin, EndMargin), out _, out var ub, out _, out _) && ub > -corridor.Length) return true;
+            return false;
+        }
+
+        // A car on the same way is ahead of the ride car (to be followed, not given way to) only once its rear, not
+        // its front, is past the stretch the ride car's body takes: an 11 m truck coming up beside the ride car as it
+        // turned across its lane counted as ahead with its cab past the middle, and the ride car turned into its side
+        // (T3 20261013-211205, ride 9).
+        private bool AheadBy(float t, float ub) => corridor.Speed * t - corridor.Length >= ub;
+
         // Whether the poses a few metres on lie further along the corridor than pose 0 (at `ua`): the ride car moves
         // along the other car's way, ahead of it.
         private bool AheadAlong(float ua)
@@ -489,7 +521,7 @@ namespace DrivenRides.Core.Drive
                 // its business (in a turn the body is across the lane, so the poses ahead tell the way, not pose 0).
                 if (k == 0 && ua > 0f && (same || AheadAlong(ua))) return null;
                 // Ground ahead of the car that it is coming into: the ride car must not come to a stop there.
-                if (runStart > 0 && ua > 0f && !(same && corridor.Speed * early[k] >= (ua + ub) / 2f) && (keepClearFrom[k] < 0 || runStart < keepClearFrom[k]))
+                if (runStart > 0 && ua > 0f && !(same && AheadBy(early[k], ub)) && (keepClearFrom[k] < 0 || runStart < keepClearFrom[k]))
                 {
                     keepClearFrom[k] = runStart;
                     keepClearFor[k] = c.Id;
@@ -500,7 +532,7 @@ namespace DrivenRides.Core.Drive
                 if (same)
                 {
                     // A car ahead of the ride car on the same way by then is caught up with, not crossed: the gap.
-                    if (corridor.Speed * early[k] >= (ua + ub) / 2f) conflict = false;
+                    if (AheadBy(early[k], ub)) conflict = false;
                     // One behind, in the lane the ride car joins, follows it once it is in: it must not need to brake
                     // harder than FollowBrake to stay behind (NWH spike U-turns: slow out of the turn, a car at
                     // 13 m/s close behind).

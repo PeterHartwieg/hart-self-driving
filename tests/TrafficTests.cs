@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -112,5 +113,66 @@ public sealed class TrafficTests
             output.WriteLine($"{System.IO.Path.GetFileName(file)}: {r}");
             Assert.True(r.Failure == null, $"{System.IO.Path.GetFileName(file)}: {r.Failure}");
         }
+    }
+
+    // A dump's recorded frames fed to TrafficDriver as they were seen in the game (no simulation): what it decided
+    // at each frame. FT_TRAFFIC_REPLAY=<file>.json prints it.
+    internal static List<string> ReplayDecisions(TrafficScenario s)
+    {
+        var graph = s.BuildGraph();
+        var r = s.Ride;
+        var line = DrivenRides.Core.Drive.DriveLine.Build(r.Path.Select(i => graph.Position(i)).ToList(), r.Arcs.Select(a => (a.Entry, new DrivenRides.Core.Ride.Polyline(a.Points) { Radius = a.Radius })).ToList());
+        var driver = new DrivenRides.Core.Drive.PursuitDriver(line, r.Wheelbase, r.FrontAhead, r.TopMs);
+        var traffic = new DrivenRides.Core.Drive.TrafficDriver(graph, line, driver, new DrivenRides.Core.Drive.RideBody { Wheelbase = r.Wheelbase, FrontAhead = r.FrontAhead, RearBehind = r.RearBehind, HalfWidth = r.HalfWidth });
+        var flags = new ReplayFlags(s);
+        var d = new DrivenRides.Core.Drive.TrafficDecision();
+        var lines = new List<string>();
+        var sizes = s.Cars.ToDictionary(c => c.Id);
+        foreach (var f in s.History)
+        {
+            driver.StartAt(f.RideX, f.RideZ);
+            var cars = f.Cars.Where(c => sizes.ContainsKey(c.Id)).Select(c => new DrivenRides.Core.Drive.OtherCar
+            {
+                Id = c.Id, X = c.X, Z = c.Z, Heading = c.Heading, Vx = c.Vx, Vz = c.Vz, Length = sizes[c.Id].Length, Width = sizes[c.Id].Width,
+                TriggerLength = sizes[c.Id].Trigger, Target = c.Target, StoppedForUs = c.ForUs,
+            }).ToList();
+            traffic.Decide(new DrivenRides.Core.Drive.TrafficSnapshot
+            {
+                Time = f.T, RearX = f.RideX, RearZ = f.RideZ, Heading = f.RideHeading, Speed = f.RideSpeed,
+                Marks = Array.Empty<DrivenRides.Core.Drive.PathMark>(), Cars = cars, Flags = flags,
+            }, d);
+            lines.Add($"{f.T,5:0.0} v {f.RideSpeed,4:0.0} along {driver.Along,6:0.0} yield {d.YieldAlong,6:0.0} for {d.YieldFor,3} gap {d.GapAhead,5:0.0} {d.Why} {d.YieldNote}");
+        }
+        return lines;
+    }
+
+    private sealed class ReplayFlags : DrivenRides.Core.Drive.ILiveFlags
+    {
+        private readonly TrafficScenario s;
+        public ReplayFlags(TrafficScenario s) => this.s = s;
+        public bool Stop(int w) => w >= 0 && w < s.Waypoints.Count && s.Waypoints[w].Stop;
+        public bool GiveWayEntry(int w, out int junction, out int road) { junction = road = -1; return false; }
+    }
+
+    [Fact]
+    public void ReplayOneDump()
+    {
+        var file = Environment.GetEnvironmentVariable("FT_TRAFFIC_REPLAY");
+        if (string.IsNullOrEmpty(file)) return;
+        foreach (var l in ReplayDecisions(TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, file))))) output.WriteLine(l);
+    }
+
+    // T3 20261013-211205, ride 9: a truck (11 m) coming up on the ride car's left as it turned left across its lane.
+    // Fed the recorded frames, the ride car must give way to it at every frame from the first until the contact.
+    [Fact]
+    public void Ride9KeepsGivingWayToTheTruck()
+    {
+        var s = TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "t3c-211205-ride9-contact-1.json")));
+        var lines = ReplayDecisions(s);
+        var first = lines.FindIndex(l => l.Contains("for   0"));
+        Assert.True(first >= 0, string.Join("\n", lines));
+        var dropped = lines.Skip(first).Where(l => !l.Contains("for   0")).ToList();
+        foreach (var l in lines.Skip(first)) output.WriteLine(l);
+        Assert.True(dropped.Count == 0, $"dropped car 0 at:\n{string.Join("\n", dropped.Take(5))}");
     }
 }
