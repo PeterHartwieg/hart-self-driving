@@ -220,7 +220,7 @@ From the Gley decompile in `build/decompiled-external/GleyTrafficSystem/`:
 - Traffic lights are a `stop` flag per waypoint. A light holds yellow while its intersection's `carsInIntersection` is not empty (`TrafficLightsIntersection.cs:102`). `Waypoint.Passed` fills that list at `enter` waypoints and empties it at `exit` ones (`Waypoint.cs:65-75`).
 - Priority junctions are `PriorityIntersection.IsPathFree`: round robin by road, at most three cars inside (`PriorityIntersection.cs:95-102`). A car asks through the public `Waypoint.CanChange()` (`Waypoint.cs:55`).
 - Everything else is the front trigger: `StopInDistance`, follow, a 5 s temporary stop, `AvoidForward`, reverse, and a 3 to 5 s stop after a crash. Gley has no rule for giving way to oncoming cars before a left turn.
-- A car with a `presetPath` skips Gley's junction logic: `WaypointRequested` returns after `SetNextWaypoint` while the path has entries (`DrivingAI.cs:467-487`).
+- A car with a `presetPath` skips Gley's junction logic: `WaypointRequested` returns after `SetNextWaypoint` while the path has entries (`DrivingAI.cs:466-484`).
 - Gley cars treat a car on the `Vehicles` layer as the player and stop for it when it is in their front trigger (`VehicleComponent.cs:529-534`). That trigger is short, so a Gley car that cuts in at speed hits it, as it hits the player.
 
 ### Options weighed
