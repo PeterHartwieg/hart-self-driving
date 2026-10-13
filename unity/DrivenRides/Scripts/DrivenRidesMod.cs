@@ -15,7 +15,7 @@ namespace DrivenRides
     [ModEntryOnInitializationLoad]
     public sealed class DrivenRidesMod : IModBigAmbitions
     {
-        public const string Version = "0.1.75-traffic12";
+        public const string Version = "0.1.76";
 
         public string[] RelativeAssetBundlePaths => Array.Empty<string>();
 
