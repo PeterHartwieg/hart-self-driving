@@ -25,6 +25,10 @@ namespace DrivenRides
         private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
 
         private VehicleComponent? car;
+        private Rigidbody? body;
+        // A car with no Gley component (an NWH-driven one, NwhCar): its front axle and its body box, set before the
+        // judge starts.
+        public System.Func<Vector3>? FrontAxleOf;
         private Vector3 boxCenter, boxHalf;
         private readonly Collider[] hits = new Collider[32];
         private static readonly float[] Inflations = { 0.3f, 0.2f, 0.1f };
@@ -37,6 +41,7 @@ namespace DrivenRides
         private void Awake()
         {
             car = GetComponent<VehicleComponent>();
+            body = car != null && car.rb != null ? car.rb : GetComponent<Rigidbody>();
             MeasureBody();
         }
 
@@ -88,6 +93,8 @@ namespace DrivenRides
         private static Vector3 Corner(Vector3 center, Vector3 extents, int i) =>
             center + new Vector3((i & 1) == 0 ? -extents.x : extents.x, (i & 2) == 0 ? -extents.y : extents.y, (i & 4) == 0 ? -extents.z : extents.z);
 
+        public void SetBody(Vector3 centre, Vector3 half) { boxCenter = centre; boxHalf = half; }
+
         public float HalfWidth => boxHalf.x;
 
         // The footprint at the bottom of the body box: four corners, then four edge midpoints.
@@ -109,6 +116,7 @@ namespace DrivenRides
 
         private Vector3 FrontAxle()
         {
+            if (FrontAxleOf != null) return FrontAxleOf();
             if (car != null && car.allWheels != null)
             {
                 var sum = Vector3.zero;
@@ -135,7 +143,7 @@ namespace DrivenRides
 
         private void FixedUpdate()
         {
-            if (Judge == null || car == null) return;
+            if (Judge == null) return;
             Step++;
             time += Time.fixedDeltaTime;
             var outline = Outline();
@@ -151,7 +159,7 @@ namespace DrivenRides
                 FrontAxle = GleyGraph.ToVec(FrontAxle()),
                 HeadingDegrees = transform.eulerAngles.y,
                 Footprint = footprint,
-                SpeedMs = car.rb != null ? car.rb.velocity.magnitude : 0f,
+                SpeedMs = body != null ? body.velocity.magnitude : 0f,
                 Waiting = Waiting?.Invoke() ?? false,
                 NearMiss = NearMiss(),
             };

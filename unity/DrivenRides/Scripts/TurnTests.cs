@@ -84,6 +84,14 @@ namespace DrivenRides
             public int SpeedFrames;
             public int VSyncWas;
             public int FrameRateWas;
+            // driver=nwh: each case's car is the drivable prefab driven by its own physics (NwhDrive,
+            // docs/nwh-drive-spike.md). traffic=on keeps traffic and pedestrians.
+            public bool Nwh;
+            public bool TrafficOn;
+            public NwhCar? NwhCar;
+            public NwhDrive? NwhDrive;
+            public float AutoNow = 3f;
+            public bool ScaleSet;
         }
 
         private void OnEnable()
@@ -107,10 +115,11 @@ namespace DrivenRides
                 catch (Exception ex) { Log.Error("Turn tests command: " + ex); }
             }
             frameSeconds = Mathf.Lerp(frameSeconds, Mathf.Clamp(Time.unscaledDeltaTime, 0.002f, 0.2f), 0.05f);
-            if (session != null && session.AutoSpeed && session.Ride != null)
+            if (session != null && session.AutoSpeed && (session.Ride != null || session.NwhDrive != null))
             {
                 var auto = Mathf.Clamp(GameSecondsPerFrame / frameSeconds, 1f, MaxSpeed);
-                session.Ride.SetTestSpeed(auto);
+                session.Ride?.SetTestSpeed(auto);
+                session.AutoNow = auto;
                 session.SpeedSum += auto;
                 session.SpeedFrames++;
             }
@@ -310,7 +319,11 @@ namespace DrivenRides
             var speed = args.TryGetValue("speed", out var sp) ? sp == "auto" ? 0f : float.TryParse(sp, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? Mathf.Clamp(v, 1f, MaxSpeed) : 3f : 3f;
             var options = CatalogueSettings();
             var catalogue = Catalogue.Build(graph, options);
+            var nwh = args.TryGetValue("driver", out var dr) && dr == "nwh";
+            var trafficOn = args.TryGetValue("traffic", out var tr) && tr == "on";
             var models = Models();
+            // An NWH drive needs the car's drivable prefab: the taxi has none.
+            if (nwh) models = models.Where(m => !m.Taxi && NwhCar.HasPrefab(m.Name)).ToList();
             var plan = new List<(Fixture Fixture, CarModel Car)>();
             List<CarModel>? followUp = null;
             static IEnumerable<string> followUpNames(List<(Fixture Fixture, CarModel Car)> p, int from) => p.Skip(from).Select(x => x.Car.Name).Distinct();
@@ -364,8 +377,9 @@ namespace DrivenRides
                     foreach (var f in cases) plan.Add((f, car));
             }
             if (plan.Count == 0) { Refuse("nothing to run"); yield break; }
-            if (!Begin(graph, plan.Count)) yield break;
+            if (!Begin(graph, plan.Count, trafficOn)) yield break;
             var s = session!;
+            s.Nwh = nwh;
             s.AutoSpeed = speed <= 0f;
             if (s.AutoSpeed) speed = 3f;
             Log.Info($"Turn tests {s.Id}: {plan.Count} runs at {speed:0}x, cars {string.Join(", ", plan.Select(p => p.Car.Name).Distinct())}.");
@@ -379,7 +393,7 @@ namespace DrivenRides
                 if (s.StopRequested || session != s) break;
                 n++;
                 JudgeResult? result = null;
-                var run = RunCase(s, graph, fixture, car, speed, n, r => result = r);
+                var run = s.Nwh ? RunNwhCase(s, graph, fixture, car, speed, n, r => result = r) : RunCase(s, graph, fixture, car, speed, n, r => result = r);
                 while (run.MoveNext()) yield return null;
                 if (fixture.Kind == CaseKind.Control && result != null) controlResults.Add((fixture, result));
                 if (controlResults.Count > 0 && fixture.Kind != CaseKind.Control && s.Calibrated == null) s.Calibrated = Calibration(controlResults);
@@ -431,7 +445,7 @@ namespace DrivenRides
             WriteStatusFile(new JObject { ["state"] = "refused", ["why"] = why, ["version"] = DrivenRidesMod.Version, ["heartbeat"] = DateTime.Now.ToString("s") });
         }
 
-        private static bool Begin(LaneGraph graph, int total)
+        private static bool Begin(LaneGraph graph, int total, bool trafficOn)
         {
             var manager = InstanceBehavior<GameManager>.Instance;
             var player = manager != null ? manager.playerController : null;
@@ -447,7 +461,7 @@ namespace DrivenRides
                 Id = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture),
                 Player = player, Manager = manager, Graph = graph, Total = total,
                 StartPosition = player.transform.position, StartRotation = player.transform.rotation,
-                Started = Time.unscaledTime,
+                Started = Time.unscaledTime, TrafficOn = trafficOn,
             };
             s.ResultsFile = Path.Combine(Folder, $"results-{s.Id}.jsonl");
             session = s;
@@ -459,18 +473,21 @@ namespace DrivenRides
             Application.targetFrameRate = -1;
 
             // Traffic and pedestrians off, as the game's own ToggleTraffic and TogglePedestrian console commands.
-            s.TrafficWas = manager!.spawnTraffic;
-            manager.spawnTraffic = false;
-            TrafficManager.Instance.SetTrafficDensity(0);
-            TrafficManager.Instance.ClearTraffic();
-            var spawner = InstanceBehavior<CityManager>.Instance.pedestrianSpawner;
-            if (spawner != null)
+            if (!trafficOn)
             {
-                s.PedestriansWere = PedestrianAmountField?.GetValue(spawner) is int amount ? amount : 0;
-                s.PedestriansSpawningWas = spawner.spawningActive;
-                spawner.spawningActive = false;
-                foreach (var pedestrian in spawner.activePedestrians.ToArray()) if (pedestrian != null) pedestrian.Release();
-                spawner.SetActivePedestrians(0);
+                s.TrafficWas = manager!.spawnTraffic;
+                manager.spawnTraffic = false;
+                TrafficManager.Instance.SetTrafficDensity(0);
+                TrafficManager.Instance.ClearTraffic();
+                var spawner = InstanceBehavior<CityManager>.Instance.pedestrianSpawner;
+                if (spawner != null)
+                {
+                    s.PedestriansWere = PedestrianAmountField?.GetValue(spawner) is int amount ? amount : 0;
+                    s.PedestriansSpawningWas = spawner.spawningActive;
+                    spawner.spawningActive = false;
+                    foreach (var pedestrian in spawner.activePedestrians.ToArray()) if (pedestrian != null) pedestrian.Release();
+                    spawner.SetActivePedestrians(0);
+                }
             }
 
             // The player rides along on an anchor that follows each test car, as in a ride.
@@ -601,6 +618,153 @@ namespace DrivenRides
             done(result);
         }
 
+        // One case driven by the car's own physics (docs/nwh-drive-spike.md): the drivable prefab, the same path and
+        // judge, Core's PursuitDriver at the pedals and the wheel. The path's added turns are driven along their arcs
+        // where one fits the car's turning circle; there is no world check before the drive (the judge is the check).
+        private const float NwhManoeuvreKmh = 10f;
+
+        private IEnumerator RunNwhCase(Session s, LaneGraph graph, Fixture fixture, CarModel model, float speed, int n, Action<JudgeResult> done)
+        {
+            s.RunId = $"{s.Id}-{n:0000}";
+            s.Current = $"{fixture.Id} ({model.Name}, NWH)";
+            var all = GleyGraph.Waypoints!;
+            var route = fixture.Route;
+            var start = all[route[0]];
+            var line = new JObject
+            {
+                ["run"] = s.RunId, ["session"] = s.Id, ["case"] = fixture.Id, ["kind"] = fixture.Kind.ToString(),
+                ["car"] = model.Name, ["speed"] = speed, ["version"] = DrivenRidesMod.Version, ["driver"] = "nwh", ["traffic"] = s.TrafficOn,
+            };
+            if (fixture.RideLine >= 0) line["rideLine"] = fixture.RideLine;
+
+            s.Anchor!.Target = null;
+            s.Anchor.Valid = null;
+            s.AnchorObject!.transform.position = start.position + Vector3.up;
+            var until = Time.unscaledTime + (s.TrafficOn ? 3f : 1f);
+            while (Time.unscaledTime < until) { if (s.StopRequested) yield break; yield return null; }
+
+            TrafficManager.Instance.ClearTrafficOnArea(start.position, 40f);
+            var firstPath = fixture.Path ?? PathExpander.Expand(graph, route).Path;
+            var ahead = all[firstPath.Count > 1 ? firstPath[1] : route[1]].position - start.position;
+            ahead.y = 0f;
+            var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(ahead) : Quaternion.identity;
+            var car = NwhCar.Spawn(model.Name, start.position + Vector3.up * 0.4f, rotation, out var why);
+            if (car == null) { Record(s, line, "setup-error", "no NWH car: " + why, null, null); yield break; }
+            s.NwhCar = car;
+            // The prefab's origin is not its rear axle: the waypoint is where the rear axle starts.
+            car.Root.transform.position -= rotation * new Vector3(0f, 0f, car.RearZ);
+            Physics.SyncTransforms();
+
+            var testCar = car.Root.AddComponent<TestCar>();
+            testCar.SetBody(car.BodyCentre, car.BodyHalf);
+            testCar.FrontAxleOf = () => car.FrontAxle;
+            var outline = testCar.Outline();
+            var middle = (outline[0] + outline[2]) / 2f + Vector3.up;
+            var blockers = Physics.OverlapBox(middle, new Vector3(testCar.HalfWidth, 0.8f, car.Length / 2f), car.Root.transform.rotation, TestCar.ObstacleMask, QueryTriggerInteraction.Ignore);
+            if (blockers.Length > 0)
+            {
+                EndNwh(s);
+                Record(s, line, "setup-error", $"the start is blocked by '{blockers[0].name}'", null, null);
+                yield break;
+            }
+
+            // The path: the fixture's own (the controls), or the planner's expansion with arcs this car can follow.
+            var minRadius = car.Wheelbase / Mathf.Tan(Mathf.Max(5f, car.LockAt(NwhManoeuvreKmh / 3.6f)) * Mathf.Deg2Rad);
+            List<int> path;
+            var arcs = new List<(int Entry, Polyline Arc)>();
+            var slow = new List<(int Position, float SpeedKmh)>();
+            if (fixture.Path != null)
+            {
+                path = fixture.Path;
+                if (fixture.SlowPath != null) foreach (var k in fixture.SlowPath) slow.Add((k, 25f));
+            }
+            else
+            {
+                var expanded = PathExpander.Expand(graph, route, null, (e, x) => TurnArc.Fit(graph, e, x, minRadius) != null);
+                path = expanded.Path;
+                foreach (var (entry, exit) in expanded.Arcs)
+                {
+                    var at = -1;
+                    for (var k = 0; k + 1 < path.Count; k++) if (path[k] == entry && path[k + 1] == exit) { at = k; break; }
+                    var arc = at >= 0 ? TurnArc.Fit(graph, entry, exit, minRadius) : null;
+                    if (arc != null) arcs.Add((at, arc));
+                }
+                foreach (var k in expanded.SlowPath) slow.Add((k, 25f));
+                if (car.Length >= 5.5f) foreach (var k in expanded.UTurnPath) slow.Add((k, 15f));
+            }
+            // Gley caps every car at the road's limit; so does this driver.
+            for (var k = 0; k < path.Count; k++) if (all[path[k]].maxSpeed > 0 && all[path[k]].maxSpeed < model.TopSpeed) slow.Add((k, all[path[k]].maxSpeed));
+            line["arcs"] = arcs.Count;
+            line["minRadius"] = Math.Round(minRadius, 2);
+
+            var geometry = CaseGeometry.Build(graph, fixture);
+            var judge = new Judge(graph, geometry, fixture);
+            testCar.Judge = judge;
+            s.Car = testCar;
+            s.Geometry = geometry;
+            s.DrivenPath = path;
+            var drive = car.Root.AddComponent<NwhDrive>();
+            drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);
+            s.NwhDrive = drive;
+            testCar.Waiting = () => drive.WaitingNow;
+            s.Anchor.Target = car.Root.transform;
+            s.Anchor.Valid = () => car.Root != null;
+
+            var length = Route.Fixed(graph, route).LengthMetres;
+            var limit = Time.time + 30f + length / 4f + (s.TrafficOn ? length / 4f : 0f);
+            while (!judge.Failed && !judge.Finished && !drive.Ended && Time.time < limit && !s.StopRequested)
+            {
+                ApplyNwhScale(s, s.AutoSpeed ? s.AutoNow : speed);
+                yield return null;
+            }
+            var timedOut = Time.time >= limit;
+            yield return null;
+            RestoreNwhScale(s);
+
+            var result = judge.Result(timedOut);
+            try
+            {
+                File.WriteAllText(Path.Combine(Folder, s.RunId + "-samples.csv"), testCar.Samples.ToString());
+                line["samples"] = s.RunId + "-samples.csv";
+                File.WriteAllText(Path.Combine(Folder, s.RunId + "-nwh.csv"), drive.Trace.ToString());
+                line["trace"] = s.RunId + "-nwh.csv";
+            }
+            catch (Exception ex) { Log.Error("Turn tests samples: " + ex.Message); }
+            line["end"] = drive.Ended ? drive.EndReason : timedOut ? "time limit" : s.StopRequested ? "stopped" : judge.Finished ? "last gate" : "failed";
+            if (s.AutoSpeed && s.SpeedFrames > 0) { line["speed"] = Math.Round(s.SpeedSum / s.SpeedFrames, 1); s.SpeedSum = 0; s.SpeedFrames = 0; }
+            if (File.Exists(Path.Combine(Folder, s.RunId + ".png"))) line["picture"] = s.RunId + ".png";
+            EndNwh(s);
+            Record(s, line, result.Verdict, null, result, fixture);
+            done(result);
+        }
+
+        private static void EndNwh(Session s)
+        {
+            if (s.Car != null && s.NwhCar != null && s.Car.gameObject == s.NwhCar.Root) { Object.Destroy(s.Car); s.Car = null; }
+            s.NwhDrive = null;
+            if (s.Anchor != null) { s.Anchor.Target = null; s.Anchor.Valid = null; }
+            if (s.NwhCar?.Root != null) Object.Destroy(s.NwhCar.Root);
+            s.NwhCar = null;
+            RestoreNwhScale(s);
+        }
+
+        private static void ApplyNwhScale(Session s, float speed)
+        {
+            var game = InstanceBehavior<UIs>.Instance.gameSpeed;
+            if (game.Paused || InstanceBehavior<UIs>.Instance.timeMachine.isRunning) return;
+            if (!Mathf.Approximately(Time.timeScale, speed)) Time.timeScale = speed;
+            s.ScaleSet = true;
+        }
+
+        private static void RestoreNwhScale(Session s)
+        {
+            if (!s.ScaleSet) return;
+            var ui = InstanceBehavior<UIs>.Instance;
+            if (ui != null && ui.gameSpeed != null && ui.gameSpeed.Paused) return;
+            Time.timeScale = 1f;
+            s.ScaleSet = false;
+        }
+
         private static void Record(Session s, JObject line, string verdict, string? why, JudgeResult? result, Fixture? fixture)
         {
             line["verdict"] = verdict;
@@ -635,14 +799,15 @@ namespace DrivenRides
             Log.Info($"Turn tests {s.Id} ended ({reason}): {s.Done}/{s.Total} runs, {s.Passed} passed, {s.Failed} failed, {s.Other} other.");
             try { if (s.Car != null) Object.Destroy(s.Car); } catch (Exception ex) { Log.Error("Turn tests end, sampler: " + ex.Message); }
             try { s.Ride?.EndTest(); } catch (Exception ex) { Log.Error("Turn tests end, ride: " + ex.Message); }
+            try { EndNwh(s); } catch (Exception ex) { Log.Error("Turn tests end, NWH car: " + ex.Message); }
             Options.LightsOverride = null;
             QualitySettings.vSyncCount = s.VSyncWas;
             Application.targetFrameRate = s.FrameRateWas;
-            try { if (s.Manager != null) s.Manager.spawnTraffic = s.TrafficWas; } catch (Exception ex) { Log.Error("Turn tests end, traffic: " + ex.Message); }
+            try { if (s.Manager != null && !s.TrafficOn) s.Manager.spawnTraffic = s.TrafficWas; } catch (Exception ex) { Log.Error("Turn tests end, traffic: " + ex.Message); }
             try
             {
                 var spawner = InstanceBehavior<CityManager>.Instance != null ? InstanceBehavior<CityManager>.Instance.pedestrianSpawner : null;
-                if (spawner != null)
+                if (spawner != null && !s.TrafficOn)
                 {
                     spawner.spawningActive = s.PedestriansSpawningWas;
                     spawner.SetActivePedestrians(s.PedestriansWere);
