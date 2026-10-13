@@ -692,12 +692,17 @@ namespace DrivenRides
             testCar.FrontAxleOf = () => car.FrontAxle;
             testCar.Wheels = car.Vehicle.powertrain.wheels.Where(w => w?.wheelUAPI != null).Select(w => w.wheelUAPI).ToArray();
             var outline = testCar.Outline();
-            var middle = (outline[0] + outline[2]) / 2f + Vector3.up;
-            var blockers = Physics.OverlapBox(middle, new Vector3(testCar.HalfWidth, 0.8f, car.Length / 2f), car.Root.transform.rotation, TestCar.ObstacleMask, QueryTriggerInteraction.Ignore);
+            // The body's own width and length, from 0.35 m to 1.5 m above the start waypoint (the car is loaded 0.4 m
+            // up and settles): a kerb along the lane is below it (T3, session 20261013-185723: rides refused for
+            // 'Curb1'). The blocker's bounds go into the message, to see what it is.
+            var middle = (outline[0] + outline[2]) / 2f;
+            middle.y = start.position.y + (0.35f + 1.5f) / 2f;
+            var blockers = Physics.OverlapBox(middle, new Vector3(testCar.HalfWidth, (1.5f - 0.35f) / 2f, car.Length / 2f), car.Root.transform.rotation, TestCar.ObstacleMask, QueryTriggerInteraction.Ignore);
             if (blockers.Length > 0)
             {
+                var b = blockers[0].bounds;
                 EndNwh(s);
-                Record(s, line, "setup-error", $"the start is blocked by '{blockers[0].name}'", null, null);
+                Record(s, line, "setup-error", $"the start is blocked by '{blockers[0].name}' ({LayerMask.LayerToName(blockers[0].gameObject.layer)}, {blockers[0].GetType().Name}, bounds {b.min} to {b.max}; start {start.position})", null, null);
                 yield break;
             }
 

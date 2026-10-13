@@ -87,7 +87,7 @@ public sealed class FeasibilityTests
         var verdict = check.Drive(fixture, DrivePlan.Fixed(path, null, 50f), "vias");
         output.WriteLine(verdict.ToString());
         Assert.False(verdict.Feasible);
-        Assert.True(verdict.Reason.Contains("carriageway") || verdict.Reason.Contains("off-lane"), verdict.Reason);
+        Assert.True(verdict.Reason.Contains("pavement") || verdict.Reason.Contains("off-lane"), verdict.Reason);
         Assert.True(check.Drive(fixture, DrivePlan.Fixed(fixture.Route.ToList(), null, 50f), "vias").Feasible);
     }
 

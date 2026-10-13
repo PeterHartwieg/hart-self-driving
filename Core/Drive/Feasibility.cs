@@ -64,15 +64,6 @@ namespace DrivenRides.Core.Drive
         // The world is checked every so many metres, from this far before the manoeuvre's entry on.
         private const float WorldEvery = 0.5f;
         private const float WorldFrom = 10f;
-        // The road past the manoeuvre ends at its kerb: half a lane past the outermost lane on the right (the lane
-        // graph's lanes are mostly 4 m apart), and a parking lane's width more, since a parking lane isn't in the lane
-        // graph; the parked cars in it are the world's (NwhPlanner sweeps the body against them). A footprint past
-        // that is on the pavement. T2 (session 20261013-182118): U-turns the check passed ran 5 m wide, through the
-        // parking lane, into a parked van; the ones that passed in game swung up to 1.5 m past the lane's edge.
-        // Offline, with no world, this is all there is of the kerb.
-        public const float KerbOffset = LaneHalf + 2.5f;
-        public const float LaneHalf = 2f;
-        private const float KerbTolerance = 0.3f;
         // Once the rear axle is past the manoeuvre's exit waypoint, it keeps within this of its line: back in the
         // target lane, not in the next one.
         public const float OffLaneLimit = 1.5f;
@@ -99,8 +90,8 @@ namespace DrivenRides.Core.Drive
         public CarSpec Car => car;
         public int Simulations { get; private set; }
 
-        // world(box): the name of what the body box overlaps, or null; null for no world (offline: only the
-        // carriageway rule stands in for it). limitKmh(waypoint): the road's limit, 0 for none.
+        // world(box): the name of what the body box overlaps, or null; null for no world (offline: only the judge's
+        // pavement rule stands in for it). limitKmh(waypoint): the road's limit, 0 for none.
         public Feasibility(LaneGraph graph, CarSpec car, Func<BodyBox, string?>? world = null, float margin = DefaultMargin,
             Func<int, float>? limitKmh = null, CatalogueOptions? options = null)
         {
@@ -229,7 +220,6 @@ namespace DrivenRides.Core.Drive
             var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
             var geometry = CaseGeometry.Build(graph, fixture);
             var judge = new Judge(graph, geometry, fixture);
-            var kerbs = Carriageway(fixture);
             var path = plan.Path;
             var start = graph.Position(path[0]);
             var next = line.Line.At(1f);
@@ -277,11 +267,6 @@ namespace DrivenRides.Core.Drive
                     {
                         judge.Reject(step, "kerb", wheel);
                         verdict.Hit = wheel;
-                    }
-                    if (!judge.Failed && Kerb(kerbs, footprint) is string past)
-                    {
-                        judge.Reject(step, "carriageway", past);
-                        verdict.Hit = past;
                     }
                 }
                 if (!judge.Failed && driver.Along >= exitAlong && off > OffLaneLimit)
@@ -346,71 +331,6 @@ namespace DrivenRides.Core.Drive
                 Local(pose, new Vec3(c.X, bottom, c.Z + z)), Local(pose, new Vec3(c.X + x, bottom, c.Z)),
                 Local(pose, new Vec3(c.X, bottom, c.Z - z)), Local(pose, new Vec3(c.X - x, bottom, c.Z)),
             };
-        }
-
-        // The lanes past the manoeuvre, out of the junction, as stretches that see the lanes beside them, for the
-        // carriageway rule. Not inside the junction: a street opens on every side there, and a U-turn through its
-        // vias swings up to 6 m off its line in turns that passed in game (T2); the world check judges that part.
-        private List<LaneStretch> Carriageway(Fixture fixture)
-        {
-            var result = new List<LaneStretch>();
-            var route = fixture.Route;
-            for (var k = fixture.EntryIndex + 1; k + 1 < route.Count; k++)
-            {
-                int a = route[k], b = route[k + 1];
-                if (!Has(graph.Successors(a), b) || (graph.IsIntersection(a) && graph.IsIntersection(b))) continue;
-                var stretch = new LaneStretch(graph, graph.Position(a), graph.Position(b), k, edges: true);
-                if (stretch.Length < 0.05f) continue;
-                stretch.Min = -1f;
-                stretch.Max = stretch.Length + 1f;
-                result.Add(stretch);
-            }
-            return result;
-        }
-
-        // A footprint point past the carriageway's edge beside the stretch it stands on (the nearest one along whose
-        // length it is): past the outermost lane on the right by half a lane, where no oncoming lane is. Only the
-        // right: a U-turn crosses the median's side at its opening.
-        private string? Kerb(List<LaneStretch> kerbs, Vec3[] footprint)
-        {
-            foreach (var p in footprint)
-            {
-                LaneStretch? nearest = null;
-                var nearestSide = float.MaxValue;
-                foreach (var s in kerbs)
-                {
-                    var along = s.Along(p);
-                    if (along < s.Min || along > s.Max || Math.Abs(p.Y - s.Height(along)) > 2f) continue;
-                    var distance = Math.Abs(s.Side(p) - (s.OwnLeft + s.OwnRight) / 2f);
-                    if (distance < nearestSide) { nearestSide = distance; nearest = s; }
-                }
-                if (nearest == null || !float.IsPositiveInfinity(nearest.Right)) continue;
-                var past = nearest.Side(p) - nearest.OwnRight - KerbOffset;
-                // Where a street opens on that side (a U-turn swings into a cross street's mouth), the point is on
-                // another lane, not past a kerb.
-                if (past > KerbTolerance && !OnALane(p))
-                    return FormattableString.Invariant($"past the carriageway right of route segment {nearest.Index} by {past:0.00} m at ({p.X:0.0}, {p.Z:0.0})");
-            }
-            return null;
-        }
-
-        // Whether a point is within half a lane of any lane of the graph, whatever its direction.
-        private bool OnALane(Vec3 p)
-        {
-            foreach (var w in graph.Near(p, 15f))
-            {
-                var a = graph.Position(w);
-                if (Math.Abs(a.Y - p.Y) > 2f) continue;
-                foreach (var n in graph.Successors(w))
-                {
-                    var b = graph.Position(n);
-                    float dx = b.X - a.X, dz = b.Z - a.Z, span = dx * dx + dz * dz;
-                    var f = span > 0f ? Math.Max(0f, Math.Min(1f, ((p.X - a.X) * dx + (p.Z - a.Z) * dz) / span)) : 0f;
-                    float qx = a.X + dx * f - p.X, qz = a.Z + dz * f - p.Z;
-                    if (qx * qx + qz * qz <= LaneHalf * LaneHalf) return true;
-                }
-            }
-            return false;
         }
 
         private static bool Has(IReadOnlyList<int> list, int value)

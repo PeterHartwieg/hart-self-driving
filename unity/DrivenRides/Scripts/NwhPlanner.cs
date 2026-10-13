@@ -132,6 +132,13 @@ namespace DrivenRides
         // They don't move within a session, so the manoeuvres' body sweep counts them too (T2: U-turns run wide into
         // the parking lane nosed into a parked van and an ambulance).
         private static int parkedMask = -1;
+        // The lane sweep's: parked cars and the player's cars at the width the driver stops for, and what truly
+        // stands in the lane (props, buildings, the road's raised edges, median islands) at the car's own width, a
+        // near-miss wider, from RoadClearance up. Kerb props along a lane's edge ('Curb1', a 'Divider' beside the
+        // inner lane) are low or outside that: T3 (session 20261013-185723) refused every ride because the sweep took
+        // them for cars in the lane; the manoeuvres' body sweep still counts every prop.
+        private static int CarsMask => (1 << LayerHelper.ParkedVehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
+        private static int StandingMask => TestCar.ObstacleMask | RaisedMask;
         private static int ParkedMask => parkedMask >= 0 ? parkedMask
             : parkedMask = (1 << LayerHelper.ParkedVehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex) | TestCar.ObstacleMask;
         // The lanes are swept this far ahead when a ride is planned; the rest as the car drives (BlockedAhead), since
@@ -226,13 +233,13 @@ namespace DrivenRides
 
         // The part of a box from RoadClearance above the ground up, against the road's and the Default layer's
         // colliders.
-        private string? Raised(Vector3 centre, Vector3 half, Quaternion rotation, float ground)
+        private string? Raised(Vector3 centre, Vector3 half, Quaternion rotation, float ground, int mask = 0)
         {
             var bottom = Mathf.Max(centre.y - half.y, ground + RoadClearance);
             var top = centre.y + half.y;
             if (top <= bottom) return null;
             var raisedHalf = new Vector3(half.x, Mathf.Max(0.05f, (top - bottom) / 2f), half.z);
-            return Overlap(new Vector3(centre.x, (top + bottom) / 2f, centre.z), raisedHalf, rotation, RaisedMask);
+            return Overlap(new Vector3(centre.x, (top + bottom) / 2f, centre.z), raisedHalf, rotation, mask != 0 ? mask : RaisedMask);
         }
 
         private static string Name(Collider c) => $"'{c.name}' ({LayerMask.LayerToName(c.gameObject.layer)})";
@@ -281,9 +288,9 @@ namespace DrivenRides
             return result;
         }
 
-        // A plain lane step swept with the car's width for parked cars and anything standing in the lane, and with its
-        // body for the road's raised edges (a median island's nose the lane hugs). Not in a junction: nothing parks
-        // there, and the turn's own check covers it.
+        // A plain lane step swept for parked cars at the width the driver stops for, and with the car's body for what
+        // stands in the lane (a barricade, a median island's nose the lane hugs), not for the kerb along its edge.
+        // Not in a junction: nothing parks there, and the turn's own check covers it.
         private string? LaneBlocked(LaneGraph graph, int from, int to)
         {
             if (graph.IsIntersection(from) && graph.IsIntersection(to)) return null;
@@ -296,10 +303,10 @@ namespace DrivenRides
             {
                 var f = (float)i / steps;
                 var at = new Vector3(a.X + (b.X - a.X) * f, a.Y + (b.Y - a.Y) * f + 0.9f, a.Z + (b.Z - a.Z) * f);
-                if (Overlap(at, laneHalf, rotation, ParkedMask) is string parked) return "parked in the lane: " + parked;
+                if (Overlap(at, laneHalf, rotation, CarsMask) is string parked) return "parked in the lane: " + parked;
                 var ground = a.Y + (b.Y - a.Y) * f;
                 var body = new Vector3(at.x, ground + Car.BodyCentre.Y, at.z) + rotation * new Vector3(Car.BodyCentre.X, 0f, 0f);
-                if (Raised(body, bodyHalf, rotation, ground) is string raised) return "road edge in the lane: " + raised;
+                if (Raised(body, bodyHalf, rotation, ground, StandingMask) is string standing) return "in the lane: " + standing;
             }
             return null;
         }
@@ -309,7 +316,9 @@ namespace DrivenRides
         {
             Vec3 a = graph.Position(from), b = graph.Position(to);
             var radius = Car.BodyHalf.X + 0.1f;
-            var n = Physics.OverlapCapsuleNonAlloc(new Vector3(a.X, a.Y + 1f, a.Z), new Vector3(b.X, b.Y + 1f, b.Z), radius, hits, ParkedMask, QueryTriggerInteraction.Ignore);
+            // From RoadClearance up, so the kerb along the lanes is no lane change's obstacle.
+            var lift = RoadClearance + radius;
+            var n = Physics.OverlapCapsuleNonAlloc(new Vector3(a.X, a.Y + lift, a.Z), new Vector3(b.X, b.Y + lift, b.Z), radius, hits, ParkedMask, QueryTriggerInteraction.Ignore);
             for (var h = 0; h < n; h++)
                 if (Ignore == null || !hits[h].transform.IsChildOf(Ignore)) return "lane change: " + Name(hits[h]);
             return null;

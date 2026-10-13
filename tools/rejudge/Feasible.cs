@@ -9,7 +9,7 @@ using DrivenRides.Core.Testing;
 // case, and the cases whose verdict changed since a previous run: the regression gate between two builds.
 //
 //   feasible <car> [--ids a,b,...|@file] [--kinds turn,uturn] [--margin m] [--out file] [--previous file]
-//            [--rig results.jsonl] [--wide]
+//            [--rig results.jsonl] [--wide] [--parking m]
 //
 // <car>: limo, mersaididash, taxi (Cars.cs) or name;wheelbase;top km/h;cx,cy,cz;hx,hy,hz;kmh=deg,... (CarSpec.Parse; the game
 // log's "NWH shape" line). --rig: compare with a rig run's NWH results for that car; each case
@@ -22,6 +22,7 @@ static class Feasible
     {
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         string? Opt(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : null; }
+        if (Opt("--parking") is string pk) Pavement.ParkingLane = float.Parse(pk, CultureInfo.InvariantCulture);
         var car = Cars.Get(args[0]) ?? throw new ArgumentException("no measured car " + args[0]);
         var margin = Opt("--margin") is string m ? float.Parse(m, CultureInfo.InvariantCulture) : Feasibility.DefaultMargin;
         var graph = GraphFile.Load(graphPath, out var limits);

@@ -64,9 +64,24 @@ public sealed class JudgeTests
     public void MissingEntryGateFailsWhenExitCrosses()
     {
         var (graph, f) = Straight(); var judge = Make(graph, f);
-        judge.Add(At(0, 5, 8)); judge.Add(At(1, 5, 12)); judge.Add(At(2, 0, 18)); judge.Add(At(3, 0, 21));
+        // Round the gate on the left: 5 m to the right would be on the pavement first.
+        judge.Add(At(0, -5, 8)); judge.Add(At(1, -5, 12)); judge.Add(At(2, 0, 18)); judge.Add(At(3, 0, 21));
         Assert.Contains("missed-gate:entry", judge.Result(false).Reasons);
         Assert.Equal(3, judge.FailedStep);
+    }
+
+    [Fact]
+    public void AFootprintPastTheKerbIsOnThePavement()
+    {
+        // A lone lane: its kerb is half a lane and a parking lane (4.5 m) to the right; 5 m and the car's 1 m half
+        // width put it 1.5 m onto the pavement. On the left, a U-turn's side, nothing is judged.
+        var (graph, f) = Straight(); var judge = Make(graph, f);
+        judge.Add(At(0, 0, 0)); judge.Add(At(1, 0, 11)); judge.Add(At(2, 5, 25));
+        var result = judge.Result(false);
+        Assert.Contains("pavement", result.Reasons);
+        Assert.Contains(result.Incidents, i => i.Contains("pavement:") && i.Contains("past the kerb"));
+        (graph, f) = Straight(); judge = Make(graph, f); Finish(judge, x: -5f);
+        Assert.DoesNotContain("pavement", judge.Result(false).Reasons);
     }
 
     [Theory]

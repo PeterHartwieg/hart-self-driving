@@ -145,6 +145,9 @@ if (args[1] == "arcs")
     return;
 }
 var resultsPath = args[1];
+// --parking <m>: the parking lane's width the pavement rule allows past the outermost lane (Pavement.ParkingLane).
+if (Array.IndexOf(args, "--left") > 0) Pavement.Left = true;
+if (Array.IndexOf(args, "--parking") is var pk && pk > 0 && pk + 1 < args.Length) Pavement.ParkingLane = float.Parse(args[pk + 1], CultureInfo.InvariantCulture);
 // --write <file>: also writes the results again with the new verdicts (for tools/tested-steps.py).
 var writeAt = Array.IndexOf(args, "--write");
 var writePath = writeAt > 0 && writeAt + 1 < args.Length ? args[writeAt + 1] : null;

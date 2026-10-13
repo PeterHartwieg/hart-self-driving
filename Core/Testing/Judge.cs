@@ -11,6 +11,7 @@ namespace DrivenRides.Core.Testing
         private readonly List<LaneStretch> plain = new List<LaneStretch>();
         private readonly List<LaneStretch> exitRoad = new List<LaneStretch>();
         private readonly JudgeResult result = new JudgeResult();
+        private readonly Pavement pavement;
         private Sample previous;
         private bool hasPrevious, turnPassed, entered;
         private int nextGate, segment;
@@ -21,6 +22,8 @@ namespace DrivenRides.Core.Testing
         {
             this.geometry = geometry;
             this.fixture = fixture;
+            // The pavement past the manoeuvre (the whole route for a ride or a ramp).
+            pavement = new Pavement(graph, fixture.Route, fixture.Manoeuvre == CaseKind.Turn || fixture.Manoeuvre == CaseKind.UTurn ? fixture.EntryIndex + 1 : 0);
             // Lane stretches only: an added turn's or a lane change's step is a chord across lanes, not a lane.
             for (int k = 0; k + 1 < fixture.Route.Count; k++)
                 if (!graph.IsIntersection(fixture.Route[k]) && !graph.IsIntersection(fixture.Route[k + 1]) && Has(graph.Successors(fixture.Route[k]), fixture.Route[k + 1]))
@@ -103,6 +106,11 @@ namespace DrivenRides.Core.Testing
                 if (s.NearMiss <= 0.1f) Fail(s.Step, "near-miss");
             }
             Plain(s);
+            if (!Finished && s.Footprint != null && !result.Reasons.Contains("pavement") && pavement.Past(s.Footprint) is string onPavement)
+            {
+                result.Incidents.Add(s.Step + ": " + onPavement);
+                Fail(s.Step, "pavement");
+            }
             if (entered && !Finished)
                 foreach (LaneStretch stretch in exitRoad) Intrusion(s, stretch);
             if (fixture.Manoeuvre == CaseKind.UTurn && !turnPassed) FarSide(s);
