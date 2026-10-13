@@ -151,6 +151,38 @@ namespace DrivenRides.Core.Ride
             return Math.Max(-maxSteer, Math.Min(maxSteer, steer));
         }
 
+        // The waypoints after `from` along its lane for `metres` (the straightest successor at a fork), for a turn's
+        // check to go on past its exit: a long car came out of U-turns at an angle and swung onto the pavement 5 to
+        // 9 m past a check that stopped 6 m on (turn test 0.1.45).
+        public static List<Vec3> LaneAfter(LaneGraph graph, int from, float metres)
+        {
+            var points = new List<Vec3>();
+            var at = from;
+            var gone = 0f;
+            while (gone < metres)
+            {
+                var next = -1;
+                var best = -2f;
+                var p = graph.Position(at);
+                graph.PlainHeading(at, out var hx, out var hz);
+                foreach (var n in graph.Successors(at))
+                {
+                    var q = graph.Position(n);
+                    var length = Vec3.HorizontalDistance(p, q);
+                    if (length < 0.01f) continue;
+                    var dot = ((q.X - p.X) * hx + (q.Z - p.Z) * hz) / length;
+                    if (dot > best) { best = dot; next = n; }
+                }
+                if (next < 0) break;
+                gone += Vec3.HorizontalDistance(p, graph.Position(next));
+                points.Add(graph.Position(next));
+                at = next;
+            }
+            if (points.Count == 0 && graph.PlainHeading(from, out var dx, out var dz))
+                points.Add(graph.Position(from) + new Vec3(dx, 0f, dz) * metres);
+            return points;
+        }
+
         private static double Wrap(double radians)
         {
             while (radians > Math.PI) radians -= 2 * Math.PI;

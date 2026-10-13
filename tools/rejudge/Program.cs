@@ -36,12 +36,14 @@ if (args[1] == "drive")
 {
     // drive <entry> <exit> <aim> [samples.csv]: the turn as the ride's world check models it (Core's TurnDrive, the
     // 6.7 m Dash at turn speed), and how far each pose lies from the recorded track's middle.
-    int entry = int.Parse(args[2]), exit = int.Parse(args[3]), aim = int.Parse(args[4]);
+    // "u" for the exit or the aim: the entry's U-turn target.
+    int entry = int.Parse(args[2]);
+    int exit = args[3] == "u" ? graph.UTurn(entry) : int.Parse(args[3]), aim = args[4] == "u" ? graph.UTurn(entry) : int.Parse(args[4]);
     var targets = graph.TurnVias(entry, exit).Select(graph.Position).Append(graph.Position(aim)).ToList();
-    if (graph.PlainHeading(aim, out var ax, out var az)) targets.Add(graph.Position(aim) + new Vec3(ax, 0f, az) * 6f);
-    graph.PlainHeading(entry, out var dx, out var dz);
+    targets.AddRange(DrivenRides.Core.Ride.TurnDrive.LaneAfter(graph, aim, 20f));
+    if (!graph.PlainHeading(entry, out var dx, out var dz)) Console.WriteLine($"no plain heading at {entry}");
     var poses = DrivenRides.Core.Ride.TurnDrive.Drive(graph.Position(entry), dx, dz, targets,
-        new DrivenRides.Core.Ride.CarShape(4.02f, 35f, 2.4f, Env("COM_UP", 0.6f), Env("COM_AHEAD", 0.39f)), 25 / 3.6f, 3f, 1f) ?? new();
+        new DrivenRides.Core.Ride.CarShape(4.02f, 35f, 2.4f, Env("COM_UP", 0.6f), Env("COM_AHEAD", 0.39f)), Env("SPEED_KMH", 25f) / 3.6f, 3f, 1f) ?? new();
     var track = new List<(float X, float Z)>();
     if (args.Length > 5)
         foreach (var line in File.ReadLines(args[5]).Where(l => l.StartsWith("S,")))

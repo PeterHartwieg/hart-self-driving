@@ -80,8 +80,9 @@ namespace DrivenRides.Core.Ride
         public const float LeadIn = 12f;
         private const float Spacing = 0.5f;
 
-        // How far outside the lanes that cross a turn's way the arc may start and end: half a lane, to the kerb line.
-        private const float BoxMargin = 2f;
+        // How far outside the lanes that cross a turn's way the arc may start and end: half a lane to the kerb line,
+        // and 1.5 m more, so a turn at a large junction is a little wider (Peter, turn test 0.1.44).
+        private const float BoxMargin = 3.5f;
 
         // Null when the turn is too shallow or too sharp for one arc, or the junction has no room for one the car can
         // follow. The arc stays in the junction box: it starts no earlier than the first lane crossing the entry lane

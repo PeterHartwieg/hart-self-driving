@@ -483,12 +483,13 @@ namespace DrivenRides
         private readonly struct Steering
         {
             public readonly CarShape Shape;
-            public readonly float HalfWidth;
+            public readonly float HalfWidth, Length;
             public readonly Vector3 BodyCentre, BodyHalf;
 
             public Steering(VehicleComponent copy)
             {
                 HalfWidth = copy.colliderWidth / 2f;
+                Length = copy.length;
                 var front = copy.frontTrigger != null ? copy.transform.InverseTransformPoint(copy.frontTrigger.position).z : copy.length / 2f;
                 TestCar.BodyBox(copy, out BodyCentre, out BodyHalf);
                 // Gley puts the centre of mass between the wheels when it builds the pool.
@@ -514,16 +515,16 @@ namespace DrivenRides
 
         // An added turn driven as Gley will drive it (Core's TurnDrive), from its entry through its vias to the aim,
         // with the car's body box checked against street props and buildings every half metre.
-        private static bool TurnClear(LaneGraph graph, int entry, int exit, int aim, Steering car, out string what)
+        private static bool TurnClear(LaneGraph graph, int entry, int exit, int aim, Steering car, out string what, float speedKmh = TurnSpeed)
         {
             what = "";
             if (car.Shape.WheelDistance <= 0f || !graph.PlainHeading(entry, out var dx, out var dz)) return true;
             var targets = new List<Vec3>();
             foreach (var via in graph.TurnVias(entry, exit)) targets.Add(graph.Position(via));
             targets.Add(graph.Position(aim));
-            // Gley moves on from the aim while the car is still turning; the rest of the swing, 6 m down the lane.
-            if (graph.PlainHeading(aim, out var ax, out var az)) targets.Add(graph.Position(aim) + new Vec3(ax, 0f, az) * 6f);
-            return BodyClear(TurnDrive.Drive(graph.Position(entry), dx, dz, targets, car.Shape, TurnSpeed / 3.6f, SteeringFactor), car, out what);
+            // Gley moves on from the aim while the car is still turning; the rest of the swing, 20 m down the lane.
+            targets.AddRange(TurnDrive.LaneAfter(graph, aim, 20f));
+            return BodyClear(TurnDrive.Drive(graph.Position(entry), dx, dz, targets, car.Shape, speedKmh / 3.6f, SteeringFactor), car, out what);
         }
 
         // The car's body box, TurnMargin larger, at each pose of a modelled drive; null poses: the car never got there.
@@ -604,6 +605,14 @@ namespace DrivenRides
                 points.Clear();
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
+                // A U-turn is driven as Gley will drive it, through its vias, at the speed the ride takes it: a long car
+                // that can't make one cleanly goes round the block (Peter: few drivers would U-turn a car that size).
+                if (graph.UTurn(w[k]) == w[k + 1])
+                {
+                    if (!TurnClear(graph, w[k], w[k + 1], w[k + 1], car, out var uWhat, car.Length >= LongCarMetres ? UTurnSpeed : TurnSpeed))
+                        result.Add((w[k], w[k + 1], uWhat));
+                    continue;
+                }
                 if (aims.TryGetValue((w[k], w[k + 1]), out var aim))
                 {
                     if (!TurnClear(graph, w[k], w[k + 1], aim.Aim, car, out var what)) result.Add((w[k], w[k + 1], what));
