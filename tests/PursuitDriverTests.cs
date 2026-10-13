@@ -233,4 +233,22 @@ public sealed class PursuitDriverTests
             Assert.NotNull(ground.GapAhead);
         }
     }
+
+    [Fact]
+    public void PassesACarParkedInTheLaneOnAShiftedLine()
+    {
+        // North along x = 0, waypoints every 8 m; the line moves 0.8 m left (negative) for 16 m from the fifth
+        // waypoint, easing in and out over 10 m, and the car follows it.
+        var points = Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 200));
+        var line = DriveLine.Build(points, Array.Empty<(int, Polyline)>()).Shifted(new[] { (5, 0f, 16f, -0.8f) });
+        var at = line.AlongOf[5] + 6f;
+        Assert.InRange(line.Line.At(at).X, -0.81f, -0.79f);
+        Assert.InRange(line.Line.At(line.AlongOf[5] - 12f).X, -0.01f, 0.01f);
+        Assert.InRange(line.Line.At(line.AlongOf[7] + 12f).X, -0.01f, 0.01f);
+        for (var k = 1; k < line.AlongOf.Length; k++) Assert.True(line.AlongOf[k] > line.AlongOf[k - 1]);
+        var track = Drive(line, 3.75f, 35f, 0, 0, 0);
+        var passing = track.Where(t => t.Z > 46f && t.Z < 56f).ToList();
+        Assert.NotEmpty(passing);
+        Assert.True(passing.All(t => t.X > -0.95f && t.X < -0.6f), string.Join(" ", passing.Select(t => $"{t.Z:0.0}:{t.X:0.00}")));
+    }
 }

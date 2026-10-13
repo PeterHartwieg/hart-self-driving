@@ -5,6 +5,7 @@ using System.Globalization;
 using DrivenRides.Core.Drive;
 using DrivenRides.Core.Ride;
 using DrivenRides.Core.Routing;
+using DrivenRides.Core.Testing;
 using GleyTrafficSystem;
 using Helpers;
 using UnityEngine;
@@ -117,7 +118,7 @@ namespace DrivenRides
         // Steps this car can't drive, for the session: what one car can't make another may (GleyGraph's set is for
         // every car).
         private readonly HashSet<(int, int)> blocked = new HashSet<(int, int)>();
-        private readonly Collider[] hits = new Collider[8];
+        private readonly Collider[] hits = new Collider[32];
         private readonly Vector3 laneHalf, bodyHalf;
 
         // A turn's way is checked against the road's own colliders from this height above the lane up: a slope or a
@@ -291,28 +292,72 @@ namespace DrivenRides
             return result;
         }
 
-        // A plain lane step swept for parked cars at the width the driver stops for, and with the car's body for what
-        // stands in the lane (a barricade, a median island's nose the lane hugs), not for the kerb along its edge.
-        // Not in a junction: nothing parks there, and the turn's own check covers it.
+        // A plain lane step swept for what stands in it: parked cars and the player's cars, and from RoadClearance up
+        // props, buildings, the road's raised edges and median islands. A driver passes a car parked partly in the
+        // lane by moving over within it: where the obstacles leave room on one side (the car's half width, a margin
+        // the driver's gap check doesn't stop for, and no more than a little past the lane's edge), the step is
+        // passed on a line moved sideways (ShiftFor, DriveLine.Shifted); otherwise it is blocked, and the route
+        // changes lanes round it or goes another way (T3, session 20261013-200946: twelve rides refused for a car
+        // parked partly in their lane). Not in a junction: nothing parks there, and the turn's own check covers it.
         private string? LaneBlocked(LaneGraph graph, int from, int to)
         {
             if (graph.IsIntersection(from) && graph.IsIntersection(to)) return null;
             Vec3 a = graph.Position(from), b = graph.Position(to);
             var length = Vec3.HorizontalDistance(a, b);
             if (length < 0.05f) return null;
-            var rotation = Quaternion.LookRotation(new Vector3(b.X - a.X, 0f, b.Z - a.Z));
+            var forward = new Vector3(b.X - a.X, 0f, b.Z - a.Z).normalized;
+            var right = new Vector3(forward.z, 0f, -forward.x);
+            var rotation = Quaternion.LookRotation(forward);
+            var half = Car.BodyHalf.X;
+            // Room needed beside each kind: the driver stops for a car within half width + 0.4 m of its line.
+            const float carClear = 0.5f, propClear = Feasibility.NearMiss + 0.1f;
+            var maxShift = Pavement.LaneHalf + 0.2f - half;
+            float lo = -maxShift, hi = maxShift;
+            float? first = null, last = null;
+            string? what = null;
             var steps = Mathf.Max(1, Mathf.CeilToInt(length));
             for (var i = 0; i <= steps; i++)
             {
                 var f = (float)i / steps;
-                var at = new Vector3(a.X + (b.X - a.X) * f, a.Y + (b.Y - a.Y) * f + 0.9f, a.Z + (b.Z - a.Z) * f);
-                if (Overlap(at, laneHalf, rotation, CarsMask) is string parked) return "parked in the lane: " + parked;
                 var ground = a.Y + (b.Y - a.Y) * f;
-                var body = new Vector3(at.x, ground + Car.BodyCentre.Y, at.z) + rotation * new Vector3(Car.BodyCentre.X, 0f, 0f);
-                if (Raised(body, bodyHalf, rotation, ground, StandingMask) is string standing) return "in the lane: " + standing;
+                var centre = new Vector3(a.X + (b.X - a.X) * f, ground, a.Z + (b.Z - a.Z) * f);
+                foreach (var (hit, clear, lowest) in new[] { (CarsMask, carClear, 0.3f), (StandingMask, propClear, RoadClearance) })
+                {
+                    var box = new Vector3(Pavement.LaneHalf + 0.5f, (1.5f - lowest) / 2f, 0.5f);
+                    var n = Physics.OverlapBoxNonAlloc(centre + Vector3.up * ((1.5f + lowest) / 2f), box, hits, rotation, hit, QueryTriggerInteraction.Ignore);
+                    for (var h = 0; h < n; h++)
+                    {
+                        var c = hits[h];
+                        if (Ignore != null && c.transform.IsChildOf(Ignore)) continue;
+                        var probe = centre + Vector3.up * 0.9f;
+                        var nearest = c is MeshCollider mesh && !mesh.convex ? c.bounds.ClosestPoint(probe) : c.ClosestPoint(probe);
+                        var side = Vector3.Dot(nearest - probe, right);
+                        var need = half + clear;
+                        if (Mathf.Abs(side) >= need) continue;
+                        first ??= f * length;
+                        last = f * length;
+                        what ??= (hit == CarsMask ? "parked in the lane: " : "in the lane: ") + Name(c) + $" (bounds {c.bounds.min} to {c.bounds.max})";
+                        // Standing on the line itself: no side to pass on.
+                        if (Mathf.Abs(side) < 0.05f) { lo = 1f; hi = 0f; continue; }
+                        if (side > 0f) hi = Mathf.Min(hi, side - need);
+                        else lo = Mathf.Max(lo, side + need);
+                    }
+                }
             }
+            if (first == null) { shifts.Remove((from, to)); return null; }
+            if (lo > hi) return what + ", no room to pass within the lane";
+            var offset = Mathf.Clamp(0f, lo, hi);
+            // The rear axle moves over before the front reaches the obstacle and back once the rear has passed it.
+            var rear = Car.BodyHalf.Z - Car.BodyCentre.Z;
+            shifts[(from, to)] = (first.Value - Car.FrontAhead - 1f, last!.Value + rear + 1f, offset);
+            Log.Info($"NWH planner: step {from} -> {to} passed {offset:+0.00;-0.00} m sideways ({what}).");
             return null;
         }
+
+        // Lane steps passed on a line moved sideways (LaneBlocked): metres along the step where the move holds, and
+        // the offset (right positive).
+        private readonly Dictionary<(int, int), (float From, float To, float Offset)> shifts = new Dictionary<(int, int), (float, float, float)>();
+        public (float From, float To, float Offset)? ShiftFor(int from, int to) => shifts.TryGetValue((from, to), out var s) ? s : ((float, float, float)?)null;
 
         // A lane change swept as wide as the car (a 2.3 m car changed lanes into a lamp post, turn test 0.1.33).
         private string? LaneChangeBlocked(LaneGraph graph, int from, int to)
@@ -392,7 +437,7 @@ namespace DrivenRides
 
         // The ride's expansion of a route for this car: added turns on an arc the car can drive cleanly, else through
         // vias it can; the slow stretches and the road limits (DrivePlan).
-        public DrivePlan Plan(LaneGraph graph, IReadOnlyList<int> route) => DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, LimitKmh);
+        public DrivePlan Plan(LaneGraph graph, IReadOnlyList<int> route) => DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
 
         private static bool Contains(IReadOnlyList<int> list, int value)
         {

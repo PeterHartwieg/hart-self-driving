@@ -25,6 +25,8 @@ namespace DrivenRides
         public NwhCar Car = null!;
         // The front track for NWH's Ackermann (CarModel.TrackWidth), set before Begin; 0 steers as for a bicycle.
         public float TrackWidth;
+        // Lane steps passed on a line moved sideways (DrivePlan.Shifts), set before Begin.
+        public List<(int Position, float From, float To, float Offset)> Shifts = new List<(int, float, float, float)>();
         private PursuitDriver driver = null!;
         private TrafficDriver traffic = null!;
         private GleyTraffic gley = null!;
@@ -95,6 +97,7 @@ namespace DrivenRides
         private void Restart(DrivePlan plan)
         {
             gley.LeaveAll();
+            Shifts = plan.Shifts;
             UsePath(plan.Path, plan.Arcs, plan.Slow);
             lastProgressAlong = 0f;
             lastProgressTime = Time.time;
@@ -116,7 +119,7 @@ namespace DrivenRides
             var all = GleyGraph.Waypoints!;
             var points = new List<Vec3>(path.Count);
             foreach (var i in path) points.Add(GleyGraph.ToVec(all[i].position));
-            line = DriveLine.Build(points, arcs);
+            line = DriveLine.Build(points, arcs).Shifted(Shifts);
             driver = new PursuitDriver(line, car.Wheelbase, car.FrontAhead, topMs, TrackWidth);
             // A slow position covers the stretch from it to the next position.
             foreach (var (position, kmh) in slow)

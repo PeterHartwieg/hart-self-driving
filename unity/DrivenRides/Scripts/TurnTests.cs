@@ -751,6 +751,7 @@ namespace DrivenRides
             List<int> path;
             var arcs = new List<(int Entry, Polyline Arc)>();
             var slow = new List<(int Position, float SpeedKmh)>();
+            List<(int, float, float, float)>? shifts = null;
             if (fixture.Path != null)
             {
                 path = fixture.Path;
@@ -762,6 +763,8 @@ namespace DrivenRides
                 path = plan.Path;
                 arcs.AddRange(plan.Arcs);
                 slow.AddRange(plan.Slow);
+                shifts = plan.Shifts;
+                if (plan.Shifts.Count > 0) line["shifts"] = string.Join(", ", plan.Shifts.Select(x => $"{path[x.Position]}->{path[x.Position + 1]} {x.Offset:+0.00;-0.00} m"));
             }
             else
             {
@@ -791,6 +794,7 @@ namespace DrivenRides
             var drive = car.Root.AddComponent<NwhDrive>();
             // The driver steers for NWH's Ackermann, as the planner's check assumed (CarModel.TrackWidth).
             if (planner != null) drive.TrackWidth = planner.Car.TrackWidth;
+            if (shifts != null) drive.Shifts = shifts;
             drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);
             // A car that can't get on gives up the step it is on; the planner blocks it for this car, as a ride would
             // before planning again.

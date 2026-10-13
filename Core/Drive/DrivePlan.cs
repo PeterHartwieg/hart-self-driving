@@ -17,17 +17,24 @@ namespace DrivenRides.Core.Drive
         // Path positions driven at no more than a speed: the roads' limits.
         public List<(int Position, float SpeedKmh)> Slow { get; } = new List<(int, float)>();
         public float TopKmh { get; }
+        // Lane steps passed with the line moved sideways (DriveLine.Shifted): path position, metres along the step
+        // where the obstacle begins and ends, the offset (right positive).
+        public List<(int Position, float From, float To, float Offset)> Shifts { get; } = new List<(int, float, float, float)>();
 
         private DrivePlan(ExpandedPath expanded, float topKmh) { Expanded = expanded; TopKmh = topKmh; }
 
         // arc(entry, exit): the arc an added turn is driven along, or null for its vias. clear(entry, exit, aim): as
         // PathExpander's. limitKmh(waypoint): the road's limit there, 0 for none.
+        // shift(from, to): a lane step's sideways move past a car parked partly in it, or null.
         public static DrivePlan Build(LaneGraph graph, IReadOnlyList<int> route, CarSpec car, Func<int, int, Polyline?> arc,
-            Func<int, int, int, bool>? clear = null, Func<int, float>? limitKmh = null)
+            Func<int, int, int, bool>? clear = null, Func<int, float>? limitKmh = null, Func<int, int, (float From, float To, float Offset)?>? shift = null)
         {
             var expanded = PathExpander.Expand(graph, route, clear, (e, x) => arc(e, x) != null);
             var plan = new DrivePlan(expanded, car.TopKmh);
             var path = expanded.Path;
+            if (shift != null)
+                for (var k = 0; k + 1 < path.Count; k++)
+                    if (shift(path[k], path[k + 1]) is var (from, to, offset)) plan.Shifts.Add((k, from, to, offset));
             foreach (var (entry, exit) in expanded.Arcs)
             {
                 var at = -1;
@@ -74,7 +81,7 @@ namespace DrivenRides.Core.Drive
         {
             var points = new List<Vec3>(Path.Count);
             foreach (var i in Path) points.Add(graph.Position(i));
-            return DriveLine.Build(points, Arcs);
+            return DriveLine.Build(points, Arcs).Shifted(Shifts);
         }
 
         // The driver for this plan's line: a slow position covers the stretch from it to the next position.
