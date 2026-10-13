@@ -190,7 +190,7 @@ namespace DrivenRides
             var read = Stopwatch.GetTimestamp();
             ReadCost.Add((float)((read - ticks) * MicrosPerTick));
             CarsRead.Add(cars.Count);
-            if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, cars, gley.Components);
+            if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, driver.Integral, cars, gley.Components);
             // What the cast sees ahead (parked cars, people): the traffic rules count on it before committing past a
             // traffic car's way (review round 2, U1), and the driver stops for it.
             var castGap = HoldForCast(GapAhead(speed));

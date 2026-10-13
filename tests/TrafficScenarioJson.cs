@@ -65,6 +65,9 @@ internal static class TrafficScenarioJson
         if (ride.TryGetProperty("steer", out var steer)) s.Ride.Steer = steer.GetSingle();
         if (ride.TryGetProperty("line", out var linePoints)) s.Ride.Line = linePoints.EnumerateArray().Select(q => new Vec3(q[0].GetSingle(), q[1].GetSingle(), q[2].GetSingle())).ToList();
         if (ride.TryGetProperty("lineAlong", out var lineAlong)) s.Ride.LineAlong = lineAlong.EnumerateArray().Select(q => q.GetSingle()).ToArray();
+        if (ride.TryGetProperty("wheelSmooth", out var smooth)) s.Ride.WheelSmooth = smooth.GetSingle();
+        if (ride.TryGetProperty("integral", out var integral)) s.Ride.Integral = integral.GetSingle();
+        if (ride.TryGetProperty("curves", out var curves)) s.Ride.Curves = curves.EnumerateArray().Select(q => (q[0].GetSingle(), q[1].GetSingle())).ToList();
         foreach (var c in root.GetProperty("cars").EnumerateArray())
         {
             var car = new ScenarioCar

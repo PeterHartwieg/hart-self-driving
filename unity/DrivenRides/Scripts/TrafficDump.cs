@@ -25,7 +25,7 @@ namespace DrivenRides
         private sealed class Frame
         {
             public ScenarioFrame State = new ScenarioFrame();
-            public float Along, Steer;
+            public float Along, Steer, Integral;
             // Waypoints with `stop` set among those watched.
             public HashSet<int> Stops = new HashSet<int>();
         }
@@ -35,7 +35,7 @@ namespace DrivenRides
         private readonly HashSet<int> watched = new HashSet<int>();
         private float next, watchedAt = float.MinValue;
 
-        public void Record(float time, Vector3 rear, float heading, float speed, float along, float steer, IReadOnlyList<OtherCar> cars, IReadOnlyList<VehicleComponent> components)
+        public void Record(float time, Vector3 rear, float heading, float speed, float along, float steer, float integral, IReadOnlyList<OtherCar> cars, IReadOnlyList<VehicleComponent> components)
         {
             if (time < next) return;
             next = time + Every;
@@ -49,7 +49,7 @@ namespace DrivenRides
                 watched.Clear();
                 foreach (var w in graph.Near(GleyGraph.ToVec(rear), Around)) if (all[w] != null && all[w].enter) watched.Add(w);
             }
-            var f = new Frame { Along = along, Steer = steer };
+            var f = new Frame { Along = along, Steer = steer, Integral = integral };
             f.State.T = time;
             f.State.RideX = rear.x;
             f.State.RideZ = rear.z;
@@ -166,6 +166,9 @@ namespace DrivenRides
             ride.YawFactor = CarSpec.DefaultYawFactor;
             ride.WheelRate = car.Vehicle != null ? car.Vehicle.steering.degreesPerSecondLimit : CarModel.WheelRate;
             ride.Steer = first.Steer;
+            ride.Integral = first.Integral;
+            ride.WheelSmooth = CarModel.SmoothSeconds;
+            foreach (var (from, to) in line.Curves) if (to > shift) ride.Curves.Add((Math.Max(0f, from - shift), to - shift));
             var lineEnd = line.AlongOf[start + ride.Path.Length - 1] + 10f;
             ride.Line.Add(line.Line.At(shift));
             for (var i = 0; i < line.Line.Points.Count; i++)
