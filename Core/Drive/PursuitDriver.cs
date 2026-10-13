@@ -10,6 +10,10 @@ namespace DrivenRides.Core.Drive
     public struct DriveInput
     {
         public float RearX, RearZ, Heading, SpeedMs, Dt;
+        // Metres along the line short of which the car gives way (YieldAlong), or null.
+        public float? YieldAlong;
+        // The wheel's angle now (degrees, positive to the right).
+        public float WheelDegrees;
         // Metres along the line where the car's front must stop (a red light), or null.
         public float? StopAlong;
         // Metres from the car's front to something in its way (a car ahead), or null.
@@ -45,6 +49,7 @@ namespace DrivenRides.Core.Drive
         // spike: larger turns faster; at 2.5 every corner felt slow).
         public const float Lateral = 3.5f;
         public const float MinCornerMs = 12f / 3.6f;
+        public const float LagSeconds = 0.25f;
 
         // frontAhead: the car's front bumper, metres ahead of the rear axle.
         public PursuitDriver(DriveLine line, float wheelbase, float frontAhead, float topMs)
@@ -77,10 +82,18 @@ namespace DrivenRides.Core.Drive
             // Left of the line is negative, as the steering is.
             var lateral = (i.RearX - here.X) * hz - (i.RearZ - here.Z) * hx;
 
+            // The wheel reaches a new angle only after a moment (NWH smooths it and turns it at a limited rate), so the
+            // driver steers for where the car will be by then: on along its present curve for LagSeconds.
+            var yawRate = i.SpeedMs * Math.Tan(i.WheelDegrees * Math.PI / 180) / wheelbase;
+            var turned = yawRate * LagSeconds;
+            var ahead = i.SpeedMs * LagSeconds;
+            var px = i.RearX + ahead * (float)Math.Sin(i.Heading + turned / 2);
+            var pz = i.RearZ + ahead * (float)Math.Cos(i.Heading + turned / 2);
+            var ph = i.Heading + turned;
             var ld = LookaheadAt(i.SpeedMs);
-            var target = line.Line.At(along + ld);
-            float tx = target.X - i.RearX, tz = target.Z - i.RearZ;
-            var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - i.Heading);
+            var target = line.Line.At(along + ahead + ld);
+            float tx = target.X - px, tz = target.Z - pz;
+            var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - ph);
             var distance = (float)Math.Sqrt(tx * tx + tz * tz);
             var curvature = 2 * Math.Sin(alpha) / Math.Max(1f, distance);
             var steer = (float)(Math.Atan(wheelbase * curvature) * 180 / Math.PI);
@@ -93,16 +106,57 @@ namespace DrivenRides.Core.Drive
                 desired = Math.Min(desired, Approach(0f, room));
                 holding = room < 3f;
             }
+            if (i.YieldAlong is float give)
+            {
+                var room = give - (along + frontAhead);
+                desired = Math.Min(desired, Approach(0f, room));
+                holding |= room < 3f;
+            }
             if (i.GapAhead is float gap)
             {
                 desired = Math.Min(desired, Approach(0f, gap - StopGap));
                 holding |= gap < StopGap + 3f;
             }
             if (along + frontAhead >= Length - 1f) desired = 0f;
+            // No faster than the corner the wheel is turning now, nor the one it is asked for: the car accelerated
+            // out of corners with the wheel still at lock and ran wide (Peter, NWH spike: overshooting the corner).
+            var wheel = Math.Max(Math.Abs(i.WheelDegrees), Math.Abs(steer));
+            if (wheel > 3f) desired = Math.Min(desired, Math.Max(MinCornerMs, (float)Math.Sqrt(Lateral * wheelbase / Math.Tan(wheel * Math.PI / 180))));
 
             var o = new DriveOutput { SteerDegrees = steer, Along = along, Lateral = lateral, Desired = desired, Lookahead = ld, Holding = holding };
             Pedals(ref o, i.SpeedMs, desired, i.Dt);
             return o;
+        }
+
+        // Giving way (Peter, NWH spike: the car pulled out across a traffic car onto Broadway). Another car moving
+        // at over 1.5 m/s that will cross the next 25 m of the line within 3 s, before this car has gone past that
+        // point, is given way to: the result is metres along the line where the front stops, 2 m short of where they
+        // would meet. A car on the line behind this one is following it, not crossing.
+        public float? YieldAlong(IEnumerable<(float X, float Z, float Vx, float Vz)> others, float speedMs)
+        {
+            var front = along + frontAhead;
+            float? first = null;
+            foreach (var (x, z, vx, vz) in others)
+            {
+                var speed = (float)Math.Sqrt(vx * vx + vz * vz);
+                if (speed < 1.5f) continue;
+                var (onAlong, onSide) = line.Locate(x, z, Math.Max(0f, along - 15f), 45f);
+                if (Math.Abs(onSide) < 2.2f && onAlong < front + 1f) continue;
+                for (var t = 0.25f; t <= 3f; t += 0.25f)
+                {
+                    float px = x + vx * t, pz = z + vz * t;
+                    var (hitAlong, hitSide) = line.Locate(px, pz, front - 2f, 27f);
+                    if (Math.Abs(hitSide) > 2.2f || hitAlong < front - 1f || hitAlong > front + 25f) continue;
+                    // A meeting point far enough ahead that the other car is through it 1.5 s before this one (at no
+                    // less than 3 m/s) is no conflict.
+                    var ours = (hitAlong - front) / Math.Max(3f, speedMs);
+                    if (ours > t + 1.5f) continue;
+                    var stopAt = Math.Max(front, hitAlong - 2f);
+                    if (first == null || stopAt < first) first = stopAt;
+                    break;
+                }
+            }
+            return first;
         }
 
         // The speed the plan allows here: no faster than lets the car slow to each limit ahead at Decel.

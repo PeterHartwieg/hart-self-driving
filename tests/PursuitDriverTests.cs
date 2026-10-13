@@ -16,14 +16,16 @@ public sealed class PursuitDriverTests
         float startX, float startZ, float heading, float topMs = 14f, Func<float, float?>? stopAt = null, int steps = 4000)
     {
         var driver = new PursuitDriver(line, wheelbase, wheelbase + 1f, topMs);
-        double x = startX, z = startZ, h = heading, steer = 0, speed = 0;
+        double x = startX, z = startZ, h = heading, steer = 0, smoothed = 0, speed = 0;
         const float dt = 0.02f;
         var track = new List<(float, float, float, float)>();
         for (var i = 0; i < steps; i++)
         {
-            var o = driver.Step(new DriveInput { RearX = (float)x, RearZ = (float)z, Heading = (float)h, SpeedMs = (float)speed, Dt = dt, StopAlong = stopAt?.Invoke(driver.Along) });
+            var o = driver.Step(new DriveInput { RearX = (float)x, RearZ = (float)z, Heading = (float)h, SpeedMs = (float)speed, Dt = dt, WheelDegrees = (float)steer, StopAlong = stopAt?.Invoke(driver.Along) });
             var want = Math.Max(-lockDegrees, Math.Min(lockDegrees, o.SteerDegrees));
-            steer += Math.Max(-180 * dt, Math.Min(180 * dt, want - steer));
+            // As NWH: the asked-for angle smoothed (about 0.1 s), then turned at most 180 degrees a second.
+            smoothed += (want - smoothed) * Math.Min(1, dt / 0.1);
+            steer += Math.Max(-180 * dt, Math.Min(180 * dt, smoothed - steer));
             // The car reaches the desired speed at up to 3 m/s² either way.
             speed += Math.Max(-3 * dt, Math.Min(3 * dt, o.Desired - speed));
             h += speed * Math.Tan(steer * Math.PI / 180) / wheelbase * dt;
@@ -51,8 +53,9 @@ public sealed class PursuitDriverTests
         var entry = points.FindIndex(p => p.Z == 20 && p.X == 0);
         var line = DriveLine.Build(points, new[] { (entry, arc) });
         var track = Drive(line, 3.75f, 35f, 0, -40, 0);
-        // On the arc and after it, the rear axle stays within 0.4 m of the line; it ends on the exit lane.
-        Assert.All(track.Skip(100), t => Assert.InRange(t.Lateral, -0.4f, 0.4f));
+        // On the arc and after it, with NWH's steering lag, the rear axle stays within 0.6 m of the line; it ends on
+        // the exit lane.
+        Assert.All(track.Skip(100), t => Assert.InRange(t.Lateral, -0.6f, 0.6f));
         var end = track[^1];
         Assert.InRange(end.Z, 29.6f, 30.4f);
         Assert.True(end.X > 60f);
@@ -115,5 +118,34 @@ public sealed class PursuitDriverTests
         Assert.InRange(along, 39.9f, 40.1f);
         Assert.InRange(side, 1.49f, 1.51f);
         Assert.InRange(line.Locate(-2f, 45f, 30f, 20f).Lateral, -2.01f, -1.99f);
+    }
+
+    [Fact]
+    public void DoesNotRunWideOutOfASharpCorner()
+    {
+        // A right angle at a via, as an added turn without an arc: north along x = 0, then east along z = 60.
+        var points = Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 60)).Concat(Straight(new Vec3(0, 0, 60), new Vec3(120, 0, 60)).Skip(1)).ToList();
+        var line = DriveLine.Build(points, Array.Empty<(int, Polyline)>());
+        var track = Drive(line, 3.75f, 37f, 0, 0, 0);
+        // Once out of the corner (20 m on along the exit), the rear axle is back within 0.3 m of the lane and it never
+        // swings more than 1.5 m past it on the far side.
+        Assert.All(track.Where(t => t.X > 20f), t => Assert.InRange(t.Z, 59.7f, 60.3f));
+        Assert.All(track, t => Assert.True(t.Z < 61.5f, $"({t.X}, {t.Z}) swung wide"));
+    }
+
+    [Fact]
+    public void GivesWayToACrossingCarOnly()
+    {
+        var line = DriveLine.Build(Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 200)), Array.Empty<(int, Polyline)>());
+        var driver = new PursuitDriver(line, 3f, 4f, 14f);
+        driver.Step(new DriveInput { RearX = 0, RearZ = 8, Heading = 0, SpeedMs = 5, Dt = 0.02f });
+        // From the right at 10 m/s, 15 m off, crossing 8 m ahead of the front (z 20): give way, short of z 20.
+        var crossing = driver.YieldAlong(new[] { (15f, 20f, -10f, 0f) }, 5f);
+        Assert.NotNull(crossing);
+        Assert.InRange(crossing!.Value, 12f, 18.5f);
+        // Following on the line, a lane over in the same direction, or standing: no.
+        Assert.Null(driver.YieldAlong(new[] { (0f, -2f, 0f, 12f) }, 5f));
+        Assert.Null(driver.YieldAlong(new[] { (3.5f, 8f, 0f, 12f) }, 5f));
+        Assert.Null(driver.YieldAlong(new[] { (15f, 20f, 0f, 0f) }, 5f));
     }
 }

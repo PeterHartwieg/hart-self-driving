@@ -31,6 +31,29 @@ namespace DrivenRides
         private float lastProgressTime;
         private float stillSeconds;
         private float heldSeconds;
+        private bool giving;
+        private readonly List<(float, float, float, float)> traffic = new List<(float, float, float, float)>();
+        private static readonly System.Reflection.FieldInfo? TrafficVehiclesField = HarmonyLib.AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
+
+        // Gley's cars within 50 m, with their velocities, for giving way.
+        private List<(float, float, float, float)> MovingTraffic(Vector3 near)
+        {
+            traffic.Clear();
+            if (!TrafficManager.HasInstance) return traffic;
+            var pool = (TrafficVehiclesField?.GetValue(TrafficManager.Instance) as TrafficVehicles)?.GetVehicleList();
+            if (pool == null) return traffic;
+            foreach (var v in pool)
+            {
+                if (v == null || !v.gameObject.activeInHierarchy || v.rb == null) continue;
+                var p = v.rb.position;
+                if ((p - near).sqrMagnitude > 2500f) continue;
+                // The car's front, where it would meet this one.
+                var front = v.frontTrigger != null ? v.frontTrigger.position : p;
+                var vel = v.rb.velocity;
+                traffic.Add((front.x, front.z, vel.x, vel.z));
+            }
+            return traffic;
+        }
         private string lastBlocker = "";
 
         public bool Ended { get; private set; }
@@ -38,7 +61,7 @@ namespace DrivenRides
         public string EndReason { get; private set; } = "";
         public bool WaitingNow { get; private set; }
         public float Along => driver.Along;
-        public readonly StringBuilder Trace = new StringBuilder("t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap\n");
+        public readonly StringBuilder Trace = new StringBuilder("t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield\n");
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         // The ride's path (waypoint indices) and its added turns' arcs (path position of the entry, the arc), the
@@ -83,10 +106,11 @@ namespace DrivenRides
             var speed = Vector3.Dot(Car.Body.velocity, forward);
             var stop = RedAhead(speed);
             var gap = GapAhead(speed);
+            var give = driver.YieldAlong(MovingTraffic(rear), speed);
             var o = driver.Step(new DriveInput
             {
-                RearX = rear.x, RearZ = rear.z, Heading = Mathf.Atan2(forward.x, forward.z), SpeedMs = speed, Dt = Time.fixedDeltaTime,
-                StopAlong = stop, GapAhead = gap,
+                RearX = rear.x, RearZ = rear.z, Heading = Mathf.Atan2(forward.x, forward.z), SpeedMs = speed, Dt = Time.fixedDeltaTime, WheelDegrees = vehicle.steering.angle,
+                StopAlong = stop, GapAhead = gap, YieldAlong = give,
             });
             var lockNow = Mathf.Max(1f, Car.LockAt(speed));
             var steerInput = Mathf.Clamp(o.SteerDegrees / lockNow, -1f, 1f);
@@ -98,6 +122,8 @@ namespace DrivenRides
             var transmission = vehicle.powertrain.transmission;
             if (o.Throttle > 0.05f && transmission.Gear <= 0) transmission.ShiftInto(1);
             WaitingNow = o.Holding && speed < 0.5f;
+            if (give != null && !giving) Log.Info($"NWH drive: giving way at {give:0} m along (front at {o.Along + Car.FrontAhead:0}).");
+            giving = give != null;
             heldSeconds = WaitingNow && gap != null ? heldSeconds + Time.fixedDeltaTime : 0f;
             if (heldSeconds > 5f && heldSeconds < 5.03f) Log.Info($"NWH drive: held 5 s behind '{lastBlocker}' {gap:0.0} m ahead.");
 
@@ -105,7 +131,7 @@ namespace DrivenRides
                 .Append(o.Lateral.ToString("0.00", Inv)).Append(',').Append(speed.ToString("0.00", Inv)).Append(',').Append(o.Desired.ToString("0.00", Inv)).Append(',')
                 .Append(o.SteerDegrees.ToString("0.0", Inv)).Append(',').Append(steerInput.ToString("0.00", Inv)).Append(',').Append(vehicle.steering.angle.ToString("0.0", Inv)).Append(',')
                 .Append(o.Throttle.ToString("0.00", Inv)).Append(',').Append(o.Brake.ToString("0.00", Inv)).Append(',').Append(o.Handbrake.ToString("0", Inv)).Append(',')
-                .Append(transmission.Gear).Append(',').Append(stop?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append('\n');
+                .Append(transmission.Gear).Append(',').Append(stop?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',').Append(give?.ToString("0.0", Inv) ?? "").Append('\n');
 
             if (o.Along + Car.FrontAhead >= driver.Length - 1.5f && Mathf.Abs(speed) < 0.3f) { End("arrived", true); return; }
             // Stuck: 30 s without 2 m of progress while nothing holds the car.
