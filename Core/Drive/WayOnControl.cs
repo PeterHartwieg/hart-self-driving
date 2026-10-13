@@ -7,10 +7,13 @@ namespace DrivenRides.Core.Drive
     // steps the planner's jobs a time budget each physics step, holds the car short of a step the planner says it must
     // not enter, and takes up a way on. What it says to do each step is a Result.
     //
-    // The hold is a fixed point: the front stops HoldShort before the step, whatever the speed (review round 3: the
-    // stop was moved on to where the car could stop comfortably, past the step). The driver brakes as hard as that
-    // needs. If it needs more than PursuitDriver.HardDecel when the hold is set, or the car stops past it, the step is
-    // given up as blocked (the driver backs off and plans round it), never driven into. With no way round after
+    // The hold is a fixed point, set once (review round 3: the stop was moved on to where the car could stop
+    // comfortably, past the step). The planner gives the limit the front must not pass: the start of a step, the
+    // obstacle in a lane, the ramp of a sideways move. The front stops HoldShort before it if the car can at
+    // PursuitDriver.Decel; if not, where Decel braking from now ends, if that is still short of the limit (review
+    // round 4: a hold on the step the car was on fell behind its front and was taken as an emergency); else at the
+    // limit, braking as hard as it takes. If that needs more than HardDecel, or the car stops past the limit, the step
+    // is given up as blocked (the driver backs off and plans round it), never driven into. With no way round after
     // HoldSeconds standing at the hold, the drive ends.
     public sealed class WayOnControl
     {
@@ -53,6 +56,7 @@ namespace DrivenRides.Core.Drive
         private float nextLook;
         private float heldSeconds;
         private bool cannotStop;
+        private float holdLimit;
 
         // A new line is driven (a way on taken up) or the car was found blocked: what was planned for the line it
         // drove goes, a job under way included (its pose and path are the old ones).
@@ -81,7 +85,7 @@ namespace DrivenRides.Core.Drive
             {
                 var done = StepJob();
                 // A hold the job has found is kept from the moment it is found, nearer ones replacing farther ones.
-                if (job != null && job.HoldPosition >= 0) HoldAt(alongOf, job.HoldPosition, job.HoldWhat, front, speed, nearerOnly: true);
+                if (job != null && job.HoldPosition >= 0) HoldAt(alongOf, job.HoldPosition, job.HoldOffset, job.HoldWhat, front, speed, nearerOnly: true);
                 if (done && job != null)
                 {
                     var finished = job;
@@ -93,14 +97,14 @@ namespace DrivenRides.Core.Drive
                         if (plan != null && plan.Path.Count >= 2) { Reset(); return new Result(Act.Restart, plan, finished.Found.Value.Note); }
                     }
                     // Its last word on the hold: where the plan driven now must stop, or nowhere.
-                    if (finished.HoldPosition >= 0) HoldAt(alongOf, finished.HoldPosition, finished.HoldWhat, front, speed, nearerOnly: false);
+                    if (finished.HoldPosition >= 0) HoldAt(alongOf, finished.HoldPosition, finished.HoldOffset, finished.HoldWhat, front, speed, nearerOnly: false);
                     else Release();
                 }
             }
             if (HoldAlong is float at)
             {
                 var stopped = Math.Abs(speed) < 0.2f;
-                if (stopped && (cannotStop || front > at + PastHold))
+                if (stopped && (cannotStop || front > holdLimit + PastHold))
                 {
                     var why = $"could not stop short of {HoldWhat}";
                     var step = HoldPosition;
@@ -135,23 +139,29 @@ namespace DrivenRides.Core.Drive
             return new Result(Act.Restart, plan, finished.Found?.Note ?? "");
         }
 
-        // The front stops HoldShort before the step at path position `at`. Braking for it beyond HardDecel: the car
-        // cannot stop short as a driver would, so it is held as blocked once it stands.
-        private void HoldAt(IReadOnlyList<float> alongOf, int at, string what, float front, float speed, bool nearerOnly)
+        // The front stops short of the limit `offset` metres on from path position `at` (see the class).
+        private void HoldAt(IReadOnlyList<float> alongOf, int at, float offset, string what, float front, float speed, bool nearerOnly)
         {
             if (at < 0 || at >= alongOf.Count) return;
-            var stop = alongOf[at] - HoldShort;
-            if (nearerOnly && HoldAlong is float now && now <= stop) return;
-            var first = HoldAlong == null || Math.Abs(HoldAlong.Value - stop) > 0.01f;
+            var limit = alongOf[at] + offset;
+            if (nearerOnly && HoldAlong != null && holdLimit <= limit + 0.01f) return;
+            if (HoldAlong != null && Math.Abs(holdLimit - limit) <= 0.01f) { HoldWhat = what; return; }
+            var v = Math.Max(0f, speed);
+            var gentle = front + v * v / (2f * PursuitDriver.Decel) + 0.2f;
+            float stop;
+            if (limit - HoldShort >= gentle) { stop = limit - HoldShort; cannotStop = false; }
+            else if (limit - PastHold >= gentle) { stop = gentle; cannotStop = false; }
+            else
+            {
+                stop = limit - PastHold;
+                var room = stop - front;
+                cannotStop = room <= 0f || v * v / (2f * room) > PursuitDriver.HardDecel;
+            }
+            holdLimit = limit;
             HoldAlong = stop;
             HoldWhat = what;
             HoldPosition = at;
-            var room = stop - front;
-            if (first)
-            {
-                cannotStop = room <= 0f || speed * speed / (2f * room) > PursuitDriver.HardDecel;
-                Log?.Invoke($"holding short of {what} at {stop:0} m{(cannotStop ? $", which needs more than {PursuitDriver.HardDecel:0} m/s² from {speed:0.0} m/s at {Math.Max(0f, room):0.0} m" : "")}.");
-            }
+            Log?.Invoke($"holding short of {what}: limit {limit:0.0} m, stop {stop:0.0} m, front {front:0.0} m at {v:0.0} m/s{(cannotStop ? $", more than {PursuitDriver.HardDecel:0} m/s² to stop: given up once standing" : "")}.");
         }
 
         private void Release()

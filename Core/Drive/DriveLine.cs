@@ -100,7 +100,9 @@ namespace DrivenRides.Core.Drive
         // The line moved sideways over stretches (a car parked partly in the lane, passed within it; NwhPlanner): each
         // shift is the path position whose step it starts on, metres along that step where the obstacle begins and
         // ends, and the offset (right positive); it eases in and out over `ramp` metres either side.
-        public DriveLine Shifted(IReadOnlyList<(int Position, float From, float To, float Offset)> shifts, float ramp = 10f)
+        public const float ShiftRamp = 10f;
+
+        public DriveLine Shifted(IReadOnlyList<(int Position, float From, float To, float Offset)> shifts, float ramp = ShiftRamp)
         {
             if (shifts.Count == 0) return this;
             var spans = new List<(float From, float To, float Offset)>();

@@ -302,7 +302,7 @@ namespace DrivenRides
                 var step = Vec3.HorizontalDistance(graph.Position(from), graph.Position(to));
                 if (Contains(graph.Successors(from), to))
                 {
-                    if (gone < laneMetres && LaneBlocked(graph, from, to) is string parked) result.Add((from, to, parked));
+                    if (gone < laneMetres && LaneBlocked(graph, from, to, out _) is string parked) result.Add((from, to, parked));
                 }
                 else if (graph.IsUTurn(from, to) || Contains(graph.MissingTurns(from), to))
                 {
@@ -328,13 +328,17 @@ namespace DrivenRides
         // before is swept again when the car comes near it again).
         public List<(int From, int To, string What)> BlockedAhead(LaneGraph graph, IReadOnlyList<int> path, int fromPosition, float metres, Vec3? near = null)
         {
+            var swept = new List<(int From, int To, string? What, float At)>();
+            foreach (var _ in BlockedAheadWork(graph, path, fromPosition, metres, near, swept)) { }
             var result = new List<(int From, int To, string What)>();
-            foreach (var _ in BlockedAheadWork(graph, path, fromPosition, metres, near, result)) { }
+            foreach (var (from, to, what, _) in swept) if (what != null) result.Add((from, to, what));
             return result;
         }
 
+        // Each lane step swept goes in `result` as soon as it is: what blocks it (null: passable, perhaps on a sideways
+        // move) and the metres along it where that begins (the look-ahead holds short of it; review round 4).
         private IEnumerable<object?> BlockedAheadWork(LaneGraph graph, IReadOnlyList<int> path, int fromPosition, float metres, Vec3? near,
-            List<(int From, int To, string What)> result)
+            List<(int From, int To, string? What, float At)> result)
         {
             if (near is Vec3 here) laneClear.RemoveWhere(step => Vec3.HorizontalDistance(here, graph.Position(step.Item2)) > LoadedMetres);
             var gone = 0f;
@@ -343,8 +347,9 @@ namespace DrivenRides
                 int from = path[k], to = path[k + 1];
                 gone += Vec3.HorizontalDistance(graph.Position(from), graph.Position(to));
                 if (!Contains(graph.Successors(from), to) || laneClear.Contains((from, to))) continue;
-                if (LaneBlocked(graph, from, to) is string what) result.Add((from, to, what));
-                else if (near is Vec3 n && Vec3.HorizontalDistance(n, graph.Position(to)) <= LoadedMetres) laneClear.Add((from, to));
+                var what = LaneBlocked(graph, from, to, out var at);
+                result.Add((from, to, what, at));
+                if (what == null && near is Vec3 n && Vec3.HorizontalDistance(n, graph.Position(to)) <= LoadedMetres) laneClear.Add((from, to));
                 yield return null;
             }
         }
@@ -360,8 +365,10 @@ namespace DrivenRides
         // passed on a line moved sideways (ShiftFor, DriveLine.Shifted); otherwise it is blocked, and the route
         // changes lanes round it or goes another way (T3, session 20261013-200946: twelve rides refused for a car
         // parked partly in their lane). Not in a junction: nothing parks there, and the turn's own check covers it.
-        private string? LaneBlocked(LaneGraph graph, int from, int to)
+        // at: metres along the step where what blocks it begins (0 if nothing does).
+        private string? LaneBlocked(LaneGraph graph, int from, int to, out float at)
         {
+            at = 0f;
             if (graph.IsIntersection(from) && graph.IsIntersection(to)) return null;
             Vec3 a = graph.Position(from), b = graph.Position(to);
             var length = Vec3.HorizontalDistance(a, b);
@@ -426,7 +433,7 @@ namespace DrivenRides
                 }
             }
             if (first == null) { shifts.Remove((from, to)); return null; }
-            if (lo > hi) { shifts.Remove((from, to)); return what + ", no room to pass within the lane"; }
+            if (lo > hi) { shifts.Remove((from, to)); at = first.Value; return what + ", no room to pass within the lane"; }
             var offset = Mathf.Clamp(0f, lo, hi);
             // A move of a few centimetres is within the margins: the line stays (T3 listed shifts of 0.06 m).
             if (Mathf.Abs(offset) < 0.1f) { shifts.Remove((from, to)); return null; }
@@ -595,8 +602,8 @@ namespace DrivenRides
             into.Summary = planned.Summary;
         }
 
-        IEnumerable<object?> IWayOnWorld.LanesAhead(IReadOnlyList<int> path, int position, float metres, Vec3 near, List<(int From, int To, string What)> found) =>
-            BlockedAheadWork(graph, path, position, metres, near, found);
+        IEnumerable<object?> IWayOnWorld.LanesAhead(IReadOnlyList<int> path, int position, float metres, Vec3 near, List<(int From, int To, string? What, float At)> swept) =>
+            BlockedAheadWork(graph, path, position, metres, near, swept);
 
         bool IWayOnWorld.IsBlocked(int from, int to) => GleyGraph.IsBlockedStep(from, to) || IsBlocked(from, to);
 

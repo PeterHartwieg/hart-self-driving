@@ -212,7 +212,9 @@ namespace DrivenRides.Core.Drive
                         // The aim PathExpander picks, its questions answered one simulation at a time: each pass stops
                         // at the first unknown answer, which is then worked out (the same answers, in the same order, as
                         // asking each in turn).
-                        for (var pass = 0; pass < 32; pass++)
+                        // Each pass works out one more answer, so this ends (review round 4: a limit could end it
+                        // with answers missing).
+                        while (true)
                         {
                             int? need = null;
                             var expanded = PathExpander.Expand(graph, fixture.Route, (e, x, a) =>
@@ -240,9 +242,11 @@ namespace DrivenRides.Core.Drive
         // The checks a plan of a route needs (DrivePlan.Build asks Arc and Clear through PathExpander), worked out
         // ahead as yielding work, so the Build that follows finds them all known. The same answers in the same order:
         // each pass stops at the first unknown one.
+        // Each pass works out one more answer, so it ends with all of them known (review round 4: after 64 passes it
+        // stopped, and Build ran the rest at once).
         public IEnumerable<object?> PrepareWork(IReadOnlyList<int> route)
         {
-            for (var pass = 0; pass < 64; pass++)
+            while (true)
             {
                 (int, int)? needArc = null;
                 (int, int, int)? needVia = null;
@@ -574,6 +578,26 @@ namespace DrivenRides.Core.Drive
             if (result.What != null) result.What = "joining the new line: " + result.What;
             else if (Math.Abs(result.Lateral) > JoinSettled)
                 result.What = FormattableString.Invariant($"joining the new line: still {result.Lateral:+0.00;-0.00} m off it after {to - from:0} m");
+        }
+
+        // Where the car will be in `seconds`, driving the plan it drives now at no more than its present speed (it
+        // may slow for the line's bends): the pose a way on's join is checked from while the car drives on (review
+        // round 4: checked from the pose when the check began, the join was taken up from wherever the car was by
+        // the time it ended).
+        public CarPose Predict(DrivePlan plan, DriveLine line, CarPose now, float seconds)
+        {
+            var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
+            driver.StartAt(now.X, now.Z);
+            var model = car.Model(now.X, now.Z, now.Heading, now.Speed);
+            model.SetWheel(now.Wheel);
+            var cap = Math.Max(1f, now.Speed);
+            for (var t = 0f; t < seconds; t += StepSeconds)
+            {
+                var input = model.Input(StepSeconds);
+                input.MaxSpeed = cap;
+                model.Step(driver.Step(input), StepSeconds);
+            }
+            return new CarPose((float)model.X, (float)model.Z, (float)model.Heading, (float)model.Speed, (float)model.Steer);
         }
 
         public const float JoinMetres = 30f;

@@ -21,8 +21,9 @@ public sealed class ReviewRound3Tests
         return Math.Abs(dx * c - dz * s) <= box.Half.X && Math.Abs(dx * s + dz * c) <= box.Half.Z ? "post" : null;
     };
 
-    // One lane: each route from a waypoint runs along it to the end, unless a step of it is blocked.
-    private sealed class World : IWayOnWorld
+    // One lane: each route from a waypoint runs along it to the end, unless a step of it is blocked. Planned as the
+    // game's planner does: the route's checks worked out as work (PrepareWork), the plan built, its line validated.
+    internal sealed class World : IWayOnWorld
     {
         public LaneGraph Graph { get; }
         public Feasibility Check { get; }
@@ -36,14 +37,33 @@ public sealed class ReviewRound3Tests
         // What each piece of work costs on the jobs' clock, ms.
         public double Clock, PerLane = 0.1, PerRoute = 0.2;
 
+        public double PerLook;
+        public int Looks;
+
         public World(Func<BodyBox, string?>? world = null, int count = 13)
         {
             var b = new TurnTestGraph();
             Lane = Enumerable.Range(0, count).Select(i => b.Add(0, i * 10)).ToArray();
             b.Link(Lane);
             Graph = b.Build();
-            Check = new Feasibility(Graph, Small(), world);
+            Check = new Feasibility(Graph, Small(), Costed(world));
         }
+
+        // Another graph and the route along which every route runs.
+        public World(LaneGraph graph, int[] route, Func<BodyBox, string?>? world = null)
+        {
+            Graph = graph;
+            Lane = route;
+            Check = new Feasibility(Graph, Small(), Costed(world));
+        }
+
+        // Each look at the world costs PerLook on the jobs' clock.
+        private Func<BodyBox, string?> Costed(Func<BodyBox, string?>? world) => box =>
+        {
+            Looks++;
+            Clock += PerLook;
+            return world?.Invoke(box);
+        };
 
         public DrivePlan PlanOf(IReadOnlyList<int> route) => DrivePlan.Build(Graph, route, Small(), Check.Arc, Check.Clear, null, ShiftFor);
 
@@ -56,19 +76,27 @@ public sealed class ReviewRound3Tests
             if (NoRoutes || at < 0) { into.Summary = "no route"; yield break; }
             var route = Lane.Skip(at).ToList();
             for (var k = 0; k + 1 < route.Count; k++) if (IsBlocked(route[k], route[k + 1])) yield break;
+            foreach (var y in Check.PrepareWork(route)) yield return y;
             var plan = PlanOf(route);
-            if (Check.ValidateNow(plan).Count > 0) yield break;
+            var failed = new List<(int From, int To, string What)>();
+            foreach (var y in Check.Validate(plan, failed)) yield return y;
+            if (failed.Count > 0) yield break;
             into.Route = Route.Fixed(Graph, route);
             into.Plan = plan;
             into.Summary = "along the lane";
         }
 
-        public IEnumerable<object?> LanesAhead(IReadOnlyList<int> path, int position, float metres, Vec3 near, List<(int From, int To, string What)> found)
+        // Steps swept one per piece of work; an obstacle 4 m along its step. Swept is raised by each.
+        public Action<int>? Swept;
+
+        public IEnumerable<object?> LanesAhead(IReadOnlyList<int> path, int position, float metres, Vec3 near, List<(int From, int To, string? What, float At)> found)
         {
             for (var k = Math.Max(0, position); k + 1 < path.Count; k++)
             {
                 Clock += PerLane;
-                if (Parked.TryGetValue((path[k], path[k + 1]), out var what)) found.Add((path[k], path[k + 1], what));
+                if (!Graph.Successors(path[k]).Contains(path[k + 1])) continue;
+                Swept?.Invoke(k);
+                found.Add((path[k], path[k + 1], Parked.TryGetValue((path[k], path[k + 1]), out var what) ? what : null, 4f));
                 yield return null;
             }
         }
@@ -81,8 +109,8 @@ public sealed class ReviewRound3Tests
 
     private static readonly Goal[] NoGoals = Array.Empty<Goal>();
 
-    // The car on the lane at 15 m, heading north, its front at path position 1.
-    private static Func<CarPose> At15 => () => new CarPose(0f, 15f, 0f, 8f);
+    // The car standing on the lane at 15 m, heading north, its front at path position 1.
+    private static Func<CarPose> At15 => () => new CarPose(0f, 15f, 0f, 0f);
 
     private static WayOnPlanner PlannerFor(World w) => new WayOnPlanner(w) { ClockMs = () => w.Clock };
 
@@ -169,7 +197,7 @@ public sealed class ReviewRound3Tests
         w.Shifts[(w.Lane[6], w.Lane[7])] = (3f, 7f, -1.3f);
         var job = Run(PlannerFor(w).LookAhead(route, route, 1, At15, NoGoals, 0, watch));
         Assert.Equal(6, job.HoldPosition);
-        Assert.True(watch.Holds.ContainsKey((w.Lane[6], w.Lane[7])));
+        Assert.True(watch.Holds.ContainsKey($"shift {w.Lane[6]}->{w.Lane[7]}"));
         Assert.Contains(w.Notes, n => n.Contains("fails there"));
     }
 
@@ -212,11 +240,11 @@ public sealed class ReviewRound3Tests
         for (; t < WayOnControl.HoldSeconds + 2f && r.Act != WayOnControl.Act.End; t += 0.02f) r = control.Ahead(t, 0.02f, 4, alongOf, 47.5f, 0f, At15);
         Assert.Equal(WayOnControl.Act.End, r.Act);
         Assert.StartsWith("blocked ahead", r.Why);
-        // Too late: 15 m/s with 3 m to go needs 37 m/s²; the hold stays at 48 m (not moved on past the step), and
-        // once the car stands, the step is given up as blocked at its position.
+        // Too late: 15 m/s with 5 m to the step needs 24 m/s²; the stop stays short of the step (not moved on past
+        // it), and once the car stands, the step is given up as blocked at its position.
         var late = new WayOnControl { LookAhead = (p, pose) => new WayOnJob("ahead", p, Holding) };
         late.Ahead(0f, 0.02f, 4, alongOf, 45f, 15f, At15);
-        Assert.Equal(48f, late.HoldAlong);
+        Assert.Equal(50f - WayOnControl.PastHold, late.HoldAlong!.Value, 3);
         Assert.Equal(WayOnControl.Act.Drive, late.Ahead(0.02f, 0.02f, 4, alongOf, 50f, 6f, At15).Act);
         var given = late.Ahead(0.04f, 0.02f, 5, alongOf, 51f, 0f, At15);
         Assert.Equal(WayOnControl.Act.Block, given.Act);

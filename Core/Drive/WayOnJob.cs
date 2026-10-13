@@ -39,12 +39,20 @@ namespace DrivenRides.Core.Drive
         // The first step ahead the car must not enter (a path position of the path it drove when the job began),
         // and why; -1 for none. Known before the way on is planned, so the car can hold short meanwhile.
         public int HoldPosition { get; set; } = -1;
+        // Metres from that position's waypoint to where the car must stop short of (an obstacle part way along the
+        // step, a sideways move's ramp before it: negative).
+        public float HoldOffset { get; set; }
         public string HoldWhat { get; set; } = "";
+        // The pose the way on's join was checked from (Feasibility.Join), the car's when it was taken up.
+        public CarPose? JoinedFrom { get; set; }
         public string Note { get; set; } = "";
         public double Milliseconds { get; private set; }
         // The longest slice so far, ms: a slice ends at the first yield past the budget.
         public double LongestSlice { get; private set; }
         public int Slices { get; private set; }
+        // Yielded by work that waits for the next physics step (the car to drive on), not for more time.
+        public static readonly object NextStep = new object();
+
         public bool OverBudget => clock() - sliceStart >= budget;
 
         public bool Step(double budgetMs)
@@ -53,7 +61,11 @@ namespace DrivenRides.Core.Drive
             sliceStart = clock();
             Slices++;
             while (!Done && !OverBudget)
+            {
                 if (!work.MoveNext()) Done = true;
+                // Waiting for the car to move on: nothing more to do in this physics step.
+                else if (ReferenceEquals(work.Current, NextStep)) break;
+            }
             var spent = clock() - sliceStart;
             Milliseconds += spent;
             LongestSlice = Math.Max(LongestSlice, spent);
