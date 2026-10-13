@@ -251,4 +251,28 @@ public sealed class PursuitDriverTests
         Assert.NotEmpty(passing);
         Assert.True(passing.All(t => t.X > -0.95f && t.X < -0.6f), string.Join(" ", passing.Select(t => $"{t.Z:0.0}:{t.X:0.00}")));
     }
+
+    [Fact]
+    public void RoundsAPlainLanesCornerAsADriverDoes()
+    {
+        // A lane east that jogs 35 degrees for 7 m and back (T3's Hamptons drive): rounded at both corners, its
+        // heading turns smoothly (no step over 6 degrees per half metre) and it cuts the corners by at most 1 m.
+        var points = new List<Vec3> { new(-20, 0, 0), new(-10, 0, 0), new(0, 0, 0), new(5.7f, 0, -4f), new(15.7f, 0, -4f), new(25.7f, 0, -4f) };
+        var sharp = DriveLine.Build(points, Array.Empty<(int, Polyline)>());
+        var round = DriveLine.Build(points, Array.Empty<(int, Polyline)>(), new HashSet<int> { 2, 3 });
+        double Steepest(DriveLine l)
+        {
+            var worst = 0.0;
+            for (var a = 1f; a < l.Line.Length - 1.5f; a += 0.5f)
+            {
+                Vec3 p = l.Line.At(a - 0.5f), q = l.Line.At(a), r = l.Line.At(a + 0.5f);
+                worst = Math.Max(worst, Math.Abs(DriveLine.Wrap(Math.Atan2(r.X - q.X, r.Z - q.Z) - Math.Atan2(q.X - p.X, q.Z - p.Z))));
+            }
+            return worst * 180 / Math.PI;
+        }
+        Assert.True(Steepest(sharp) > 30);
+        Assert.True(Steepest(round) < 6, $"{Steepest(round):0.0} degrees");
+        Assert.All(round.Line.Points, p => Assert.True(Math.Abs(sharp.Locate(p.X, p.Z, 0f, 100f).Lateral) <= DriveLine.FilletCut + 0.05f));
+        for (var k = 1; k < round.AlongOf.Length; k++) Assert.True(round.AlongOf[k] > round.AlongOf[k - 1]);
+    }
 }

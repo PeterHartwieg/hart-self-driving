@@ -134,6 +134,39 @@ public sealed class JudgeTests
     }
 
     [Fact]
+    public void ABodyRoundAWaypointCornerIsNoIntrusion()
+    {
+        // A lane east that jogs 35 degrees right for a segment and back (T3's Hamptons drive), with a lane west 2.6 m
+        // to the right of the jog. The car's body, still square to the first segment as it reaches the corner, lies
+        // across the jog's boundary; it is within the lane it is finishing.
+        var b = new TurnTestGraph();
+        int[] lane = { b.Add(-20, 0), b.Add(-10, 0), b.Add(0, 0), b.Add(5.7f, -4f), b.Add(15.7f, -4f), b.Add(25.7f, -4f), b.Add(35.7f, -4f), b.Add(45.7f, -4f) };
+        b.Link(lane);
+        int[] west = { b.Add(14f, -6f), b.Add(4f, -6f), b.Add(-6f, -6f) };
+        b.Link(west);
+        var graph = b.Build();
+        var f = new Fixture { Route = lane.ToList(), Kind = CaseKind.Ride, Manoeuvre = CaseKind.Ride, ExitIndex = lane.Length - 1 };
+        var judge = Make(graph, f);
+        foreach (var x in new[] { -20f, -15f, -10f, -5f })
+        {
+            var sample = At((int)x + 30, x, 0, heading: 90);
+            sample.Footprint = new[] { new Vec3(x + 3, 0, 1), new Vec3(x + 3, 0, -1), new Vec3(x - 3, 0, -1), new Vec3(x - 3, 0, 1) };
+            judge.Add(sample);
+        }
+        // 3.6 m into the jog (heading 125 degrees), the body still turned only to 100: its rear right corner lies
+        // 2 m right of the jog's line, inside the lane it is finishing.
+        float jx = 5.7f / 6.96f, jz = -4f / 6.96f;
+        var centre = new Vec3(jx * 3.6f, 0, jz * 3.6f);
+        var h = 100 * Math.PI / 180;
+        float fx = (float)Math.Sin(h), fz = (float)Math.Cos(h), rx = fz, rz = -fx;
+        Vec3 C(float ahead, float right) => new Vec3(centre.X + fx * ahead + rx * right, 0, centre.Z + fz * ahead + rz * right);
+        var corner = At(30, centre.X, centre.Z, heading: 100);
+        corner.Footprint = new[] { C(3, -1.05f), C(3, 1.05f), C(-3, 1.05f), C(-3, -1.05f) };
+        judge.Add(corner);
+        Assert.DoesNotContain("intrusion", judge.Result(false).Reasons);
+    }
+
+    [Fact]
     public void ThePedestriansGroundIsThePavementWhereTheGameGivesIt()
     {
         // Pedestrian ground from 3 m right of the lane: a corner there (pulled 0.3 m in) is on the pavement; the
