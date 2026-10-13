@@ -16,9 +16,11 @@ internal sealed class SimResult
     public bool Arrived;
     public float LongestStall;
     public int BackOffs;
+    // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
+    public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
     public readonly StringBuilder Trace = new();
-    public override string ToString() => Failure ?? (Arrived ? $"arrived at {Time:0.0} s" : "not arrived");
+    public override string ToString() => Failure ?? (Arrived ? $"arrived at {Time:0.0} s" : Blocked != null ? $"blocked at {Time:0.0} s: {Blocked}" : "not arrived");
 }
 
 // T0's simulation (docs/implementation-plan.md, "Tests"): the ride car is Core's CarModel driven by PursuitDriver
@@ -34,6 +36,7 @@ internal sealed class TrafficSim : ILiveFlags
     public const float Dt = 0.02f;
     public const float StallLimit = 30f;
     public const int DecideEvery = 2;
+    public static float TraceEvery = float.TryParse(Environment.GetEnvironmentVariable("FT_TRAFFIC_TRACE_EVERY"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var e) ? e : 0.5f;
     private readonly TrafficScenario sc;
     private readonly LaneGraph graph;
     private readonly bool[] stop;
@@ -57,7 +60,9 @@ internal sealed class TrafficSim : ILiveFlags
         this.trace = trace;
         graph = sc.BuildGraph();
         stop = sc.Waypoints.Select(w => w.Stop).ToArray();
-        foreach (var j in sc.Junctions) junctions[j.Id] = new Junction(j, stop);
+        replayEnd = sc.History.Count > 0 ? sc.History[^1].T : 0f;
+        foreach (var t in sc.Timelines) if (t.At.Count > 0) replayEnd = Math.Max(replayEnd, t.At[^1]);
+        foreach (var j in sc.Junctions) junctions[j.Id] = new Junction(j, stop, sc, graph, replayEnd);
         foreach (var c in sc.Cars) cars.Add(new Car(c));
         var r = sc.Ride;
         path = r.Path;
@@ -70,7 +75,13 @@ internal sealed class TrafficSim : ILiveFlags
         ride = new CarModel(r.Wheelbase, r.Lock, r.X, r.Z, r.Heading, r.Speed);
         driver.StartAt(r.X, r.Z);
         traffic = new TrafficDriver(graph, line, driver, body);
+        // Time enough for the whole line at 3 m/s on average, lights included (a dump runs 400 m on from its window).
+        seconds = Math.Max(sc.Seconds, 30f + line.Line.Length / 3f);
     }
+
+    private readonly float seconds;
+    // A dump's lights are replayed as the game showed them up to here, then cycled (Junction).
+    private readonly float replayEnd;
 
     public bool Stop(int waypoint) => waypoint >= 0 && waypoint < stop.Length && stop[waypoint];
 
@@ -92,11 +103,11 @@ internal sealed class TrafficSim : ILiveFlags
         float stall = 0f, nextTrace = 0f;
         var backing = false;
         var prevFront = driver.Along + body.FrontAhead;
-        for (var step = 0; time < sc.Seconds; step++)
+        for (var step = 0; time < seconds; step++)
         {
             time = step * Dt;
             foreach (var j in junctions.Values) j.Update(time);
-            foreach (var t in sc.Timelines)
+            if (time <= replayEnd) foreach (var t in sc.Timelines)
             {
                 var value = stop[t.Waypoint];
                 for (var k = 0; k < t.At.Count && t.At[k] <= time; k++) value = t.Stop[k];
@@ -143,6 +154,11 @@ internal sealed class TrafficSim : ILiveFlags
                     if (e.Kind == JunctionEventKind.Enter) jn.Inside.Add(-1);
                     else jn.Inside.Remove(-1);
                 }
+            if (decision.BlockedBy >= 0)
+            {
+                result.Blocked = decision.BlockedWhy;
+                return Finish(result);
+            }
             DriveOutput o;
             if (decision.BackOff)
             {
@@ -202,18 +218,18 @@ internal sealed class TrafficSim : ILiveFlags
             }
             if (trace && time >= nextTrace)
             {
-                nextTrace = time + 0.5f;
+                nextTrace = time + TraceEvery;
                 result.Trace.Append($"{time,6:0.0} ({ride.X:0.0},{ride.Z:0.0}) along {driver.Along,6:0.0} v {ride.Speed,5:0.0} stop {decision.StopAlong,6:0.0} give {decision.YieldAlong,6:0.0} gap {decision.GapAhead,5:0.0} {decision.Why} {decision.YieldNote} inside {traffic.Rules.Inside.Count}");
                 if (decision.GapFor >= 0)
                 {
                     var g = cars.First(c => c.Spec.Id == decision.GapFor);
                     result.Trace.Append($" [ride h {ride.Heading * 57.3:0} car {g.Spec.Id} at ({g.X:0.00},{g.Z:0.00}) h {g.Heading * 57.3:0} L {g.Spec.Length:0.0}]");
                 }
-                foreach (var c in cars.Where(c => c.Active)) result.Trace.Append($" | {c.Spec.Id} ({c.X:0},{c.Z:0}) {c.V:0.0}{(c.ForUs ? " us" : "")}{(c.V < 0.5f && c.Why != "" ? " " + c.Why : "")}");
+                foreach (var c in cars.Where(c => c.Active).OrderBy(c => (c.X - ride.X) * (c.X - ride.X) + (c.Z - ride.Z) * (c.Z - ride.Z))) result.Trace.Append($" | {c.Spec.Id} ({c.X:0},{c.Z:0}) {c.V:0.0}{(c.ForUs ? " us" : "")}{(c.V < 0.5f && c.Why != "" ? " " + c.Why : "")}");
                 result.Trace.Append('\n');
             }
         }
-        result.Failure = $"not there in {sc.Seconds:0} s ({driver.Along:0} of {line.Line.Length:0} m)";
+        result.Failure = $"not there in {seconds:0} s ({driver.Along:0} of {line.Line.Length:0} m)";
         return Finish(result);
     }
 
@@ -233,27 +249,72 @@ internal sealed class TrafficSim : ILiveFlags
         private bool amber;
         private float since;
 
-        public Junction(ScenarioJunction spec, bool[] stop)
+        private readonly List<int[]> roads;
+        private readonly float handOver;
+        private bool cycling;
+
+        public Junction(ScenarioJunction spec, bool[] stop, TrafficScenario sc, LaneGraph graph, float replayEnd)
         {
             this.spec = spec;
             this.stop = stop;
-            for (var r = 0; r < spec.Roads.Count; r++) foreach (var w in spec.Roads[r]) roadOf[w] = r;
+            roads = spec.Roads;
+            // A replayed light (a dump) without its roads: from the road each stop waypoint enters by (Gley's
+            // stopWaypoints group, in the dump as "r"; both ways of a street share one), else by the way they face.
+            if (spec.Kind == "replay" && roads.Count == 0)
+            {
+                roads = new List<int[]>();
+                var byRoad = new SortedDictionary<int, List<int>>();
+                for (var w = 0; w < sc.Waypoints.Count; w++)
+                {
+                    var p = sc.Waypoints[w];
+                    if (p.Junction != spec.Id || !p.Enter || p.Road < 0) continue;
+                    if (!byRoad.TryGetValue(p.Road, out var list)) byRoad[p.Road] = list = new List<int>();
+                    list.Add(w);
+                }
+                foreach (var list in byRoad.Values) roads.Add(list.ToArray());
+            }
+            if (spec.Kind == "replay" && roads.Count == 0)
+            {
+                var groups = new List<(double Heading, List<int> Ways)>();
+                for (var w = 0; w < sc.Waypoints.Count; w++)
+                {
+                    var p = sc.Waypoints[w];
+                    if (p.Junction != spec.Id || !p.Enter || graph.Successors(w).Count == 0) continue;
+                    var n = graph.Position(graph.Successors(w)[0]);
+                    var h = Math.Atan2(n.X - p.X, n.Z - p.Z);
+                    var group = groups.FindIndex(g => Math.Abs(DriveLine.Wrap(g.Heading - h)) < 0.5);
+                    if (group < 0) groups.Add((h, new List<int> { w }));
+                    else groups[group].Ways.Add(w);
+                }
+                foreach (var g in groups) roads.Add(g.Ways.ToArray());
+            }
+            for (var r = 0; r < roads.Count; r++) foreach (var w in roads[r]) roadOf[w] = r;
             current = spec.FirstRoad;
             since = -spec.Offset;
+            handOver = replayEnd;
             if (IsLights) Apply();
         }
 
-        public bool IsLights => spec.Kind == "lights";
+        public bool IsLights => spec.Kind == "lights" || (cycling && roads.Count > 0);
         public bool IsPriority => spec.Kind == "priority";
 
         // Gley's light cycle: green, then amber until it has lasted Yellow and nobody is inside, then the next road.
         public void Update(float t)
         {
+            if (spec.Kind == "replay" && !cycling && t > handOver && roads.Count > 0)
+            {
+                // From where the game left it: the road with green goes on, as if its green had just begun.
+                cycling = true;
+                current = Math.Max(0, roads.FindIndex(r => r.All(w => !stop[w])));
+                amber = false;
+                since = t;
+                Apply();
+            }
             if (!IsLights) return;
-            if (!amber && t - since > spec.Green) { amber = true; since = t; Apply(); }
+            if (!amber && t - since > Math.Max(1f, spec.Green)) { amber = true; since = t; Apply(); }
             else if (amber && t - since > spec.Yellow && Inside.Count == 0)
             {
-                current = (current + 1) % spec.Roads.Count;
+                current = (current + 1) % roads.Count;
                 amber = false;
                 since = t;
                 Apply();
@@ -262,7 +323,7 @@ internal sealed class TrafficSim : ILiveFlags
 
         private void Apply()
         {
-            for (var r = 0; r < spec.Roads.Count; r++) foreach (var w in spec.Roads[r]) stop[w] = r != current || amber;
+            for (var r = 0; r < roads.Count; r++) foreach (var w in roads[r]) stop[w] = r != current || amber;
         }
 
         // Round robin by road with at most a few cars inside (Gley's PriorityIntersection, in outline): the current
@@ -418,7 +479,12 @@ internal sealed class TrafficSim : ILiveFlags
             }
             target = -1;
             for (var i = 0; i < pts.Count; i++) if (routeOf[i] >= 0 && at[i] > front + 0.3f) { target = route[routeOf[i]]; break; }
-            if (target < 0 && front >= at[^1] - 0.5f)
+            // A lane that ends (Gley gives such a waypoint giveWay): the car stands at its end for good, as Gley's
+            // did in T3 (20261013-191420, ride 1: 300 s at a lane end in the ride car's way).
+            var last = sim.sc.Waypoints[route[^1]];
+            var laneEnd = g.Successors(route[^1]).Count == 0 && last.GiveWay && !last.InJunction;
+            if (laneEnd && target < 0) target = route[^1];
+            if (!laneEnd && target < 0 && front >= at[^1] - 0.5f)
             {
                 Gone = true;
                 Active = false;
@@ -429,6 +495,12 @@ internal sealed class TrafficSim : ILiveFlags
             var limit = (target >= 0 ? g.SpeedMs(target) : LaneGraph.DefaultSpeedMs) * Spec.Pace;
             Why = "";
             var brake = 4f;
+            if (laneEnd)
+            {
+                var room = at[^1] - front;
+                limit = Math.Min(limit, room < 0.5f ? 0f : Approach(0f, room - 0.5f, 4f));
+                if (limit < 0.5f) Why = "lane end";
+            }
             for (var i = 0; i < pts.Count; i++)
             {
                 var room = at[i] - front;

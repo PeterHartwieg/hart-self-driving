@@ -99,13 +99,17 @@ namespace DrivenRides.Core.Drive
         public bool BackOff;
         public int BackOffFrom = -1;
         public readonly List<JunctionEvent> Events = new List<JunctionEvent>();
+        // A traffic car in the way that won't move (TrafficDriver.Stuck), or -1; the way is blocked.
+        public int BlockedBy = -1;
+        public string BlockedWhy = "";
         // One short line for the trace and the log.
         public string Why = "";
 
         public void Clear()
         {
             StopAlong = YieldAlong = GapAhead = MaxSpeed = null;
-            StopPosition = YieldFor = GapFor = BackOffFrom = -1;
+            StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
+            BlockedWhy = "";
             StopIsRed = BackOff = false;
             Events.Clear();
             Why = YieldNote = "";
