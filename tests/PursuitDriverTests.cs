@@ -106,4 +106,14 @@ public sealed class PursuitDriverTests
         var exitLane = line.Line.Points.Where(p => p.Z > 29.9f).Select(p => p.X).ToList();
         for (var k = 1; k < exitLane.Count; k++) Assert.True(exitLane[k] > exitLane[k - 1]);
     }
+
+    [Fact]
+    public void LocatesAPointBesideTheLine()
+    {
+        var line = DriveLine.Build(Straight(new Vec3(0, 0, 0), new Vec3(0, 0, 100)), Array.Empty<(int, Polyline)>());
+        var (along, side) = line.Locate(1.5f, 40f, 30f, 20f);
+        Assert.InRange(along, 39.9f, 40.1f);
+        Assert.InRange(side, 1.49f, 1.51f);
+        Assert.InRange(line.Locate(-2f, 45f, 30f, 20f).Lateral, -2.01f, -1.99f);
+    }
 }

@@ -71,6 +71,32 @@ namespace DrivenRides.Core.Drive
             return new DriveLine(polyline, along);
         }
 
+        // Where a point is relative to the line, searching `range` metres on from `from`: metres along, and metres
+        // to the side (right positive).
+        public (float Along, float Lateral) Locate(float x, float z, float from, float range)
+        {
+            var best = (Along: from, Lateral: float.MaxValue);
+            var bestDistance = float.MaxValue;
+            var pts = Line.Points;
+            for (var i = 1; i < pts.Count; i++)
+            {
+                var start = Along(i - 1);
+                if (Along(i) < from) continue;
+                if (start > from + range) break;
+                Vec3 a = pts[i - 1], b = pts[i];
+                float dx = b.X - a.X, dz = b.Z - a.Z;
+                var span = (float)Math.Sqrt(dx * dx + dz * dz);
+                if (span < 1e-4f) continue;
+                var f = Math.Max(0f, Math.Min(1f, ((x - a.X) * dx + (z - a.Z) * dz) / (span * span)));
+                float px = a.X + dx * f, pz = a.Z + dz * f;
+                var distance = (x - px) * (x - px) + (z - pz) * (z - pz);
+                if (distance >= bestDistance) continue;
+                bestDistance = distance;
+                best = (start + span * f, ((x - px) * dz - (z - pz) * dx) / span);
+            }
+            return best;
+        }
+
         private static float NearestAlong(Polyline line, Vec3 p, float from)
         {
             var best = from;

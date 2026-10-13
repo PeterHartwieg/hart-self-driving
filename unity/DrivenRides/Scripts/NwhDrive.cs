@@ -30,6 +30,8 @@ namespace DrivenRides
         private float lastProgressAlong;
         private float lastProgressTime;
         private float stillSeconds;
+        private float heldSeconds;
+        private string lastBlocker = "";
 
         public bool Ended { get; private set; }
         public bool Arrived { get; private set; }
@@ -96,6 +98,8 @@ namespace DrivenRides
             var transmission = vehicle.powertrain.transmission;
             if (o.Throttle > 0.05f && transmission.Gear <= 0) transmission.ShiftInto(1);
             WaitingNow = o.Holding && speed < 0.5f;
+            heldSeconds = WaitingNow && gap != null ? heldSeconds + Time.fixedDeltaTime : 0f;
+            if (heldSeconds > 5f && heldSeconds < 5.03f) Log.Info($"NWH drive: held 5 s behind '{lastBlocker}' {gap:0.0} m ahead.");
 
             Trace.Append((Time.time - startedAt).ToString("0.00", Inv)).Append(',').Append(o.Along.ToString("0.0", Inv)).Append(',')
                 .Append(o.Lateral.ToString("0.00", Inv)).Append(',').Append(speed.ToString("0.00", Inv)).Append(',').Append(o.Desired.ToString("0.00", Inv)).Append(',')
@@ -153,8 +157,11 @@ namespace DrivenRides
             {
                 obstacleMask = (1 << LayerHelper.VehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
                 if (NwhCar.GleyLayer >= 0) obstacleMask |= 1 << NwhCar.GleyLayer;
-                var human = LayerMask.NameToLayer("Human");
-                if (human >= 0) obstacleMask |= 1 << human;
+                foreach (var name in new[] { "Human", "ParkedVehicles" })
+                {
+                    var layer = LayerMask.NameToLayer(name);
+                    if (layer >= 0) obstacleMask |= 1 << layer;
+                }
             }
             var t = Car.Root.transform;
             var turning = Mathf.Abs(Car.Vehicle.steering.angle) > 8f;
@@ -168,8 +175,12 @@ namespace DrivenRides
             {
                 var h = hits[i];
                 if (h.rigidbody == Car.Body || h.collider.transform.IsChildOf(t)) continue;
+                // Only what stands on the car's way: within its half width and a little of the line.
+                var point = h.distance > 0f ? h.point : h.collider.bounds.center;
+                var (_, side) = line.Locate(point.x, point.z, driver.Along, reach + 10f);
+                if (Mathf.Abs(side) > Car.BodyHalf.x + 0.4f) continue;
                 var d = h.distance + 0.3f;
-                if (best == null || d < best) best = d;
+                if (best == null || d < best) { best = d; lastBlocker = $"{h.collider.name} ({LayerMask.LayerToName(h.collider.gameObject.layer)})"; }
             }
             return best;
         }
