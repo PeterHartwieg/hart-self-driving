@@ -133,15 +133,14 @@ namespace DrivenRides.Core.Drive
                 // priority: such a car counted as coming through forced the ride car's commitment; review round 4).
                 if (givesWay)
                 {
+                    // Every way on from the line, across as many waypoints as it takes, for what it overshoots (review
+                    // round 5, Y2: one successor and one segment only, before).
                     var past = Speed * Speed / (2f * GiveWayOvershootDecel) - end;
                     if (step > 0.05f) Add(Box.Along(x, z, p.X, p.Z, half), u);
-                    var next0 = graph.Successors(w);
-                    if (past > 0f && next0.Count > 0)
+                    if (past > 0f)
                     {
-                        var q = graph.Position(next0[0]);
-                        var qs = (float)Math.Sqrt((q.X - p.X) * (q.X - p.X) + (q.Z - p.Z) * (q.Z - p.Z));
-                        var f = qs > 0.05f ? Math.Min(1f, (past + Length) / qs) : 0f;
-                        Add(Box.Along(p.X, p.Z, p.X + (q.X - p.X) * f, p.Z + (q.Z - p.Z) * f, half), end);
+                        var on = graph.Successors(w);
+                        for (var k = 0; k < on.Count; k++) Walk(graph, flags, roadHeld, p.X, p.Z, end, on[k], Math.Min(reach, end + past), half, depth + 1);
                     }
                     return;
                 }

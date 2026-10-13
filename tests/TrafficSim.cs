@@ -25,6 +25,10 @@ internal sealed class SimResult
     // Each forced commit: when, for which car, its time to spare, the ride car's speed, and the reasons given before it
     // (review round 4, X4).
     public readonly List<string> Forced = new();
+    // Commitments remembered from a moment ago that went on with no headway to spare (TrafficDecision.MarginalCommit;
+    // review round 5, Y1).
+    public int MarginalCommits;
+    public float MarginalLeast = float.MaxValue;
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
@@ -113,6 +117,7 @@ internal sealed class TrafficSim : ILiveFlags
     public SimResult Run()
     {
         var forcedBefore = false;
+        var marginalBefore = false;
         var whys = new Queue<string>();
         var lastWhy = "";
         var result = new SimResult();
@@ -219,6 +224,9 @@ internal sealed class TrafficSim : ILiveFlags
                 result.Forced.Add($"{time:0.00} s, car {decision.ForcedFor}, {decision.ForcedMargin:0.00} s to spare at {ride.Speed:0.0} m/s; before: {string.Join(" | ", whys)}");
             }
             forcedBefore = decision.ForcedCommit;
+            if (decision.MarginalCommit && !marginalBefore) result.MarginalCommits++;
+            if (decision.MarginalCommit) result.MarginalLeast = Math.Min(result.MarginalLeast, decision.MarginalMargin);
+            marginalBefore = decision.MarginalCommit;
 
             // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);
