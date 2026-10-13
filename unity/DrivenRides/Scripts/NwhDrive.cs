@@ -173,11 +173,13 @@ namespace DrivenRides
             }
             backing = false;
             var gap = HoldForCast(GapAhead(speed));
-            if (decision.GapAhead is float carGap && (gap == null || carGap < gap)) { gap = carGap; lastBlockerLayer = -1; }
+            // People and parked cars stand; a traffic car ahead is followed at its own speed.
+            var gapSpeed = 0f;
+            if (decision.GapAhead is float carGap && (gap == null || carGap < gap)) { gap = carGap; gapSpeed = decision.GapSpeed; lastBlockerLayer = -1; }
             var o = driver.Step(new DriveInput
             {
                 RearX = rear.x, RearZ = rear.z, Heading = heading, SpeedMs = speed, Dt = Time.fixedDeltaTime, WheelDegrees = vehicle.steering.angle,
-                StopAlong = decision.StopAlong, GapAhead = gap, YieldAlong = decision.YieldAlong, MaxSpeed = decision.MaxSpeed,
+                StopAlong = decision.StopAlong, GapAhead = gap, GapSpeed = gapSpeed, YieldAlong = decision.YieldAlong, MaxSpeed = decision.MaxSpeed,
             });
             var lockNow = Mathf.Max(1f, Car.LockAt(speed));
             var steerInput = Mathf.Clamp(o.SteerDegrees / lockNow, -1f, 1f);

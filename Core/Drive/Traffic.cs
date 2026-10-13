@@ -93,6 +93,8 @@ namespace DrivenRides.Core.Drive
         // A traffic car in the way: metres from the front bumper to where the body would touch it, and which.
         public float? GapAhead;
         public int GapFor = -1;
+        // How fast that car moves on along the ride car's way (m/s, 0 when it stands or comes the other way).
+        public float GapSpeed;
         // Layer 3: creeping past a car that stands for the ride car.
         public float? MaxSpeed;
         // Layer 3: backing off along the line, away from a car standing nose to nose with the ride car.
@@ -108,6 +110,7 @@ namespace DrivenRides.Core.Drive
         public void Clear()
         {
             StopAlong = YieldAlong = GapAhead = MaxSpeed = null;
+            GapSpeed = 0f;
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
             StopIsRed = BackOff = false;

@@ -173,6 +173,7 @@ internal sealed class TrafficSim : ILiveFlags
                 input.StopAlong = decision.StopAlong;
                 input.YieldAlong = decision.YieldAlong;
                 input.GapAhead = decision.GapAhead;
+                input.GapSpeed = decision.GapSpeed;
                 input.MaxSpeed = decision.MaxSpeed;
                 o = driver.Step(input);
                 ride.Step(o, Dt);

@@ -245,7 +245,9 @@ namespace DrivenRides.Core.Drive
                 var c = cars[i];
                 if (!moving.Contains(c.Id) || heldFor.Contains(c.Id)) continue;
                 var touch = FirstTouch(BodyOf(c), GroundMargin, 0);
-                if (touch >= 0 && Ahead(c)) Gap(d, touch, along, c.Id, false);
+                // A car ahead on the ride car's way, moving: followed at its speed along that way where the body
+                // would meet it (PursuitDriver.Follow).
+                if (touch >= 0 && Ahead(c)) Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
                 if (OutOfReach(c, horizon)) continue;
                 corridor.Build(graph, c, s.Flags, horizon, SweepMetres, roadHeld);
                 if (corridor.MaxX < sweepMinX || corridor.MinX > sweepMaxX || corridor.MaxZ < sweepMinZ || corridor.MinZ > sweepMaxZ) continue;
@@ -357,10 +359,10 @@ namespace DrivenRides.Core.Drive
         }
 
         // A gap ahead: how far the front can move before the pose at `pose` touches.
-        private void Gap(TrafficDecision d, int pose, float along, int id, bool standing = true)
+        private void Gap(TrafficDecision d, int pose, float along, int id, bool standing = true, float onwardMs = 0f)
         {
             var gap = pose == 0 ? 0f : rearAt[pose - 1] - along + SweepStep / 2f;
-            if (d.GapAhead == null || gap < d.GapAhead) { d.GapAhead = gap; d.GapFor = id; }
+            if (d.GapAhead == null || gap < d.GapAhead) { d.GapAhead = gap; d.GapFor = id; d.GapSpeed = standing ? 0f : onwardMs; }
             if (standing && (standingGap == null || gap < standingGap)) standingGap = gap;
         }
 

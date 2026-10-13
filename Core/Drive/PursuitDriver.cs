@@ -16,8 +16,10 @@ namespace DrivenRides.Core.Drive
         public float WheelDegrees;
         // Metres along the line where the car's front must stop (a red light), or null.
         public float? StopAlong;
-        // Metres from the car's front to something in its way (a car ahead), or null.
+        // Metres from the car's front to something in its way (a car ahead), or null, and how fast that moves on
+        // along the car's way (m/s; 0 for anything standing, people and parked cars).
         public float? GapAhead;
+        public float GapSpeed;
         // A speed cap from the traffic rules (creeping past a car that waits for this one), m/s, or null.
         public float? MaxSpeed;
     }
@@ -118,8 +120,8 @@ namespace DrivenRides.Core.Drive
             }
             if (i.GapAhead is float gap)
             {
-                desired = Math.Min(desired, Approach(0f, gap - StopGap));
-                holding |= gap < StopGap + 3f;
+                desired = Math.Min(desired, Follow(gap, i.GapSpeed));
+                holding |= gap < StopGap + 3f && i.GapSpeed < 0.5f;
             }
             if (i.MaxSpeed is float cap) desired = Math.Min(desired, cap);
             if (along + frontAhead >= Length - 1f) desired = 0f;
@@ -159,6 +161,24 @@ namespace DrivenRides.Core.Drive
                 desired = Math.Min(desired, from <= at ? speed : Approach(speed, from - at));
             }
             return desired;
+        }
+
+        // Following: the highest speed from which the car, FollowReaction seconds after the car ahead starts braking
+        // at LeaderBrake, stops StopGap behind where that car stops, braking at FollowBrake. A car that stands is
+        // the plain stop at Decel as before. Treating every car ahead as standing kept the ride car 2.3 to 2.6 s
+        // behind normal traffic and crawling (T3 20261013-191420: "very slow, even on straights"); this settles at
+        // about 1.3 s behind a car at 10 m/s.
+        public const float FollowReaction = 0.6f;
+        public const float FollowBrake = 3f;
+        public const float LeaderBrake = 4f;
+
+        public static float Follow(float gap, float leaderMs)
+        {
+            if (leaderMs < 0.5f) return Approach(0f, gap - StopGap);
+            var room = gap - StopGap + leaderMs * leaderMs / (2f * LeaderBrake);
+            if (room <= 0f) return 0f;
+            var t = FollowReaction;
+            return (float)(FollowBrake * (-t + Math.Sqrt(t * t + 2 * room / FollowBrake)));
         }
 
         // The highest speed from which the car slows to `speed` within `metres` at Decel.
