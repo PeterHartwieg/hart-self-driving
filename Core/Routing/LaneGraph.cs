@@ -114,6 +114,10 @@ namespace DrivenRides.Core.Routing
         }
         private readonly Dictionary<(int, int), int> uTurnGroupOf = new Dictionary<(int, int), int>();
         public int InferredWideUTurns { get; private set; }
+
+        // The junctions' boxes (JunctionBoxes), built when first asked for.
+        public JunctionBoxes Junctions => junctionBoxes ??= new JunctionBoxes(this);
+        private JunctionBoxes? junctionBoxes;
         // All the U-turns of the approach whose inner U-turn starts at m (entry, target, metres across), widest first.
         public IReadOnlyList<(int Entry, int Target, float Width)> UTurnGroup(int m) =>
             uTurnGroups.TryGetValue(m, out var group) ? group : uTurns[m] >= 0 ? new[] { (m, uTurns[m], uTurnWidths.Length > m ? uTurnWidths[m] : 0f) } : Array.Empty<(int, int, float)>();

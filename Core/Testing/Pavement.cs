@@ -76,10 +76,13 @@ namespace DrivenRides.Core.Testing
             return null;
         }
 
-        // Whether a point is within half a lane of any lane of the graph, whatever its direction.
+        // Whether a point is carriageway though pedestrian ground: in a junction's box (its crossings), or within half
+        // a lane of any lane of the graph, junction connectors included, whatever its direction (a promenade beside a
+        // lane by the pier).
         public static bool OnALane(LaneGraph graph, Vec3 p)
         {
-            foreach (var w in graph.Near(p, 15f))
+            if (graph.Junctions.Contains(p)) return true;
+            foreach (var w in graph.Near(p, 30f))
             {
                 var a = graph.Position(w);
                 if (Math.Abs(a.Y - p.Y) > 2f) continue;

@@ -19,6 +19,13 @@ if (args[1] == "stats")
     Console.WriteLine($"{graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} U-turns and {graph.InferredWideUTurns} wider ones, {graph.TrimmedChains} straight ways in cut back");
     return;
 }
+if (args[1] == "carriageway")
+{
+    // carriageway x z [y]: whether a point counts as carriageway for the pavement rule (a junction's box, near a lane).
+    var p = new Vec3(float.Parse(args[2], CultureInfo.InvariantCulture), args.Length > 4 ? float.Parse(args[4], CultureInfo.InvariantCulture) : 0f, float.Parse(args[3], CultureInfo.InvariantCulture));
+    Console.WriteLine($"({p.X}, {p.Z}): junction box {graph.Junctions.Contains(p)}, carriageway {Pavement.OnALane(graph, p)} ({graph.Junctions.Count} junction boxes)");
+    return;
+}
 if (args[1] == "show")
 {
     // show <entry> <exit> [next exit-lane waypoints...]: the turn's vias and where each exit waypoint lies along the
@@ -153,7 +160,8 @@ var writeAt = Array.IndexOf(args, "--write");
 var writePath = writeAt > 0 && writeAt + 1 < args.Length ? args[writeAt + 1] : null;
 var folder = args.Length > 2 && !args[2].StartsWith("--") ? args[2] : Path.GetDirectoryName(Path.GetFullPath(resultsPath))!;
 var written = new List<string>();
-int same = 0, changed = 0, missing = 0;
+int same = 0, changed = 0, missing = 0, exempted = 0;
+var lastY = 0f;
 var verdicts = new Dictionary<string, int>();
 foreach (var line in File.ReadLines(resultsPath))
 {
@@ -169,13 +177,26 @@ foreach (var line in File.ReadLines(resultsPath))
         var f = row.Split(',');
         switch (f[0])
         {
-            case "S": judge.Add(ToSample(f)); break;
+            case "S": { var sample = ToSample(f); lastY = sample.Footprint[0].Y; judge.Add(sample); break; }
             case "C": judge.Contact(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "I": judge.Incident(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "R": judge.Replanned(string.Join(",", f.Skip(1))); break;
             // Recorded with the game's pavement (the pedestrians' NavMesh): its findings, and no kerb estimate.
             case "N": judge.PavementAt = _ => false; break;
-            case "P": judge.OnThePavement(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
+            case "P":
+            {
+                // The game's finding, unless its point is carriageway by today's rule (Pavement.OnALane: a junction's
+                // box, any lane).
+                var what = string.Join(",", f.Skip(2));
+                var m = System.Text.RegularExpressions.Regex.Match(what, @"\((-?[0-9.]+); (-?[0-9.]+)\)");
+                if (m.Success && Pavement.OnALane(graph, new Vec3(float.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), lastY, float.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))))
+                {
+                    exempted++;
+                    break;
+                }
+                judge.OnThePavement(int.Parse(f[1]), what);
+                break;
+            }
         }
     }
     var end = run.TryGetProperty("end", out var e) ? e.GetString() : "";
@@ -195,7 +216,7 @@ foreach (var line in File.ReadLines(resultsPath))
         (result.IntrusionDetail != null ? $"\n      {result.IntrusionDetail}" : ""));
 }
 if (writePath != null) File.WriteAllLines(writePath, written);
-Console.WriteLine($"\n{same} unchanged, {changed} changed, {missing} without samples; now: {string.Join(", ", verdicts.Select(v => $"{v.Key} {v.Value}"))}");
+Console.WriteLine($"\n{same} unchanged, {changed} changed, {missing} without samples, {exempted} recorded pavement findings now carriageway; now: {string.Join(", ", verdicts.Select(v => $"{v.Key} {v.Value}"))}");
 
 static Sample ToSample(string[] f)
 {
