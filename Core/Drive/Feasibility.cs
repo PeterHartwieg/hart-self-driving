@@ -552,6 +552,11 @@ namespace DrivenRides.Core.Drive
             var model = car.Model(p0.X, p0.Z, Math.Atan2(p1.X - p0.X, p1.Z - p0.Z));
             driver.StartAt(p0.X, p0.Z);
             model.Speed = driver.PlannedSpeed(start, car.TopKmh / 3.6f);
+            // Where the plan starts the car stands already: what its body touches there is no reason to refuse the way
+            // on (0.1.100: a taxi standing by a kerb corner piece, 'Corner2' "at 0 m", got its first step blocked, and
+            // with it every route). Checked once the car has moved a body length on.
+            from = Math.Max(from, car.Length);
+            if (from >= to) return Array.Empty<object?>();
             return FollowWork(driver, model, line, from, to, result, margin);
         }
 
@@ -583,7 +588,8 @@ namespace DrivenRides.Core.Drive
             model.SetWheel(pose.Wheel);
             var from = driver.Along;
             var to = JoinEnd(line, from);
-            foreach (var y in FollowWork(driver, model, line, from, to, result, Margin)) yield return y;
+            // Not where it stands now (SweepWork): from a body length on.
+            foreach (var y in FollowWork(driver, model, line, Math.Min(from + car.Length, to), to, result, Margin)) yield return y;
             if (result.What != null) result.What = "joining the new line: " + result.What;
             else if (Math.Abs(result.Lateral) > JoinSettled)
                 result.What = FormattableString.Invariant($"joining the new line: still {result.Lateral:+0.00;-0.00} m off it after {to - from:0} m");
