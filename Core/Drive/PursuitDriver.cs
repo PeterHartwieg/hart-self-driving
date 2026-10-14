@@ -112,9 +112,8 @@ namespace DrivenRides.Core.Drive
             // out of a U-turn that was an overshoot and a swing back (Peter, T2). Pure pursuit from a car that is
             // exactly on the line commands ChordCurvature; what it commands beyond that is the correction.
             var reference = along + ahead;
-            var wide = LineCurvature(reference, ld);
-            if (FeedForward && Smooth(reference, ld, wide))
-                curvature = wide + (curvature - ChordCurvature(reference, ld));
+            if (FeedForward && Smooth(reference, ld))
+                curvature = LineCurvature(reference, ld) + (curvature - ChordCurvature(reference, ld));
             var steer = (float)(Math.Atan(wheelbase * curvature / CarModel.YawGain(wheelbase, trackWidth)) * 180 / Math.PI);
 
             var desired = PlannedSpeed(along, i.SpeedMs);
@@ -187,7 +186,7 @@ namespace DrivenRides.Core.Drive
         // Whether the stretch from half a lookahead behind the reference to a lookahead past it lies on a fitted arc or
         // U-turn curve (DriveLine.Curves), whose curvature is the line's design. Elsewhere (Gley's junction curves,
         // a via's corner) pursuit rounds the line on its own, as before.
-        private bool Smooth(float at, float lookahead, double curvature)
+        private bool Smooth(float at, float lookahead)
         {
             foreach (var (from, to) in line.Curves)
                 if (at - lookahead / 2f >= from && at + lookahead <= to) return true;
@@ -225,6 +224,50 @@ namespace DrivenRides.Core.Drive
             }
             return desired;
         }
+
+        // The plan's speed at `at` with every limit ahead counted, however far: at most PlannedSpeed's, and the same
+        // wherever that is below what the car reaches from speedMs within the next metre (PlannedSpeed looks only
+        // 10 m past its stopping distance, and a limit further on asks for more than that). For the traffic sweep, which
+        // asks it at every pose: the nearest limit ahead is the one with the least speed² + 2 Decel × distance, found
+        // once per line (review round 10: the sweep's look ahead was most of its time).
+        public float PlannedSpeedOnward(float at)
+        {
+            var desired = top;
+            var pts = line.Line.Points;
+            if (onward == null)
+            {
+                onward = new int[pts.Count];
+                var best = -1;
+                var bestKey = double.MaxValue;
+                for (var j = pts.Count - 1; j >= 0; j--)
+                {
+                    var key = (double)cornerSpeeds[j] * cornerSpeeds[j] + 2.0 * Decel * line.Along(j);
+                    if (key <= bestKey) { bestKey = key; best = j; }
+                    onward[j] = best;
+                }
+            }
+            var k = line.FirstPointFrom(at - 1f);
+            for (; k < pts.Count; k++)
+            {
+                var s = line.Along(k);
+                if (s < at - 1f) continue;
+                if (s - at > 0f) break;
+                desired = Math.Min(desired, cornerSpeeds[k]);
+            }
+            if (k < pts.Count)
+            {
+                var j = onward[k];
+                desired = Math.Min(desired, Approach(cornerSpeeds[j], line.Along(j) - at));
+            }
+            foreach (var (from, to, speed) in slow)
+            {
+                if (to < at) continue;
+                desired = Math.Min(desired, from <= at ? speed : Approach(speed, from - at));
+            }
+            return desired;
+        }
+
+        private int[]? onward;
 
         // Following: the highest speed from which the car, FollowReaction seconds after the car ahead starts braking
         // at LeaderBrake, stops StopGap behind where that car stops, braking at FollowBrake. A car that stands is

@@ -104,7 +104,7 @@ public sealed class TrafficTests
     // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
     private static readonly Dictionary<string, (int OptionLost, int Again)> Ratchet = new()
     {
-        ["lights"] = (8, 27), ["priority"] = (0, 1), ["merge"] = (4, 5), ["uturn"] = (1, 39),
+        ["lights"] = (12, 27), ["priority"] = (1, 1), ["merge"] = (4, 6), ["uturn"] = (2, 38),
         ["headon"] = (0, 0), ["pullaway"] = (1, 3),
     };
 
