@@ -16,9 +16,9 @@ using Object = UnityEngine.Object;
 namespace DrivenRides
 {
     // A drivable car dressed as a traffic car that has no drivable twin (Peter, 13 October 2026: the taxi gets a
-    // drivable model, built as a re-skin). The reverse of StandIn's dress: the drivable car closest in size is the
-    // donor and keeps its physics, colliders and wheels; its renderers are hidden, and a visual-only copy of the
-    // traffic model (no colliders, no scripts) sits on it, with the traffic wheels on NWH's wheel visuals so they spin,
+    // drivable model, built as a re-skin). The drivable car closest in size is the donor and keeps its physics,
+    // colliders and wheels; its renderers are hidden, and a visual-only copy of the traffic model (no colliders, no
+    // scripts) sits on it, with the traffic wheels on NWH's wheel visuals so they spin,
     // steer and ride the suspension. The prefabs can't be read offline, so everything is measured here and logged.
     internal static class NwhDress
     {
