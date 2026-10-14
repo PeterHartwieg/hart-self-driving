@@ -118,7 +118,7 @@ public sealed class TrafficTests
     private static readonly Dictionary<string, (int OptionLost, int Again)> Ratchet = new()
     {
         ["lights"] = (14, 28), ["priority"] = (1, 6), ["merge"] = (5, 1), ["uturn"] = (0, 17),
-        ["headon"] = (0, 0), ["pullaway"] = (1, 40),
+        ["headon"] = (0, 0), ["pullaway"] = (1, 45),
     };
 
     [Fact]

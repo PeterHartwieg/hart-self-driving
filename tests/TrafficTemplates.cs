@@ -118,7 +118,11 @@ internal sealed class ScenarioBuilder
         };
     }
 
-    public ScenarioCar Car(float spawn, IEnumerable<int> route, float pace = 1f, float length = 4.5f, float trigger = 3f)
+    // Gley's front trigger reaches 4.5 m from the front wheels (the dumps: 566 of 567 cars), about 3.6 m past a car's
+    // bumper: the game's, not the 3 m T0 began with (which made going in front of a car look riskier than it is).
+    public const float GleyTrigger = 3.6f;
+
+    public ScenarioCar Car(float spawn, IEnumerable<int> route, float pace = 1f, float length = 4.5f, float trigger = GleyTrigger)
     {
         var c = new ScenarioCar { Id = S.Cars.Count + 1, Spawn = spawn, Route = route.ToArray(), Pace = pace, Length = length, Trigger = trigger };
         S.Cars.Add(c);
