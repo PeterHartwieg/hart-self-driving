@@ -37,6 +37,8 @@ internal sealed class SimResult
     public int PassExhausted, PassUnsettled, FallbackOn, FallbackStop;
     public int PassRoundsMost;
     public float OptionLost = float.MinValue;
+    // How long each decision took, microseconds (DecideCostTests).
+    public readonly List<float> DecideMicros = new();
     // The same, less the distance the car covers between two decisions at the speed it had (the simulation decides every
     // DecideEvery steps; the game every step): a shortfall within it is the decisions' discretization, not a real one
     // (review round 9, DD1). Reported by the soak.
@@ -234,9 +236,12 @@ internal sealed class TrafficSim : ILiveFlags
             {
                 var whyBefore = decision.Why;
                 var before = GC.GetAllocatedBytesForCurrentThread();
+                var ticks = System.Diagnostics.Stopwatch.GetTimestamp();
                 traffic.Decide(snapshot, decision);
+                var took = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - ticks) * 1e6 / System.Diagnostics.Stopwatch.Frequency);
                 decidedAt = (float)ride.Speed;
                 var bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                result.DecideMicros.Add(took);
                 result.DecideBytes += bytes;
                 if (bytes > 0 && result.Decides > 25 && ReferenceEquals(whyBefore, decision.Why)) result.DecidesAllocating++;
                 result.Decides++;

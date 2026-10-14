@@ -206,7 +206,7 @@ public sealed class TrafficTests
 
     // Dumps the simulation can't resolve yet, kept visible: tests/traffic-scenarios/pending/ (each one's note says why).
     // Each has a replay test of the decision it took in the game.
-    [Fact(Skip = "pending: tests/traffic-scenarios/pending/ (ride 17: a merge into a stream with no gap and no car slow enough to nose in on; see its note)")]
+    [Fact(Skip = "pending: tests/traffic-scenarios/pending/ (t3d and t3e ride 17: a merge into a stream with no gap and no car slow enough to nose in on; see their notes)")]
     public void PendingScenarios()
     {
         foreach (var file in System.IO.Directory.GetFiles(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "pending"), "*.json"))
