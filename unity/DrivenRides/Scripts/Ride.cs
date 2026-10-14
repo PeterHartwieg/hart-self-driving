@@ -244,7 +244,7 @@ namespace DrivenRides
             var ride = TryCreateRide(taxiSystem, target, minutes);
             if (ride != null || !own) return ride;
             // Vanilla's ride would take the player to the door and leave the car behind; instead nothing happens.
-            Notice.Show("Your car can't drive itself there.");
+            Notice.Show("Your car can't drive itself there: " + lastVanillaReason + ".");
             return NoRide(taxiSystem);
         }
 
@@ -445,7 +445,12 @@ namespace DrivenRides
                     planMs += ms;
                 }
                 if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
-                if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla($"not enough fuel for {route.LengthMetres / 1000.0:0.0} km");
+                if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla("the tank is empty");
+                if (ownCar != null && planNwh != null && planNwhPlan != null)
+                {
+                    var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph);
+                    if (refusal != null) return Vanilla(refusal);
+                }
 
                 if (kind == Kind.Stand)
                 {
@@ -509,9 +514,10 @@ namespace DrivenRides
                 // The own car has no traffic car: the planning prefab stands in for it where the ride keeps one.
                 var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car ?? prefab, prefab, vehicleType, goals, route, spawn != null)
                 {
-                    nwh = spawnedNwh != null ? new NwhRideCar { Car = spawnedNwh, Spec = planNwh!.Car }
-                        : ownNwh != null ? OwnCarTaxi.RideCar(ownCar!, ownNwh, planNwh!.Car, target) : null,
+                    nwh = spawnedNwh != null ? new NwhRideCar { Car = spawnedNwh, Spec = planNwh!.Car } : null,
                 };
+                // The own car's arrival stops if the ride is cancelled or the save changes meanwhile.
+                if (ownNwh != null) ride.nwh = OwnCarTaxi.RideCar(ownCar!, ownNwh, planNwh!.Car, target, prefab, () => ride.cancelled || ride.SaveChanged);
                 ownNwh = null;
                 loaded = null;
                 spawnedNwh = null;
@@ -536,11 +542,16 @@ namespace DrivenRides
 
         private const string SwitchedOff = "switched off in the options";
 
+        private static string lastVanillaReason = "";
+
         private static IEnumerator? Vanilla(string reason)
         {
             Log.Info("Vanilla ride: " + reason + ".");
-            // Spike builds say why on screen too; a ride switched off is just a vanilla ride.
-            if (reason != SwitchedOff) Notice.Show("Driven Rides: vanilla ride, " + reason + ".");
+            lastVanillaReason = reason;
+            // Spike builds say why on screen too; a ride switched off is just a vanilla ride. The own car says it once,
+            // in its own words (TryCreate).
+            var own = InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi;
+            if (reason != SwitchedOff && !own) Notice.Show("Driven Rides: vanilla ride, " + reason + ".");
             return null;
         }
 
@@ -923,7 +934,7 @@ namespace DrivenRides
                 // An arrival needs no fade: the player steps out beside the car (Peter). Skip and the vanilla finish
                 // fade, as vanilla does. The game's fades are stepped here, so an exception in them runs the finally.
                 // A destination far from where the car stops (a house back from the road) gets the vanilla door.
-                farDrop = outcome == Outcome.Complete && target != null && OwnsCar && Vector3.Distance(Body.position, target.GetNavMeshTargetPosition()) > FarDropMetres;
+                farDrop = !PlayerInside && outcome == Outcome.Complete && target != null && OwnsCar && Vector3.Distance(Body.position, target.GetNavMeshTargetPosition()) > FarDropMetres;
                 // The car stands while the player gets out (the drive has stopped it on arrival; Skip stops it here).
                 nwhDrive?.Stop(outcomeReason);
                 if (outcome == Outcome.Vanilla || farDrop)
@@ -1058,6 +1069,8 @@ namespace DrivenRides
 
         private void TickNwh()
         {
+            // The own car out of fuel or wrecked mid-trip: the trip ends where the car stopped.
+            if (kind == Kind.OwnCar && OwnCarDrive.Trouble() is string trouble) { Notice.Show(trouble + "."); Cancel(trouble.ToLowerInvariant()); return; }
             var drive = nwhDrive!;
             var body = Body;
             progress!.Update(GleyGraph.ToVec(body.position));
@@ -1668,6 +1681,7 @@ namespace DrivenRides
                 // An NWH car is teleported: its rear axle onto the first route waypoint on the far side, at rest, and
                 // the drive goes on along the rest of the route, planned for the car from there.
                 if (!LandNwh(at, out var landedAt, out var why)) { EndWith(Outcome.Vanilla, "bridge: " + why); yield break; }
+                if (kind == Kind.OwnCar && OwnCarDrive.Car != null) OwnCarTaxi.ChargeBridgeFuel(OwnCarDrive.Car, Vector3.Distance(from, landedAt));
                 to = landedAt;
                 if (bridges != null)
                     foreach (var other in bridges)
@@ -2002,8 +2016,12 @@ namespace DrivenRides
                 Log.Info($"Ride done, the player inside the car: {NowMinutes() - startMinute:0.0} game minutes in all.");
                 if (nwh!.Arrive != null)
                 {
+                    // The arrival may fade (the own car's autopark): a cancel meanwhile must unfade (Cancel, `faded`).
+                    var wasFaded = faded;
+                    faded = true;
                     var arriving = Flatten(nwh.Arrive());
                     while (arriving.MoveNext()) { yield return arriving.Current; if (cancelled) yield break; }
+                    faded = wasFaded;
                 }
                 yield break;
             }

@@ -53,8 +53,10 @@ Disposable save only. You need a car of your own (one with autopark and one with
 6. **Getting out** mid-trip (the exit key): the trip ends, the car stops where it is, you're on foot beside it. Log: `Own car: the player got out during the trip`.
 7. **Save** mid-trip and load: you sit in your car where it was when you saved.
 8. **Hospital** mid-trip (**Ctrl+Alt+Shift+V**): the car stops where it is; the hospital takes over.
-9. **Refusals:** L while driving fast says "Stop the car first"; L in a parking garage says "Drive out onto the street first"; a destination too far for the fuel left says the car can't drive there; with the own car option off, L in the car does nothing.
-10. A second trip straight after, and a private driver ride after that, both work.
+9. **Refusals:** L while driving fast says "Stop the car first"; L in a parking garage says "Drive out onto the street first"; L in a car parked at the kerb, or facing against the lane, says it can't drive itself there ("pull out into the lane first"), and works once the car stands in the lane; an empty tank says so; with the own car option off, L in the car does nothing.
+10. **Mid-trip:** the game's autopark button and the bridge's skip button say "Not while the car drives itself". A car that runs out of fuel or is wrecked mid-trip stops, with a notice, and you're in it with control.
+11. **Bridge:** a trip to the Hamptons skips the bridge as the driver's rides do, and the tank goes down by what the game's own bridge skip charges.
+12. A second trip straight after, and a private driver ride after that, both work.
 
 # In-game checks: Milestone 0 (spike, 0.1.0)
 

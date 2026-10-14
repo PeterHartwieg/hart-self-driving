@@ -233,8 +233,38 @@ namespace DrivenRides
                 FrontZ = zs.Max(), RearZ = zs.Min(),
                 MaxSteer = vehicle.steering.maximumSteerAngle, SpeedCurve = vehicle.steering.speedSensitiveSteeringCurve,
             };
-            Measure(car);
+            // The live car's own colliders only: enabled ones, and not the player's figure, which the game parents into
+            // the car while the player drives (Measure is for a car spawned from its prefab).
+            MeasureLive(car);
             return car;
+        }
+
+        private static void MeasureLive(NwhCar car)
+        {
+            var t = car.Root.transform;
+            var figure = InstanceBehavior<GameManager>.Instance?.playerController?.Character?.transform;
+            var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            var max = -min;
+            var found = false;
+            foreach (var c in car.Root.GetComponentsInChildren<Collider>(false))
+            {
+                if (c.isTrigger || !c.enabled || (figure != null && c.transform.IsChildOf(figure))) continue;
+                Bounds b;
+                if (c is BoxCollider box) b = new Bounds(box.center, box.size);
+                else if (c is MeshCollider mesh && mesh.sharedMesh != null) b = mesh.sharedMesh.bounds;
+                else continue;
+                for (var i = 0; i < 8; i++)
+                {
+                    var corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                    var local = t.InverseTransformPoint(c.transform.TransformPoint(corner));
+                    min = Vector3.Min(min, local);
+                    max = Vector3.Max(max, local);
+                    found = true;
+                }
+            }
+            if (!found) { Measure(car); return; }
+            car.BodyCentre = (min + max) / 2f;
+            car.BodyHalf = (max - min) / 2f;
         }
     }
 }

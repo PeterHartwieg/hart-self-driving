@@ -58,6 +58,9 @@ namespace DrivenRides
             // The own car driving itself: the steering assist held off, and getting out ends the ride first.
             Patch(typeof(CarController), "Update", Type.EmptyTypes, nameof(CarUpdatePostfix));
             Patch(typeof(CarController), "ExitVehicle", Type.EmptyTypes, nameof(ExitPrefix), prefix: true);
+            // ... and the game's own autopark and bridge skip don't teleport it out from under the drive.
+            Patch(typeof(UI.ItemPanel.ItemPanelUI), "ClickAutoPark", Type.EmptyTypes, nameof(TeleportPrefix), prefix: true);
+            Patch(typeof(Vehicles.SkipBridgeHelper), "SkipBridge", Type.EmptyTypes, nameof(TeleportPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -154,6 +157,12 @@ namespace DrivenRides
             if (!(InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi)) return true;
             __result = 0f;
             return false;
+        }
+
+        private static bool TeleportPrefix()
+        {
+            try { return OwnCarDrive.AllowsTeleport(); }
+            catch { return true; }
         }
 
         private static void CarUpdatePostfix(CarController __instance)

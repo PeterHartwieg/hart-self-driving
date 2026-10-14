@@ -94,7 +94,8 @@ namespace DrivenRides
         // The ride car for the seam (NwhRideCar): the player inside, the car not the mod's, the keys handed back at
         // every end, and at the end the arrival: a skipped or given-up trip puts the car on the lane nearest the
         // destination first (as vanilla puts a passenger at the door), then autopark as the options say.
-        public static NwhRideCar RideCar(CarController car, NwhCar wrapped, DrivenRides.Core.Drive.CarSpec spec, EntityController? target) => new NwhRideCar
+        public static NwhRideCar RideCar(CarController car, NwhCar wrapped, DrivenRides.Core.Drive.CarSpec spec, EntityController? target,
+            VehicleComponent planPrefab, Func<bool> stop) => new NwhRideCar
         {
             Car = wrapped,
             Spec = spec,
@@ -106,19 +107,24 @@ namespace DrivenRides
                 // The drive was added to the player's car; it goes with the ride.
                 if (car != null && car.TryGetComponent<NwhDrive>(out var drive)) Object.Destroy(drive);
             },
-            Arrive = () => Arrive(car, target),
+            Arrive = () => Arrive(car, wrapped, target, planPrefab, stop),
         };
 
-        private static IEnumerator Arrive(CarController car, EntityController? target)
+        private static IEnumerator Arrive(CarController car, NwhCar wrapped, EntityController? target, VehicleComponent planPrefab, Func<bool> stop)
         {
             if (car == null) yield break;
             var drive = car.GetComponent<NwhDrive>();
-            if (drive != null && !drive.Arrived && target != null)
+            // Cut short: skipped, given up, or never driven off at all.
+            if ((drive == null || !drive.Arrived) && target != null)
             {
                 var destination = target.GetNavMeshTargetPosition();
                 var y = destination.y;
+                // As vanilla's leaving waypoint (TaxiSystem.IsValidWaypointForLeaving), free for a car of this size;
+                // parked and traffic cars there are cleared below, as vanilla does, but another of the player's own cars
+                // isn't, so a lane with one in the way is passed over.
                 var lane = TrafficManager.Instance.GetClosestWaypoint(destination, 50f,
-                    w => w.allowedCars != null && w.allowedCars.Count > 0 && TrafficManager.WithinHeight(w, y, 5f) && TrafficManager.IsNotIntersection(w));
+                    w => w.allowedCars != null && w.allowedCars.Count > 0 && TrafficManager.WithinHeight(w, y, 5f) && TrafficManager.IsNotIntersection(w)
+                         && !PlayerCarIn(wrapped, w.position, TrafficManager.Instance.GetWaypointOrientation(w)), planPrefab);
                 if (lane != null)
                 {
                     Teleport(car, lane.position, TrafficManager.Instance.GetWaypointOrientation(lane));
@@ -129,7 +135,7 @@ namespace DrivenRides
                 else Log.Info("Own car: the trip was cut short and there is no lane near the destination; the car stays where it is.");
                 yield return null;
             }
-            var park = Autopark(car, () => false);
+            var park = Autopark(car, stop);
             while (park.MoveNext()) yield return park.Current;
         }
 
@@ -142,11 +148,58 @@ namespace DrivenRides
             return FuelMethod?.Invoke(null, new object[] { car, metres }) is float used && used > 0f ? used : 0f;
         }
 
-        // As the bridge skip refuses a car without the fuel for it: the trip needs about what the bridge skip charges for
+        // Whether another of the player's cars stands where this car's body would be with its root at `at`.
+        private static readonly Collider[] Overlaps = new Collider[32];
+
+        private static bool PlayerCarIn(NwhCar car, Vector3 at, Quaternion rotation)
+        {
+            var centre = at + rotation * car.BodyCentre;
+            var n = Physics.OverlapBoxNonAlloc(centre, car.BodyHalf * 0.95f, Overlaps, rotation, ~0, QueryTriggerInteraction.Ignore);
+            for (var k = 0; k < n; k++)
+            {
+                var other = Overlaps[k].GetComponentInParent<global::VehicleController>();
+                if (other != null && other.gameObject != car.Root) return true;
+            }
+            return false;
+        }
+
+        // The own car starts where it stands: the planned line must start under it, and the car must be able to drive
+        // onto it from its pose (the planner's join check, Feasibility.Join), or the trip is refused. A car parked at
+        // the kerb usually isn't on a lane's line; pulling out first covers that until there is a pull-out manoeuvre.
+        public static string? StartRefusal(CarController car, NwhPlanner planner, DrivenRides.Core.Drive.DrivePlan plan, DrivenRides.Core.Routing.LaneGraph graph)
+        {
+            var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out var why);
+            if (wrapped == null) return why;
+            var rear = wrapped.RearAxle;
+            var forward = car.transform.forward;
+            var pose = new DrivenRides.Core.Drive.CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z));
+            var line = plan.Line(graph);
+            if (!line.Joins(pose.X, pose.Z, pose.Heading, out _)) return "pull out into the lane first";
+            var result = new DrivenRides.Core.Drive.Feasibility.SweepResult();
+            foreach (var _ in planner.Check.JoinWork(plan, line, pose, result)) { }
+            return result.What != null ? "it can't drive off from here (" + result.What + ")" : null;
+        }
+
+        // The bridge skip's fuel, as the game charges it (SkipBridgeHelper.GetFuelConsumption): the ride's own skip
+        // teleports the car across, so the fuel the car would have burnt there is taken here.
+        public static void ChargeBridgeFuel(CarController car, float metres)
+        {
+            try
+            {
+                var used = FuelFor(car, metres);
+                if (used <= 0f) return;
+                car.SetFuel(Mathf.Max(0f, car.GetCurrentFuel() - used));
+                Log.Info($"Own car: {used:0.00} fuel for the bridge ({metres:0} m).");
+            }
+            catch (Exception ex) { Log.Error("Own car bridge fuel: " + ex.Message); }
+        }
+
+        // The trip needs fuel in the tank; the car burns its own as it drives, and an empty tank mid-trip ends it
+        // (OwnCarDrive.Trouble).: the trip needs about what the bridge skip charges for
         // the planned way (the car then burns its own as it drives).
         public static bool HasFuelFor(CarController car, float metres)
         {
-            try { return car.GetCurrentFuel() >= FuelFor(car, metres); }
+            try { return SaveGameManager.Current?.gameVariables.disableVehicleFuel == true || car.fuelModule == null || !car.fuelModule.useFuel || car.GetCurrentFuel() > 0f; }
             catch (Exception ex) { Log.Error("Own car fuel check: " + ex.Message); return true; }
         }
 
@@ -259,7 +312,7 @@ namespace DrivenRides
             return wrapped;
         }
 
-        // Back to the player's keys, the car held on its brakes until they take over. Safe to call twice.
+        // Back to the player's keys, the car held on its handbrake until they take over. Safe to call twice.
         public static void End(string reason)
         {
             var car = active;
@@ -279,11 +332,13 @@ namespace DrivenRides
 
         private static void Zero(NWH.VehiclePhysics2.VehicleController vehicle)
         {
+            // Held on the handbrake: NWH swaps throttle and brakes in reverse (VehicleInputHandler.swapInputInReverse),
+            // so the brake axis could drive a car in reverse backwards.
             var input = vehicle.input;
             input.Throttle = 0f;
+            input.Brakes = 0f;
             input.Steering = 0f;
-            input.Handbrake = 0f;
-            input.Brakes = 1f;
+            input.Handbrake = 1f;
             vehicle.steering.externallyAddedAngle = 0f;
         }
 
@@ -307,6 +362,27 @@ namespace DrivenRides
                 End("the player got out");
             }
             finally { ending = false; }
+        }
+
+        // ItemPanelUI.ClickAutoPark and SkipBridgeHelper.SkipBridge prefixes: the game's own autopark and bridge skip
+        // teleport the car out from under the drive; not while the car drives itself. The ride's own autopark at the
+        // end and its own bridge skip don't go through them.
+        public static bool AllowsTeleport()
+        {
+            if (active == null) return true;
+            Notice.Show("Not while the car drives itself.");
+            return false;
+        }
+
+        // Why the trip can't go on, checked by the ride each frame: an empty tank or a wreck (condition 1, as the
+        // game's own checks) would stall the drive until the watchdog gave up. Null while all is well.
+        public static string? Trouble()
+        {
+            var car = active;
+            if (car == null) return null;
+            if (car.fuelModule != null && car.fuelModule.useFuel && car.GetCurrentFuel() <= 0f) return "The car is out of fuel";
+            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) return "The car is too damaged to drive";
+            return null;
         }
 
         public static void Drop()
