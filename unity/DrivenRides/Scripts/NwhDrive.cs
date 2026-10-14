@@ -257,7 +257,7 @@ namespace DrivenRides
             if (decision.Unsettled)
             {
                 UnsettledDecisions++;
-                Log.Info($"NWH drive: the final pass still tightened the stops after {decision.PassRounds} rounds ({driver.Along:0} m, {speed:0.0} m/s).");
+                Log.Info($"NWH drive: the final pass still tightened the stops after {decision.PassRounds} rounds; the emergency rule decided ({(decision.ForcedCommit ? "on" : "stop")}; {driver.Along:0} m, {speed:0.0} m/s).");
             }
             if (decision.Why != lastWhy)
             {

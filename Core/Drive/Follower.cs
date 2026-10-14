@@ -29,6 +29,17 @@ namespace DrivenRides.Core.Drive
             for (var n = 0; n < MaxSteps; n++)
             {
                 var ours = SpeedAt(t, times, speeds, count, ref j);
+                // Both at a steady pace from here on (the ride car past its known times, the car at the most it goes),
+                // the car closing in: skip to its trigger reaching the body. Else a car closing in slowly from far back
+                // ran out of MaxSteps before its trigger got there and counted as not staying behind (review round 8:
+                // T0 merge 1, a car 100 m back at 1.4 m/s faster flipped the cautious verdict to a stop the ride car
+                // could no longer make).
+                if (!braking && t > known && their >= cruise && their > ours && gap > trigger + Step * (their - ours))
+                {
+                    var skip = (gap - trigger) / (their - ours);
+                    gap = trigger;
+                    t += skip;
+                }
                 if (!braking && gap <= trigger) braking = true;
                 if (braking)
                 {

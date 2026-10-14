@@ -132,6 +132,9 @@ namespace DrivenRides.Core.Drive
         // statistics above were judged once more on the trajectory as it ended; review round 7, BB4).
         public int PassRounds;
         public bool Unsettled;
+        // The cars a stop was given for by the emergency rule (a stop the car can no longer make short of the car's
+        // way, judged safe to stand in: TrafficDriver.GoOn, ApproachCautious; review round 8, CC3).
+        public readonly List<int> EmergencyFor = new List<int>();
         // Layer 3: backing off along the line, away from a car standing nose to nose with the ride car.
         public bool BackOff;
         public int BackOffFrom = -1;
@@ -153,6 +156,7 @@ namespace DrivenRides.Core.Drive
             ForcedFor = ApproachFor = MarginalFor = -1;
             ForcedMargin = MarginalMargin = 0f;
             Events.Clear();
+            EmergencyFor.Clear();
             Why = "";
             Note = default;
         }

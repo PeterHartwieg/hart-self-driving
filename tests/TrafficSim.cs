@@ -34,10 +34,16 @@ internal sealed class SimResult
     // short of its way by, at HardDecel; TrafficSim). HarderThanDecel: decisions where keeping it took more than Decel.
     public int ForcedUnderFloor;
     // Decisions whose final pass ran out of rounds, and of them those still tightening when judged once more (BB4).
-    public int PassExhausted, PassUnsettled;
+    public int PassExhausted, PassUnsettled, FallbackOn, FallbackStop;
     public int PassRoundsMost;
     public float OptionLost = float.MinValue;
     public int HarderThanDecel;
+    // Stops a car could no longer make explained by news of the car (first seen, its reason to wait changing, a flag
+    // changing) within NewsSeconds: new hazards, not counted in OptionLost (review round 8, CC4).
+    public int NewHazards;
+    public string? LostKind;
+    // The first stop the car could no longer make that didn't come from the emergency rule (CC3).
+    public string? NotEmergency;
     // Stops for a car imposed when the car could no longer make them at Decel (found late), and stops imposed again
     // within a second of the last for the same car with nothing holding the car in between (flicker).
     public int ApproachesLate, ApproachesAgain;
@@ -86,12 +92,13 @@ internal sealed class TrafficSim : ILiveFlags
     private readonly bool trace;
     private float time;
 
-    public TrafficSim(TrafficScenario scenario, bool trace = false)
+    public TrafficSim(TrafficScenario scenario, bool trace = false, int passRounds = TrafficDriver.MaxPassRounds)
     {
         sc = scenario;
         this.trace = trace;
         graph = sc.BuildGraph();
         stop = sc.Waypoints.Select(w => w.Stop).ToArray();
+        stopSeen = (bool[])stop.Clone();
         replayEnd = sc.History.Count > 0 ? sc.History[^1].T : 0f;
         foreach (var t in sc.Timelines) if (t.At.Count > 0) replayEnd = Math.Max(replayEnd, t.At[^1]);
         foreach (var j in sc.Junctions) junctions[j.Id] = new Junction(j, stop, sc, graph, replayEnd);
@@ -104,7 +111,7 @@ internal sealed class TrafficSim : ILiveFlags
         body = new RideBody { Wheelbase = r.Wheelbase, FrontAhead = r.FrontAhead, RearBehind = r.RearBehind, HalfWidth = r.HalfWidth };
         driver = r.BuildDriver(line);
         ride = r.BuildCar();
-        traffic = new TrafficDriver(graph, line, driver, body);
+        traffic = new TrafficDriver(graph, line, driver, body) { PassRoundsLimit = passRounds };
         // Time enough for the whole line at 3 m/s on average, lights included (a dump runs 400 m on from its window).
         seconds = Math.Max(sc.Seconds, 30f + line.Line.Length / 3f);
     }
@@ -132,6 +139,18 @@ internal sealed class TrafficSim : ILiveFlags
         public bool Lost;
     }
 
+    // The ride car's observation history (review round 8, CC4): cars seen so far, when there was last news of each
+    // (first seen, its own reason to wait starting or ending), and when any stop flag last changed.
+    private readonly HashSet<int> seen = new();
+    private readonly Dictionary<int, float> news = new();
+    private bool[] stopSeen = Array.Empty<bool>();
+    private float flagNews = float.MinValue;
+    // How recent news must be to explain a stop the car can no longer make: what the driver decides on is at most a
+    // decision old, and the prediction is made from the car's pace over half a second (TrafficDriver's pace).
+    public const float NewsSeconds = 1f;
+
+    private bool NewsOf(int id) => time - flagNews <= NewsSeconds || news.TryGetValue(id, out var t) && time - t <= NewsSeconds;
+
     public SimResult Run()
     {
         var forcedBefore = false;
@@ -158,8 +177,16 @@ internal sealed class TrafficSim : ILiveFlags
                 for (var k = 0; k < t.At.Count && t.At[k] <= time; k++) value = t.Stop[k];
                 stop[t.Waypoint] = value;
             }
+            // New information the ride car gets (review round 8, CC4): any stop flag changing (a light, a give-way the
+            // rules open) is news about every car; a car's own reason to wait starting or ending is news about it.
+            for (var w = 0; w < stop.Length; w++) if (stop[w] != stopSeen[w]) { stopSeen[w] = stop[w]; flagNews = time; }
             var rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);
-            foreach (var c in cars) c.Step(this, rideBox, (float)ride.Heading, time);
+            foreach (var c in cars)
+            {
+                var whyBefore = c.Why;
+                c.Step(this, rideBox, (float)ride.Heading, time);
+                if (c.Why != whyBefore || c.Granted == time) news[c.Spec.Id] = time;
+            }
 
             // The ride car, as NwhDrive drives it.
             var front = driver.Along + body.FrontAhead;
@@ -183,6 +210,8 @@ internal sealed class TrafficSim : ILiveFlags
                 if (!c.Active) continue;
                 if ((c.X - ride.X) * (c.X - ride.X) + (c.Z - ride.Z) * (c.Z - ride.Z) > TrafficDriver.SeeMetres * TrafficDriver.SeeMetres) continue;
                 near.Add(c.AsOther());
+                // First seen: news.
+                if (seen.Add(c.Spec.Id)) news[c.Spec.Id] = time;
             }
             var snapshot = new TrafficSnapshot
             {
@@ -201,7 +230,16 @@ internal sealed class TrafficSim : ILiveFlags
                 if (bytes > 0 && result.Decides > 25 && ReferenceEquals(whyBefore, decision.Why)) result.DecidesAllocating++;
                 result.Decides++;
                 if (decision.PassRounds >= TrafficDriver.MaxPassRounds) result.PassExhausted++;
-                if (decision.Unsettled) result.PassUnsettled++;
+                if (decision.Unsettled)
+                {
+                    result.PassUnsettled++;
+                    // Replaced by the emergency rule (CC2): a stop now for cars all marked as the emergency rule's, or on
+                    // past them as a forced commit with the floor to spare.
+                    var front1 = driver.Along + body.FrontAhead;
+                    if (decision.ForcedCommit && decision.ForcedMargin >= TrafficDriver.MarginFloor((float)ride.Speed) - 1e-3f && decision.YieldAlong == null) result.FallbackOn++;
+                    else if (decision.YieldAlong is float fy && fy <= front1 + 0.5f && decision.EmergencyFor.Count > 0) result.FallbackStop++;
+                    else if (trace) result.Trace.Append($"UNSETTLED {time:0.00} yield {decision.YieldAlong} front {front1:0.0} forced {decision.ForcedCommit} {decision.ForcedMargin:0.00} emergency {decision.EmergencyFor.Count}\n");
+                }
                 result.PassRoundsMost = Math.Max(result.PassRoundsMost, decision.PassRounds);
             }
             else decision.Events.Clear();
@@ -270,7 +308,9 @@ internal sealed class TrafficSim : ILiveFlags
                     var imposed = x != prevYieldFor;
                     if (!episodes.TryGetValue(x, out var e) || front0 > e.WayAt + 0.5f)
                     {
-                        e = new Episode { WayAt = wayAt, Lost = short_ > 0f, LastYield = time };
+                        // Unmakeable when first imposed: a new hazard only if there was news of the car just before.
+                        e = new Episode { WayAt = wayAt, Lost = short_ > 0f && NewsOf(x), LastYield = time };
+                        if (e.Lost) result.NewHazards++;
                         if (wasFree && needA > PursuitDriver.Decel + 0.3f) result.ApproachesLate++;
                     }
                     else
@@ -280,9 +320,14 @@ internal sealed class TrafficSim : ILiveFlags
                             result.ApproachesAgain++;
                             if (trace) result.Trace.Append($"AGAIN {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} after {time - e.LastYield:0.00} s, last kind {lastKind}: {decision.Why} {decision.YieldNote}\n");
                         }
-                        // Held all along and the way found nearer: the prediction's.
-                        if (!imposed && wayAt < e.WayAt - 0.3f && short_ > 0f) e.Lost = true;
+                        // Imposed again, or the way found nearer, when the car can no longer make it: new only with news.
+                        if (!e.Lost && (imposed || wayAt < e.WayAt - 0.3f) && short_ > 0f && NewsOf(x)) { e.Lost = true; result.NewHazards++; }
                     }
+                    // A stop the car can no longer make must come from the emergency rule (CC3).
+                    if (short_ > 0f && !decision.EmergencyFor.Contains(x) && result.NotEmergency == null)
+                        result.NotEmergency = $"{time:0.00} s, car {x}, {decision.Note.Kind}, short by {short_:0.00} m: {decision.Why}";
+                    if (!e.Lost && short_ > 0f && result.LostKind == null)
+                        result.LostKind = $"{decision.Note.Kind}{(imposed ? " imposed" : " held")}{(seen.Contains(x) && news.TryGetValue(x, out var nt) ? $" news {time - nt:0}s" : "")}";
                     if (!e.Lost && short_ > result.OptionLost)
                     {
                         if (trace && short_ > 0f) result.Trace.Append($"OPTION {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} short by {short_:0.00} m, yield {decision.YieldAlong:0.0} {decision.Why}\n");
@@ -496,6 +541,8 @@ internal sealed class TrafficSim : ILiveFlags
         public float X, Z, Heading;
         public bool ForUs;
         public string Why = "";
+        // When its give-way was last granted (the junction let it go): news about it (review round 8, CC4).
+        public float Granted = float.MinValue;
         private int target = -1;
         private readonly HashSet<int> ranThrough = new(), granted = new(), passed = new();
         private float blockedByCar;
@@ -675,7 +722,7 @@ internal sealed class TrafficSim : ILiveFlags
                 }
                 if (spec.GiveWay && spec.Enter && !granted.Contains(ri) && sim.junctions.TryGetValue(spec.Junction, out var pj) && pj.IsPriority)
                 {
-                    if (room < 2.5f && pj.Free(w, Spec.Id)) granted.Add(ri);
+                    if (room < 2.5f && pj.Free(w, Spec.Id)) { granted.Add(ri); Granted = t; }
                     else
                     {
                         limit = Math.Min(limit, Approach(0f, room - 0.3f, 3f));

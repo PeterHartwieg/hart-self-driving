@@ -77,14 +77,15 @@ public sealed class ReviewRound7Tests
     }
 
     // BB1: runs whose stop came and went before (T0, through the simulated car's pedals): priority 41 gave way to an
-    // oncoming car every third decision, the U-turns and the merge lifted a cautious stop and imposed it again a
+    // oncoming car every third decision, the U-turns and the merge (3; round 7 used 5, which now loses the option at
+    // its first stop, counted in the soak since round 8) lifted a cautious stop and imposed it again a
     // moment later, and the head-on run lost a far car's stop every other decision. Now no stop is imposed again
     // within a second of the last with nothing holding the car in between, and the car can stop short of the car's
     // way at every decision a stop is imposed, through every lift (TrafficSim's OptionLost, metres short at HardDecel).
     [Theory]
     [InlineData("uturn", 2)]
     [InlineData("uturn", 11)]
-    [InlineData("merge", 5)]
+    [InlineData("merge", 3)]
     [InlineData("headon", 6)]
     public void AStopIsKeptUntilTheCarHasGoneOrGoingOnIsClear(string template, int seed)
     {
