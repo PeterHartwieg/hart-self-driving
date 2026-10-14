@@ -1621,7 +1621,7 @@ namespace DrivenRides.Core.Drive
             return true;
         }
 
-        public const float StopsForUsMargin = 0.5f, TowardsIt = 0.3f;
+        public const float StopsForUsMargin = 0.5f;
 
         private float Their(float t) => corridor.SpeedingUp ? Math.Min(corridor.TopSpeed, corridor.Speed + Corridor.Accel * t) : corridor.Speed;
 
@@ -1757,13 +1757,11 @@ namespace DrivenRides.Core.Drive
                 if (!conflict) continue;
                 // A moving car whose front trigger will catch the body in time and stop it short: no reason to wait
                 // (Peter, 14 October: "they would always stop for us, so we should just go").
-                // Not head-on, nor across at an angle that drives the ride car on towards where that car stops (more
-                // than about 107 degrees between the two: 0.1.107 dump at 145 m, a left turn across a car at 130). The
-                // poses further on are still looked at, for where the ride car must not come to a stand (keep clear).
-                // Once the body is in its way (from pose 0), any angle: the car comes up to the body in its lane and its
-                // trigger stops it there, as for any car in the way (Peter, 14 October: the head-on give-ways in left
-                // turns onto 4th Avenue).
-                if (goesOn || ((dot >= -TowardsIt || runStart == 0) && StopsForUs(c, k, ua))) { goesOn = true; continue; }
+                // At any angle, head-on too: Peter, 14 October, on 0.1.111-go2, "it's now first stopping and then going
+                // to cut into the path of an oncoming car. Why are we not just continuing". Where the stopped car would
+                // stand on the ride car's way on, StopsForUs says no. The poses further on are still looked at, for where
+                // the ride car must not come to a stand (keep clear).
+                if (goesOn || StopsForUs(c, k, ua)) { goesOn = true; continue; }
                 // A car crawling this slowly stops for the ride car as soon as the ride car's body is in its front
                 // trigger, well within the trigger's length (Gley's StopInDistance), if the body comes into its way
                 // further ahead of its front than it needs to stop: the ride car noses in at a creep
@@ -2110,7 +2108,7 @@ namespace DrivenRides.Core.Drive
             if (entry < 0) { if (!held) verdict = Verdict.Passed; return float.MaxValue; }
             if (entry == 0) { verdict = Verdict.Past; return float.MaxValue; }
             // One that will stop for the body in its trigger (StopsForUs): clear, as for the lenient judgement.
-            if (CoversSwept(entry, out var eu, out _, out var es, out var ec) && es * poses[entry].Sin + ec * poses[entry].Cos >= -TowardsIt && StopsForUs(c, entry, eu)) { verdict = Verdict.Clear; return float.MaxValue; }
+            if (CoversSwept(entry, out var eu, out _, out _, out _) && StopsForUs(c, entry, eu)) { verdict = Verdict.Clear; return float.MaxValue; }
             var boundary = rearAt[entry - 1] + body.FrontAhead - StopUncertainty;
             var room = boundary - front;
             if (room <= 0f) { verdict = Verdict.Past; return float.MaxValue; }
