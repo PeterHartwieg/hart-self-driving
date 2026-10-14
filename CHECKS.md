@@ -1,3 +1,7 @@
+# In-game checks: stop for pedestrians (nwh-rides3, 0.1.104-rides1)
+
+Options, Driven Rides, "Rides stop for pedestrians", off by default. Off: a ride car neither brakes nor stops for people crossing in front of it and drives through them, as the traffic cars do; the log has no `held by ... (Human)` lines. On: it stops for them as before. Switching it during a ride takes effect at once. Backing off ignores people too when it is off.
+
 # In-game checks: the ride panel as a card (ride-panel, 0.1.97-panel1)
 
 Disposable save, Food Trucks parked, other gameplay mods off. The IMGUI box at the top centre is gone; the panel is now a uGUI card under the Objectives panel (design Option B). It works the same as before; only the look changed. Compare it against the design canvas, "Option B: small card".
