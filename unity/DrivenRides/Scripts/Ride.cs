@@ -247,7 +247,8 @@ namespace DrivenRides
             if (ride == null && own && planNwh != null) planNwh.Ignore = null;
             if (ride != null || !own) return ride;
             // Vanilla's ride would take the player to the door and leave the car behind; instead nothing happens.
-            Notice.Show("Your car can't drive itself there: " + lastVanillaReason + ".");
+            if (TestMode.On) Notice.Show("Your car can't drive itself there: " + lastVanillaReason + ".");
+            else Notice.Text(lastVanillaReason == NoFuel ? "drivenrides:notice_owncar_no_fuel" : "drivenrides:notice_owncar_cannot");
             return NoRide(taxiSystem);
         }
 
@@ -457,7 +458,7 @@ namespace DrivenRides
                     planMs += ms;
                 }
                 if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
-                if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla("the tank is empty");
+                if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla(NoFuel);
                 if (ownCar != null && planNwh != null && planNwhPlan != null)
                 {
                     var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph);
@@ -553,6 +554,7 @@ namespace DrivenRides
         }
 
         private const string SwitchedOff = "switched off in the options";
+        private const string NoFuel = "the tank is empty";
 
         private static string lastVanillaReason = "";
 
@@ -560,10 +562,14 @@ namespace DrivenRides
         {
             Log.Info("Vanilla ride: " + reason + ".");
             lastVanillaReason = reason;
-            // Spike builds say why on screen too; a ride switched off is just a vanilla ride. The own car says it once,
-            // in its own words (TryCreate).
+            // A ride switched off is just a vanilla ride; any other says so on screen, with the reason in test mode.
+            // The own car says it once, in its own words (TryCreate).
             var own = InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi;
-            if (reason != SwitchedOff && !own) Notice.Show("Driven Rides: vanilla ride, " + reason + ".");
+            if (reason != SwitchedOff && !own)
+            {
+                if (TestMode.On) Notice.Show("Driven Rides: vanilla ride, " + reason + ".");
+                else Notice.Text("drivenrides:notice_vanilla_ride");
+            }
             return null;
         }
 
@@ -1084,7 +1090,7 @@ namespace DrivenRides
         private void TickNwh()
         {
             // The own car out of fuel or wrecked mid-trip: the trip ends where the car stopped.
-            if (kind == Kind.OwnCar && OwnCarDrive.Trouble() is string trouble) { Notice.Show(trouble + "."); Cancel(trouble.ToLowerInvariant()); return; }
+            if (kind == Kind.OwnCar && OwnCarDrive.Trouble() is string trouble) { Notice.Text(OwnCarDrive.TroubleKey(trouble)); Cancel(trouble.ToLowerInvariant()); return; }
             var drive = nwhDrive!;
             var body = Body;
             progress!.Update(GleyGraph.ToVec(body.position));
@@ -1701,7 +1707,7 @@ namespace DrivenRides
                 var ownOnBridge = kind == Kind.OwnCar ? OwnCarDrive.Car : null;
                 if (ownOnBridge != null && !OwnCarTaxi.HasFuelForBridge(ownOnBridge, Vector3.Distance(from, to)))
                 {
-                    Notice.Show("Not enough fuel to cross the bridge.");
+                    Notice.Text("drivenrides:notice_bridge_fuel");
                     Cancel("not enough fuel for the bridge");
                     yield break;
                 }

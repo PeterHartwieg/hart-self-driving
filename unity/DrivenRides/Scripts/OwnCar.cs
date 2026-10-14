@@ -28,18 +28,18 @@ namespace DrivenRides
         // Opens the destination map for the car the player sits in, or says why not.
         public static void Open()
         {
-            if (!Options.OwnCar) { Notice.Show("Self driving for your own car is off in the options."); return; }
+            if (!Options.OwnCar) { Notice.Text("drivenrides:notice_owncar_off"); return; }
             if (!(VehicleHelper.GetCurrentVehicleBase() is CarController car) || car.vehicleType == null || car.vehicleType.spawnInPlayerObject)
             {
-                Notice.Show("Only a car can drive itself.");
+                Notice.Text("drivenrides:notice_owncar_only_cars");
                 return;
             }
-            if (BuildingManager.IsInsideBuilding || UndergroundParkingManager.IsInsideParking) { Notice.Show("Drive out onto the street first."); return; }
+            if (BuildingManager.IsInsideBuilding || UndergroundParkingManager.IsInsideParking) { Notice.Text("drivenrides:notice_owncar_street"); return; }
             // The same standstill the start check asks for (StartRefusal), so the map doesn't open for a trip it refuses.
             var body = car.vehicleController?.vehicleRigidbody;
-            if (body != null ? body.velocity.magnitude > 0.3f : car.CurrentSpeed > 1f) { Notice.Show("Stop the car first."); return; }
+            if (body != null ? body.velocity.magnitude > 0.3f : car.CurrentSpeed > 1f) { Notice.Text("drivenrides:notice_owncar_stop"); return; }
             // The game's own test (VehicleParkingHelper.ParkInClosestSpot): a condition of 1 is a wreck.
-            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Notice.Show("The car is too damaged to drive."); return; }
+            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Notice.Text("drivenrides:notice_owncar_damaged"); return; }
             if (instance == null)
             {
                 var host = new GameObject("DrivenRides.OwnCarTaxi");
@@ -293,7 +293,7 @@ namespace DrivenRides
             var spot = hunt.Found;
             if (spot == null || car == null || !car.controlledByPlayer)
             {
-                if (spot == null) Notice.Show($"No free parking spot within {HuntRadii[HuntRadii.Length - 1]:0} m; park the car yourself.");
+                if (spot == null) Notice.Text("drivenrides:notice_owncar_no_spot", ("metres", HuntRadii[HuntRadii.Length - 1].ToString("0")));
                 Log.Trace($"Own car: no free autopark spot within {HuntRadii[HuntRadii.Length - 1]:0} m ({hunt.Seen} spots seen).");
                 yield break;
             }
@@ -538,7 +538,7 @@ namespace DrivenRides
         public static bool AllowsTeleport()
         {
             if (active == null) return true;
-            Notice.Show("Not while the car drives itself.");
+            Notice.Text("drivenrides:notice_owncar_busy");
             return false;
         }
 
@@ -548,10 +548,17 @@ namespace DrivenRides
         {
             var car = active;
             if (car == null) return null;
-            if (car.fuelModule != null && car.fuelModule.useFuel && car.GetCurrentFuel() <= 0f) return "The car is out of fuel";
-            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) return "The car is too damaged to drive";
+            if (car.fuelModule != null && car.fuelModule.useFuel && car.GetCurrentFuel() <= 0f) return OutOfFuel;
+            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) return TooDamaged;
             return null;
         }
+
+        private const string OutOfFuel = "The car is out of fuel";
+        private const string TooDamaged = "The car is too damaged to drive";
+
+        // The notice for a Trouble text.
+        public static string TroubleKey(string trouble) =>
+            trouble == OutOfFuel ? "drivenrides:notice_owncar_out_of_fuel" : "drivenrides:notice_owncar_damaged";
 
         public static void Drop()
         {

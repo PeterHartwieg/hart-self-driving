@@ -147,7 +147,7 @@ namespace DrivenRides
         {
             if (!Ride.OwnsPlayer && !TurnTests.Running) return true;
             // Skipping the method also skips vanilla's notice, so show one, or the click looks dead.
-            if (showNotification) Notice.Show("Not during a ride.");
+            if (showNotification) Notice.Text("drivenrides:notice_not_during_ride");
             __result = false;
             return false;
         }

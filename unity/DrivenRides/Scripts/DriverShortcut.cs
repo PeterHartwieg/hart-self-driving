@@ -38,13 +38,13 @@ namespace DrivenRides
             var waiting = SmartphonePrivateDriverUI.CurrentVehicle;
             if (waiting != null)
             {
-                if (BuildingManager.IsInsideBuilding) { Notice.Show("Your driver is waiting outside."); return; }
+                if (BuildingManager.IsInsideBuilding) { Notice.Text("drivenrides:notice_driver_outside"); return; }
                 Log.Trace("Driver shortcut: walking to the waiting driver.");
                 waiting.OnClickToSetDestination();
                 return;
             }
             var vehicles = SaveGameManager.Current.privateDriverVehicleInstances;
-            if (vehicles == null || vehicles.Count == 0) { Notice.Show("You have no private driver."); return; }
+            if (vehicles == null || vehicles.Count == 0) { Notice.Text("drivenrides:notice_no_driver"); return; }
             var vehicle = lastCalled != null && vehicles.Contains(lastCalled) ? lastCalled : vehicles[0];
             Log.Trace($"Driver shortcut: calling {vehicle.vehicleTypeName}.");
             // The phone's own handler: contract payment, the subway check, the indoor summon and its notices.
