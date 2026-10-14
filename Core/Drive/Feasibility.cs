@@ -307,24 +307,28 @@ namespace DrivenRides.Core.Drive
         private IEnumerable<object?> TurnArcWork(int entry, int exit)
         {
             if (arcs.ContainsKey((entry, exit))) yield break;
-            Verdict verdict;
+            Verdict? verdict = null;
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
-            var widest = TurnArc.Fit(graph, entry, exit, arcMinRadius);
-            if (widest == null) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction" };
+            var radii = TurnArc.Radii(graph, entry, exit, arcMinRadius);
+            var least = Math.Max(arcMinRadius * TurnArc.RadiusSlack, TurnArc.MinDriveRadius);
+            if (radii.Count == 0) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction" };
             else if (fixture == null) verdict = new Verdict { Form = "arc", Reason = NoCase };
             else
             {
-                verdict = new Verdict { Form = "arc" };
-                foreach (var y in DriveArcWork(fixture, entry, exit, widest, verdict)) yield return y;
-                // The tightest arc the car can follow keeps further from the inside corner than a wide one.
-                var least = Math.Max(arcMinRadius * TurnArc.RadiusSlack, TurnArc.MinDriveRadius);
-                if (!verdict.Feasible && widest.Radius > least + 1f && TurnArc.Fit(graph, entry, exit, arcMinRadius, least) is Polyline tight)
+                // Largest first; the first the car drives cleanly wins (TurnArc.Radii). Failed ones' reasons are kept
+                // for the log.
+                var failed = new List<string>();
+                foreach (var r in radii)
                 {
-                    var second = new Verdict { Form = "tight arc" };
-                    foreach (var y in DriveArcWork(fixture, entry, exit, tight, second)) yield return y;
-                    if (!second.Feasible) second.Reason += "; widest arc: " + verdict.Reason;
-                    verdict = second;
+                    if (!(TurnArc.Fit(graph, entry, exit, arcMinRadius, r) is Polyline arc)) continue;
+                    var tried = new Verdict { Form = r <= least + 0.01f ? "tight arc" : "arc" };
+                    foreach (var y in DriveArcWork(fixture, entry, exit, arc, tried)) yield return y;
+                    if (tried.Feasible) { verdict = tried; break; }
+                    failed.Add(FormattableString.Invariant($"{r:0.0} m: {tried.Reason}"));
+                    verdict = tried;
                 }
+                if (verdict == null) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction" };
+                else if (!verdict.Feasible) verdict.Reason = string.Join("; ", failed);
             }
             arcs[(entry, exit)] = verdict;
         }

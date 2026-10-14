@@ -85,8 +85,11 @@ namespace DrivenRides.Core.Ride
         // 2 m) let them pivot round a corner on their back wheels (Peter, turn test 0.1.47). The 6.7 m car's
         // tightest followable arc, 6.6 m, looked right.
         public const float MinDriveRadius = 6.5f;
-        // The arc may end this far past the exit waypoint, and the line runs this far on down the exit lane.
-        private const float ExitSlack = 2f;
+        // The arc may end this far past the exit waypoint (on into the exit lane, settling there later rather than
+        // hugging the corner; Peter, 14 October 2026), and the line runs RunOut on down the exit lane.
+        private const float ExitSlack = 8f;
+        // Without a junction box given, the arc that fits ends by this far past the exit waypoint.
+        private const float BoxExitSlack = 2f;
         private const float RunOut = 10f;
         // The line starts this far back along the entry lane: Gley lets go of the entry waypoint once the car's centre
         // is 5 m from it and then steered at the exit across the junction, into the oncoming lanes (turn test
@@ -128,6 +131,38 @@ namespace DrivenRides.Core.Ride
             return Fit(e, ux, uz, x, vx, vz, minRadius, radius, Math.Max(0f, first - BoxMargin), last + BoxMargin);
         }
 
+        // The radii to try for a turn, largest first (Peter, 14 October 2026: "aim for larger curves which allow higher
+        // speeds"; at 4 m/s² sideways the speed goes with the root of the radius). The largest is the one the two lanes
+        // leave room for: from the entry waypoint (the stop line) to ExitSlack past the exit waypoint, an arc plus the
+        // straights either side of it. Then smaller ones, each 0.8 of the one before, down to the junction box's arc
+        // (Fit with no radius) and the car's tightest followable one. Which one the car takes is the feasibility
+        // check's: the body against the world, the pavement, kerbs and the lanes, largest first.
+        public static List<float> Radii(LaneGraph graph, int entry, int exit, float minRadius)
+        {
+            var radii = new List<float>();
+            if (!graph.PlainHeading(entry, out var ux, out var uz) || !graph.PlainHeading(exit, out var vx, out var vz)) return radii;
+            Vec3 e = graph.Position(entry), x = graph.Position(exit);
+            var cross = ux * vz - uz * vx;
+            if (Math.Abs(cross) < 0.2f) return radii;
+            var turn = Math.Atan2(Math.Abs(cross), ux * vx + uz * vz);
+            float wx = x.X - e.X, wz = x.Z - e.Z;
+            var a = (wx * vz - wz * vx) / cross;
+            var b = (wx * uz - wz * ux) / cross;
+            var room = Math.Min(a, ExitSlack - b);
+            var least = Math.Max(minRadius * RadiusSlack, MinDriveRadius);
+            if (room <= 0f) return radii;
+            var largest = (float)Math.Min(MaxRadius, room / Math.Tan(turn / 2) - 0.01);
+            var box = Fit(graph, entry, exit, minRadius)?.Radius;
+            for (var r = largest; r > least; r *= 0.8f)
+            {
+                if (box is float bx && r <= bx + 0.5f) break;
+                radii.Add(r);
+            }
+            if (box is float b0) radii.Add(b0);
+            if (radii.Count == 0 || radii[radii.Count - 1] > least + 1f) radii.Add(least);
+            return radii;
+        }
+
         // Where the segment p-q crosses the line from `from` along (dx, dz), as metres along that line; only segments
         // at more than 45 degrees to it.
         private static bool Crossing(Vec3 from, float dx, float dz, Vec3 p, Vec3 q, out float along)
@@ -150,7 +185,7 @@ namespace DrivenRides.Core.Ride
         // tight for the car, the arc is the car's widest followable one and starts a little earlier, as a driver of a
         // long car does; it must still fit between the two waypoints.
         public static Polyline? Fit(Vec3 e, float ux, float uz, Vec3 x, float vx, float vz, float minRadius, float? radius = null,
-            float startFrom = 0f, float endBy = ExitSlack)
+            float startFrom = 0f, float endBy = BoxExitSlack)
         {
             var cross = ux * vz - uz * vx;
             var turn = Math.Atan2(Math.Abs(cross), ux * vx + uz * vz);
