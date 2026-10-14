@@ -334,12 +334,9 @@ namespace DrivenRides
         private static readonly MethodInfo? GenerateSpotsMethod = AccessTools.Method(typeof(ParkingLaneGenerator), "GenerateAutoParkSpots");
         private static readonly FieldInfo? DimensionsField = AccessTools.Field(typeof(VehicleParkingHelper), "_vcom");
         private static readonly FieldInfo? LaneColliderField = AccessTools.Field(typeof(ParkingLaneGenerator), "_collider");
-        private static readonly MethodInfo? CanEnterFenceMethod = AccessTools.Method(typeof(TaxiSystem), "CanEnterPrivateFence", new[] { typeof(int) });
         private static readonly Collider[] HuntHits = new Collider[4096];
         // A spot no further above or below the car than this: not a ramp, a deck or a road over it.
         private const float HuntHeight = 3f;
-        // A spot this close to a house behind a private fence the player may not enter is in that gated zone.
-        private const float FenceMetres = 40f;
         // Lanes whose spots are made per frame, so a dense district doesn't do them all at once.
         private const int LanesPerFrame = 8;
 
@@ -362,7 +359,9 @@ namespace DrivenRides
             var length = (DimensionsField?.GetValue(helper) as NWH.Common.CoM.VariableCenterOfMass)?.dimensions.z ?? 4.6f;
             var needs = length + padding;
             var made = new HashSet<ParkingLaneGenerator>();
-            var fenced = LockedFenceHouses();
+            var reach = Reachable(car.transform.position);
+            AutoParkSpot? best = null;
+            var bestScore = float.MaxValue;
             foreach (var radius in HuntRadii)
             {
                 if (car == null) yield break;
@@ -384,58 +383,60 @@ namespace DrivenRides
                 if (car == null) yield break;
                 at = car.transform.position;
                 n = Physics.OverlapSphereNonAlloc(at, radius, HuntHits, 1 << LayerHelper.AutoParkSpotsLayerIndex, QueryTriggerInteraction.Collide);
-                AutoParkSpot? best = null;
-                var bestDistance = float.MaxValue;
                 for (var k = 0; k < n; k++)
                 {
                     if (HuntHits[k] == null || !HuntHits[k].TryGetComponent<AutoParkSpot>(out var spot) || spot.maxVehicleLength < needs) continue;
                     hunt.Seen++;
                     var p = spot.transform.position;
                     var away = Vector3.Distance(at, p);
-                    var d = away + (door is Vector3 dd ? 0.5f * Vector3.Distance(dd, p) : 0f);
-                    // As vanilla: not a spot the car already stands in. Not on another level, nor in a gated zone the
-                    // player may not drive into.
-                    // The sphere catches a spot whose collider reaches into it, and a spot's collider spans its whole
-                    // gap; only one whose middle (where the car goes) is inside this radius counts in this step.
-                    if (away < 1.5f || away > radius || d >= bestDistance || Mathf.Abs(p.y - at.y) > HuntHeight || InFence(fenced, p) || IsOccupied(helper, spot)) continue;
+                    var score = away + (door is Vector3 dd ? 0.5f * Vector3.Distance(dd, p) : 0f);
+                    // As vanilla: not a spot the car already stands in. The sphere catches a spot whose collider reaches
+                    // into it, and a spot's collider spans its whole gap: only one whose middle (where the car goes) is
+                    // inside this radius counts. Not on another level, and on a road the car can reach without a
+                    // locked gate.
+                    if (away < 1.5f || away > radius || score >= bestScore || Mathf.Abs(p.y - at.y) > HuntHeight || !reach(p) || IsOccupied(helper, spot)) continue;
                     best = spot;
-                    bestDistance = d;
+                    bestScore = score;
                 }
-                if (best != null) { hunt.Found = best; yield break; }
+                // A spot further out is more than `radius` away, so it can't score lower than that.
+                if (best != null && bestScore <= radius) break;
             }
+            hunt.Found = best;
         }
 
-        // The houses inside private fences the player may not enter (TaxiSystem.CanEnterPrivateFence, as the taxi asks).
-        // The fenced houses don't move, so they are found once per save; who may enter is asked each time.
-        private static object? fencedFor;
-        private static readonly List<(Vector3 At, int Fence)> fencedHouses = new List<(Vector3, int)>();
+        // Whether the car could drive to a point's lane: the lane waypoints joined to those near the car, either way
+        // along a lane (a one-way street is reached round the block), within ReachMetres of the car, without a step
+        // through a gate that is locked for the player (Gates). A spot counts if a waypoint within ReachLane of it is
+        // among them. Without the lane graph everything counts.
+        private const float ReachMetres = 250f, ReachLane = 10f;
 
-        private static List<Vector3> LockedFenceHouses()
+        private static Func<Vector3, bool> Reachable(Vector3 from)
         {
-            var houses = new List<Vector3>();
-            try
+            var graph = GleyGraph.Graph;
+            if (graph == null) return _ => true;
+            if (!Gates.Read) Gates.Refresh(graph);
+            var origin = GleyGraph.ToVec(from);
+            var seen = new HashSet<int>();
+            var queue = new Queue<int>();
+            foreach (var w in graph.Near(origin, 15f)) if (seen.Add(w)) queue.Enqueue(w);
+            while (queue.Count > 0)
             {
-                if (!ReferenceEquals(fencedFor, SaveGameManager.Current))
-                {
-                    fencedHouses.Clear();
-                    foreach (var b in Object.FindObjectsOfType<CityBuildingController>(true))
-                    {
-                        var index = b != null && b.building != null ? b.building.locatedInsidePrivateFenceIndex : -1;
-                        if (index >= 0) fencedHouses.Add((b.transform.position, index));
-                    }
-                    fencedFor = SaveGameManager.Current;
-                }
-                foreach (var (at, fence) in fencedHouses)
-                    if (!(CanEnterFenceMethod?.Invoke(null, new object[] { fence }) is bool may && may)) houses.Add(at);
+                var w = queue.Dequeue();
+                foreach (var next in graph.Successors(w)) Visit(w, next, next);
+                foreach (var prev in graph.Predecessors(w)) Visit(prev, w, prev);
             }
-            catch (Exception ex) { Log.Error("Own car autopark, fences: " + ex.Message); }
-            return houses;
-        }
-
-        private static bool InFence(List<Vector3> houses, Vector3 p)
-        {
-            foreach (var h in houses) if ((h - p).sqrMagnitude < FenceMetres * FenceMetres) return true;
-            return false;
+            void Visit(int a, int b, int other)
+            {
+                if (seen.Contains(other) || Gates.LockedStep(a, b)) return;
+                if (DrivenRides.Core.Routing.Vec3.HorizontalDistance(origin, graph.Position(other)) > ReachMetres) return;
+                seen.Add(other);
+                queue.Enqueue(other);
+            }
+            return p =>
+            {
+                foreach (var w in graph.Near(GleyGraph.ToVec(p), ReachLane)) if (seen.Contains(w)) return true;
+                return false;
+            };
         }
 
         private static readonly FieldInfo? LastParkField = AccessTools.Field(typeof(VehicleParkingHelper), "_lastAutoParkPosition");
