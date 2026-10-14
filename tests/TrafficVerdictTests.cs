@@ -1,3 +1,4 @@
+using System;
 using DrivenRides.Core.Testing;
 using Xunit;
 
@@ -37,31 +38,39 @@ public sealed class TrafficVerdictTests
         Assert.Equal("avoided", avoided.Verdict);
     }
 
-    // Review round 2 (U2): judged on the velocities before the impact and the contact's normal (either sign).
+    // Review round 9: only a car moving sideways into the ride car is the other car's; following and junctions count.
     [Fact]
-    public void RearEndedWhileStandingIsTheOtherCars()
+    public void RearEndedWhileStandingCounts()
     {
         // The ride car stands at the origin facing north; a car comes up behind it at 6 m/s and hits its rear.
-        Assert.False(TrafficVerdict.CausedByRide(0f, 0f, 0f, 0f, 0f, 6f, 0f, -4.6f, 0f, 1f));
+        Assert.True(TrafficVerdict.CausedByRide(0f, 0f, 0f, 0f, 0f, 0f, 6f, 0f, 0f, -4.6f));
     }
 
     [Fact]
-    public void DrivingIntoACarIsTheRideCarsEvenIfTheImpactStoppedIt()
+    public void DrivingIntoACarIsTheRideCars()
     {
-        // Before the impact the ride car went north at 5 m/s into a car standing across its way.
-        Assert.True(TrafficVerdict.CausedByRide(0f, 5f, 0f, 0f, 0f, 0f, 0f, 4f, 0f, -1f));
+        Assert.True(TrafficVerdict.CausedByRide(0f, 5f, 0f, 0f, 0f, 0f, 0f, (float)(Math.PI / 2), 0f, 4f));
     }
 
     [Fact]
-    public void BothComingAtThePointIsTheRideCars()
+    public void ACrossingCarAtAJunctionCounts()
     {
-        Assert.True(TrafficVerdict.CausedByRide(0f, 3f, 0f, 0f, -4f, 0f, 3f, 3f, 0.7f, 0.7f));
+        // Standing in a junction; a car comes from the right across the ride car's way into it.
+        Assert.True(TrafficVerdict.CausedByRide(0f, 0f, 0f, 0f, 0f, -4f, 0f, -(float)(Math.PI / 2), 3f, 1f));
     }
 
     [Fact]
-    public void CutInOnFromTheSideIsTheOtherCars()
+    public void AMergeIntoTheStandingRideCarIsTheOtherCars()
     {
-        // The ride car goes north at 4 m/s; a car beside it swerves into its flank.
-        Assert.False(TrafficVerdict.CausedByRide(0f, 4f, 0f, 0f, -2f, 4f, 2.2f, 0.5f, -1f, 0f));
+        // Standing facing north; a car on its right, heading 10 degrees left of north at 4.5 m/s, comes into its flank.
+        var h = -10f * (float)Math.PI / 180f;
+        Assert.False(TrafficVerdict.CausedByRide(0f, 0f, 0f, 0f, 0f, 4.5f * (float)Math.Sin(h), 4.5f * (float)Math.Cos(h), h, 3.2f, 0.2f));
+    }
+
+    [Fact]
+    public void SwervingIntoACarBesideIsTheRideCars()
+    {
+        // Going north, the ride car moves left into a car beside it going straight.
+        Assert.True(TrafficVerdict.CausedByRide(-1f, 4f, -0.25f, 0f, 0f, 0f, 4f, 0f, -2.2f, 0.5f));
     }
 }

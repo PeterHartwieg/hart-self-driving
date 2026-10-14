@@ -359,6 +359,12 @@ namespace DrivenRides.Core.Drive
                 var touch = FirstTouch(other, GroundMargin, 0);
                 if (!heldFor.Contains(c.Id))
                 {
+                    // One about to come into the ride car's lane: kept behind where it will be in it.
+                    if (ComingIn(c, s, along, out var inLane, out var inAlong) && inAlong > along)
+                    {
+                        var at = FirstTouch(inLane, GroundMargin, 0);
+                        if (at >= 0) Gap(d, at, along, c.Id);
+                    }
                     if (touch < 0 || !Ahead(c, touch)) continue;
                     // Only the margin touches: squeeze past at a crawl (a long car finishing a turn beside a car
                     // waiting at its line; T0 priority). Where the body itself would touch, stop short.
@@ -451,6 +457,12 @@ namespace DrivenRides.Core.Drive
                 {
                     Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
                     if (RearAhead(c, poses[touch])) followed.Add(c.Id);
+                }
+                // One coming into the ride car's lane ahead of it: followed where it will be in it.
+                else if (ComingIn(c, s, along, out var inLane, out var inAlong) && inAlong > along)
+                {
+                    var at = FirstTouch(inLane, GroundMargin, 0);
+                    if (at >= 0) Gap(d, at, along, c.Id, false, Math.Max(0f, c.Vx * poses[at].Sin + c.Vz * poses[at].Cos));
                 }
             }
             // The firm stops (stop line, the planner's hold, standing cars, parked cars and people) and the car followed.
@@ -1119,6 +1131,28 @@ namespace DrivenRides.Core.Drive
                 cap = Math.Min(cap, at >= from ? ms : PursuitDriver.Approach(ms, from - at));
             }
             return cap;
+        }
+
+        // A traffic car whose target waypoint is on the ride car's way, not behind its rear, but that is not in its lane
+        // yet: Gley changes lanes and merges without looking for the ride car, so a careful driver treats it as coming
+        // in already: a car of its size on the ride car's line, where it is along it (`box`, `alongAt`). Review round
+        // 9: six of the eight contacts in two T3 runs on 0.1.80 were cars moving sideways into the ride car's lane,
+        // their target in it 1 to 10 s before (the ride car queued beside their rear, or stood as they came in).
+        private bool ComingIn(in OtherCar c, in TrafficSnapshot s, float along, out Box box, out float alongAt)
+        {
+            box = default;
+            alongAt = 0f;
+            if (c.Target < 0 || s.Marks == null) return false;
+            var on = false;
+            for (var i = 0; i < s.Marks.Count && !on; i++) on = s.Marks[i].Waypoint == c.Target && s.Marks[i].Along > along - body.RearBehind;
+            if (!on) return false;
+            var at = line.Locate(c.X, c.Z, Math.Max(0f, along - SweepMetres), 2f * SweepMetres);
+            // In the lane already: its own body says so.
+            if (Math.Abs(at.Lateral) < body.HalfWidth) return false;
+            Vec3 p = line.Line.At(at.Along), q = line.Line.At(at.Along + 0.5f);
+            box = new Box(p.X, p.Z, (float)Math.Atan2(q.X - p.X, q.Z - p.Z), c.Width / 2f, c.Length / 2f);
+            alongAt = at.Along;
+            return true;
         }
 
         // A gap ahead: how far the front can move before the pose at `pose` touches.

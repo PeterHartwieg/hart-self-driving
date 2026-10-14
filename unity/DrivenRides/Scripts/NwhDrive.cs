@@ -452,18 +452,20 @@ namespace DrivenRides
             if (other == null) return;
             Contacts++;
             // Who caused it, from both cars' velocities before the impact (this physics step's start: ours from
-            // FixedUpdate, theirs from this step's reading of the Gley cars) and the contact's normal; anything
-            // unclear counts as this car's (TrafficVerdict.CausedByRide, review round 2, U2).
+            // FixedUpdate, theirs from this step's reading of the Gley cars) and headings: the other car's only if it
+            // moved sideways into this one (TrafficVerdict.CausedByRide, review round 9).
             var theirV = Vector3.zero;
+            var theirHeading = 0f;
             var sampled = false;
             for (var i = 0; i < gley.Components.Count && i < cars.Count; i++)
-                if (gley.Components[i] == other) { theirV = new Vector3(cars[i].Vx, 0f, cars[i].Vz); sampled = true; break; }
+                if (gley.Components[i] == other) { theirV = new Vector3(cars[i].Vx, 0f, cars[i].Vz); theirHeading = cars[i].Heading; sampled = true; break; }
             var normal = collision.contactCount > 0 ? collision.GetContact(0).normal : Vector3.zero;
             var ourC = Car.Body.worldCenterOfMass;
             var theirC = other.rb != null ? other.rb.worldCenterOfMass : other.transform.position;
             // A car not in this step's reading has no velocity from before the impact: unknown, so this car's (review
             // round 3, V4).
-            var caused = !sampled || TrafficVerdict.CausedByRide(preVelocity.x, preVelocity.z, ourC.x, ourC.z, theirV.x, theirV.z, theirC.x, theirC.z, normal.x, normal.z);
+            var forward = Car.Root.transform.forward;
+            var caused = !sampled || TrafficVerdict.CausedByRide(preVelocity.x, preVelocity.z, Mathf.Atan2(forward.x, forward.z), ourC.x, ourC.z, theirV.x, theirV.z, theirHeading, theirC.x, theirC.z);
             var ours = new Vector2(preVelocity.x, preVelocity.z).magnitude;
             var theirs = new Vector2(theirV.x, theirV.z).magnitude;
             var towards = normal.sqrMagnitude > 0f ? Mathf.Abs(Vector3.Dot(preVelocity, Vector3.ProjectOnPlane(normal, Vector3.up).normalized)) : 0f;
