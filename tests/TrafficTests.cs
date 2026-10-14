@@ -300,7 +300,7 @@ public sealed class TrafficTests
         return lines;
     }
 
-    private sealed class ReplayFlags : DrivenRides.Core.Drive.ILiveFlags
+    internal sealed class ReplayFlags : DrivenRides.Core.Drive.ILiveFlags
     {
         private readonly TrafficScenario s;
         public ReplayFlags(TrafficScenario s) => this.s = s;
