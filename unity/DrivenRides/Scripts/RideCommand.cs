@@ -28,8 +28,9 @@ namespace DrivenRides
     //
     //   ride [kind=taxi|stand|driver|own] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
     //        [autopark=off|cars|every] [skip=N] [exit=N] [kerb=M] (own: the player's own car drives itself; it is put on a
-    //        lane by the player first, or M metres to the right of it with kerb=M; skip presses Skip N seconds in, exit
-    //        gets the player out N seconds in)
+    //        lane by the player first, or M metres to the right of it with kerb=M, which the start check refuses past
+    //        1.5 m; kerb=0.01 re-seats a car that is in a spot; skip presses Skip N seconds in, exit gets the player out
+    //        N seconds in)
     // `ridemode nwh|gley|options` picks car physics or the Gley rides for the rides after it (TurnTests).
     internal static class RideCommand
     {
@@ -222,7 +223,7 @@ namespace DrivenRides
             result["car"] = car.vehicleType.vehicleTypeName;
             result["autoparkSupported"] = car.vehicleType.autoParkSupported;
             var player = InstanceBehavior<GameManager>.Instance.playerController;
-            // kerb=M: seated M metres to the right of the lane, as a car parked at the kerb (it pulls out first).
+            // kerb=M: seated M metres to the right of the lane, as a car parked at the kerb.
             var kerb = args.TryGetValue("kerb", out var kv) && float.TryParse(kv, NumberStyles.Float, CultureInfo.InvariantCulture, out var km) ? km : 0f;
             if (kerb != 0f && ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
             {

@@ -139,7 +139,7 @@ namespace DrivenRides
                 else Log.Info("Own car: the trip was cut short and there is no lane near the destination; the car stays where it is.");
                 yield return null;
             }
-            var park = Autopark(car, stop);
+            var park = Autopark(car, stop, target != null ? target.GetNavMeshTargetPosition() : (Vector3?)null);
             while (park.MoveNext()) yield return park.Current;
         }
 
@@ -192,14 +192,13 @@ namespace DrivenRides
             return result.What != null ? "it can't drive off from here (" + result.What + ")" : null;
         }
 
-        // The route's first waypoint: the start of the lane step that runs beside or under the car's rear axle, along
-        // the car's way, the nearest such step sideways. `sideways` is the rear axle's offset from that step (right
-        // positive; a car at the kerb is a few metres to the right) and `along` how far along the step it is. Falls back
-        // to the waypoint nearest the car (`nearest`, sideways at MaxValue) when no step runs beside it.
-        public static int StartUnder(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest, Func<int, bool> goodStart, out float sideways, out float along)
+        // The route's first waypoint: the start of the lane step that runs under the car's rear axle, along the car's
+        // way, the nearest such step sideways (`sideways`: the rear axle's offset from it, right positive, for the log;
+        // the start check refuses more than 1.5 m). Falls back to the waypoint nearest the car (`nearest`, sideways at
+        // MaxValue) when no step runs under it.
+        public static int StartUnder(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest, Func<int, bool> goodStart, out float sideways)
         {
             sideways = float.MaxValue;
-            along = 0f;
             var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _);
             var rear = wrapped != null ? wrapped.RearAxle : car.transform.position;
             var forward = car.transform.forward;
@@ -226,7 +225,7 @@ namespace DrivenRides
                     // Inside the step: the line starts at the step's start, so a rear axle behind it is off the line.
                     if (t < 0f || t > length) continue;
                     var side = (rear.x - a.X) * uz - (rear.z - a.Z) * ux;
-                    if (Mathf.Abs(side) < Mathf.Abs(sideways)) { sideways = side; along = t; best = i; }
+                    if (Mathf.Abs(side) < Mathf.Abs(sideways)) { sideways = side; best = i; }
                 }
             }
             return best;
@@ -266,7 +265,7 @@ namespace DrivenRides
         private static readonly FieldInfo? ParkingHelperField = AccessTools.Field(typeof(CarController), "vehicleParkingHelper");
 
         // Stepped by the ride, which stops stepping when it is cancelled; stop says so between steps too.
-        public static IEnumerator Autopark(CarController car, Func<bool> stop)
+        public static IEnumerator Autopark(CarController car, Func<bool> stop, Vector3? door = null)
         {
             var mode = Options.Autopark;
             var supported = car.vehicleType != null && car.vehicleType.autoParkSupported;
@@ -289,7 +288,7 @@ namespace DrivenRides
             }
             // The closest free spot, hunted for further out until one is found (Peter, 14 October 2026).
             var hunt = new SpotHunt();
-            var hunting = Hunt(car, helper, hunt);
+            var hunting = Hunt(car, helper, hunt, door);
             while (hunting.MoveNext()) { yield return hunting.Current; if (stop()) yield break; }
             var spot = hunt.Found;
             if (spot == null || car == null || !car.controlledByPlayer)
@@ -334,7 +333,15 @@ namespace DrivenRides
         private static readonly float[] HuntRadii = { 20f, 50f, 100f, 150f };
         private static readonly MethodInfo? GenerateSpotsMethod = AccessTools.Method(typeof(ParkingLaneGenerator), "GenerateAutoParkSpots");
         private static readonly FieldInfo? DimensionsField = AccessTools.Field(typeof(VehicleParkingHelper), "_vcom");
-        private static readonly Collider[] HuntHits = new Collider[512];
+        private static readonly FieldInfo? LaneColliderField = AccessTools.Field(typeof(ParkingLaneGenerator), "_collider");
+        private static readonly MethodInfo? CanEnterFenceMethod = AccessTools.Method(typeof(TaxiSystem), "CanEnterPrivateFence", new[] { typeof(int) });
+        private static readonly Collider[] HuntHits = new Collider[4096];
+        // A spot no further above or below the car than this: not a ramp, a deck or a road over it.
+        private const float HuntHeight = 3f;
+        // A spot this close to a house behind a private fence the player may not enter is in that gated zone.
+        private const float FenceMetres = 40f;
+        // Lanes whose spots are made per frame, so a dense district doesn't do them all at once.
+        private const int LanesPerFrame = 8;
 
         private sealed class SpotHunt
         {
@@ -347,12 +354,15 @@ namespace DrivenRides
         // car (VehicleParkingHelper.FindNearestFreeSpot). The hunt makes the spots on every parking lane within each
         // radius in turn and takes the nearest free one long enough for the car, by the game's own measures (the car's
         // length plus the padding, VehicleParkingHelper.IsSpotOccupied).
-        private static IEnumerator Hunt(CarController car, VehicleParkingHelper helper, SpotHunt hunt)
+        // Nearest counts the walk to the door too (`door`, the destination), so a spot down the same street beats one as
+        // near through the block on the street behind.
+        private static IEnumerator Hunt(CarController car, VehicleParkingHelper helper, SpotHunt hunt, Vector3? door)
         {
             var padding = InstanceBehavior<GlobalReferences>.Instance.autoParkSettings.VehiclePadding * 2f;
             var length = (DimensionsField?.GetValue(helper) as NWH.Common.CoM.VariableCenterOfMass)?.dimensions.z ?? 4.6f;
             var needs = length + padding;
             var made = new HashSet<ParkingLaneGenerator>();
+            var fenced = LockedFenceHouses();
             foreach (var radius in HuntRadii)
             {
                 if (car == null) yield break;
@@ -363,8 +373,11 @@ namespace DrivenRides
                 {
                     var lane = HuntHits[k] != null ? HuntHits[k].GetComponentInParent<ParkingLaneGenerator>() : null;
                     if (lane == null || !made.Add(lane)) continue;
+                    // As vanilla's RegenerateAutoParkSpotsNear: only lanes with their collider.
+                    if (LaneColliderField != null && LaneColliderField.GetValue(lane) as Object == null) continue;
                     try { GenerateSpotsMethod?.Invoke(lane, null); any = true; }
                     catch (Exception ex) { Log.Error("Own car autopark, spots: " + ex.Message); }
+                    if (made.Count % LanesPerFrame == 0) { yield return null; if (car == null) yield break; }
                 }
                 // The spots it replaced go at the end of the frame; the new ones are found after it.
                 if (any) { yield return null; Physics.SyncTransforms(); }
@@ -377,14 +390,41 @@ namespace DrivenRides
                 {
                     if (HuntHits[k] == null || !HuntHits[k].TryGetComponent<AutoParkSpot>(out var spot) || spot.maxVehicleLength < needs) continue;
                     hunt.Seen++;
-                    var d = Vector3.Distance(at, spot.transform.position);
-                    // As vanilla: not a spot the car already stands in.
-                    if (d < 1.5f || d >= bestDistance || IsOccupied(helper, spot)) continue;
+                    var p = spot.transform.position;
+                    var away = Vector3.Distance(at, p);
+                    var d = away + (door is Vector3 dd ? 0.5f * Vector3.Distance(dd, p) : 0f);
+                    // As vanilla: not a spot the car already stands in. Not on another level, nor in a gated zone the
+                    // player may not drive into.
+                    if (away < 1.5f || d >= bestDistance || Mathf.Abs(p.y - at.y) > HuntHeight || InFence(fenced, p) || IsOccupied(helper, spot)) continue;
                     best = spot;
                     bestDistance = d;
                 }
                 if (best != null) { hunt.Found = best; yield break; }
             }
+        }
+
+        // The houses inside private fences the player may not enter (TaxiSystem.CanEnterPrivateFence, as the taxi asks).
+        private static List<Vector3> LockedFenceHouses()
+        {
+            var houses = new List<Vector3>();
+            try
+            {
+                foreach (var b in Object.FindObjectsOfType<CityBuildingController>(true))
+                {
+                    var index = b != null && b.building != null ? b.building.locatedInsidePrivateFenceIndex : -1;
+                    if (index < 0) continue;
+                    if (CanEnterFenceMethod?.Invoke(null, new object[] { index }) is bool may && may) continue;
+                    houses.Add(b.transform.position);
+                }
+            }
+            catch (Exception ex) { Log.Error("Own car autopark, fences: " + ex.Message); }
+            return houses;
+        }
+
+        private static bool InFence(List<Vector3> houses, Vector3 p)
+        {
+            foreach (var h in houses) if ((h - p).sqrMagnitude < FenceMetres * FenceMetres) return true;
+            return false;
         }
 
         private static readonly FieldInfo? LastParkField = AccessTools.Field(typeof(VehicleParkingHelper), "_lastAutoParkPosition");
