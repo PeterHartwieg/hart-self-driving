@@ -139,7 +139,6 @@ namespace DrivenRides
         // inner lane) are low or outside that: T3 (session 20261013-185723) refused every ride because the sweep took
         // them for cars in the lane; the manoeuvres' body sweep still counts every prop.
         private static int CarsMask => (1 << LayerHelper.ParkedVehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
-        private static int StandingMask => TestCar.ObstacleMask | RaisedMask;
         private static int ParkedMask => parkedMask >= 0 ? parkedMask
             : parkedMask = (1 << LayerHelper.ParkedVehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex) | TestCar.ObstacleMask;
         // The lanes are swept this far ahead when a ride is planned; the rest as the car drives (BlockedAhead), since
@@ -371,6 +370,7 @@ namespace DrivenRides
             var right = new Vector3(forward.z, 0f, -forward.x);
             var rotation = Quaternion.LookRotation(forward);
             var half = Car.BodyHalf.X;
+            var bodyBottom = Mathf.Max(0.05f, Car.BodyCentre.Y - Car.BodyHalf.Y);
             // Room needed beside each kind: the driver stops for a car within half width + 0.4 m of its line.
             const float carClear = 0.5f, propClear = Feasibility.NearMiss + 0.1f;
             var maxShift = Pavement.LaneHalf + 0.2f - half;
@@ -383,7 +383,10 @@ namespace DrivenRides
                 var f = (float)i / steps;
                 var ground = a.Y + (b.Y - a.Y) * f;
                 var centre = new Vector3(a.X + (b.X - a.X) * f, ground, a.Z + (b.Z - a.Z) * f);
-                foreach (var (hit, clear, lowest) in new[] { (CarsMask, carClear, 0.3f), (StandingMask, propClear, RoadClearance) })
+                // Props and buildings from the body's underside up (T3 on 0.1.81: the limo's bumper met a Hamptons gate's
+                // door 0.18 m above the road, under the 0.35 m the sweep looked from); the road's own raised parts from
+                // RoadClearance, so a crown or a ramp stays under it.
+                foreach (var (hit, clear, lowest) in new[] { (CarsMask, carClear, 0.3f), (TestCar.ObstacleMask, propClear, bodyBottom), (RaisedMask, propClear, RoadClearance) })
                 {
                     var box = new Vector3(Pavement.LaneHalf + 0.5f, (1.5f - lowest) / 2f, 0.5f);
                     var n = Physics.OverlapBoxNonAlloc(centre + Vector3.up * ((1.5f + lowest) / 2f), box, hits, rotation, hit, QueryTriggerInteraction.Ignore);

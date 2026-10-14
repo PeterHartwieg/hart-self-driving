@@ -513,7 +513,7 @@ namespace DrivenRides.Core.Drive
             return result.What;
         }
 
-        public IEnumerable<object?> SweepWork(DrivePlan plan, DriveLine line, float from, float to, SweepResult result)
+        public IEnumerable<object?> SweepWork(DrivePlan plan, DriveLine line, float from, float to, SweepResult result, float margin = LaneMargin)
         {
             var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
             var start = Math.Max(0f, from - 25f);
@@ -521,7 +521,7 @@ namespace DrivenRides.Core.Drive
             var model = car.Model(p0.X, p0.Z, Math.Atan2(p1.X - p0.X, p1.Z - p0.Z));
             driver.StartAt(p0.X, p0.Z);
             model.Speed = driver.PlannedSpeed(start, car.TopKmh / 3.6f);
-            return FollowWork(driver, model, line, from, to, result, LaneMargin);
+            return FollowWork(driver, model, line, from, to, result, margin);
         }
 
         // What a sweep or a join met (null: nothing), and the rear axle's last distance from the line.
@@ -679,8 +679,9 @@ namespace DrivenRides.Core.Drive
 
         // The line a plan gives, checked as it will be driven (review rounds 1 and 2): each rounded corner and each
         // sideways move driven by the model over its stretch (Sweep, at LaneMargin). A rounded corner that fails is
-        // left sharp, and the sharp corner is swept on the final line: one that fails too blocks its step, and the
-        // route goes round it (T3 on 0.1.81: ride 16 drove a Hamptons gate's sharp corner blind into its door). A
+        // left sharp, and the sharp corner is swept on the final line; one that fails is tried at SqueezeKmh with the
+        // real body, and only one that fails that too blocks its step, so the route goes round it (T3 on 0.1.81: ride
+        // 16 drove a Hamptons gate's sharp corner blind into its door at 24 km/h). A
         // move that fails is dropped, and as the lane without it is the one found blocked, its step fails. Each
         // failure goes in `failed` (the step to block, and why), and a plan with any failure must not be driven.
         // Yields after each sweep, so a caller can spread the work.
@@ -722,7 +723,22 @@ namespace DrivenRides.Core.Drive
             {
                 var swept = new SweepResult();
                 foreach (var y in SweepWork(plan, final, final.AlongOf[k] - 10f, final.AlongOf[k] + 10f, swept)) yield return y;
-                if (swept.What != null && k + 1 < plan.Path.Count) failed.Add((plan.Path[k], plan.Path[k + 1], $"corner at {plan.Path[k]}, rounded or sharp: {swept.What}"));
+                if (swept.What == null || k + 1 >= plan.Path.Count) continue;
+                // A narrow gap the lane itself goes through (a gate, a pillar beside the lane): the lane's own line
+                // driven at SqueezeKmh from the step before the corner to the step after it, judged with the car's
+                // real body and the near-miss only (at a crawl the model keeps to the car within centimetres).
+                var slow = new List<(int, float)>();
+                for (var q = Math.Max(0, k - 1); q <= k + 1 && q < plan.Path.Count; q++) slow.Add((q, SqueezeKmh));
+                plan.Slow.AddRange(slow);
+                var squeezed = new SweepResult();
+                foreach (var y in SweepWork(plan, final, final.AlongOf[k] - 10f, final.AlongOf[k] + 10f, squeezed, 0f)) yield return y;
+                if (squeezed.What == null)
+                {
+                    notes?.Add($"corner at {plan.Path[k]} driven at {SqueezeKmh:0} km/h on the lane's line ({swept.What})");
+                    continue;
+                }
+                foreach (var e in slow) plan.Slow.Remove(e);
+                failed.Add((plan.Path[k], plan.Path[k + 1], $"corner at {plan.Path[k]}, rounded, sharp or at {SqueezeKmh:0} km/h: {squeezed.What}"));
             }
             if (!settled)
                 foreach (var shift in plan.Shifts)
@@ -730,6 +746,8 @@ namespace DrivenRides.Core.Drive
         }
 
         public const int ValidateRounds = 6;
+        // How slowly a lane corner through a narrow gap is driven.
+        public const float SqueezeKmh = 10f;
 
         // Validate run to its end: the steps that failed (none: the plan may be driven).
         public List<(int From, int To, string What)> ValidateNow(DrivePlan plan, List<string>? notes = null)

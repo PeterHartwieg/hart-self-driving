@@ -86,7 +86,26 @@ public sealed class ReviewRound2Tests
         var blocked = DrivePlan.Build(graph, lane, Small(), posted.Arc, posted.Clear);
         var failed = posted.ValidateNow(blocked);
         Assert.DoesNotContain(3, blocked.Fillets);
-        Assert.Contains(failed, f => f.From == lane[3] && f.To == lane[4] && f.What.Contains("rounded or sharp") && f.What.Contains("post"));
+        Assert.Contains(failed, f => f.From == lane[3] && f.To == lane[4] && f.What.Contains("rounded, sharp or at 10 km/h") && f.What.Contains("post"));
+    }
+
+    // A narrow gap the lane goes through (T3 on 0.1.81, ride 16's Hamptons gate): a corner that fails rounded and
+    // sharp at the lane margin is driven slowly on the lane's line with the real body if that clears, and its step
+    // stays; a post the real body meets even then still blocks it.
+    [Fact]
+    public void ACornerThroughANarrowGapIsDrivenSlowly()
+    {
+        var (graph, lane) = Corner();
+        var gap = new Feasibility(graph, Small(), Post(2.0f, 30f));
+        var plan = DrivePlan.Build(graph, lane, Small(), gap.Arc, gap.Clear);
+        var notes = new List<string>();
+        Assert.Empty(gap.ValidateNow(plan, notes));
+        Assert.Contains(notes, n => n.Contains($"corner at {lane[3]} driven at 10 km/h"));
+        Assert.Contains(plan.Slow, s => s.Position == 3 && s.SpeedKmh == Feasibility.SqueezeKmh);
+        var closer = new Feasibility(graph, Small(), Post(1.9f, 31f));
+        var blocked = DrivePlan.Build(graph, lane, Small(), closer.Arc, closer.Clear);
+        Assert.Contains(closer.ValidateNow(blocked), f => f.From == lane[3] && f.What.Contains("at 10 km/h: post"));
+        Assert.DoesNotContain(blocked.Slow, s => s.SpeedKmh == Feasibility.SqueezeKmh);
     }
 
     // Only corners a fillet rounds are swept: T3 on 0.1.80 swept each waypoint of a straight street as a "corner" (41 of
