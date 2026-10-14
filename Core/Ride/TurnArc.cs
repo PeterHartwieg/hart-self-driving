@@ -141,6 +141,12 @@ namespace DrivenRides.Core.Ride
         // pass the junction's middle on its near side: the arc's apex, halfWidth more for the body, no further from where the two lanes meet than
         // the middle is (Peter, 0.1.100: the largest arc, 27 m, swung left from the stop line straight into the
         // oncoming lanes and the car reversed out of their way).
+        // How far past the junction's middle a widened left turn's line may reach. 0: up to the middle. From an inner
+        // lane the two lanes meet only about 2.8 m beyond the middle (two lanes each way), so a tangent arc wider than
+        // about 6.8 m passes it; T1 with 2 m gives the limo a left-turn median of 10.9 m, with 4 m 14.8 m (the First
+        // Avenue turn 14.0 m). 0.1.100's 27.4 m there reached 8.5 m past it and cut into the oncoming lanes.
+        public const float PastMiddle = 0f;
+
         public static List<float> Radii(LaneGraph graph, int entry, int exit, float minRadius, float halfWidth = 1f)
         {
             var radii = new List<float>();
@@ -167,7 +173,9 @@ namespace DrivenRides.Core.Ride
             if (cross > 0f)
             {
                 var meet = new Vec3(e.X + ux * a, e.Y, e.Z + uz * a);
-                var middle = graph.Junctions.CentreOf(new Vec3((e.X + x.X) / 2f, e.Y, (e.Z + x.Z) / 2f)) ?? graph.Junctions.CentreOf(meet);
+                // Where the two roads' centre lines cross; the middle of the junction's box where they can't be found.
+                var middle = RoadsMeet(graph, e, ux, uz, x, vx, vz)
+                    ?? graph.Junctions.CentreOf(new Vec3((e.X + x.X) / 2f, e.Y, (e.Z + x.Z) / 2f)) ?? graph.Junctions.CentreOf(meet);
                 if (middle is Vec3 c)
                 {
                     // Into the turn from where the lanes meet: half way between back along the entry and on along the exit.
@@ -181,11 +189,56 @@ namespace DrivenRides.Core.Ride
                         // tightest one are what T2 and T3 drove before, and a tight left from an inner lane passes the
                         // middle itself.
                         var keep = box ?? least;
-                        radii.RemoveAll(r => r > keep + 0.01f && r * apex + halfWidth > reach);
+                        // The planned line may run up to the middle, not past it (Peter, 0.1.101: the body's edge was
+                        // held off it and the left turns lost their width again).
+                        radii.RemoveAll(r => r > keep + 0.01f && r * apex > reach + PastMiddle);
                     }
                 }
             }
             return radii;
+        }
+
+        // Where the centre lines of the two roads of a turn cross: each road's centre line runs half way between its
+        // innermost lane each way, read from the lane graph round the entry (behind it) and the exit (beyond it). Null
+        // where a road has no lane the other way (one way) or the lines don't cross.
+        public static Vec3? RoadsMeet(LaneGraph graph, Vec3 e, float ux, float uz, Vec3 x, float vx, float vz)
+        {
+            if (!(CentreLine(graph, e, ux, uz, -30f, 2f) is float entryMid) || !(CentreLine(graph, x, vx, vz, -2f, 30f) is float exitMid)) return null;
+            // Points on each centre line (left of each lane by its offset).
+            var p = new Vec3(e.X - uz * entryMid, e.Y, e.Z + ux * entryMid);
+            var q = new Vec3(x.X - vz * exitMid, x.Y, x.Z + vx * exitMid);
+            var cross = ux * vz - uz * vx;
+            if (Math.Abs(cross) < 0.2f) return null;
+            float wx = q.X - p.X, wz = q.Z - p.Z;
+            var a = (wx * vz - wz * vx) / cross;
+            return new Vec3(p.X + ux * a, p.Y, p.Z + uz * a);
+        }
+
+        // How far left of the lane through `at` (heading ux, uz) its road's centre line runs: half way between the
+        // leftmost lane going this way and the nearest lane going the other way, among plain waypoints from `from` to
+        // `to` metres along. Null without a lane the other way.
+        private static float? CentreLine(LaneGraph graph, Vec3 at, float ux, float uz, float from, float to)
+        {
+            var owns = new List<float> { 0f };
+            float? oncoming = null;
+            foreach (var w in graph.Near(at, 40f))
+            {
+                if (graph.IsIntersection(w) || !graph.PlainHeading(w, out var hx, out var hz)) continue;
+                var p = graph.Position(w);
+                if (Math.Abs(p.Y - at.Y) > 2f) continue;
+                float dx = p.X - at.X, dz = p.Z - at.Z;
+                var along = dx * ux + dz * uz;
+                if (along < from || along > to) continue;
+                var left = -dx * uz + dz * ux;
+                if (Math.Abs(left) > 25f) continue;
+                var dot = hx * ux + hz * uz;
+                if (dot > 0.9f) owns.Add(left);
+                else if (dot < -0.9f && left > 0.5f && (oncoming == null || left < oncoming)) oncoming = left;
+            }
+            if (!(oncoming is float o)) return null;
+            var own = 0f;
+            foreach (var l in owns) if (l < o && l > own) own = l;
+            return (own + o) / 2f;
         }
 
         // Where the segment p-q crosses the line from `from` along (dx, dz), as metres along that line; only segments
