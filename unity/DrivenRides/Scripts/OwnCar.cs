@@ -395,7 +395,9 @@ namespace DrivenRides
                     var d = away + (door is Vector3 dd ? 0.5f * Vector3.Distance(dd, p) : 0f);
                     // As vanilla: not a spot the car already stands in. Not on another level, nor in a gated zone the
                     // player may not drive into.
-                    if (away < 1.5f || d >= bestDistance || Mathf.Abs(p.y - at.y) > HuntHeight || InFence(fenced, p) || IsOccupied(helper, spot)) continue;
+                    // The sphere catches a spot whose collider reaches into it, and a spot's collider spans its whole
+                    // gap; only one whose middle (where the car goes) is inside this radius counts in this step.
+                    if (away < 1.5f || away > radius || d >= bestDistance || Mathf.Abs(p.y - at.y) > HuntHeight || InFence(fenced, p) || IsOccupied(helper, spot)) continue;
                     best = spot;
                     bestDistance = d;
                 }
