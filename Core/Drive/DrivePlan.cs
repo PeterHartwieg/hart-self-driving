@@ -65,15 +65,18 @@ namespace DrivenRides.Core.Drive
             // PursuitDriver.MinCornerMs), so a wide turn is driven faster than a tight one (Peter, NWH spike). The
             // Gley-era 15 km/h for a long car's U-turn covered the whole straight way into the junction too, and held
             // the car at a crawl before the turn began (T3 20261013-185723, ride 8: "taking a turn super slow").
-            // Gley caps every car at the road's limit; so does this driver.
+            // Gley caps every car at the road's limit (its own pace up to 10 % over); this driver at LimitFactor of it,
+            // as a confident player drives (Peter, 14 October: "it is very slow"), never past the car's top speed.
             if (limitKmh != null)
                 for (var k = 0; k < path.Count; k++)
                 {
-                    var limit = limitKmh(path[k]);
+                    var limit = limitKmh(path[k]) * LimitFactor;
                     if (limit > 0f && limit < car.TopKmh) plan.Slow.Add((k, limit));
                 }
             return plan;
         }
+
+        public const float LimitFactor = 1.2f;
 
         // The path as given (the rig's controls): no arcs, the slow positions at the rig's 25 km/h.
         public static DrivePlan Fixed(List<int> path, IEnumerable<int>? slow, float topKmh)
