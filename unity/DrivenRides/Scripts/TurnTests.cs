@@ -203,6 +203,12 @@ namespace DrivenRides
                     break;
                 // ride [kind=taxi|stand|driver] ...: a real ride through the game's taxi flow (RideCommand).
                 case "ride": StartCoroutine(RideCommand.Run(args, Folder)); break;
+                // ridemode nwh|gley|options: rides with car physics, the Gley rides, or the options page's choice, until
+                // the game quits (Options.CarPhysicsOverride; PlayerPrefs untouched).
+                case "ridemode":
+                    Options.CarPhysicsOverride = rest.Contains("nwh") ? true : rest.Contains("gley") ? false : (bool?)null;
+                    Log.Info($"Ride mode: {(Options.CarPhysicsOverride == null ? "the options page's" : Options.CarPhysicsOverride.Value ? "car physics (NWH)" : "Gley")}; car physics now {(Options.CarPhysics ? "on" : "off")}.");
+                    break;
                 default: Log.Error("Turn tests: unknown command " + words[0]); break;
             }
         }

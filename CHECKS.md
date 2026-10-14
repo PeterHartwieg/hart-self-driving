@@ -1,4 +1,4 @@
-# In-game checks: real rides on NWH (nwh-rides, 0.1.90-rides4)
+# In-game checks: real rides on NWH (nwh-rides, 0.1.90-rides5)
 
 Disposable save, Food Trucks parked, other gameplay mods off, some money for fares. Taxi, stand and private driver rides now drive with the car's own physics, the same planner and driver as `run driver=nwh traffic=on`: the taxi dressed on the drivable car closest in size, the driver in the drivable version of its vehicle.
 
@@ -10,7 +10,8 @@ Disposable save, Food Trucks parked, other gameplay mods off, some money for far
 6. **Watchdog.** Hard to force; if a ride stalls, the log shows `Watchdog: Progress stalled ...; giving up the step ahead and planning round it.` after 20 s without 5 m of progress (waiting at a light or behind a car doesn't count), then either `NWH drive: driving on along a new path` or, 30 s later still stuck, `Ride ending: Vanilla (watchdog: No progress after replan)` and the vanilla finish. The drive also gives up a step once by itself after 30 s of game time stuck (`blocked (stuck: no progress for 30 s)`). **Ctrl+Alt+Shift+K** removes the NWH car: `Ride ending: Vanilla (the car is no longer the ride's)`, the vanilla finish.
 7. **Bridge.** A ride to the Hamptons (`tools/turn-tests.sh homepc send ride kind=taxi hamptons=on min=3000 max=6000`, or by hand): at the bridge the screen fades, `Bridge: the car landed on waypoint N; M route waypoints on.`, the clock runs the game's bridge time, and the car drives on from the far side. No `bridge: ...` vanilla end.
 8. **2x and 3x.** The panel's 2x and 3x buttons, or `send ride kind=taxi speed=3`. The car should drive as at 1x (same stops at reds, same yields, no wider turns); only more physics steps run per frame. Each ride logs `NWH drive: traffic cost over N steps: ... per frame at 2.9x on average (2 physics steps at the median, ...) p50 .. µs, p99 .. µs, max .. µs`: please copy those lines for a 1x, a 2x and a 3x ride. The Mac simulation's numbers (`dotnet test --filter GameSpeedTests`): per frame at 60 fps, p99 0.85 ms at 1x, 1.6 ms at 2x, 2.3 ms at 3x. Note the frame rate at 3x against 1x.
-9. **Ends.** Every ride ends with `Ride finished` or `Ride cancelled`, and `NWH ride tally: ...` and a traffic cost line.
+9. **Back to Gley.** Options, Driven Rides, "Rides drive with real car physics" off: the next taxi and driver rides are the Gley rides as in 0.1.84 (log: no `NWH ride` lines, `Departed: N waypoints for Gley`). From the Mac: `send ridemode gley`, then `send ride kind=taxi`; `send ridemode options` goes back to the page's choice. The startup line `Options: ...` ends with `car physics on|off`.
+10. **Ends.** Every ride ends with `Ride finished` or `Ride cancelled`, and `NWH ride tally: ...` and a traffic cost line.
 
 # In-game checks: planner after T3 on 0.1.81 (nwh-feasible, 0.1.84-planner4)
 

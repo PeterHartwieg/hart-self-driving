@@ -26,7 +26,8 @@ namespace DrivenRides
     // map's "Go" button does: the fare, the mod's TravelCoroutine prefix and the whole ride are the real ones. One
     // line per ride goes to ride-results.jsonl beside the rig's results.
     //
-    //   ride [kind=taxi|stand|driver] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
+    //   ride [kind=taxi|stand|driver] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
+    // `ridemode nwh|gley|options` picks car physics or the Gley rides for the rides after it (TurnTests).
     internal static class RideCommand
     {
         public static bool Busy { get; private set; }
@@ -72,6 +73,7 @@ namespace DrivenRides
         {
             var kind = args.TryGetValue("kind", out var k) ? k : "taxi";
             result["kind"] = kind;
+            result["carPhysics"] = Options.CarPhysics;
             string? refuse = null;
             if (SaveGameManager.Current == null) refuse = "no game loaded";
             else if (TurnTests.Running) refuse = "turn tests are running";
