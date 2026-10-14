@@ -267,6 +267,7 @@ namespace DrivenRides
             PrivateDriverVehicle? parked = null;
             CarController? ownCar = null;
             NwhCar? ownNwh = null;
+            float ownSideways = float.MaxValue, ownAlong = 0f;
             try
             {
                 if (Active != null) return Vanilla("a ride is still active");
@@ -374,8 +375,8 @@ namespace DrivenRides
                     if (spawn == null) return Vanilla("no free lane beside the car");
                     // The line must start under the car: from the lane waypoint behind its rear axle, not one ahead.
                     var ownY = ownCar.transform.position.y;
-                    start = OwnCarTaxi.StartUnder(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out var sideways);
-                    Log.Info(sideways < float.MaxValue ? $"Own car: starts on the step from waypoint {start}, {sideways:0.0} m to the side of it." : $"Own car: no lane step runs under the car; nearest waypoint {start}.");
+                    start = OwnCarTaxi.StartUnder(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out ownSideways, out ownAlong);
+                    Log.Info(ownSideways < float.MaxValue ? $"Own car: starts on the step from waypoint {start}, {ownSideways:+0.0;-0.0} m to the side of it." : $"Own car: no lane step runs beside the car; nearest waypoint {start}.");
                 }
                 else
                 {
@@ -458,6 +459,8 @@ namespace DrivenRides
                 if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla("the tank is empty");
                 if (ownCar != null && planNwh != null && planNwhPlan != null)
                 {
+                    // A car beside its lane (the kerb, a parking spot) pulls out onto it.
+                    OwnCarTaxi.AddPullOut(planNwhPlan, start, ownSideways, ownAlong);
                     var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph);
                     if (refusal != null) return Vanilla(refusal);
                 }

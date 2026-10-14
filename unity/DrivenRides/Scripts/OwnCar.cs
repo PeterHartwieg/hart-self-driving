@@ -167,9 +167,23 @@ namespace DrivenRides
             return false;
         }
 
-        // The own car starts where it stands: the planned line must start under it, and the car must be able to drive
-        // onto it from its pose (the planner's join check, Feasibility.Join), or the trip is refused. A car parked at
-        // the kerb usually isn't on a lane's line; pulling out first covers that until there is a pull-out manoeuvre.
+        // A car standing beside its lane (at the kerb, in a parking spot) pulls out: the line's start is moved sideways
+        // to under the car and eases into the lane over DriveLine.ShiftRamp, as the planner passes a car parked partly in
+        // a lane (DrivePlan.Shifts). The start check then judges the pull-out like any join: the car driven along it
+        // from its pose, its body against the world (the car parked ahead), its corners and wheels against the kerb.
+        public const float PullOutMin = 0.3f, PullOutMax = 4.5f;
+
+        public static bool AddPullOut(DrivenRides.Core.Drive.DrivePlan plan, int start, float sideways, float along)
+        {
+            if (plan.Path.Count == 0 || plan.Path[0] != start || Mathf.Abs(sideways) < PullOutMin || Mathf.Abs(sideways) > PullOutMax) return false;
+            plan.Shifts.Add((0, -1f, along, sideways));
+            Log.Info($"Own car: pulling out from {sideways:+0.0;-0.0} m beside the lane.");
+            return true;
+        }
+
+        // The own car starts where it stands: the planned line (with its pull-out) must start under it, and the car
+        // must be able to drive onto it from its pose (the planner's join check, Feasibility.Join), or the trip is
+        // refused.
         public static string? StartRefusal(CarController car, NwhPlanner planner, DrivenRides.Core.Drive.DrivePlan plan, DrivenRides.Core.Routing.LaneGraph graph)
         {
             var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out var why);
@@ -181,18 +195,20 @@ namespace DrivenRides
             var rear = wrapped.RearAxle;
             var pose = new DrivenRides.Core.Drive.CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z), speed, car.vehicleController.steering.angle);
             var line = plan.Line(graph);
-            if (!line.Joins(pose.X, pose.Z, pose.Heading, out _)) return "pull out into the lane first";
+            if (!line.Joins(pose.X, pose.Z, pose.Heading, out _)) return "the car isn't standing along a lane";
             var result = new DrivenRides.Core.Drive.Feasibility.SweepResult();
             foreach (var _ in planner.Check.JoinWork(plan, line, pose, result)) { }
             return result.What != null ? "it can't drive off from here (" + result.What + ")" : null;
         }
 
-        // The route's first waypoint: the start of the lane step that runs under the car's rear axle, along the car's
-        // way, the nearest such step sideways; the line then starts under the car. Falls back to the waypoint nearest
-        // the car (`nearest`) when no step runs under it, which the start check then refuses.
-        public static int StartUnder(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest, Func<int, bool> goodStart, out float sideways)
+        // The route's first waypoint: the start of the lane step that runs beside or under the car's rear axle, along
+        // the car's way, the nearest such step sideways. `sideways` is the rear axle's offset from that step (right
+        // positive; a car at the kerb is a few metres to the right) and `along` how far along the step it is. Falls back
+        // to the waypoint nearest the car (`nearest`, sideways at MaxValue) when no step runs beside it.
+        public static int StartUnder(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest, Func<int, bool> goodStart, out float sideways, out float along)
         {
             sideways = float.MaxValue;
+            along = 0f;
             var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _);
             var rear = wrapped != null ? wrapped.RearAxle : car.transform.position;
             var forward = car.transform.forward;
@@ -212,8 +228,8 @@ namespace DrivenRides
                     var t = (rear.x - a.X) * ux + (rear.z - a.Z) * uz;
                     // Inside the step: the line starts at the step's start, so a rear axle behind it is off the line.
                     if (t < 0f || t > length) continue;
-                    var side = Mathf.Abs((rear.x - a.X) * uz - (rear.z - a.Z) * ux);
-                    if (side < sideways) { sideways = side; best = i; }
+                    var side = (rear.x - a.X) * uz - (rear.z - a.Z) * ux;
+                    if (Mathf.Abs(side) < Mathf.Abs(sideways)) { sideways = side; along = t; best = i; }
                 }
             }
             return best;
