@@ -102,7 +102,7 @@ public sealed class ReviewRound8Tests
                     var r = new TrafficSim(Crossing(rideMs, aAt, bAt), false, 0).Run();
                     runs++;
                     unsettled += r.PassUnsettled;
-                    replaced += r.FallbackOn + r.FallbackStop;
+                    replaced += r.FallbackStop;
                     if (r.Failure != null) bad.Add($"{rideMs} m/s, A at {aAt:0.0} s, B at {bAt:0.0} s: {r}");
                 }
         output.WriteLine($"{runs} runs, {unsettled} unsettled decisions, {replaced} replaced by the emergency rule, {bad.Count} failed");

@@ -28,13 +28,12 @@ public sealed class TrafficTests
     public void Soak(string template)
     {
         // Plain `dotnet test` runs PlainSeeds a template with the hard invariants; DR_TRAFFIC_SEEDS=500 (run by
-        // tools/install-remote.sh before installing) adds the ratchet and the forced-commit share (review round 9, DD6).
+        // tools/install-remote.sh before installing) adds the ratchet (review round 9, DD6).
         var seeds = Seeds;
         var full = Full;
         var failures = new ConcurrentBag<(int Seed, string Why)>();
         var watch = Stopwatch.StartNew();
         var arrived = 0;
-        var forced = 0;
         var late = 0;
         var again = 0;
         var harder = 0;
@@ -49,16 +48,13 @@ public sealed class TrafficTests
         var notEmergency = new ConcurrentBag<string>();
         var lostBeyond = new ConcurrentBag<string>();
         var times = new List<float>();
-        var forcedSeeds = new ConcurrentBag<(int Seed, string What)>();
         // DR_SOAK_SERIAL=1 runs the seeds one after another (to check the parallel run gives the same results).
         var parallel = new ParallelOptions { MaxDegreeOfParallelism = Environment.GetEnvironmentVariable("DR_SOAK_SERIAL") == "1" ? 1 : -1 };
         Parallel.For(0, seeds, parallel, seed =>
         {
             var r = Run(TrafficTemplates.Build(template, seed));
-            System.Threading.Interlocked.Add(ref forced, r.ForcedCommits);
             System.Threading.Interlocked.Add(ref late, r.ApproachesLate);
             System.Threading.Interlocked.Add(ref again, r.ApproachesAgain);
-            if (r.ForcedUnderFloor > 0) invariantFailures.Add($"seed {seed}: a forced commit under the floor");
             if (r.NotEmergency != null) notEmergency.Add($"seed {seed}: {r.NotEmergency}");
             if (r.LostKind != null) lock (lostKinds) lostKinds[r.LostKind] = lostKinds.TryGetValue(r.LostKind, out var lk) ? lk + 1 : 1;
             if (r.OptionLost > 0f) optionLost.Add($"seed {seed}: the stopping option lost (short of the way by {r.OptionLost:0.00} m at HardDecel; {r.LostKind})");
@@ -70,13 +66,11 @@ public sealed class TrafficTests
             System.Threading.Interlocked.Add(ref unsettled, r.PassUnsettled);
             lock (roundsMost) roundsMost[0] = Math.Max(roundsMost[0], r.PassRoundsMost);
             if (r.Arrived && r.Failure == null) lock (times) times.Add(r.Time);
-            if (r.ForcedCommits > 0) forcedSeeds.Add((seed, r.Forced[0]));
             if (r.Failure != null || r.Blocked != null) failures.Add((seed, r.Failure ?? "blocked: " + r.Blocked));
             else System.Threading.Interlocked.Increment(ref arrived);
         });
-        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {forced} forced commits in {forcedSeeds.Count} seeds, {late} stops imposed late, {again} imposed again within 1 s, {harder} decisions braking past Decel, final pass up to {roundsMost[0]} rounds ({exhausted} out of rounds, {unsettled} unsettled), mean arrival {(times.Count > 0 ? times.Average() : 0f):0.00} s, {optionLost.Count} runs losing the stopping option avoidably ({lostBeyond.Count} by more than a decision step), {newHazardRuns} runs with a stop made unmakeable by news ({newHazards})");
+        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {late} stops imposed late, {again} imposed again within 1 s, {harder} decisions braking past Decel, final pass up to {roundsMost[0]} rounds ({exhausted} out of rounds, {unsettled} unsettled), mean arrival {(times.Count > 0 ? times.Average() : 0f):0.00} s, {optionLost.Count} runs losing the stopping option avoidably ({lostBeyond.Count} by more than a decision step), {newHazardRuns} runs with a stop made unmakeable by news ({newHazards})");
         foreach (var (seed, why) in failures.OrderBy(f => f.Seed).Take(20)) output.WriteLine($"  seed {seed}: {why}");
-        foreach (var (seed, what) in forcedSeeds.OrderBy(f => f.Seed).Take(10)) output.WriteLine($"  forced, seed {seed}: {what}");
         foreach (var f in invariantFailures.Take(10)) output.WriteLine("  invariant, " + f);
         foreach (var f in optionLost.OrderBy(f => f).Take(20)) output.WriteLine("  " + f);
         output.WriteLine($"  {notEmergency.Count} runs with a stop it could no longer make not from the emergency rule");
@@ -89,21 +83,15 @@ public sealed class TrafficTests
         Assert.True(unsettled == 0, $"{unsettled} decisions whose final pass didn't settle");
         // Every stop the car could no longer make came from the emergency rule (review round 8, CC3).
         Assert.Empty(notEmergency);
-        // A ratchet from 0.1.81-traffic20 (the margins of TrafficMargins) (review round 6; round 7 added the last two; round 8 counts only avoidable
-        // losses): runs with a forced commit, reduced-headway continuations, runs that lost the stopping option for a
-        // car with no news of it, and stops imposed again within a second (flicker, BB1). Per template, only ever
-        // lowered; with DR_TRAFFIC_SEEDS=500 only (a plain run checks the hard invariants above).
+        // A ratchet from 0.1.82-traffic21: runs that lost the stopping option for a car with no news of it (round 8), and
+        // stops imposed again within a second (flicker, round 7, BB1). Per template, only ever lowered; with
+        // DR_TRAFFIC_SEEDS=500 only (a plain run checks the hard invariants above).
         if (!full) return;
         if (Ratchet.TryGetValue(template, out var most))
         {
-            Assert.True(forcedSeeds.Count <= most.Forced, $"{forcedSeeds.Count} runs with a forced commit, the ratchet is {most.Forced}");
             Assert.True(optionLost.Count <= most.OptionLost, $"{optionLost.Count} runs lost the stopping option, the ratchet is {most.OptionLost}");
             Assert.True(again <= most.Again, $"{again} stops imposed again within 1 s, the ratchet is {most.Again}");
         }
-        // Forced commits are the emergency rule's: at most 2 % of runs. Review round 4 (X4) asked for 1 %; with the
-        // cautious judgement trusting the cars' real stops and give-ways (round 5, Y5) priority has 1.2 %, which the
-        // reviewers leave to in-game evidence rather than more tuning in simulation.
-        Assert.True(forcedSeeds.Count <= seeds / 50, $"{forcedSeeds.Count} of {seeds} runs had a forced commit");
     }
 
     public const int PlainSeeds = 100, FullSeeds = 500;
@@ -114,10 +102,10 @@ public sealed class TrafficTests
 
 
     // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
-    private static readonly Dictionary<string, (int Forced, int OptionLost, int Again)> Ratchet = new()
+    private static readonly Dictionary<string, (int OptionLost, int Again)> Ratchet = new()
     {
-        ["lights"] = (1, 10, 28), ["priority"] = (0, 0, 1), ["merge"] = (0, 2, 0), ["uturn"] = (1, 12, 50),
-        ["headon"] = (0, 0, 0), ["pullaway"] = (0, 1, 3),
+        ["lights"] = (10, 28), ["priority"] = (0, 1), ["merge"] = (2, 0), ["uturn"] = (12, 50),
+        ["headon"] = (0, 0), ["pullaway"] = (1, 3),
     };
 
     [Fact]
@@ -131,8 +119,7 @@ public sealed class TrafficTests
             : parts[0] == "crawl" ? TrafficTemplates.Crawl(int.Parse(parts[1])) : TrafficTemplates.Build(parts[0], int.Parse(parts[1]));
         var r = Run(scenario, true);
         output.WriteLine(r.ToString());
-        foreach (var f in r.Forced) output.WriteLine("forced: " + f);
-        output.WriteLine($"option lost by {r.OptionLost:0.00} m, forced under floor {r.ForcedUnderFloor}, late {r.ApproachesLate}, again {r.ApproachesAgain}, harder than Decel {r.HarderThanDecel}");
+        output.WriteLine($"option lost by {r.OptionLost:0.00} m, late {r.ApproachesLate}, again {r.ApproachesAgain}, harder than Decel {r.HarderThanDecel}");
         output.WriteLine(r.Trace.ToString());
     }
 
@@ -301,7 +288,7 @@ public sealed class TrafficTests
                 Time = f.T, RearX = f.RideX, RearZ = f.RideZ, Heading = f.RideHeading, Speed = f.RideSpeed,
                 Marks = Array.Empty<DrivenRides.Core.Drive.PathMark>(), Cars = cars, Flags = flags,
             }, d);
-            lines.Add($"{f.T,5:0.0} v {f.RideSpeed,4:0.0} along {driver.Along,6:0.0} yield {d.YieldAlong,6:0.0} for {d.YieldFor,3} gap {d.GapAhead,5:0.0} {d.Why} {d.YieldNote}{(d.ForcedCommit ? $" | forced {d.ForcedFor} with {d.ForcedMargin:0.00} s" : "")}");
+            lines.Add($"{f.T,5:0.0} v {f.RideSpeed,4:0.0} along {driver.Along,6:0.0} yield {d.YieldAlong,6:0.0} for {d.YieldFor,3} gap {d.GapAhead,5:0.0} {d.Why} {d.YieldNote}");
         }
         return lines;
     }
@@ -323,11 +310,9 @@ public sealed class TrafficTests
     }
 
     // T3 20261013-211205, ride 9: a truck (11 m) coming up on the ride car's left as it turned left across its lane.
-    // Fed the recorded frames, the ride car must give way to it at every frame from the first until the contact, or,
-    // where the recorded car drove on past the stop it was given (a replay doesn't obey the decisions) and can no
-    // longer stop short of the truck's way, the emergency rule decides: a forced commit with the floor to spare
-    // (review round 6: before, the cautious stop was kept for a car past that point, which stops it in the truck's
-    // way where standing isn't safe).
+    // Fed the recorded frames, the ride car must give way to it at every frame from the first until the contact (where
+    // the recorded car drove on past the stop it was given, a replay doesn't obey the decisions, the stop is the
+    // emergency rule's).
     [Fact]
     public void Ride9KeepsGivingWayToTheTruck()
     {
@@ -335,7 +320,7 @@ public sealed class TrafficTests
         var lines = ReplayDecisions(s);
         var first = lines.FindIndex(l => l.Contains("for   0"));
         Assert.True(first >= 0, string.Join("\n", lines));
-        var dropped = lines.Skip(first).Where(l => !l.Contains("for   0") && !l.Contains("| forced 0 ")).ToList();
+        var dropped = lines.Skip(first).Where(l => !l.Contains("for   0")).ToList();
         foreach (var l in lines.Skip(first)) output.WriteLine(l);
         Assert.True(dropped.Count == 0, $"dropped car 0 at:\n{string.Join("\n", dropped.Take(5))}");
     }

@@ -65,7 +65,7 @@ public sealed class ReviewRound6Tests
             driver.StartAt(0f, z);
             traffic.Decide(new TrafficSnapshot { Time = t, RearX = 0f, RearZ = z, Heading = 0f, Speed = v, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags(), PlannerHoldAlong = hold }, d);
             var front = z + car.FrontAhead;
-            if (step % 10 == 0) output.WriteLine($"{t:0.00} front {front:0.00} v {v:0.0} A {ax:0.0} hold {hold:0.0} yield {d.YieldAlong - 40f:0.0} forced {d.ForcedCommit} {d.Why}");
+            if (step % 10 == 0) output.WriteLine($"{t:0.00} front {front:0.00} v {v:0.0} A {ax:0.0} hold {hold:0.0} yield {d.YieldAlong - 40f:0.0} {d.Why}");
             if (!run.Crossed && z - car.RearBehind > 13f) { run.Crossed = true; run.CrossedAt = t; run.AWhenCrossed = ax; }
             // In A's lane (z 11 to 13) with car A's front at the body: a contact.
             if (front > 11f && z - car.RearBehind < 13f && ax + 2.25f > -car.HalfWidth && ax - 2.25f < car.HalfWidth)

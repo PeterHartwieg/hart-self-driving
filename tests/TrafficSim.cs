@@ -20,17 +20,10 @@ internal sealed class SimResult
     public int BackOffs;
     // Decisions that nosed in at a creep in front of a crawling car.
     public int NoseIns;
-    // Times the driver went on past a car's way only because standing would be hit (TrafficDecision.ForcedCommit).
-    public int ForcedCommits;
-    // Each forced commit: when, for which car, its time to spare, the ride car's speed, and the reasons given before it
-    // (review round 4, X4).
-    public readonly List<string> Forced = new();
-    // The soak's invariants (review round 6, decision a; round 7, BB3): a forced commit with less than the floor to
-    // spare, and the stopping option lost while a stop for a car was imposed (metres the car could no longer stop
-    // short of its way by, at HardDecel; TrafficSim). HarderThanDecel: decisions where keeping it took more than Decel.
-    public int ForcedUnderFloor;
+    // The stopping option lost while a stop for a car was imposed (metres the car could no longer stop short of its way
+    // by, at HardDecel; review round 7, BB3). HarderThanDecel: decisions where keeping it took more than Decel.
     // Decisions whose final pass ran out of rounds, and of them those still tightening when judged once more (BB4).
-    public int PassExhausted, PassUnsettled, FallbackOn, FallbackStop;
+    public int PassExhausted, PassUnsettled, FallbackStop;
     public int PassRoundsMost;
     public float OptionLost = float.MinValue;
     // How long each decision took, microseconds (DecideCostTests).
@@ -158,7 +151,6 @@ internal sealed class TrafficSim : ILiveFlags
 
     public SimResult Run()
     {
-        var forcedBefore = false;
         var episodes = new Dictionary<int, Episode>();
         var gone = new List<int>();
         var prevYieldFor = -1;
@@ -244,12 +236,10 @@ internal sealed class TrafficSim : ILiveFlags
                 if (decision.Unsettled)
                 {
                     result.PassUnsettled++;
-                    // Replaced by the emergency rule (CC2): a stop now for cars all marked as the emergency rule's, or on
-                    // past them as a forced commit with the floor to spare.
+                    // Replaced by the emergency rule (CC2): a stop now for cars all marked as the emergency rule's.
                     var front1 = driver.Along + body.FrontAhead;
-                    if (decision.ForcedCommit && decision.ForcedMargin >= 0f && decision.YieldAlong == null) result.FallbackOn++;
-                    else if (decision.YieldAlong is float fy && fy <= front1 + 0.5f && decision.EmergencyFor.Count > 0) result.FallbackStop++;
-                    else if (trace) result.Trace.Append($"UNSETTLED {time:0.00} yield {decision.YieldAlong} front {front1:0.0} forced {decision.ForcedCommit} {decision.ForcedMargin:0.00} emergency {decision.EmergencyFor.Count}\n");
+                    if (decision.YieldAlong is float fy && fy <= front1 + 0.5f && decision.EmergencyFor.Count > 0) result.FallbackStop++;
+                    else if (trace) result.Trace.Append($"UNSETTLED {time:0.00} yield {decision.YieldAlong} front {front1:0.0} emergency {decision.EmergencyFor.Count}\n");
                 }
                 result.PassRoundsMost = Math.Max(result.PassRoundsMost, decision.PassRounds);
             }
@@ -295,7 +285,6 @@ internal sealed class TrafficSim : ILiveFlags
                 if (whys.Count > 4) whys.Dequeue();
             }
             // Against the floor at the speed the decision was made at.
-            if (decision.ForcedCommit && decision.ForcedMargin < 0f) result.ForcedUnderFloor++;
             // The stopping option, per traffic car the ride car gives way to (review round 7, BB3). An episode lasts from
             // the first stop for that car until the ride car's front is past where its way was, or the car is gone: a
             // stop lifted and imposed again is the same conflict. While a stop for it is imposed, the car must still be
@@ -368,12 +357,6 @@ internal sealed class TrafficSim : ILiveFlags
                 }
                 wasFree = decision.YieldAlong == null && decision.StopAlong == null && decision.GapAhead == null && decision.MaxSpeed == null;
             }
-            if (decision.ForcedCommit && !forcedBefore)
-            {
-                result.ForcedCommits++;
-                result.Forced.Add($"{time:0.00} s, car {decision.ForcedFor}, {decision.ForcedMargin:0.00} s to spare at {ride.Speed:0.0} m/s; before: {string.Join(" | ", whys)}");
-            }
-            forcedBefore = decision.ForcedCommit;
 
             // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);

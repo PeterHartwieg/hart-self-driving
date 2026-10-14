@@ -58,7 +58,6 @@ public sealed class CommittedTests
         var d = Decide(rideFrontZ: 10.4f, rideMs: 7f, crossX: -30f, crossMs: 10f, standingAtZ: null);
         output.WriteLine($"{d.Why} yield {d.YieldAlong} gap {d.GapAhead}");
         Assert.Null(d.YieldAlong);
-        Assert.False(d.ForcedCommit);
     }
 
     [Fact]
@@ -94,29 +93,23 @@ public sealed class CommittedTests
         Assert.True(d.YieldAlong <= 30.5f);
     }
 
-    // Review round 3 (V2): a collision only when standing in the way would be hit (a car whose trigger is too short to
-    // stop it short of the body) and going on clears it by time: on, counted as forced.
-    [Fact]
-    public void GoesOnForcedOnlyWhenStandingWouldBeHit()
+    // Round 9: too close to stop short of the lane and not clear with the headway: a stop now (the emergency rule's),
+    // whatever the car's trigger; going on with less than the headway (a forced commit) went.
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(5f)]
+    public void TooLateAndNotClearIsAStopNow(float trigger)
     {
-        // Car 1 1.8 s off: going on clears it by more than the floor (0.48 s to spare). Review round 7: the sweep now
-        // counts the body between two poses too, so its way is left a little later; 1.6 s off leaves 0.33 s, under the
-        // floor, and the emergency rule stops.
-        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: 1f);
-        output.WriteLine($"{d.Why} yield {d.YieldAlong} forced {d.ForcedCommit}");
-        Assert.True(d.ForcedCommit);
-        Assert.Equal(1, d.ForcedFor);
-        Assert.Null(d.YieldAlong);
-        // The same with a trigger long enough to stop the car short of the body: a plain stop, nothing forced.
-        var safe = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: 5f);
-        Assert.False(safe.ForcedCommit);
-        Assert.True(safe.YieldAlong <= 30.5f);
+        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: trigger);
+        output.WriteLine($"{d.Why} yield {d.YieldAlong}");
+        Assert.True(d.YieldAlong <= 30.5f);
+        Assert.Contains(1, d.EmergencyFor);
     }
 
     // Review round 3 (V2): inside a one-lane stretch with a car coming the other way, standing is no collision (it stops
-    // in its trigger; back-off and the planner resolve the stand-off): the ride car stops, nothing forced.
+    // in its trigger; back-off and the planner resolve the stand-off): the ride car stops.
     [Fact]
-    public void AHeadOnStandOffIsAStopNotAForcedCommit()
+    public void AHeadOnStandOffIsAStop()
     {
         var car = RideCar.Dash;
         var line = DriveLine.Build(Enumerable.Range(0, 81).Select(k => new Vec3(0, 0, -20 + k)).ToList(), Array.Empty<(int, Polyline)>());
@@ -132,8 +125,7 @@ public sealed class CommittedTests
         var d = new TrafficDecision();
         for (var t = 0; t < 2; t++)
             traffic.Decide(new TrafficSnapshot { Time = t * 0.02f, RearX = 0f, RearZ = rear, Heading = 0f, Speed = 7f, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags() }, d);
-        output.WriteLine($"{d.Why} yield {d.YieldAlong} forced {d.ForcedCommit}");
-        Assert.False(d.ForcedCommit);
+        output.WriteLine($"{d.Why} yield {d.YieldAlong}");
         Assert.Equal(1, d.YieldFor);
         Assert.True(d.YieldAlong <= 30.5f);
     }

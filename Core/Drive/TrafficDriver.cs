@@ -45,55 +45,14 @@ namespace DrivenRides.Core.Drive
         // As used: MaxPassRounds, lower only in tests that make the pass run out (CC2).
         public int PassRoundsLimit { get; set; } = MaxPassRounds;
 
-        // The final pass ran out of rounds still tightening the stops: the emergency rule for every car a stop is
-        // for, on the trajectory each choice leaves (review round 8, CC2). Stop now if standing where the car comes to
-        // a stand is safe for each (it stops for the body in its trigger, or the body is out of its way); else on,
-        // with only the firm stops, if that clears each with the floor (forced); else stop now all the same. The
-        // statistics are this choice's; nothing is latched from it.
+        // The final pass ran out of rounds still tightening the stops: a stop now for every car a stop is for, the
+        // emergency rule's (review round 8, CC2; round 9: the forced continuation went).
         private void Fallback(TrafficDecision d, in TrafficSnapshot s, float front, float horizon)
         {
             fallbackCars.Clear();
             for (var j = 0; j < deferred.Count; j++) fallbackCars.Add(s.Cars[deferred[j].Car].Id);
             foreach (var id in holds.Keys) if (!fallbackCars.Contains(id)) fallbackCars.Add(id);
             if (d.YieldFor >= 0 && !fallbackCars.Contains(d.YieldFor)) fallbackCars.Add(d.YieldFor);
-            approachForcedFor = -1;
-            d.ForcedCommit = false;
-            d.ForcedFor = -1;
-            d.ForcedMargin = float.MaxValue;
-            var standSafe = true;
-            for (var i = 0; i < s.Cars.Count && standSafe; i++)
-            {
-                var c = s.Cars[i];
-                if (!fallbackCars.Contains(c.Id)) continue;
-                corridor.Build(graph, c, s.Flags, MaxHorizon, SweepMetres, roadHeld, SpeedingUp(c.Id), LeaderOf(c, s.Cars), Cruising(c.Id));
-                standSafe = StopSafe(c, front);
-            }
-            if (!standSafe)
-            {
-                SafeTimes(holdFront);
-                var clears = true;
-                var least = float.MaxValue;
-                for (var i = 0; i < s.Cars.Count && clears; i++)
-                {
-                    var c = s.Cars[i];
-                    if (!fallbackCars.Contains(c.Id)) continue;
-                    corridor.Build(graph, c, s.Flags, MaxHorizon, SweepMetres, roadHeld, SpeedingUp(c.Id), LeaderOf(c, s.Cars), Cruising(c.Id));
-                    var entry = -1;
-                    for (var k = 0; k < count && entry < 0; k++) if (CoversSwept(k, out _, out _, out _, out _)) entry = k;
-                    if (entry < 0) continue;
-                    clears = CommittedClear(c, entry, safeLate, safeSpeed, 0f, false) && !clearsOutside;
-                    least = Math.Min(least, clearMargin);
-                }
-                if (clears)
-                {
-                    d.YieldAlong = null;
-                    d.YieldFor = d.ApproachFor = -1;
-                    d.ForcedCommit = true;
-                    d.ForcedFor = fallbackCars.Count > 0 ? fallbackCars[0] : -1;
-                    d.ForcedMargin = least;
-                    return;
-                }
-            }
             if (!(d.YieldAlong <= front)) d.YieldWay = front;
             d.YieldAlong = Math.Min(d.YieldAlong ?? float.MaxValue, front);
             if (d.YieldFor < 0 && fallbackCars.Count > 0) d.YieldFor = fallbackCars[0];
@@ -583,12 +542,6 @@ namespace DrivenRides.Core.Drive
                     Fallback(d, s, front, horizon);
                 }
             }
-            if (approachForcedFor >= 0 && (!d.ForcedCommit || approachForced < d.ForcedMargin))
-            {
-                d.ForcedCommit = true;
-                d.ForcedFor = approachForcedFor;
-                d.ForcedMargin = approachForced;
-            }
             Stuck(s, d, standing);
 
             // The reason given is the nearest of the stops ahead; the string is made only when it changes.
@@ -748,9 +701,6 @@ namespace DrivenRides.Core.Drive
             deferredMargin.Clear();
             // Published from this (the last, converged) evaluation only, the least margin over the cars (review round 6,
             // AA3).
-            d.ForcedCommit = false;
-            d.ForcedFor = -1;
-            d.ForcedMargin = float.MaxValue;
             var stopNow = false;
             for (var j = 0; j < deferred.Count; j++)
             {
@@ -778,12 +728,11 @@ namespace DrivenRides.Core.Drive
                 if (go == Go.Stop && !d.EmergencyFor.Contains(c.Id)) d.EmergencyFor.Add(c.Id);
                 var rs = deferred[j].RunStart;
                 Give(d, c, at, s.Time, front, rs > 0 ? rearAt[rs - 1] + body.FrontAhead : front);
-                if (go == Go.Forced && deferredMargin[j] < d.ForcedMargin) { d.ForcedCommit = true; d.ForcedFor = c.Id; d.ForcedMargin = deferredMargin[j]; }
             }
             return stopNow;
         }
 
-        private enum Go { On, Stop, Forced, StopShort }
+        private enum Go { On, Stop, StopShort }
 
 
         // Under the final constraints the front can still stop short of the car's way (pose runStart): physically,
@@ -809,29 +758,18 @@ namespace DrivenRides.Core.Drive
         // only just make, and stands short of the way (ReviewRound7Tests).
         public static float StopShort(float way, float v) => way - TrafficMargins.ReserveMetres - TrafficMargins.ReserveLatencies * BrakeLatency * v;
 
-        // On or stop now, for a conflict the car can't stop short of:
-        // - on if it clears on the trajectory it can keep under every constraint, with headway, a car behind counted
-        //   on to brake only once the body is in its trigger;
-        // - else stop, if standing there is free of a collision: out of the car's way, or where the car stops for the
-        //   body in its trigger (a head-on stand-off too: back-off and the planner resolve it);
-        // - else a collision is coming whatever it does (the car is about to touch it standing), and going on is the
-        //   only way out: on (Forced) if the same trajectory clears with a positive time margin, else stop.
-        // Review round 3, V2: before, a head-on stop counted as unsafe and the best case decided.
+        // On or stop, for a conflict found too late for the cautious judgement's stop: on if it clears on the trajectory
+        // it can keep under every constraint, with headway, a car behind counted on to brake only once the body is in its
+        // trigger; else a stop short of its way if it can still make one; else a stop now (the emergency rule's). Round
+        // 9: going on with less than the headway (forced, marginal) went; the soak and the in-game dumps were no worse.
         private Go GoOn(in TrafficSnapshot s, int j, float horizon, float front)
         {
             var (i, runStart, exit, runFrom, _) = deferred[j];
             var c = s.Cars[i];
             BuildCorridor(c, s, horizon);
             if (Clears(c, runStart, exit, runFrom, headway)) return Go.On;
-            // Without the headway, any time to spare will do (round 9: the floor of round 6, decision b, went; the soak
-            // and the in-game dumps were no worse without it).
-            const float floor = 0f;
-            // Still able to stop short of its way: the full headway or not at all, a stop
-            // short of it (review round 6, decision b; AA2: the memory lowered it there).
             if (runStart > 0 && CanStopShort(runStart, front)) return Go.StopShort;
-            if (StopSafe(c, front)) return Go.Stop;
-            // The emergency rule: on only with the floor to spare, else stop (decision a: no forced commit below it).
-            return Clears(c, runStart, exit, runFrom, floor) ? Go.Forced : Go.Stop;
+            return Go.Stop;
         }
 
         // Out of the car's way before it arrives, `margin` seconds to spare, on the trajectory the car can keep.
@@ -845,27 +783,6 @@ namespace DrivenRides.Core.Drive
                 if (spare > margin) return true;
             }
             return CommittedClear(c, runStart, safeLate, safeSpeed, margin, false);
-        }
-
-        // Stopping now at HardDecel: the body stands out of the car's way, or the car stops for it in its trigger
-        // before it touches (StaysBehind), whichever way it faces. Judged where the body comes into the car's way on the
-        // way to the stop, at the time it gets there, the car then as far on as it can be.
-        private bool StopSafe(in OtherCar c, float front)
-        {
-            var v = slowSpeed[0];
-            var standFront = front + v * v / (2f * PursuitDriver.HardDecel);
-            for (var k = 0; k < count && rearAt[k] + body.FrontAhead <= standFront + 0.5f; k++)
-            {
-                // The body as it will stand, give or take StopUncertainty (the corridor has its own side margin), not the
-                // margins kept for a moving body.
-                if (!corridor.Covers(poses[k].Grown(StopUncertainty - Corridor.SideMargin, StopUncertainty), out var ua, out _, out _, out _)) continue;
-                // The time to get there braking at HardDecel from v.
-                var d = rearAt[k] - rearAt[0];
-                var disc = v * v - 2f * PursuitDriver.HardDecel * d;
-                var t = disc <= 0f ? v / PursuitDriver.HardDecel : (v - (float)Math.Sqrt(disc)) / PursuitDriver.HardDecel;
-                return StaysBehind(c, t, ua - corridor.Far(t), null, null, 0, true);
-            }
-            return true;
         }
 
         // The poses from the car now (pose 0, as it stands) along the line, with the time window of each.
@@ -1682,8 +1599,6 @@ namespace DrivenRides.Core.Drive
         // green). Review round 4, X4: commitments found too late were forced (96 in 500 priority runs).
         private void Approaches(TrafficDecision d, in TrafficSnapshot s, float front)
         {
-            approachForcedFor = -1;
-            approachForced = float.MaxValue;
             if (approachCars.Count == 0 && holds.Count == 0) return;
             // Every constraint but the stops kept for cars (holds): those are put back one by one below.
             var others = holdsApplied != null && d.YieldAlong == holdsApplied ? yieldWithoutHolds : d.YieldAlong;
@@ -1998,23 +1913,8 @@ namespace DrivenRides.Core.Drive
                 return float.MaxValue;
             }
             // Past where it can still stop short of the car's way (after the brakes' latency, at HardDecel): a stop it
-            // can't make is never handed to the driver as it is (review round 8, CC3), but goes through the emergency
-            // rule, as Committed's GoOn: committed to a moment ago (latched) and clear with the floor, on (marginal);
-            // else a stop if standing where it would stand is safe (the car stops for the body in its trigger); else
-            // on if it clears with the floor (forced); else the stop all the same.
+            // can't make is the emergency rule's, marked so (review round 8, CC3): it brakes as hard as it can.
             var v = Math.Max(0f, slowSpeed[0]);
-            if (HardStop(v) > room + StopUncertainty)
-            {
-                const float floor = 0f;
-                var clearFloor = CommittedClear(c, entry, safeLate, safeSpeed, floor, false) && !clearsOutside;
-                var margin = clearMargin;
-                if (!StopSafe(c, front) && clearFloor)
-                {
-                    verdict = Verdict.Late;
-                    if (margin < approachForced) { approachForced = margin; approachForcedFor = c.Id; }
-                    return float.MaxValue;
-                }
-            }
             verdict = Verdict.Stop;
             emergencyStop = HardStop(v) > room + StopUncertainty;
             return boundary;
@@ -2053,9 +1953,6 @@ namespace DrivenRides.Core.Drive
         private readonly HashSet<int> judged = new HashSet<int>(), fresh = new HashSet<int>(), nosedIn = new HashSet<int>(), heldNow = new HashSet<int>();
         // The yield Approaches set this decision, and the yield before it (every other constraint's).
         private float? holdsApplied, yieldWithoutHolds;
-        // A continuation past the stopping option where standing would be hit (forced), found by the cautious judgement.
-        private int approachForcedFor = -1;
-        private float approachForced = float.MaxValue;
         // Lifting a stop kept for a car: the brakes' latency and the throttle's (LaunchDelay, measured from a
         // standstill) on top of the headway.
         public const float ReleaseMargin = BrakeLatency + LaunchDelay;

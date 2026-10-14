@@ -73,14 +73,8 @@ namespace DrivenRides
         // T3's tally: contacts with traffic cars (all, and those this car caused), standstills over 30 s away from a
         // red, red runs (TrafficVerdict).
         public int Contacts, ContactsCaused, Stalls, RedRuns;
-        // Times it went on past a traffic car's way only because standing there would be hit (the emergency rule,
-        // TrafficDecision.ForcedCommit; review round 3, V2).
-        public int ForcedCommits;
-        private bool forcedBefore;
         // Decisions whose final pass was still tightening the stops when it ran out of rounds (review round 7, BB4).
         public int UnsettledDecisions;
-        // The last reasons given, for the forced-commit log line (review round 4, X4).
-        private readonly Queue<string> recentWhys = new Queue<string>();
         // Gley cars that have the ride car in their trigger (obstacleList), from where and how fast when it came in:
         // how far each runs on to a standstill is logged, to measure Gley's stop (TrafficDriver.TriggerStopMetres;
         // review round 4, X3).
@@ -242,23 +236,15 @@ namespace DrivenRides
                 gley.Apply(e);
                 Log.Info($"NWH drive: {(e.Kind == JunctionEventKind.Enter ? "in" : "out of")} intersection {e.Junction} at {driver.Along:0} m.");
             }
-            if (decision.ForcedCommit && !forcedBefore)
-            {
-                ForcedCommits++;
-                Log.Info($"NWH drive: going on past traffic car {decision.ForcedFor}'s way: standing there would be hit ({speed:0.0} m/s, {driver.Along:0} m, {decision.ForcedMargin:0.00} s to spare); before: {string.Join(" | ", recentWhys)}.");
-            }
-            forcedBefore = decision.ForcedCommit;
             if (decision.Unsettled)
             {
                 UnsettledDecisions++;
-                Log.Info($"NWH drive: the final pass still tightened the stops after {decision.PassRounds} rounds; the emergency rule decided ({(decision.ForcedCommit ? "on" : "stop")}; {driver.Along:0} m, {speed:0.0} m/s).");
+                Log.Info($"NWH drive: the final pass still tightened the stops after {decision.PassRounds} rounds; a stop now, the emergency rule's ({driver.Along:0} m, {speed:0.0} m/s).");
             }
             if (decision.Why != lastWhy)
             {
                 if (decision.Why.Length > 0) Log.Info($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");
                 lastWhy = decision.Why;
-                recentWhys.Enqueue($"{Time.time - startedAt:0.0} s {decision.Why} ({speed:0.0} m/s)");
-                if (recentWhys.Count > 4) recentWhys.Dequeue();
             }
 
             var input = vehicle.input;
@@ -358,7 +344,7 @@ namespace DrivenRides
                 .Append(o.Throttle.ToString("0.00", Inv)).Append(',').Append(o.Brake.ToString("0.00", Inv)).Append(',').Append(o.Handbrake.ToString("0", Inv)).Append(',')
                 .Append(gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
-                .Append(decision.Why.Replace(',', ';')).Append(',').Append(decision.ForcedCommit ? decision.ForcedFor.ToString(Inv) : "").Append(',')
+                .Append(decision.Why.Replace(',', ';')).Append(',').Append(',')
                 .Append('\n');
             if (traceRing == null) return;
             traceRing[traceNext] = sb.ToString();

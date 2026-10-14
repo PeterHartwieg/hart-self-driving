@@ -117,12 +117,6 @@ namespace DrivenRides.Core.Drive
         public float? MaxSpeed;
         // Nosing in at a creep in front of a crawling car that will stop for the ride car in its trigger.
         public bool NoseIn;
-        // Gone on past a car's way only because stopping there would be hit and going on clears it by time (the
-        // emergency rule, TrafficDriver.GoOn), and the car it was for; counted in T0 and T3 (review round 3, V2).
-        public bool ForcedCommit;
-        public int ForcedFor = -1;
-        // The least time to spare that forced commit was judged with, seconds (review round 4, X4).
-        public float ForcedMargin;
         // The car whose way the front is to keep the option to stop short of (TrafficDriver.Approaches), or -1, and
         // where the front is to be able to stop.
         public int ApproachFor = -1;
@@ -150,10 +144,9 @@ namespace DrivenRides.Core.Drive
             GapSpeed = 0f;
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
-            StopIsRed = BackOff = NoseIn = ForcedCommit = Unsettled = false;
+            StopIsRed = BackOff = NoseIn = Unsettled = false;
             PassRounds = 0;
-            ForcedFor = ApproachFor = -1;
-            ForcedMargin = 0f;
+            ApproachFor = -1;
             Events.Clear();
             EmergencyFor.Clear();
             Why = "";
