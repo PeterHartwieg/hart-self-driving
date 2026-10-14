@@ -126,12 +126,12 @@ namespace DrivenRides
                 // isn't, so a lane with one in the way is passed over.
                 var lane = TrafficManager.Instance.GetClosestWaypoint(destination, 50f,
                     w => w.allowedCars != null && w.allowedCars.Count > 0 && TrafficManager.WithinHeight(w, y, 5f) && TrafficManager.IsNotIntersection(w)
-                         && !PlayerCarIn(wrapped, w.position, TrafficManager.Instance.GetWaypointOrientation(w)), planPrefab);
+                         && !PlayerCarIn(wrapped, RootFor(wrapped, w), TrafficManager.Instance.GetWaypointOrientation(w)), planPrefab);
                 if (lane != null)
                 {
                     // The rear axle on the waypoint, as a car stopped in the lane stands, so a trip can start from here.
                     var facing = TrafficManager.Instance.GetWaypointOrientation(lane);
-                    Teleport(car, lane.position - facing * new Vector3(0f, 0f, wrapped.RearZ), facing);
+                    Teleport(car, RootFor(wrapped, lane), facing);
                     VehicleHelper.DestroyBlockingVehicles(car.gameObject, car.vehicleType, car.transform);
                     car.SavePosition();
                     Log.Info($"Own car: the trip was cut short; the car is on the lane at waypoint {lane.listIndex}, {Vector3.Distance(lane.position, destination):0} m from the destination.");
@@ -152,6 +152,11 @@ namespace DrivenRides
             return FuelMethod?.Invoke(null, new object[] { car, metres }) is float used && used > 0f ? used : 0f;
         }
 
+        // Where the car's root goes for its rear axle to stand on a waypoint, facing along it: the placement and its
+        // occupancy check use the same pose.
+        private static Vector3 RootFor(NwhCar car, Waypoint w) =>
+            w.position - TrafficManager.Instance.GetWaypointOrientation(w) * new Vector3(0f, 0f, car.RearZ);
+
         // Whether another of the player's cars stands where this car's body would be with its root at `at`.
         private static readonly Collider[] Overlaps = new Collider[32];
 
@@ -167,23 +172,9 @@ namespace DrivenRides
             return false;
         }
 
-        // A car standing beside its lane (at the kerb, in a parking spot) pulls out: the line's start is moved sideways
-        // to under the car and eases into the lane over DriveLine.ShiftRamp, as the planner passes a car parked partly in
-        // a lane (DrivePlan.Shifts). The start check then judges the pull-out like any join: the car driven along it
-        // from its pose, its body against the world (the car parked ahead), its corners and wheels against the kerb.
-        public const float PullOutMin = 0.3f, PullOutMax = 4.5f;
-
-        public static bool AddPullOut(DrivenRides.Core.Drive.DrivePlan plan, int start, float sideways, float along)
-        {
-            if (plan.Path.Count == 0 || plan.Path[0] != start || Mathf.Abs(sideways) < PullOutMin || Mathf.Abs(sideways) > PullOutMax) return false;
-            plan.Shifts.Add((0, -1f, along, sideways));
-            Log.Info($"Own car: pulling out from {sideways:+0.0;-0.0} m beside the lane.");
-            return true;
-        }
-
-        // The own car starts where it stands: the planned line (with its pull-out) must start under it, and the car
-        // must be able to drive onto it from its pose (the planner's join check, Feasibility.Join), or the trip is
-        // refused.
+        // The own car starts where it stands: the planned line must start under it, and the car must be able to drive
+        // onto it from its pose (the planner's join check, Feasibility.Join), or the trip is refused. A car at the kerb
+        // is the player's to pull out (Peter, 14 October 2026).
         public static string? StartRefusal(CarController car, NwhPlanner planner, DrivenRides.Core.Drive.DrivePlan plan, DrivenRides.Core.Routing.LaneGraph graph)
         {
             var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out var why);
@@ -195,7 +186,7 @@ namespace DrivenRides
             var rear = wrapped.RearAxle;
             var pose = new DrivenRides.Core.Drive.CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z), speed, car.vehicleController.steering.angle);
             var line = plan.Line(graph);
-            if (!line.Joins(pose.X, pose.Z, pose.Heading, out _)) return "the car isn't standing along a lane";
+            if (!line.Joins(pose.X, pose.Z, pose.Heading, out _)) return "pull out into the lane first";
             var result = new DrivenRides.Core.Drive.Feasibility.SweepResult();
             foreach (var _ in planner.Check.JoinWork(plan, line, pose, result)) { }
             return result.What != null ? "it can't drive off from here (" + result.What + ")" : null;
@@ -213,11 +204,17 @@ namespace DrivenRides
             var rear = wrapped != null ? wrapped.RearAxle : car.transform.position;
             var forward = car.transform.forward;
             var best = nearest;
-            foreach (var i in graph.Near(GleyGraph.ToVec(rear), 15f))
+            // The steps from each waypoint near the car and into it, so a long step whose start is far behind counts too.
+            var steps = new List<(int From, int To)>();
+            foreach (var w in graph.Near(GleyGraph.ToVec(rear), 15f))
+            {
+                foreach (var j in graph.Successors(w)) steps.Add((w, j));
+                foreach (var p in graph.Predecessors(w)) steps.Add((p, w));
+            }
+            foreach (var (i, j) in steps)
             {
                 if (graph.IsIntersection(i) || !goodStart(i)) continue;
                 var a = graph.Position(i);
-                foreach (var j in graph.Successors(i))
                 {
                     var b = graph.Position(j);
                     float dx = b.X - a.X, dz = b.Z - a.Z;
@@ -266,7 +263,6 @@ namespace DrivenRides
 
         // Autopark as the options say: off, only cars that have it, or every car. The game's autopark is a fade and a
         // teleport into the nearest free spot (VehicleParkingHelper.ParkInClosestSpot), and it doesn't check the car.
-        private static readonly MethodInfo? FindSpotMethod = AccessTools.Method(typeof(VehicleParkingHelper), "FindNearestFreeSpot");
         private static readonly FieldInfo? ParkingHelperField = AccessTools.Field(typeof(CarController), "vehicleParkingHelper");
 
         // Stepped by the ride, which stops stepping when it is cancelled; stop says so between steps too.
@@ -279,11 +275,6 @@ namespace DrivenRides
                 Log.Info($"Own car: no autopark ({(mode == AutoparkMode.Off ? "off in the options" : "the car has none")}).");
                 yield break;
             }
-            // The game builds autopark spots near a car only when the player gets in, out or teleports it
-            // (ParkingLaneGenerator.RegenerateAutoParkSpotsNear); a car that drove itself here did none of those.
-            try { ParkingLaneGenerator.RegenerateAutoParkSpotsNear(car.transform.position); }
-            catch (Exception ex) { Log.Error("Own car autopark, spots: " + ex.Message); }
-            yield return null;
             yield return null;
             if (stop() || car == null || !car.controlledByPlayer) yield break;
             // As vanilla, which only offers a spot below 10 km/h (VehicleParkingHelper.Update): a player already
@@ -291,18 +282,20 @@ namespace DrivenRides
             if (car.CurrentSpeed >= 10f) { Log.Info("Own car: no autopark, the car is moving."); yield break; }
             // As vanilla: a wrecked car doesn't autopark.
             if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Log.Info("Own car: no autopark, the car is wrecked."); yield break; }
-            if (!(ParkingHelperField?.GetValue(car) is VehicleParkingHelper helper) || helper == null || FindSpotMethod == null)
+            if (!(ParkingHelperField?.GetValue(car) is VehicleParkingHelper helper) || helper == null)
             {
                 Log.Error("Own car autopark: the car has no parking helper.");
                 yield break;
             }
-            AutoParkSpot? spot = null;
-            try { spot = FindSpotMethod.Invoke(helper, null) as AutoParkSpot; }
-            catch (Exception ex) { Log.Error("Own car autopark: " + ex.Message); }
-            if (spot == null)
+            // The closest free spot, hunted for further out until one is found (Peter, 14 October 2026).
+            var hunt = new SpotHunt();
+            var hunting = Hunt(car, helper, hunt);
+            while (hunting.MoveNext()) { yield return hunting.Current; if (stop()) yield break; }
+            var spot = hunt.Found;
+            if (spot == null || car == null || !car.controlledByPlayer)
             {
-                Notice.Show("No free parking spot here; park the car yourself.");
-                Log.Info("Own car: no free autopark spot nearby.");
+                if (spot == null) Notice.Show($"No free parking spot within {HuntRadii[HuntRadii.Length - 1]:0} m; park the car yourself.");
+                Log.Info($"Own car: no free autopark spot within {HuntRadii[HuntRadii.Length - 1]:0} m ({hunt.Seen} spots seen).");
                 yield break;
             }
             Log.Info($"Own car: autoparking {Vector3.Distance(car.transform.position, spot.transform.position):0.0} m away{(supported ? "" : " (the car has no autopark of its own)")}.");
@@ -335,6 +328,63 @@ namespace DrivenRides
         {
             VehicleHelper.TeleportVehicleToGround(car, position, rotation);
             if (car.TryGetComponent<Rigidbody>(out var body)) { car.transform.SetPositionAndRotation(body.position, body.rotation); Physics.SyncTransforms(); }
+        }
+
+        // How far out the hunt for a spot goes, in steps: the nearest free spot within the first radius that has one.
+        private static readonly float[] HuntRadii = { 20f, 50f, 100f, 150f };
+        private static readonly MethodInfo? GenerateSpotsMethod = AccessTools.Method(typeof(ParkingLaneGenerator), "GenerateAutoParkSpots");
+        private static readonly FieldInfo? DimensionsField = AccessTools.Field(typeof(VehicleParkingHelper), "_vcom");
+        private static readonly Collider[] HuntHits = new Collider[512];
+
+        private sealed class SpotHunt
+        {
+            public AutoParkSpot? Found;
+            public int Seen;
+        }
+
+        // The game makes autopark spots only in the gaps of the parking lanes within 6 m of a car the player gets into,
+        // out of or teleports (ParkingLaneGenerator.RegenerateAutoParkSpotsNear), and its search only looks around the
+        // car (VehicleParkingHelper.FindNearestFreeSpot). The hunt makes the spots on every parking lane within each
+        // radius in turn and takes the nearest free one long enough for the car, by the game's own measures (the car's
+        // length plus the padding, VehicleParkingHelper.IsSpotOccupied).
+        private static IEnumerator Hunt(CarController car, VehicleParkingHelper helper, SpotHunt hunt)
+        {
+            var padding = InstanceBehavior<GlobalReferences>.Instance.autoParkSettings.VehiclePadding * 2f;
+            var length = (DimensionsField?.GetValue(helper) as NWH.Common.CoM.VariableCenterOfMass)?.dimensions.z ?? 4.6f;
+            var needs = length + padding;
+            var made = new HashSet<ParkingLaneGenerator>();
+            foreach (var radius in HuntRadii)
+            {
+                if (car == null) yield break;
+                var at = car.transform.position;
+                var n = Physics.OverlapSphereNonAlloc(at, radius, HuntHits, LayerHelper.parkingAreaLayerMask, QueryTriggerInteraction.Collide);
+                var any = false;
+                for (var k = 0; k < n; k++)
+                {
+                    var lane = HuntHits[k] != null ? HuntHits[k].GetComponentInParent<ParkingLaneGenerator>() : null;
+                    if (lane == null || !made.Add(lane)) continue;
+                    try { GenerateSpotsMethod?.Invoke(lane, null); any = true; }
+                    catch (Exception ex) { Log.Error("Own car autopark, spots: " + ex.Message); }
+                }
+                // The spots it replaced go at the end of the frame; the new ones are found after it.
+                if (any) { yield return null; Physics.SyncTransforms(); }
+                if (car == null) yield break;
+                at = car.transform.position;
+                n = Physics.OverlapSphereNonAlloc(at, radius, HuntHits, 1 << LayerHelper.AutoParkSpotsLayerIndex, QueryTriggerInteraction.Collide);
+                AutoParkSpot? best = null;
+                var bestDistance = float.MaxValue;
+                for (var k = 0; k < n; k++)
+                {
+                    if (HuntHits[k] == null || !HuntHits[k].TryGetComponent<AutoParkSpot>(out var spot) || spot.maxVehicleLength < needs) continue;
+                    hunt.Seen++;
+                    var d = Vector3.Distance(at, spot.transform.position);
+                    // As vanilla: not a spot the car already stands in.
+                    if (d < 1.5f || d >= bestDistance || IsOccupied(helper, spot)) continue;
+                    best = spot;
+                    bestDistance = d;
+                }
+                if (best != null) { hunt.Found = best; yield break; }
+            }
         }
 
         private static readonly FieldInfo? LastParkField = AccessTools.Field(typeof(VehicleParkingHelper), "_lastAutoParkPosition");

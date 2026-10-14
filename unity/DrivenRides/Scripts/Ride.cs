@@ -459,8 +459,6 @@ namespace DrivenRides
                 if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla("the tank is empty");
                 if (ownCar != null && planNwh != null && planNwhPlan != null)
                 {
-                    // A car beside its lane (the kerb, a parking spot) pulls out onto it.
-                    OwnCarTaxi.AddPullOut(planNwhPlan, start, ownSideways, ownAlong);
                     var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph);
                     if (refusal != null) return Vanilla(refusal);
                 }
