@@ -28,6 +28,8 @@ internal sealed class SimResult
     public float OptionLost = float.MinValue;
     // How long each decision took, microseconds (DecideCostTests).
     public readonly List<float> DecideMicros = new();
+    // Every slowdown (BrakeEvents), for the slowdown dumps' closed-loop check.
+    public readonly List<(float Time, float Peak, float Low, float Seconds, string Reason, int Car)> Slowdowns = new();
     // The most the ride car's rear axle was off its line while turning (the wheel past 6 degrees), metres.
     public float TurnOff;
     public readonly List<(float Time, int Car, float Drop, float Lasted, string Kind)> TurnDips = new();
@@ -78,6 +80,7 @@ internal sealed class TrafficSim : ILiveFlags
     {
         if (slowdowns.Step(time, driver.Along, (float)ride.Speed, (float)ride.Steer, decision.Why, decision.Note, decision.StopIsRed) == null) return;
         var e = slowdowns.Last;
+        if (e.Back || e.Low < 1f) result.Slowdowns.Add((time, e.Peak, e.Low, e.Seconds, e.Reason, e.Car));
         if (!e.Back || e.Seconds > TurnDipSeconds || e.Red || e.Wheel < TurnWheel) return;
         var kind = e.Reason.Length == 0 ? "plan" : e.Reason.StartsWith("behind") ? "behind" : e.Reason.StartsWith("stop line") || e.Reason.StartsWith("give-way line") ? "line" : e.Reason.StartsWith("creeping") ? "creeping" : e.Kind.ToString();
         result.TurnDips.Add((time, e.Car, e.Peak - e.Low, e.Seconds, kind));

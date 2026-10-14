@@ -35,6 +35,26 @@ public sealed class SlowdownClassifierTests
         foreach (var kv in counts.OrderByDescending(k => k.Value)) output.WriteLine($"{kv.Value,4} {kv.Key}");
     }
 
+    // DR_CLOSED=<folder>: each dump driven in the simulation (its cars as Gley's), its slowdowns to under 1 m/s for a
+    // car, and how it ended.
+    [Fact]
+    public void SlowdownDumpsClosedLoop()
+    {
+        var folder = Environment.GetEnvironmentVariable("DR_CLOSED");
+        if (string.IsNullOrEmpty(folder)) return;
+        var stops = 0;
+        var slow = 0;
+        foreach (var file in System.IO.Directory.GetFiles(folder, "*.json").OrderBy(f => f))
+        {
+            var r = TrafficTests.Run(TrafficScenarioJson.Load(System.IO.File.ReadAllText(file)));
+            var forCars = r.Slowdowns.Where(e => e.Reason.Length > 0 && !e.Reason.StartsWith("stop line") && !e.Reason.StartsWith("give-way line")).ToList();
+            stops += forCars.Count(e => e.Low < 1f);
+            slow += forCars.Count;
+            output.WriteLine($"{System.IO.Path.GetFileName(file)}: {r}; {forCars.Count(e => e.Low < 1f)} stops and {forCars.Count} slowdowns for cars: {string.Join("; ", forCars.Select(e => $"{e.Peak:0.0}->{e.Low:0.0} {e.Reason}"))}");
+        }
+        output.WriteLine($"total: {stops} stops, {slow} slowdowns for cars");
+    }
+
     internal static string Classify(TrafficScenario s, out string key)
     {
         var graph = s.BuildGraph();

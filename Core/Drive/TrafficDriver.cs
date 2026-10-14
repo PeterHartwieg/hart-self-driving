@@ -480,6 +480,13 @@ namespace DrivenRides.Core.Drive
                 if (nosedInFor == c.Id) yieldMemory.Remove(c.Id);
                 Give(d, c, give, s.Time, front);
             }
+            if (farConflict)
+            {
+                // Easing off for a conflict far off: no faster than now (no slower than a crawl).
+                var hold = Math.Max(MovingMs, speed);
+                if (d.MaxSpeed == null || hold < d.MaxSpeed) d.MaxSpeed = hold;
+                farConflict = false;
+            }
             // Where the ride car would come to a stand is kept clear of a car out of the lenient look ahead too, over the
             // longest one (review round 8: it had none, and the ride car stopped across its lane to wait for a car in
             // the next one, T0 crossing).
@@ -1484,6 +1491,12 @@ namespace DrivenRides.Core.Drive
         // metre: "stopped for this car in its trigger: 0.97 m and 0.40 s from 13.6 m/s"), ua metres ahead of its front.
         private static bool TriggerStops(in OtherCar c, float ua) => ua >= c.Speed * TriggerReact + TriggerStopMetres + 1f;
 
+        public const float FarConflictSeconds = 3f;
+        private bool farConflict;
+
+        // Where the car stops from v at Decel after the brakes' latency, with the uncertainty to spare.
+        private static float StoppingRoom(float v) => v * BrakeLatency + v * v / (2f * PursuitDriver.Decel) + StopUncertainty;
+
         // Gaining speed at more than half a metre a second each second.
         private bool SpeedingUp(int id) => pace.TryGetValue(id, out var p) && p.Gain > 0.5f;
 
@@ -1730,6 +1743,15 @@ namespace DrivenRides.Core.Drive
                 if (runStart > 0)
                 {
                     var stopAt = rearAt[runStart - 1] + body.FrontAhead;
+                    // Far off (the body there in more than FarConflictSeconds at the soonest, with room to stop short
+                    // at Decel when it is nearer): no stop yet, the ride car only stops speeding up, and gives way if the
+                    // conflict is still there as it comes closer (Peter, 14 October: "it gives way to other cars where
+                    // nobody would usually give way"; in the slowdown dumps, cars 3 to 5 s off).
+                    if (early[runStart] > FarConflictSeconds && stopAt - front > StoppingRoom(fastSpeed[0]) + SweepStep)
+                    {
+                        farConflict = true;
+                        return null;
+                    }
                     // Too close to stop short of its way without braking harder than HardDecel: committed. Whether
                     // it goes on or stops now is decided once every car's yield is known (Committed).
                     var room = stopAt - front;
