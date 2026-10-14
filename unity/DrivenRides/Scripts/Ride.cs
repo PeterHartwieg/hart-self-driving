@@ -374,7 +374,8 @@ namespace DrivenRides
                     if (spawn == null) return Vanilla("no free lane beside the car");
                     // The line must start under the car: from the lane waypoint behind its rear axle, not one ahead.
                     var ownY = ownCar.transform.position.y;
-                    start = OwnCarTaxi.StartBehind(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY));
+                    start = OwnCarTaxi.StartUnder(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out var sideways);
+                    Log.Info(sideways < float.MaxValue ? $"Own car: starts on the step from waypoint {start}, {sideways:0.0} m to the side of it." : $"Own car: no lane step runs under the car; nearest waypoint {start}.");
                 }
                 else
                 {

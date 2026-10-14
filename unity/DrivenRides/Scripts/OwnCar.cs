@@ -129,7 +129,9 @@ namespace DrivenRides
                          && !PlayerCarIn(wrapped, w.position, TrafficManager.Instance.GetWaypointOrientation(w)), planPrefab);
                 if (lane != null)
                 {
-                    Teleport(car, lane.position, TrafficManager.Instance.GetWaypointOrientation(lane));
+                    // The rear axle on the waypoint, as a car stopped in the lane stands, so a trip can start from here.
+                    var facing = TrafficManager.Instance.GetWaypointOrientation(lane);
+                    Teleport(car, lane.position - facing * new Vector3(0f, 0f, wrapped.RearZ), facing);
                     VehicleHelper.DestroyBlockingVehicles(car.gameObject, car.vehicleType, car.transform);
                     car.SavePosition();
                     Log.Info($"Own car: the trip was cut short; the car is on the lane at waypoint {lane.listIndex}, {Vector3.Distance(lane.position, destination):0} m from the destination.");
@@ -185,22 +187,36 @@ namespace DrivenRides
             return result.What != null ? "it can't drive off from here (" + result.What + ")" : null;
         }
 
-        // The route's first waypoint: the lane waypoint nearest the car, or the one before it on the same lane when the
-        // nearest is ahead of the rear axle, so the planned line starts under the car.
-        public static int StartBehind(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest, Func<int, bool> goodStart)
+        // The route's first waypoint: the start of the lane step that runs under the car's rear axle, along the car's
+        // way, the nearest such step sideways; the line then starts under the car. Falls back to the waypoint nearest
+        // the car (`nearest`) when no step runs under it, which the start check then refuses.
+        public static int StartUnder(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest, Func<int, bool> goodStart, out float sideways)
         {
-            var all = GleyGraph.Waypoints;
-            if (all == null || nearest < 0 || nearest >= all.Length) return nearest;
-            var forward = car.transform.forward;
+            sideways = float.MaxValue;
             var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _);
             var rear = wrapped != null ? wrapped.RearAxle : car.transform.position;
-            if (Vector3.Dot(all[nearest].position - rear, forward) <= 0f) return nearest;
-            foreach (var p in graph.Predecessors(nearest))
+            var forward = car.transform.forward;
+            var best = nearest;
+            foreach (var i in graph.Near(GleyGraph.ToVec(rear), 15f))
             {
-                var along = all[nearest].position - all[p].position;
-                if (along.sqrMagnitude > 0.01f && Vector3.Dot(along.normalized, forward) > 0.7f && !graph.IsIntersection(p) && goodStart(p)) return p;
+                if (graph.IsIntersection(i) || !goodStart(i)) continue;
+                var a = graph.Position(i);
+                foreach (var j in graph.Successors(i))
+                {
+                    var b = graph.Position(j);
+                    float dx = b.X - a.X, dz = b.Z - a.Z;
+                    var length = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (length < 0.1f) continue;
+                    float ux = dx / length, uz = dz / length;
+                    if (ux * forward.x + uz * forward.z < 0.7f) continue;
+                    var t = (rear.x - a.X) * ux + (rear.z - a.Z) * uz;
+                    // Inside the step: the line starts at the step's start, so a rear axle behind it is off the line.
+                    if (t < 0f || t > length) continue;
+                    var side = Mathf.Abs((rear.x - a.X) * uz - (rear.z - a.Z) * ux);
+                    if (side < sideways) { sideways = side; best = i; }
+                }
             }
-            return nearest;
+            return best;
         }
 
         public static bool HasFuelForBridge(CarController car, float metres)
@@ -247,7 +263,10 @@ namespace DrivenRides
                 Log.Info($"Own car: no autopark ({(mode == AutoparkMode.Off ? "off in the options" : "the car has none")}).");
                 yield break;
             }
-            // The spots near the car are rebuilt on entering it; give them two frames.
+            // The game builds autopark spots near a car only when the player gets in, out or teleports it
+            // (ParkingLaneGenerator.RegenerateAutoParkSpotsNear); a car that drove itself here did none of those.
+            try { ParkingLaneGenerator.RegenerateAutoParkSpotsNear(car.transform.position); }
+            catch (Exception ex) { Log.Error("Own car autopark, spots: " + ex.Message); }
             yield return null;
             yield return null;
             if (stop() || car == null || !car.controlledByPlayer) yield break;

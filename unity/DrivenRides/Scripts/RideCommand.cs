@@ -27,7 +27,8 @@ namespace DrivenRides
     // line per ride goes to ride-results.jsonl beside the rig's results.
     //
     //   ride [kind=taxi|stand|driver|own] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
-    //        [autopark=off|cars|every] (own: the player's own car drives itself; it is put on a lane by the player first)
+    //        [autopark=off|cars|every] [skip=N] [exit=N] (own: the player's own car drives itself; it is put on a lane by
+    //        the player first; skip presses Skip N seconds in, exit gets the player out N seconds in)
     // `ridemode nwh|gley|options` picks car physics or the Gley rides for the rides after it (TurnTests).
     internal static class RideCommand
     {
@@ -173,8 +174,18 @@ namespace DrivenRides
             if (Ride.Active != null && args.TryGetValue("speed", out var sp) && float.TryParse(sp, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed))
                 Ride.Active.SetTestSpeed(Mathf.Clamp(speed, 1f, 3f));
             if (!TaxiSystem.IsTraveling && Ride.Active == null) { result["refused"] = "TravelTo started no ride (fare refused, or the map closed)"; yield break; }
-            // To the end of the ride, vanilla or driven, at most 20 minutes.
-            while ((Ride.Active != null || TaxiSystem.IsTraveling) && Time.unscaledTime - started < 1200f) yield return null;
+            // To the end of the ride, vanilla or driven, at most 20 minutes. skip=N presses Skip N seconds in; exit=N
+            // gets the player out of the own car N seconds in.
+            float After(string name) => args.TryGetValue(name, out var v) && float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : -1f;
+            var skipAt = After("skip");
+            var exitAt = After("exit");
+            while ((Ride.Active != null || TaxiSystem.IsTraveling) && Time.unscaledTime - started < 1200f)
+            {
+                var elapsed = Time.unscaledTime - started;
+                if (skipAt >= 0f && elapsed >= skipAt && Ride.Active != null) { Ride.Active.RequestSkip(); result["skipped"] = Math.Round(elapsed, 1); skipAt = -1f; }
+                if (exitAt >= 0f && elapsed >= exitAt && ownCar != null) { ownCar.ExitVehicle(); result["gotOut"] = Math.Round(elapsed, 1); exitAt = -1f; }
+                yield return null;
+            }
             result["seconds"] = Math.Round(Time.unscaledTime - started, 1);
             result["end"] = Ride.LastEnd.Length > 0 ? Ride.LastEnd : "vanilla ride";
             if (Ride.Active != null || TaxiSystem.IsTraveling) result["end"] = "still under way after 20 minutes";
