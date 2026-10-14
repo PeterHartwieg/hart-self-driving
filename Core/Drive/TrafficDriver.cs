@@ -212,7 +212,7 @@ namespace DrivenRides.Core.Drive
             roadHeld = Rules.RoadHeld;
         }
 
-        public bool BackingOff => backingFrom >= 0 || laneBackFrom >= 0;
+        public bool BackingOff => backingFrom >= 0 || laneBackFrom >= 0 || standOffBacking;
 
         // The ride car's body at a rear-axle position and heading.
         public Box BodyAt(float rearX, float rearZ, float heading)
@@ -376,6 +376,7 @@ namespace DrivenRides.Core.Drive
             }
             Back(s, d, backCandidate);
             if (!d.BackOff) LaneBack(s, d, standing);
+            if (!d.BackOff) StandOff(s, d, standing, along);
             if (d.BackOff)
             {
                 if (whyKind != 7 || whyId != d.BackOffFrom) { whyKind = 7; whyId = d.BackOffFrom; whyText = $"backing off from {d.BackOffFrom}"; }
@@ -1234,6 +1235,72 @@ namespace DrivenRides.Core.Drive
             d.BackOff = true;
             d.BackOffFrom = laneBackFrom;
         }
+
+        // A stand-off (review round 10: T3 ride 18, a car turning across the ride car's way waited with the ride car in
+        // its trigger while the ride car waited behind it, until Gley's car crept into it): the ride car standing
+        // StandOffSeconds and a car ahead in its way that waits for it (the ride car in its trigger, as Gley reports
+        // it) standing as long. The ride car gives it room: it backs off while the car waits for it (or did within
+        // StandOffClear: the trigger's reading comes and goes as the bodies move) or its body is in the car's way, the
+        // way behind free, up to MaxBackOff. It stays where it is until the car's body is out of its way for
+        // StandOffRoom on, StandOffHold at most. Again for the same car only once that has come StandOffMoved on: one
+        // that doesn't go when given room waits for something else.
+        private void StandOff(in TrafficSnapshot s, TrafficDecision d, bool standing, float along)
+        {
+            if (standing) { if (rideStoodSince < 0f) rideStoodSince = now; }
+            else if (!standOffBacking) rideStoodSince = -1f;
+            standOffBacking = false;
+            Forget(standOffGiven);
+            if (standOffFrom < 0)
+            {
+                if (!standing || rideStoodSince < 0f || now - rideStoodSince < StandOffSeconds) return;
+                for (var i = 0; i < s.Cars.Count && standOffFrom < 0; i++)
+                {
+                    var c = s.Cars[i];
+                    if (!c.StoppedForUs || moving.Contains(c.Id)) continue;
+                    if (standOffGiven.TryGetValue(c.Id, out var was) && (c.X - was.X) * (c.X - was.X) + (c.Z - was.Z) * (c.Z - was.Z) < StandOffMoved * StandOffMoved) continue;
+                    if (!standingSince.TryGetValue(c.Id, out var since) || now - since < StandOffSeconds) continue;
+                    // Only one ahead in the ride car's way (its body or its trigger, which the ride car keeps out of),
+                    // so each waits for the other and backing off gives it room: not one queued behind it (a U-turn's
+                    // way comes back past that one).
+                    if (!Before(c, poses[0])) continue;
+                    var way = FirstZoneTouch(BodyOf(c), TriggerOf(c), 0.3f, 0);
+                    if (way < 0 || rearAt[way] - along > StandOffRoom) continue;
+                    standOffFrom = c.Id;
+                    standOffX = s.RearX;
+                    standOffZ = s.RearZ;
+                    standOffSince = now;
+                    standOffGiven[c.Id] = (c.X, c.Z);
+                }
+                if (standOffFrom < 0) return;
+            }
+            OtherCar? from = null;
+            for (var i = 0; i < s.Cars.Count; i++) if (s.Cars[i].Id == standOffFrom) { from = s.Cars[i]; break; }
+            if (!(from is OtherCar o) || now - standOffSince > StandOffHold) { standOffFrom = -1; return; }
+            if (o.StoppedForUs) standOffWaited = now;
+            var waits = now - standOffWaited < StandOffClear;
+            var touch = FirstTouch(BodyOf(o), GroundMargin, 0);
+            if (!waits && (touch < 0 || rearAt[touch] - along > StandOffRoom)) { standOffFrom = -1; return; }
+            var backed = (float)Math.Sqrt((s.RearX - standOffX) * (s.RearX - standOffX) + (s.RearZ - standOffZ) * (s.RearZ - standOffZ));
+            // Out of its trigger is not out of its way: a car turning across sweeps wider than its trigger reaches
+            // (T3 ride 18, in the simulation: it set off once the trigger was clear and cut the corner into the ride
+            // car's front). So also out of its way on along the lanes, with the margins and BackOffClear.
+            corridor.Build(graph, o, s.Flags, MaxHorizon, SweepMetres, roadHeld, true, LeaderOf(o, s.Cars));
+            var inWay = corridor.Covers(poses[0].Grown(SideMargin + BackOffClear, EndMargin + BackOffClear), out var ua, out _, out _, out _) && ua > 0f;
+            if ((waits || inWay) && backed < MaxBackOff && PathBehindFree(s, SweepStep))
+            {
+                d.BackOff = true;
+                d.BackOffFrom = o.Id;
+                standOffBacking = true;
+                return;
+            }
+            Gap(d, 0, along, o.Id);
+        }
+
+        public const float StandOffSeconds = 2f, StandOffClear = 0.5f, StandOffRoom = 10f, StandOffHold = 10f, StandOffMoved = 1f;
+        private int standOffFrom = -1;
+        private float standOffX, standOffZ, standOffSince, standOffWaited, rideStoodSince = -1f;
+        private bool standOffBacking;
+        private readonly Dictionary<int, (float X, float Z)> standOffGiven = new Dictionary<int, (float, float)>();
 
         // How far back the body is out of the corridor built last (with the margins and BackOffClear), or -1 if not
         // within MaxBackOff.

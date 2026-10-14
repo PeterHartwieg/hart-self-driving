@@ -190,7 +190,7 @@ public sealed class TrafficTests
 
     // Dumps the simulation can't resolve yet, kept visible: tests/traffic-scenarios/pending/ (each one's note says why).
     // Each has a replay test of the decision it took in the game.
-    [Fact(Skip = "pending: tests/traffic-scenarios/pending/ (t3d and t3e ride 17: a merge into a stream with no gap and no car slow enough to nose in on; see their notes)")]
+    [Fact(Skip = "pending: tests/traffic-scenarios/pending/ (t3f 0005 and 0016-2: cars moving sideways into the ride car, class a; see their notes)")]
     public void PendingScenarios()
     {
         foreach (var file in System.IO.Directory.GetFiles(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "pending"), "*.json"))
@@ -208,7 +208,7 @@ public sealed class TrafficTests
     [Fact]
     public void Ride17WaitsAtTheMergeForCarsThatAreComing()
     {
-        var s = TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "pending", "t3d-213209-ride17-stall.json")));
+        var s = TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "t3d-213209-ride17-stall.json")));
         var lines = ReplayDecisions(s);
         var waits = 0;
         for (var i = 0; i < lines.Count; i++)
