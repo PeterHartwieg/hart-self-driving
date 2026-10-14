@@ -44,6 +44,12 @@ namespace DrivenRides.Core.Drive
         // The road this car holds at a junction, or -1. Other roads' cars stop at their give-way line meanwhile.
         public int RoadHeld(int junction) => roadHeld.TryGetValue(junction, out var road) ? road : -1;
 
+        // How far the front bumper is ahead of the front wheels (TrafficDriver sets it). Gley's cars stop with their front
+        // trigger, at the front wheels (VehicleComponent.GetFrontAxle), on a stop line's waypoint; the ride car stops
+        // its front wheels there too, level with them (Peter, 14 October: "the car stops not at the stop line but half
+        // a car in front").
+        public float Overhang { get; set; }
+
         public void Step(IReadOnlyList<PathMark> marks, float front, float rear, float speed, float time, TrafficDecision d)
         {
             for (var k = 0; k < marks.Count; k++)
@@ -67,7 +73,7 @@ namespace DrivenRides.Core.Drive
             {
                 var m = marks[k];
                 if (!m.Stop) redDecision.Remove(m.Position);
-                var room = m.Along - front;
+                var room = m.Along - (front - Overhang);
                 if (room < -0.3f || drivenThrough.Contains(m.Position)) continue;
                 var tooLate = room > 0f && speed * speed / (2f * room) > PursuitDriver.HardDecel;
                 if (m.Stop)
@@ -79,7 +85,7 @@ namespace DrivenRides.Core.Drive
                     if (through && room > 0f && (speed < 1f || speed * speed / (2f * room) <= PursuitDriver.Decel))
                         redDecision[m.Position] = through = false;
                     if (through) continue;
-                    d.StopAlong = m.Along - ShortOfLine;
+                    d.StopAlong = m.Along - ShortOfLine + Overhang;
                     d.StopPosition = m.Position;
                     d.StopIsRed = true;
                     return;
@@ -96,7 +102,7 @@ namespace DrivenRides.Core.Drive
                         if (!inside.ContainsKey(m.Junction)) roadHeld.Remove(m.Junction);
                         if (tooLate) { drivenThrough.Add(m.Position); continue; }
                     }
-                    d.StopAlong = m.Along - ShortOfLine;
+                    d.StopAlong = m.Along - ShortOfLine + Overhang;
                     d.StopPosition = m.Position;
                     return;
                 }

@@ -212,7 +212,8 @@ internal sealed class TrafficSim : ILiveFlags
         var stoppable = new Dictionary<int, bool>();
         float stall = 0f, nextTrace = 0f;
         var backing = false;
-        var prevFront = driver.Along + body.FrontAhead;
+        // The red-run judge: the front wheels past a set stop (as Gley judges its own cars; JunctionRules.Overhang).
+        var prevFront = driver.Along + body.Wheelbase;
         for (var step = 0; time < seconds; step++)
         {
             time = step * Dt;
@@ -416,7 +417,7 @@ internal sealed class TrafficSim : ILiveFlags
                 result.Failure = $"overlap with car {c.Spec.Id} at {time:0.00} s (ride {ride.Speed:0.0} m/s, car {c.V:0.0} m/s, {decision.Why})";
                 return Finish(result);
             }
-            front = driver.Along + body.FrontAhead;
+            front = driver.Along + body.Wheelbase;
             for (var k = 0; k < path.Length; k++)
             {
                 var along = pathAlong[k];

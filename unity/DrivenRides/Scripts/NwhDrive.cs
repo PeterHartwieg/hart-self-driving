@@ -165,7 +165,7 @@ namespace DrivenRides
             var rearNow = car.RearAxle;
             driver.StartAt(rearNow.x, rearNow.z);
             lastProgressAlong = driver.Along;
-            prevFront = driver.Along + car.FrontAhead;
+            prevFront = driver.Along + car.Wheelbase;
             gley = new GleyTraffic(car.Root);
             startedAt = Time.time;
             lastProgressTime = Time.time;
@@ -227,7 +227,7 @@ namespace DrivenRides
             lastProgressAlong = driver.Along;
             lastProgressTime = Time.time;
             stillSeconds = standing = 0f;
-            prevFront = Car.FrontAhead;
+            prevFront = Car.Wheelbase;
             stoppable.Clear();
             castHold = null;
             castClearFor = 0f;
@@ -391,7 +391,7 @@ namespace DrivenRides
                 backing = true;
                 lastProgressTime = Time.time;
                 WaitingNow = true;
-                Tally(speed, front);
+                Tally(speed, front - (Car.FrontAhead - Car.Wheelbase));
                 return;
             }
             backing = false;
@@ -419,7 +419,7 @@ namespace DrivenRides
 
             if (Recording) TraceStep(o, speed, steerInput, transmission.Gear, gap);
 
-            Tally(speed, o.Along + Car.FrontAhead);
+            Tally(speed, o.Along + Car.Wheelbase);
             if (Ended) return;
             if (o.Along + Car.FrontAhead >= driver.Length - 1.5f && Mathf.Abs(speed) < 0.3f) { End("arrived", true); return; }
             if (BlockedRule(o, speed, gap)) return;
@@ -490,7 +490,8 @@ namespace DrivenRides
         }
 
         // T3's judging, as T0's invariants: contact (OnCollisionEnter), a standstill over 30 s away from a red, a red
-        // run (the front past a `stop` waypoint that was set while the car could still stop for it at HardDecel).
+        // run (the front wheels past a `stop` waypoint that was set while the car could still stop for it at HardDecel;
+        // as Gley judges its own cars, JunctionRules.Overhang).
         private void Tally(float speed, float front)
         {
             var all = GleyGraph.Waypoints;

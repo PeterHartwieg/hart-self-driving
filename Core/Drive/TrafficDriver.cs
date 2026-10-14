@@ -210,6 +210,7 @@ namespace DrivenRides.Core.Drive
             this.driver = driver;
             this.body = body;
             roadHeld = Rules.RoadHeld;
+            Rules.Overhang = Math.Max(0f, body.FrontAhead - body.Wheelbase);
             // The line's lengths and the plan's onward speeds are worked out on first use: here, at the ride's start,
             // not in its first physics step (review round 11).
             line.FirstPointFrom(0f);
@@ -1759,7 +1760,10 @@ namespace DrivenRides.Core.Drive
                 // Not head-on, nor across at an angle that drives the ride car on towards where that car stops (more
                 // than about 107 degrees between the two: 0.1.107 dump at 145 m, a left turn across a car at 130). The
                 // poses further on are still looked at, for where the ride car must not come to a stand (keep clear).
-                if (goesOn || (dot >= -TowardsIt && StopsForUs(c, k, ua))) { goesOn = true; continue; }
+                // Once the body is in its way (from pose 0), any angle: the car comes up to the body in its lane and its
+                // trigger stops it there, as for any car in the way (Peter, 14 October: the head-on give-ways in left
+                // turns onto 4th Avenue).
+                if (goesOn || ((dot >= -TowardsIt || runStart == 0) && StopsForUs(c, k, ua))) { goesOn = true; continue; }
                 // A car crawling this slowly stops for the ride car as soon as the ride car's body is in its front
                 // trigger, well within the trigger's length (Gley's StopInDistance), if the body comes into its way
                 // further ahead of its front than it needs to stop: the ride car noses in at a creep
