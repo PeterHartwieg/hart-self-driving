@@ -286,9 +286,8 @@ namespace DrivenRides.Core.Drive
             braking = rideDecel > BrakingDecel && s.Speed > 0.3f;
             approachBuilt.Clear();
             poolUsed = 0;
-            // Swapped, not copied: UnionWith boxes its enumerator, garbage every physics step.
-            (followersWas, followersNow) = (followersNow, followersWas);
-            followersNow.Clear();
+            (crossingWas, crossingNow) = (crossingNow, crossingWas);
+            crossingNow.Clear();
             nosedIn.Clear();
             heldNow.Clear();
             holdsApplied = null;
@@ -427,8 +426,10 @@ namespace DrivenRides.Core.Drive
                 if (!moving.Contains(c.Id) || heldFor.Contains(c.Id)) continue;
                 var touch = FirstTouch(BodyOf(c), GroundMargin, 0);
                 // A car ahead on the ride car's way, moving: followed at its speed along that way where the body
-                // would meet it (PursuitDriver.Follow).
-                if (touch >= 0 && Ahead(c, touch))
+                // would meet it (PursuitDriver.Follow). Not one the ride car is going on in front of (StopsForUs): its
+                // body is in the poses because its way crosses them, and braking for it there is what brings the two
+                // together.
+                if (touch >= 0 && Ahead(c, touch) && !crossingWas.Contains(c.Id))
                 {
                     Gap(d, touch, along, c.Id, false, Math.Max(0f, c.Vx * poses[touch].Sin + c.Vz * poses[touch].Cos));
                     if (RearAhead(c, poses[touch])) followed.Add(c.Id);
@@ -490,13 +491,6 @@ namespace DrivenRides.Core.Drive
                 // ago doesn't hold the ride car back (review round 2, U4).
                 if (nosedInFor == c.Id) yieldMemory.Remove(c.Id);
                 Give(d, c, give, s.Time, front);
-            }
-            if (farConflict)
-            {
-                // Easing off for a conflict far off: no faster than now (no slower than a crawl).
-                var hold = Math.Max(MovingMs, speed);
-                if (d.MaxSpeed == null || hold < d.MaxSpeed) d.MaxSpeed = hold;
-                farConflict = false;
             }
             // Where the ride car would come to a stand is kept clear of a car out of the lenient look ahead too, over the
             // longest one (review round 8: it had none, and the ride car stopped across its lane to wait for a car in
@@ -1502,8 +1496,7 @@ namespace DrivenRides.Core.Drive
         // metre: "stopped for this car in its trigger: 0.97 m and 0.40 s from 13.6 m/s"), ua metres ahead of its front.
         private static bool TriggerStops(in OtherCar c, float ua) => ua >= c.Speed * TriggerReact + TriggerStopMetres + 1f;
 
-        public const float FarConflictSeconds = 3f, LeaderOffMs = PursuitDriver.LeaderOffMs;
-        private bool farConflict;
+        public const float LeaderOffMs = PursuitDriver.LeaderOffMs;
 
         // Where the car stops from v at Decel after the brakes' latency, with the uncertainty to spare.
         private static float StoppingRoom(float v) => v * BrakeLatency + v * v / (2f * PursuitDriver.Decel) + StopUncertainty;
@@ -1581,8 +1574,6 @@ namespace DrivenRides.Core.Drive
                     if (float.IsPositiveInfinity(t)) return StaysBehind(c, 0f, ua, null, null, 0, quick);
                     // Once it stays behind from the first pose in its lane on, it does from the later ones.
                     if (k > runStart && behindFrom == runStart) continue;
-                    // Further back than it needs to stop at Gley's braking: it follows (as Conflict has it).
-                    if (FollowsBehind(c.Id, ua - corridor.Far(t), t) || ClosesShort(Their(t), speeds[k], ua - corridor.Far(t))) { behindFrom = runStart; continue; }
                     // No headway here: following the car behind through its trigger is the margin.
                     if (!StaysBehind(c, t, ua - corridor.Far(t), times, speeds, k, quick)) return false;
                     behindFrom = runStart;
@@ -1601,32 +1592,41 @@ namespace DrivenRides.Core.Drive
             return true;
         }
 
-        // A car coming up behind in the lane the body joins, `behind` metres back when the body is in it at time t (the
-        // corridor built last): further back than it needs to stop at Gley's braking (TriggerBrake after
-        // TriggerReactCautious, and FollowGap), at the speed it can have by then.
-        // Once judged so, a car keeps counting as following while it is half that far back, so the judgement doesn't
-        // come and go as it closes in (a stop imposed again a moment later is a harder brake than the one avoided).
-        private bool FollowsBehind(int id, float behind, float t)
+        // Gley stops a car for anything in its front trigger, from any speed, within about a metre (T3 and own-car logs:
+        // "stopped for this car in its trigger: 0.97 m and 0.40 s from 13.6 m/s"; its trigger reaches 4.5 m from the
+        // front wheels). A moving car whose way the body comes into at pose k, ua metres ahead of its front, stops short
+        // of it if its trigger reaches past what it needs to stop from the speed it can have by then (TriggerReact,
+        // TriggerStopMetres and StopsForUsMargin), and its front is no nearer than that when the body is there at the
+        // latest. Once the ride car goes on in front of a car, half the margin is enough, so it doesn't flip back to
+        // waiting half way as the estimates move (Peter, 14 October: "a lot of these weird stops
+        // come from being overly careful with Gley cars ... they would always stop for us").
+        private bool StopsForUs(in OtherCar c, int k, float ua)
         {
-            var their = Their(t);
-            var need = their * TriggerReactCautious + their * their / (2f * TriggerBrake);
-            if (followersWas.Contains(id)) need /= 2f;
-            if (behind < need + FollowGap) return false;
-            followersNow.Add(id);
+            if (ua <= 0f || c.TriggerLength <= 0f) return false;
+            var t = safeLate[k];
+            if (float.IsPositiveInfinity(t) || float.IsNaN(t)) return false;
+            var margin = crossingWas.Contains(c.Id) ? StopsForUsMargin / 2f : StopsForUsMargin;
+            // Its trigger must catch the body in time at any speed it can reach (a car speeding up after the ride car
+            // went on must not outgrow it), and it must be far enough back at the speed it has by then.
+            var fastest = Math.Max(corridor.TopSpeed, c.Speed);
+            if (fastest * TriggerReact + TriggerStopMetres + margin > c.TriggerLength) return false;
+            var stop = Their(t) * TriggerReact + TriggerStopMetres + margin;
+            if (ua - corridor.Far(t) < stop) return false;
+            // Where it stands then must not be on the ride car's way on: else each waits for the other (a car turning
+            // across the ride car's path, stopped by its trigger in the junction, with the ride car behind it).
+            for (var j = k + 1; j < count; j++)
+                if (CoversSwept(j, out var uj, out _, out _, out _) && uj < ua - stop) return false;
+            crossingNow.Add(c.Id);
             return true;
         }
 
-        // It closes on the ride car short of FollowGap, braking at FollowBrake while the ride car speeds up at SlowAccel
-        // from `ours` (the closing speed, not both from a stand: the ride car doesn't stay at its turning speed).
-        private static bool ClosesShort(float their, float ours, float behind)
-        {
-            var closing = Math.Max(0f, their - ours);
-            return closing * closing / (2f * (FollowBrake + SlowAccel)) + FollowGap < behind;
-        }
+        public const float StopsForUsMargin = 0.5f, TowardsIt = 0.3f;
 
         private float Their(float t) => corridor.SpeedingUp ? Math.Min(corridor.TopSpeed, corridor.Speed + Corridor.Accel * t) : corridor.Speed;
 
-        private HashSet<int> followersWas = new HashSet<int>(), followersNow = new HashSet<int>();
+        // The cars the ride car goes on in front of, last decision and this one (swapped, not copied: UnionWith boxes
+        // its enumerator, garbage every physics step).
+        private HashSet<int> crossingWas = new HashSet<int>(), crossingNow = new HashSet<int>();
 
         private float clearMargin;
         // The last CommittedClear's true was for staying outside the car's way, not clearing through it.
@@ -1695,6 +1695,7 @@ namespace DrivenRides.Core.Drive
         // Layer 2 for one moving car whose corridor is built: where the front gives way, or null.
         private float? Conflict(in OtherCar c, float front, int index)
         {
+            var goesOn = false;
             var runStart = -1;
             var runFrom = float.MaxValue;
             var entry = -1;
@@ -1742,23 +1743,8 @@ namespace DrivenRides.Core.Drive
                     // One the body comes up behind, its rear ahead where they meet: followed at its speed (Gap); a
                     // crawling car ahead was given way to as if it came from behind (review round 2, U4).
                     else if (comingUpBehind) conflict = false;
-                    // One behind, in the lane the ride car joins, follows it once it is in: it must not need to brake
-                    // harder than FollowBrake to stay behind (NWH spike U-turns: slow out of the turn, a car at
-                    // 13 m/s close behind).
-                    else
-                    {
-                        // At the pace it has, or, pulling away, at the speed it will have reached by then.
-                        var their = corridor.SpeedingUp ? Math.Min(corridor.TopSpeed, corridor.Speed + Corridor.Accel * late[k]) : corridor.Speed;
-                        var behind = ua - corridor.Far(late[k]);
-                        // Still further back than it needs to stop at Gley's own braking (TriggerBrake after
-                        // TriggerReactCautious; Gley's cars stop harder than that, 20 m/s² at the 90th percentile in the
-                        // dumps of 14 October) once the body is in its lane: a car coming up behind, which follows the
-                        // ride car, not a reason to wait (Peter, 14 October: left turns onto 4th Avenue stopped for cars
-                        // 40 to 60 m back). Else it must not close on the ride car past FollowGap braking at FollowBrake
-                        // while the ride car speeds up at SlowAccel from the speed it joins at (the closing speed, not
-                        // both from a stand: the ride car doesn't stay at its turning speed in the lane).
-                        conflict = !FollowsBehind(c.Id, behind, late[k]) && !ClosesShort(their, slowSpeed[k], behind);
-                    }
+                    // One behind, in the lane the ride car joins: as any car whose way the body comes into (the
+                    // window above, then StopsForUs below).
                 }
                 // Coming into its way at an angle behind it, as it goes on ahead, and on along its way after it: joining
                 // its lane behind it, followed (Gap), not crossed (review round 9: swept where the car really goes, the
@@ -1768,6 +1754,12 @@ namespace DrivenRides.Core.Drive
                 // before the car comes (head-on in one lane).
                 if (!conflict && dot < -0.64f && k == count - 1 && ua >= 0f && HeadOnGoesOn()) conflict = true;
                 if (!conflict) continue;
+                // A moving car whose front trigger will catch the body in time and stop it short: no reason to wait
+                // (Peter, 14 October: "they would always stop for us, so we should just go").
+                // Not head-on, nor across at an angle that drives the ride car on towards where that car stops (more
+                // than about 107 degrees between the two: 0.1.107 dump at 145 m, a left turn across a car at 130). The
+                // poses further on are still looked at, for where the ride car must not come to a stand (keep clear).
+                if (goesOn || (dot >= -TowardsIt && StopsForUs(c, k, ua))) { goesOn = true; continue; }
                 // A car crawling this slowly stops for the ride car as soon as the ride car's body is in its front
                 // trigger, well within the trigger's length (Gley's StopInDistance), if the body comes into its way
                 // further ahead of its front than it needs to stop: the ride car noses in at a creep
@@ -1790,15 +1782,6 @@ namespace DrivenRides.Core.Drive
                 if (runStart > 0)
                 {
                     var stopAt = rearAt[runStart - 1] + body.FrontAhead;
-                    // Far off (the body there in more than FarConflictSeconds at the soonest, with room to stop short
-                    // at Decel when it is nearer): no stop yet, the ride car only stops speeding up, and gives way if the
-                    // conflict is still there as it comes closer (Peter, 14 October: "it gives way to other cars where
-                    // nobody would usually give way"; in the slowdown dumps, cars 3 to 5 s off).
-                    if (early[runStart] > FarConflictSeconds && stopAt - front > StoppingRoom(fastSpeed[0]) + SweepStep)
-                    {
-                        farConflict = true;
-                        return null;
-                    }
                     // Too close to stop short of its way without braking harder than HardDecel: committed. Whether
                     // it goes on or stops now is decided once every car's yield is known (Committed).
                     var room = stopAt - front;
@@ -2122,6 +2105,8 @@ namespace DrivenRides.Core.Drive
             // body is in it already (the emergency rule's).
             if (entry < 0) { if (!held) verdict = Verdict.Passed; return float.MaxValue; }
             if (entry == 0) { verdict = Verdict.Past; return float.MaxValue; }
+            // One that will stop for the body in its trigger (StopsForUs): clear, as for the lenient judgement.
+            if (CoversSwept(entry, out var eu, out _, out var es, out var ec) && es * poses[entry].Sin + ec * poses[entry].Cos >= -TowardsIt && StopsForUs(c, entry, eu)) { verdict = Verdict.Clear; return float.MaxValue; }
             var boundary = rearAt[entry - 1] + body.FrontAhead - StopUncertainty;
             var room = boundary - front;
             if (room <= 0f) { verdict = Verdict.Past; return float.MaxValue; }

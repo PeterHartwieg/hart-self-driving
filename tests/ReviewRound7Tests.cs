@@ -26,7 +26,7 @@ public sealed class ReviewRound7Tests
     // The ride car goes north along x = 0 (the line starts at z = -40). Lane A runs east along z = 12 with car A
     // crawling towards the ride car's way; lane B runs west along z = 26 with car B, slow now but free to speed up to
     // the road's limit. One decision every 0.04 s at a steady pace.
-    private TrafficDecision Decide(bool bFirst, float frontZ, float rideMs, float ax, float bx, float bMs, float laneBZ, out TrafficDriver traffic)
+    private TrafficDecision Decide(bool bFirst, float frontZ, float rideMs, float ax, float bx, float bMs, float laneBZ, out TrafficDriver traffic, float bTrigger = 3f)
     {
         var car = RideCar.Dash;
         var line = DriveLine.Build(Enumerable.Range(0, 121).Select(k => new Vec3(0, 0, -40 + k)).ToList(), Array.Empty<(int, Polyline)>());
@@ -48,7 +48,7 @@ public sealed class ReviewRound7Tests
             // Car A0 crawls ahead of car A, already past the ride car's way: car A can't speed up past it.
             var a0 = new OtherCar { Id = 3, X = ax + 17f + 2f * t, Z = 12f, Heading = (float)(Math.PI / 2), Vx = 2f, Length = 4.5f, Width = 1.9f, TriggerLength = 3f,
                 Target = laneA.Where(w => graph.Position(w).X > ax + 17f + 2f * t + 2.25f).DefaultIfEmpty(-1).First() };
-            var bc = new OtherCar { Id = 2, X = bx - bMs * t, Z = laneBZ, Heading = -(float)(Math.PI / 2), Vx = -bMs, Length = 4.5f, Width = 1.9f, TriggerLength = 3f,
+            var bc = new OtherCar { Id = 2, X = bx - bMs * t, Z = laneBZ, Heading = -(float)(Math.PI / 2), Vx = -bMs, Length = 4.5f, Width = 1.9f, TriggerLength = bTrigger,
                 Target = laneB.Where(w => graph.Position(w).X < bx - bMs * t - 2.25f).DefaultIfEmpty(-1).First() };
             var cars = bFirst ? new List<OtherCar> { bc, a0, a } : new List<OtherCar> { a0, a, bc };
             driver.StartAt(0f, z);
@@ -62,7 +62,9 @@ public sealed class ReviewRound7Tests
     // Standing short of lane A, the ride car noses in in front of crawling car A (car A0 ahead of it, so it can't speed
     // up). Car B on lane B, 6 m from lane A, comes at 6 m/s: nosing in in front of car A must not let car B off (BB2);
     // the stop short of B's way stays, whichever order the cars come in. Round 9: with the narrower gaps
-    // (TrafficMargins) the lenient and cautious judgements meet for car B, so the stop may be either's.
+    // (TrafficMargins) the lenient and cautious judgements meet for car B, so the stop may be either's. Since 0.1.110 a
+    // car whose trigger stops it short is gone on in front of (TrafficDriver.StopsForUs): car B's trigger here is too
+    // short to stop it (1 m), so it is still given way to.
     [Theory]
     [InlineData(false, 35f)]
     [InlineData(true, 35f)]
@@ -70,10 +72,22 @@ public sealed class ReviewRound7Tests
     [InlineData(true, 40f)]
     public void NosingInLetsOnlyTheCrawlingCarsOff(bool bFirst, float bx)
     {
-        var d = Decide(bFirst, 8f, 0f, -11f, bx, 6f, 18f, out _);
+        var d = Decide(bFirst, 8f, 0f, -11f, bx, 6f, 18f, out _, bTrigger: 1f);
         Assert.True(d.NoseIn, "not nosing in in front of car A");
         Assert.Equal(2, d.YieldFor);
         Assert.True(d.YieldAlong <= 18f - 0.95f + 40f, $"the stop for car B at {d.YieldAlong - 40f:0.0} is past its way");
+    }
+
+    // The same with car B's trigger as Gley's (3.6 m past its bumper): it stops for the ride car, so the ride car noses
+    // in and goes on across lane B too, without a stop for it.
+    [Theory]
+    [InlineData(false, 35f)]
+    [InlineData(true, 40f)]
+    public void ACarThatStopsInItsTriggerIsNotWaitedFor(bool bFirst, float bx)
+    {
+        var d = Decide(bFirst, 8f, 0f, -11f, bx, 6f, 18f, out _, bTrigger: ScenarioBuilder.GleyTrigger);
+        Assert.True(d.NoseIn, "not nosing in in front of car A");
+        Assert.NotEqual(2, d.YieldFor);
     }
 
     // BB1: runs whose stop came and went before (T0, through the simulated car's pedals): priority 41 gave way to an

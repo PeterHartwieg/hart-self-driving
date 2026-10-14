@@ -11,7 +11,9 @@ namespace DrivenRides.Core.Tests;
 
 // Review round 5 (Y3): keeping the option to stop short of a car's way must work through the pedals, not just a speed
 // cap the pedal controller coasts down to (within 0.7 m/s of it, it neither brakes nor accelerates). Driven here by
-// a car that answers the pedals (throttle and brake, with a lag), not one that follows the wished-for speed.
+// a car that answers the pedals (throttle and brake, with a lag), not one that follows the wished-for speed. The
+// crossing car has a trigger too short to stop it for the ride car (1 m): since 0.1.110 one that can is gone on in
+// front of (TrafficDriver.StopsForUs).
 public sealed class ApproachPedalTests
 {
     private readonly ITestOutputHelper output;
@@ -58,7 +60,7 @@ public sealed class ApproachPedalTests
         {
             var t = step * dt;
             crossX += crossMs * dt;
-            var cars = new[] { new OtherCar { Id = 1, X = crossX, Z = 30f, Heading = (float)(Math.PI / 2), Vx = crossMs, Length = 4.5f, Width = 1.9f, TriggerLength = 3f,
+            var cars = new[] { new OtherCar { Id = 1, X = crossX, Z = 30f, Heading = (float)(Math.PI / 2), Vx = crossMs, Length = 4.5f, Width = 1.9f, TriggerLength = 1f,
                 Target = lane.Where(w => graph.Position(w).X > crossX + 2.25f).DefaultIfEmpty(-1).First() } };
             if (step % 2 == 0)
                 traffic.Decide(new TrafficSnapshot { Time = t, RearX = 0f, RearZ = z, Heading = 0f, Speed = v, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags() }, decision);

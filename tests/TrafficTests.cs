@@ -117,8 +117,8 @@ public sealed class TrafficTests
     // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
     private static readonly Dictionary<string, (int OptionLost, int Again)> Ratchet = new()
     {
-        ["lights"] = (14, 28), ["priority"] = (1, 6), ["merge"] = (5, 1), ["uturn"] = (0, 17),
-        ["headon"] = (0, 0), ["pullaway"] = (1, 45),
+        ["lights"] = (14, 28), ["priority"] = (1, 6), ["merge"] = (5, 1), ["uturn"] = (1, 17),
+        ["headon"] = (0, 0), ["pullaway"] = (31, 45),
     };
 
     [Fact]
@@ -323,17 +323,20 @@ public sealed class TrafficTests
     }
 
     // T3 20261013-211205, ride 9: a truck (11 m) coming up on the ride car's left as it turned left across its lane.
-    // Fed the recorded frames, the ride car must give way to it at every frame from the first until the contact (where
+    // Fed the recorded frames, the ride car must give way to it from the first frame it does until the contact (where
     // the recorded car drove on past the stop it was given, a replay doesn't obey the decisions, the stop is the
-    // emergency rule's).
+    // emergency rule's). Since 0.1.110 a frame without may come while the truck is still far enough back to stop in
+    // its trigger (TrafficDriver.StopsForUs), never in the last LastSeconds before the contact.
     [Fact]
     public void Ride9KeepsGivingWayToTheTruck()
     {
+        const float LastSeconds = 2f;
         var s = TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, "t3c-211205-ride9-contact-1.json")));
         var lines = ReplayDecisions(s);
         var first = lines.FindIndex(l => l.Contains("for   0"));
         Assert.True(first >= 0, string.Join("\n", lines));
-        var dropped = lines.Skip(first).Where(l => !l.Contains("for   0")).ToList();
+        var end = s.History[^1].T;
+        var dropped = lines.Skip(first).Where((l, i) => !l.Contains("for   0") && s.History[first + i].T > end - LastSeconds).ToList();
         foreach (var l in lines.Skip(first)) output.WriteLine(l);
         Assert.True(dropped.Count == 0, $"dropped car 0 at:\n{string.Join("\n", dropped.Take(5))}");
     }

@@ -93,17 +93,28 @@ public sealed class CommittedTests
         Assert.True(d.YieldAlong <= 30.5f);
     }
 
-    // Round 9: too close to stop short of the lane and not clear with the headway: a stop now (the emergency rule's),
-    // whatever the car's trigger; going on with less than the headway (a forced commit) went.
+    // Round 9: too close to stop short of the lane and not clear with the headway: a stop now (the emergency rule's);
+    // going on with less than the headway (a forced commit) went. Since 0.1.110 only for a car whose trigger can't stop
+    // it short of the body (a 1 m trigger here): one whose trigger can is gone on in front of (below).
     [Theory]
     [InlineData(1f)]
-    [InlineData(5f)]
     public void TooLateAndNotClearIsAStopNow(float trigger)
     {
         var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: trigger);
         output.WriteLine($"{d.Why} yield {d.YieldAlong}");
         Assert.True(d.YieldAlong <= 30.5f);
         Assert.Contains(1, d.EmergencyFor);
+    }
+
+    // Peter, 14 October: Gley's cars stop for anything in their trigger, so with a 5 m one (about Gley's) the car 18 m
+    // off at 10 m/s stops short of the ride car: no stop for it.
+    [Fact]
+    public void GoesOnWhenTheCarsTriggerStopsItShort()
+    {
+        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: 5f);
+        output.WriteLine($"{d.Why} yield {d.YieldAlong}");
+        Assert.Null(d.YieldAlong);
+        Assert.DoesNotContain(1, d.EmergencyFor);
     }
 
     // Review round 3 (V2): inside a one-lane stretch with a car coming the other way, standing is no collision (it stops
