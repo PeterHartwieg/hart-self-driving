@@ -58,6 +58,8 @@ public sealed class SlowdownClassifierTests
         var kind = YieldNoteKind.None;
         var look = LookSeconds;
         var along0 = 0f;
+        var held = new Dictionary<int, int>();
+        var first = new Dictionary<int, (int Frame, string Why, string Note, YieldNoteKind Kind, float Along, float Late)>();
         for (var i = 0; i < frames.Count && i <= low; i++)
         {
             var f = frames[i];
@@ -68,11 +70,19 @@ public sealed class SlowdownClassifierTests
                 TriggerLength = sizes[c.Id].Trigger, Target = c.Target, StoppedForUs = c.ForUs, MayChangeLane = c.Action == "Follow" || c.Action == "Overtake",
             }).ToList();
             traffic.Decide(new TrafficSnapshot { Time = f.T, RearX = f.RideX, RearZ = f.RideZ, Heading = f.RideHeading, Speed = f.RideSpeed, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = flags }, d);
-            if (i < peak || onset >= 0) continue;
+            if (i < peak) continue;
             var id = d.YieldFor >= 0 ? d.YieldFor : d.GapFor;
             if (id < 0) continue;
-            onset = i; car = id; why = d.Why; note = d.YieldNote; kind = d.Note.Kind; along0 = driver.Along;
-            if (kind == YieldNoteKind.Conflict) look = Math.Min(8f, Math.Max(LookSeconds, d.Note.Late + 1f));
+            // The car the stops were for most often from the highest speed to the lowest, from where it was first.
+            held[id] = held.TryGetValue(id, out var n) ? n + 1 : 1;
+            if (!first.ContainsKey(id)) first[id] = (i, d.Why, d.YieldNote, d.Note.Kind, driver.Along, d.Note.Late);
+        }
+        if (held.Count > 0)
+        {
+            car = held.OrderByDescending(h => h.Value).First().Key;
+            var f0 = first[car];
+            onset = f0.Frame; why = f0.Why; note = f0.Note; kind = f0.Kind; along0 = f0.Along;
+            if (kind == YieldNoteKind.Conflict) look = Math.Min(8f, Math.Max(LookSeconds, f0.Late + 1f));
         }
         if (onset < 0) { key = "no stop for a car found"; return $"{key} ({s.Note})"; }
         var rule = kind switch
