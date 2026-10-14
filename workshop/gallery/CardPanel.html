@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feature: ride panel</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;800&amp;family=Rubik:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#43C07A}a:hover{color:#6FD69B}
+</style>
+</helmet>
+<div style="width: 1920px; height: 1080px; position: relative; overflow: hidden; background: #0D100F; font-family: Archivo, sans-serif; color: #FFFFFF">
+<img src="src/hero-wide.png" alt="" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; display: block">
+<div aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(13,16,15,0.94) 0%, rgba(13,16,15,0.82) 40%, rgba(13,16,15,0.1) 70%)"></div>
+<div style="position: absolute; left: 120px; top: 150px; width: 820px">
+<div style="font-weight: 800; font-size: 120px; line-height: 0.92; letter-spacing: -0.015em">Speed it up.<br>Or skip it.</div>
+</div>
+<section aria-label="Ride panel" style="position: absolute; left: 120px; top: 560px; width: 640px; border-radius: 6px; overflow: hidden; box-shadow: 0 6px 28px rgba(0,0,0,0.5); font-family: Rubik, sans-serif">
+<div style="height: 64px; display: flex; align-items: center; padding: 0 24px; background: linear-gradient(180deg, #D1D9DC, #B5C0C6); color: #1E252D; font-size: 28px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em">2.4 km to go</div>
+<div style="display: flex; flex-direction: column; gap: 22px; padding: 22px 24px 26px; background: rgba(48,57,64,0.95); color: #EEF2F4">
+<div style="display: flex; align-items: center; gap: 18px; font-size: 26px; font-weight: 500; color: #E2E7EA">
+<span style="width: 160px">Clock 33%</span>
+<div style="flex-grow: 1; height: 10px; border-radius: 5px; background: #48525C; position: relative">
+<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 33%; border-radius: 5px; background: #2978BD"></div>
+<div style="position: absolute; left: 33%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: #F2F6F6; box-shadow: 0 1px 4px rgba(0,0,0,0.5)"></div>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 28px; font-weight: 700; text-transform: uppercase">
+<div style="width: 96px; height: 62px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #3A444E; color: #D0D6DB">1x</div>
+<div style="width: 96px; height: 62px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #3A444E; color: #D0D6DB">2x</div>
+<div style="width: 96px; height: 62px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #E3E8EB; color: #1E252D">3x</div>
+<div style="height: 62px; margin-left: auto; padding: 0 40px; border-radius: 4px; display: flex; align-items: center; background: #2978BD; color: #FFFFFF">Skip</div>
+</div>
+</div>
+</section>
+<img src="src/hart-wordmark-on-dark.svg" alt="HART." style="position: absolute; right: 50px; top: 30px; width: 170px; height: auto; display: block; opacity: 0.85">
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

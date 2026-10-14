@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feature: your own car</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#43C07A}a:hover{color:#6FD69B}
+</style>
+</helmet>
+<div style="width: 1920px; height: 1080px; position: relative; overflow: hidden; background: #0D100F; font-family: Archivo, sans-serif; color: #FFFFFF">
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 760px; height: 320px; background: #151917; border-top: 1px solid #262C28"></div>
+<svg aria-hidden="true" width="1920" height="1080" viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0">
+<line x1="0" y1="920" x2="1920" y2="920" stroke="#3A413C" stroke-width="6" stroke-dasharray="70 60"></line>
+<path d="M120 1000 L 1000 1000" fill="none" stroke="#43C07A" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 26"></path>
+<circle cx="120" cy="1000" r="15" fill="#43C07A"></circle>
+</svg>
+<img src="src/own-car.png" alt="A green hatchback" style="position: absolute; right: 110px; top: 300px; width: 960px; height: auto; display: block">
+<div style="position: absolute; left: 120px; top: 200px; width: 760px; display: flex; flex-direction: column; gap: 30px">
+<div style="font-weight: 800; font-size: 120px; line-height: 0.92; letter-spacing: -0.015em">Your car<br>drives<br>itself.</div>
+<div style="font-weight: 400; font-size: 36px; line-height: 1.35; color: #C9CFC9">And parks when you arrive.</div>
+</div>
+<img src="src/hart-wordmark-on-dark.svg" alt="HART." style="position: absolute; right: 50px; top: 30px; width: 170px; height: auto; display: block; opacity: 0.85">
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

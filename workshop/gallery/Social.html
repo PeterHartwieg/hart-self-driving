@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Launch post square</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#43C07A}a:hover{color:#6FD69B}
+</style>
+</helmet>
+<div style="width: 1080px; height: 1080px; position: relative; overflow: hidden; background: #0D100F; font-family: Archivo, sans-serif; color: #FFFFFF">
+<img src="src/hero-square.png" alt="A yellow taxi drives up a Manhattan avenue at dusk" style="position: absolute; left: 0; top: 0; width: 1080px; height: 1080px; object-fit: cover; display: block">
+<div aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(13,16,15,0.88) 0%, rgba(13,16,15,0.6) 36%, rgba(13,16,15,0) 56%, rgba(13,16,15,0) 76%, rgba(13,16,15,0.82) 100%)"></div>
+<svg aria-hidden="true" width="1080" height="1080" viewBox="0 0 1080 1080" style="position: absolute; left: 0; top: 0">
+<path d="M540 768 C 546 718, 554 676, 561 640" fill="none" stroke="#43C07A" stroke-width="9" stroke-linecap="round" stroke-dasharray="2 18"></path>
+<circle cx="563" cy="627" r="12" fill="#43C07A"></circle>
+</svg>
+<div style="position: absolute; left: 0; right: 0; top: 66px; font-weight: 800; font-size: 186px; line-height: 0.9; letter-spacing: -0.02em; text-align: center">SELF<br>DRIVING</div>
+<div style="position: absolute; left: 72px; bottom: 60px; font-weight: 400; font-size: 40px; color: #E3E7E2">No more fade to black.</div>
+<img src="src/hart-wordmark-on-dark.svg" alt="HART." style="position: absolute; right: 20px; bottom: 14px; width: 190px; height: auto; display: block; opacity: 0.9">
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1080,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

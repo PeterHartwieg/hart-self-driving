@@ -10,6 +10,8 @@ Design canvas with every card: https://claude.ai/artifact/98zz4yeE3u5CBE9L5oJhvK
 
 **Title:** `HART. Self Driving`
 
+**Workshop item:** https://steamcommunity.com/sharedfiles/filedetails/?id=3819853552 (uploaded 14 October 2026; gallery images added the same evening).
+
 **Target build:** the number in `Player.log` after `Loaded Big Ambitions (Build NNNN)` on the game the release was tested on. The Mod Creator refuses a number higher than the running game's.
 
 **Version:** 0.2.0 (the package says 0.2.0-rc1 until the clean-install check passes).
@@ -79,7 +81,7 @@ The cards use generated artwork (GPT 6.1 Sol image generation, prompts and check
 
 ## Launch posts
 
-Post only once the Steam page has its images, because the upload is public as soon as it finishes. `<WORKSHOP_URL>` is the item's link.
+Post only once the Steam page has its images, because the upload is public as soon as it finishes. `https://steamcommunity.com/sharedfiles/filedetails/?id=3819853552` is the item's link.
 
 **Reddit**, r/BigAmbitions, as a video or image post:
 
@@ -93,7 +95,7 @@ Once I had money in Big Ambitions I took the driver everywhere, and the city tur
 - A small ride panel gives you 1x/2x/3x, a clock slider (the clock runs at a third of its speed during rides by default) and Skip for the old fade.
 - Fares stay the game's. Nothing is added to your save.
 
-It's free on the Workshop: <WORKSHOP_URL>
+It's free on the Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3819853552
 
 Bug reports are welcome. If a ride can't be driven, it falls back to the normal fade, so you always arrive.
 ```
@@ -103,7 +105,7 @@ Bug reports are welcome. If a ride can't be driven, it falls back to the normal 
 ```
 Taxis in Big Ambitions now drive you through the city instead of fading to black. Your driver and your own car too.
 
-Free on the Steam Workshop: <WORKSHOP_URL>
+Free on the Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3819853552
 
 #BigAmbitions
 ```
@@ -113,7 +115,7 @@ Free on the Steam Workshop: <WORKSHOP_URL>
 ```
 New mod: HART. Self Driving. Taxis, your private driver and your own car drive you through the city instead of fading to black. You'll see it in the next episodes.
 
-Get it here: <WORKSHOP_URL>
+Get it here: https://steamcommunity.com/sharedfiles/filedetails/?id=3819853552
 
 Which trip would you watch the whole way?
 ```
