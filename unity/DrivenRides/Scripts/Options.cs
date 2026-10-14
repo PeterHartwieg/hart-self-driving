@@ -32,7 +32,10 @@ namespace DrivenRides
         public static bool Taxis { get; private set; } = true;
         public static bool PrivateDriver { get; private set; } = true;
         public static bool OwnCar { get; private set; } = true;
-        public static AutoparkMode Autopark { get; private set; } = AutoparkMode.CarsWithIt;
+        public static AutoparkMode Autopark { get => AutoparkOverride ?? autopark; private set => autopark = value; }
+        private static AutoparkMode autopark = AutoparkMode.CarsWithIt;
+        // Set by the rig's own-car rides (RideCommand autopark=...), never written to PlayerPrefs.
+        public static AutoparkMode? AutoparkOverride;
         public static float RideSpeed { get; private set; } = 1f;
         public static int ClockPercent { get; private set; } = DefaultClockPercent;
         public static float ClockFactor => ClockPercent / 100f;

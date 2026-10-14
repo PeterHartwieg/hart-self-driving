@@ -26,7 +26,8 @@ namespace DrivenRides
     // map's "Go" button does: the fare, the mod's TravelCoroutine prefix and the whole ride are the real ones. One
     // line per ride goes to ride-results.jsonl beside the rig's results.
     //
-    //   ride [kind=taxi|stand|driver] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
+    //   ride [kind=taxi|stand|driver|own] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
+    //        [autopark=off|cars|every] (own: the player's own car drives itself; it is put on a lane by the player first)
     // `ridemode nwh|gley|options` picks car physics or the Gley rides for the rides after it (TurnTests).
     internal static class RideCommand
     {
@@ -87,6 +88,7 @@ namespace DrivenRides
             if (target == null) { result["refused"] = "no destination building found"; yield break; }
 
             ITaxi? taxi = null;
+            CarController? ownCar = null;
             switch (kind)
             {
                 case "taxi":
@@ -136,13 +138,30 @@ namespace DrivenRides
                     result["taxiMetres"] = Math.Round(Vector3.Distance(driver.transform.position, player.position), 1);
                     taxi = driver;
                     break;
+                case "own":
+                    CarController? own = null;
+                    var seat = OwnCarSeat(args, result, c => own = c);
+                    while (seat.MoveNext()) yield return seat.Current;
+                    if (own == null) yield break;
+                    ownCar = own;
+                    result["fuelBefore"] = Math.Round(own.GetCurrentFuel(), 3);
+                    if (args.TryGetValue("autopark", out var ap))
+                        Options.AutoparkOverride = ap == "off" ? AutoparkMode.Off : ap == "every" ? AutoparkMode.Every : AutoparkMode.CarsWithIt;
+                    result["autopark"] = Options.Autopark.ToString();
+                    break;
                 default:
                     result["refused"] = "unknown kind " + kind;
                     yield break;
             }
 
-            // The map in taxi mode, as the taxi's click opens it; then the map's Go.
-            InstanceBehavior<CityManager>.Instance.cityMap.SetTaxiMode(taxi);
+            // The map in taxi mode, as the taxi's click opens it (for the own car, as L in the driver's seat does);
+            // then the map's Go.
+            if (ownCar != null)
+            {
+                OwnCarTaxi.Open();
+                if (!CityMap.IsOpen) { result["refused"] = "L in the car didn't open the map (see the notice in the log)"; Options.AutoparkOverride = null; yield break; }
+            }
+            else InstanceBehavior<CityManager>.Instance.cityMap.SetTaxiMode(taxi);
             var until = Time.unscaledTime + 0.5f;
             while (Time.unscaledTime < until) yield return null;
             Ride.LastEnd = "";
@@ -165,6 +184,58 @@ namespace DrivenRides
             result["redRuns"] = tally.RedRuns;
             result["stalls"] = tally.Stalls;
             result["arrivedMetres"] = Math.Round(Vector3.Distance(player.position, target.GetNavMeshTargetPosition()), 1);
+            if (ownCar != null)
+            {
+                // Autopark at the end runs inside the ride; give a parked car a moment to settle, then the car's state.
+                var settle = Time.unscaledTime + 2f;
+                while (Time.unscaledTime < settle) yield return null;
+                result["inCar"] = SaveGameManager.Current?.ActiveVehicleId == ownCar.vehicleInstance.id;
+                result["keysBack"] = ownCar.vehicleController.input.autoSetInput;
+                result["driveLeft"] = ownCar.GetComponent<NwhDrive>() != null;
+                result["parkingState"] = ownCar.vehicleInstance.parkingState.ToString();
+                result["fuelAfter"] = Math.Round(ownCar.GetCurrentFuel(), 3);
+                result["carMetres"] = Math.Round(Vector3.Distance(ownCar.transform.position, target.GetNavMeshTargetPosition()), 1);
+                Options.AutoparkOverride = null;
+            }
+        }
+
+        // The player's own car (vehicle=..: by type name), put on the nearest free driving lane by the player, facing
+        // along it, and the player in the driver's seat, as if they had stopped there.
+        private static IEnumerator OwnCarSeat(Dictionary<string, string> args, JObject result, Action<CarController> found)
+        {
+            var cars = VehicleHelper.AllPlayerVehicles.OfType<CarController>().Where(c => c != null && c.vehicleType != null && !c.vehicleType.spawnInPlayerObject).ToList();
+            var car = args.TryGetValue("vehicle", out var which) ? cars.FirstOrDefault(c => c.vehicleType.vehicleTypeName.Contains(which)) : null;
+            car ??= VehicleHelper.GetCurrentVehicleBase() as CarController ?? cars.FirstOrDefault();
+            if (car == null) { result["refused"] = "the player owns no car"; yield break; }
+            result["car"] = car.vehicleType.vehicleTypeName;
+            result["autoparkSupported"] = car.vehicleType.autoParkSupported;
+            var player = InstanceBehavior<GameManager>.Instance.playerController;
+            if (!ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
+            {
+                if (VehicleHelper.GetCurrentVehicleBase() is VehicleController other) other.ExitVehicle();
+                var y = player.transform.position.y;
+                var lane = TrafficManager.Instance.GetClosestWaypoint(player.transform.position, 80f,
+                    w => w.neighbors != null && w.neighbors.Count > 0 && TrafficManager.WithinHeight(w, y, 3f) && TrafficManager.IsNotIntersection(w)
+                         && w.allowedCars != null && w.allowedCars.Contains(VehicleTypes.Car));
+                if (lane == null) { result["refused"] = "no driving lane within 80 m of the player"; yield break; }
+                var rotation = TrafficManager.Instance.GetWaypointOrientation(lane);
+                // The car's rear axle on the lane waypoint, as a car stopped in the lane stands.
+                var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _);
+                var at = lane.position - rotation * new Vector3(0f, 0f, wrapped != null ? wrapped.RearZ : 0f);
+                OwnCarTaxi.Teleport(car, at, rotation);
+                VehicleHelper.DestroyBlockingVehicles(car.gameObject, car.vehicleType, car.transform);
+                result["seatedAt"] = new JArray(Math.Round(at.x, 1), Math.Round(at.z, 1), lane.listIndex);
+                yield return null;
+                player.Character.WarpSafely(car.GetNavMeshTargetPosition());
+                yield return null;
+                car.EnterVehicle();
+            }
+            // Settled on its wheels and standing.
+            var until = Time.unscaledTime + 8f;
+            var body = car.vehicleController.vehicleRigidbody;
+            while (Time.unscaledTime < until && (body == null || body.velocity.magnitude > 0.1f || Time.unscaledTime < until - 6f)) yield return null;
+            if (!ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car)) { result["refused"] = "couldn't seat the player in the car"; yield break; }
+            found(car);
         }
 
         // A building by the map's coordinates (x, z: the nearest one), or a random one between min and max metres from
