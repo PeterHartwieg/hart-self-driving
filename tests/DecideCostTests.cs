@@ -37,6 +37,11 @@ public sealed class DecideCostTests
         foreach (var name in TrafficTemplates.Names)
             for (var seed = 0; seed < 8; seed++) micros.AddRange(TrafficTests.Run(TrafficTemplates.Build(name, seed)).DecideMicros);
         micros.Sort();
+        var dumps = new System.Collections.Generic.List<float>();
+        foreach (var file in System.IO.Directory.GetFiles(TrafficScenarioJson.Folder()!, "*.json"))
+            dumps.AddRange(TrafficTests.Run(TrafficScenarioJson.Load(System.IO.File.ReadAllText(file))).DecideMicros);
+        dumps.Sort();
+        output.WriteLine($"dumps: p50 {dumps[dumps.Count / 2]:0} µs, p99 {dumps[dumps.Count * 99 / 100]:0} µs, max {dumps[^1]:0} µs over {dumps.Count} decisions");
         output.WriteLine($"decide: p50 {micros[micros.Count / 2]:0} µs, p99 {micros[micros.Count * 99 / 100]:0} µs, max {micros[^1]:0} µs");
         output.WriteLine($"{decides} decisions, {bytes} bytes allocated, {(double)bytes / decides:0.0} a decision, {allocating} decisions after the first second allocating; {watch.ElapsedMilliseconds} ms in all");
         // A decision allocates only a new reason's text (logged in game when it changes) and its buffers growing to

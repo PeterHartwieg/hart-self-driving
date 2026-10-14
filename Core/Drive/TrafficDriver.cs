@@ -937,19 +937,29 @@ namespace DrivenRides.Core.Drive
                 goCount = brakeCount = keepCount = 0;
                 return;
             }
-            if (s.Time - foreseenAt < ForeseeEvery && s.Time >= foreseenAt && foreseenTo >= Math.Min(end, along + near)) return;
+            var first = (int)Math.Floor(along / SweepStep) + 1;
+            var ahead = Math.Min(end, along + near + (Math.Max(0f, s.Speed) + FastAccel * ForeseeEvery) * ForeseeEvery);
+            if (s.Time - foreseenAt < ForeseeEvery && s.Time >= foreseenAt && foreseenTo >= Math.Min(end, along + near))
+            {
+                // The other two paths a decision each after the one going on, so no one decision runs all three (the
+                // cost per physics step; review round 9).
+                if (pending == Pace.Brake) { brakeCell = first; brakeCount = Run(s, along, end, end, Pace.Brake, brakeX, brakeZ, brakeH, null, first); pending = Pace.Keep; }
+                else if (pending == Pace.Keep) { keepCell = first; keepCount = Run(s, along, end, ahead, Pace.Keep, keepX, keepZ, keepH, null, first); pending = Pace.Go; }
+                return;
+            }
             foreseenAt = s.Time;
             if (foreseer == null) foreseer = driver.Copy();
-            var first = (int)Math.Floor(along / SweepStep) + 1;
             goCell = first;
             // On past the near field by as far as the car can go before the next foresight, so this one is reused
             // until then.
-            var ahead = Math.Min(end, along + near + (Math.Max(0f, s.Speed) + FastAccel * ForeseeEvery) * ForeseeEvery);
             goCount = Run(s, along, end, ahead, Pace.Go, goX, goZ, goH, goTurning, first);
-            brakeCount = Run(s, along, end, end, Pace.Brake, brakeX, brakeZ, brakeH, null, first);
-            keepCount = Math.Min(goCount, Run(s, along, end, ahead, Pace.Keep, keepX, keepZ, keepH, null, first));
             foreseenTo = along + goCount * SweepStep;
+            pending = Pace.Brake;
         }
+
+        // The path foreseen next (Brake, Keep), or Go when both are up to date.
+        private Pace pending = Pace.Go;
+        private int brakeCell, keepCell;
 
         // The model driven from the snapshot's pose: on as the plan goes, braking at HardDecel to a stand, or at the
         // speed it has. Records the rear axle at each whole cell passed, until past `near` and settled (or stood), at
@@ -969,9 +979,11 @@ namespace DrivenRides.Core.Drive
             var n = 0;
             float prevAlong = along, px = s.RearX, pz = s.RearZ, ph = s.Heading;
             var settled = false;
-            for (var t = 0f; t < ForeseeSeconds && n < MaxPoses; t += ForeseeStep)
+            // The path going on at the physics step; the two bracketing it (braking, keeping the speed) at twice it.
+            var dt = pace == Pace.Go ? ForeseeStep : 2f * ForeseeStep;
+            for (var t = 0f; t < ForeseeSeconds && n < MaxPoses; t += dt)
             {
-                var o = p.Step(m.Input(ForeseeStep));
+                var o = p.Step(m.Input(dt));
                 var a = o.Along;
                 if (t > 0f)
                     for (var cell = first + n; cell * SweepStep <= a && n < MaxPoses; cell++)
@@ -991,11 +1003,11 @@ namespace DrivenRides.Core.Drive
                 px = (float)m.X;
                 pz = (float)m.Z;
                 ph = (float)m.Heading;
-                if (braking) o.Desired = Math.Max(0f, (float)m.Speed - PursuitDriver.HardDecel * ForeseeStep);
+                if (braking) o.Desired = Math.Max(0f, (float)m.Speed - PursuitDriver.HardDecel * dt);
                 if (pace == Pace.Keep) o.Desired = keep;
                 if (braking && m.Speed < 0.05) break;
                 if (!braking && m.Speed < 0.05 && o.Desired < 0.05f) break;
-                m.Step(o, ForeseeStep);
+                m.Step(o, dt);
             }
             return n;
         }
@@ -1047,14 +1059,16 @@ namespace DrivenRides.Core.Drive
                     // side margin reached into the next lane, and the ride car stood in junctions for oncoming cars
                     // passing in theirs (T0 priority 393, lights 288 and 437, one of them hit while standing).
                     grow[count] = goTurning[g] ? Math.Max(0f, StopUncertainty - SideMargin) : 0f;
-                    if (g < brakeCount)
+                    var gb = cell - brakeCell;
+                    if (gb >= 0 && gb < brakeCount)
                     {
-                        alt[count] = BodyAt(brakeX[g], brakeZ[g], brakeH[g]);
+                        alt[count] = BodyAt(brakeX[gb], brakeZ[gb], brakeH[gb]);
                         altOn[count] = true;
                     }
-                    if (g < keepCount)
+                    var gk = cell - keepCell;
+                    if (gk >= 0 && gk < keepCount && cell < goCell + goCount)
                     {
-                        alt2[count] = BodyAt(keepX[g], keepZ[g], keepH[g]);
+                        alt2[count] = BodyAt(keepX[gk], keepZ[gk], keepH[gk]);
                         alt2On[count] = true;
                     }
                 }
