@@ -30,14 +30,25 @@ namespace DrivenRides.Core.Ride
         {
             if (points.Count == 0) return default;
             if (along <= 0f) return points[0];
-            for (var i = 1; i < points.Count; i++)
+            var i = FirstAtOrPast(along);
+            if (i >= points.Count) return points[points.Count - 1];
+            var span = at[i] - at[i - 1];
+            var f = span > 0f ? (along - at[i - 1]) / span : 0f;
+            return points[i - 1] + (points[i] - points[i - 1]) * f;
+        }
+
+        // The first point after the first one at or past `along` metres, or the count if none: a binary search, since
+        // the driver and its foresight ask this many times a step along lines of hundreds of points.
+        private int FirstAtOrPast(float along)
+        {
+            int lo = 1, hi = points.Count;
+            while (lo < hi)
             {
-                if (at[i] < along) continue;
-                var span = at[i] - at[i - 1];
-                var f = span > 0f ? (along - at[i - 1]) / span : 0f;
-                return points[i - 1] + (points[i] - points[i - 1]) * f;
+                var mid = (lo + hi) / 2;
+                if (at[mid] < along) lo = mid + 1;
+                else hi = mid;
             }
-            return points[points.Count - 1];
+            return lo;
         }
 
         // How far along the line the point nearest (x, z) is, searching from `from` up to 10 m on (the car only moves
@@ -46,9 +57,8 @@ namespace DrivenRides.Core.Ride
         {
             var best = from;
             var bestDistance = float.MaxValue;
-            for (var i = 1; i < points.Count; i++)
+            for (var i = FirstAtOrPast(from - 1f); i < points.Count; i++)
             {
-                if (at[i] < from - 1f) continue;
                 if (at[i - 1] > from + 10f) break;
                 Vec3 a = points[i - 1], b = points[i];
                 float dx = b.X - a.X, dz = b.Z - a.Z;
