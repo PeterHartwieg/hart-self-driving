@@ -54,6 +54,7 @@ namespace DrivenRides
             if (instance != null) Object.Destroy(instance.gameObject);
             instance = null;
             hiddenCars.Clear();
+            OwnCarDrive.Drop();
         }
 
         public void DriveAway() { }
@@ -205,6 +206,92 @@ namespace DrivenRides
         {
             try { return OccupiedMethod?.Invoke(helper, new object[] { spot }) is bool taken && taken; }
             catch (Exception ex) { Log.Error("Own car autopark, spot check: " + ex.Message); return true; }
+        }
+    }
+
+    // The own car driving itself with its own physics (docs/implementation-plan.md, NWH driving, phase 5): the player
+    // stays in the driver's seat; the ride's NwhDrive writes the car's input in place of the player's keys. Begin hands
+    // the input over (NWH's autoSetInput off, as for the mod's other NWH cars), End hands it back however the ride
+    // ends. While it runs, the game's steering assist is held off (it adds its own angle each frame) and getting out
+    // ends the ride where the car is.
+    internal static class OwnCarDrive
+    {
+        private static CarController? active;
+        private static bool ending;
+
+        public static bool IsActive => active != null;
+        public static CarController? Car => active;
+
+        // The ride car for the own car: the player's car as it stands, wrapped for NwhDrive.
+        public static NwhCar? Begin(CarController car, out string why)
+        {
+            why = "";
+            if (active != null) { why = "the car is already driving itself"; return null; }
+            var vehicle = car.vehicleController;
+            if (vehicle == null || vehicle.input == null) { why = "the car has no NWH controller"; return null; }
+            var wrapped = NwhCar.Wrap(vehicle, car.gameObject, car.vehicleType != null ? car.vehicleType.vehicleTypeName : car.name, out why);
+            if (wrapped == null) return null;
+            vehicle.input.autoSetInput = false;
+            Zero(vehicle);
+            active = car;
+            Log.Info($"Own car: driving itself ({wrapped.TypeName}, wheelbase {wrapped.Wheelbase:0.00} m).");
+            return wrapped;
+        }
+
+        // Back to the player's keys, the car held on its brakes until they take over. Safe to call twice.
+        public static void End(string reason)
+        {
+            var car = active;
+            if (car == null) return;
+            active = null;
+            try
+            {
+                if (car != null && car.vehicleController?.input != null)
+                {
+                    Zero(car.vehicleController);
+                    car.vehicleController.input.autoSetInput = true;
+                }
+            }
+            catch (Exception ex) { Log.Error("Own car: handing the keys back: " + ex.Message); }
+            Log.Info("Own car: the keys are the player's again (" + reason + ").");
+        }
+
+        private static void Zero(NWH.VehiclePhysics2.VehicleController vehicle)
+        {
+            var input = vehicle.input;
+            input.Throttle = 0f;
+            input.Steering = 0f;
+            input.Handbrake = 0f;
+            input.Brakes = 1f;
+            vehicle.steering.externallyAddedAngle = 0f;
+        }
+
+        // CarController.Update postfix: the steering assist (Settings) adds an angle every frame; not while the car
+        // drives itself.
+        public static void AfterCarUpdate(CarController car)
+        {
+            if (active != null && ReferenceEquals(car, active)) car.vehicleController.steering.externallyAddedAngle = 0f;
+        }
+
+        // CarController.ExitVehicle prefix: getting out ends the ride first, so the car is the player's again (and
+        // stops) before the game takes them out. A ride ending on its own hands back through End, not here.
+        public static void BeforeExit(CarController car)
+        {
+            if (active == null || !ReferenceEquals(car, active) || ending) return;
+            ending = true;
+            try
+            {
+                Log.Info("Own car: the player got out during the trip.");
+                Ride.CancelActive("the player got out of the car");
+                End("the player got out");
+            }
+            finally { ending = false; }
+        }
+
+        public static void Drop()
+        {
+            active = null;
+            ending = false;
         }
     }
 

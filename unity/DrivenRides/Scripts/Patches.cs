@@ -58,6 +58,9 @@ namespace DrivenRides
             // No hourly parking ticket or fee for the own car while it is hidden at the start of a ride: the game skips
             // the car the player sits in, so for that hour the hidden car counts as that car.
             Patch(typeof(ParkingSimulator), "RunHourly", Type.EmptyTypes, nameof(HourlyPrefix), prefix: true, finalizer: nameof(HourlyFinalizer));
+            // The own car driving itself: the steering assist held off, and getting out ends the ride first.
+            Patch(typeof(CarController), "Update", Type.EmptyTypes, nameof(CarUpdatePostfix));
+            Patch(typeof(CarController), "ExitVehicle", Type.EmptyTypes, nameof(ExitPrefix), prefix: true);
             // Vanilla's exit puts the player back in when there's no room to stand; not once an own-car ride has begun.
             Patch(typeof(CarController), "EnterVehicle", Type.EmptyTypes, nameof(EnterPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
@@ -176,6 +179,18 @@ namespace DrivenRides
         private static void HourlyFinalizer(GameInstance? __state)
         {
             if (__state != null) __state.ActiveVehicleId = null;
+        }
+
+        private static void CarUpdatePostfix(CarController __instance)
+        {
+            try { OwnCarDrive.AfterCarUpdate(__instance); }
+            catch (Exception ex) { Log.Error("Own car, steering assist: " + ex.Message); }
+        }
+
+        private static void ExitPrefix(CarController __instance)
+        {
+            try { OwnCarDrive.BeforeExit(__instance); }
+            catch (Exception ex) { Log.Error("Own car, getting out: " + ex.Message); }
         }
 
         private static bool EnterPrefix(CarController __instance)

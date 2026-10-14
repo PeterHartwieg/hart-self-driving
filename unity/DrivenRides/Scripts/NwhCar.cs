@@ -160,7 +160,7 @@ namespace DrivenRides
             return assembly.StartsWith("BigAmbitions", StringComparison.Ordinal) || assembly == "Assembly-CSharp";
         }
 
-        private static void Measure(NwhCar car)
+        internal static void Measure(NwhCar car)
         {
             var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             var max = -min;
@@ -217,6 +217,24 @@ namespace DrivenRides
                 return $"Gley cars are on {LayerMask.LayerToName(GleyLayer)}; this car's colliders: {string.Join(", ", what)}.";
             }
             catch (Exception ex) { return "Gley layers: " + ex.Message; }
+        }
+        // The player's own car as it stands, for the own car driving itself (docs/own-car-self-drive.md): nothing is
+        // spawned or taken off; its CarController, fuel and parking stay the game's. Input is handed over by OwnCarDrive.
+        internal static NwhCar? Wrap(NwhController vehicle, GameObject root, string vehicleTypeName, out string why)
+        {
+            why = "";
+            var body = vehicle.vehicleRigidbody != null ? vehicle.vehicleRigidbody : root.GetComponent<Rigidbody>();
+            if (body == null) { why = "no rigidbody"; return null; }
+            var zs = vehicle.powertrain.wheels.Where(w => w?.wheelUAPI != null).Select(w => root.transform.InverseTransformPoint(w.wheelUAPI.transform.position).z).ToList();
+            if (zs.Count < 2) { why = "no wheels"; return null; }
+            var car = new NwhCar
+            {
+                Root = root, Vehicle = vehicle, Body = body, TypeName = vehicleTypeName,
+                FrontZ = zs.Max(), RearZ = zs.Min(),
+                MaxSteer = vehicle.steering.maximumSteerAngle, SpeedCurve = vehicle.steering.speedSensitiveSteeringCurve,
+            };
+            Measure(car);
+            return car;
         }
     }
 }
