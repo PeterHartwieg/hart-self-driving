@@ -343,7 +343,9 @@ namespace DrivenRides
         private sealed class SpotHunt
         {
             public AutoParkSpot? Found;
-            public int Seen;
+            // Each spot once, though every ring's sphere holds the rings before it.
+            public readonly HashSet<AutoParkSpot> SeenSpots = new HashSet<AutoParkSpot>();
+            public int Seen => SeenSpots.Count;
         }
 
         // The game makes autopark spots only in the gaps of the parking lanes within 6 m of a car the player gets into,
@@ -386,7 +388,7 @@ namespace DrivenRides
                 for (var k = 0; k < n; k++)
                 {
                     if (HuntHits[k] == null || !HuntHits[k].TryGetComponent<AutoParkSpot>(out var spot) || spot.maxVehicleLength < needs) continue;
-                    hunt.Seen++;
+                    hunt.SeenSpots.Add(spot);
                     var p = spot.transform.position;
                     var away = Vector3.Distance(at, p);
                     var score = away + (door is Vector3 dd ? 0.5f * Vector3.Distance(dd, p) : 0f);
