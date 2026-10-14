@@ -332,7 +332,15 @@ namespace DrivenRides.Core.Drive
                     // Only the margin touches: squeeze past at a crawl (a long car finishing a turn beside a car
                     // waiting at its line; T0 priority). Where the body itself would touch, stop short.
                     var body0 = FirstTouch(other, SqueezeMargin, 0);
-                    if (body0 >= 0) Gap(d, body0, along, c.Id);
+                    // A car ahead setting off (still under MovingMs) is followed at the pace it has along the ride car's
+                    // way from LeaderOffMs, so the ride car sets off with it as a driver in a queue does (Peter, 14
+                    // October: "it waits for the car in front to get to a safe distance instead of accelerating with
+                    // them").
+                    if (body0 >= 0)
+                    {
+                        var onward = Math.Max(0f, c.Vx * poses[body0].Sin + c.Vz * poses[body0].Cos);
+                        Gap(d, body0, along, c.Id, onward < LeaderOffMs, onward);
+                    }
                     if (body0 < 0 || body0 > touch)
                     {
                         var last = touch;
@@ -1491,7 +1499,7 @@ namespace DrivenRides.Core.Drive
         // metre: "stopped for this car in its trigger: 0.97 m and 0.40 s from 13.6 m/s"), ua metres ahead of its front.
         private static bool TriggerStops(in OtherCar c, float ua) => ua >= c.Speed * TriggerReact + TriggerStopMetres + 1f;
 
-        public const float FarConflictSeconds = 3f;
+        public const float FarConflictSeconds = 3f, LeaderOffMs = PursuitDriver.LeaderOffMs;
         private bool farConflict;
 
         // Where the car stops from v at Decel after the brakes' latency, with the uncertainty to spare.

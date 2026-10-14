@@ -12,7 +12,8 @@ namespace DrivenRides.Core.Drive
         public const float FollowReaction = 0.33f;
         public const float FollowBrake = 3f;
         public const float LeaderBrake = 4f;
-        public const float StopGap = 2.5f;
+        // Free travel left behind a standing car: about 2 m bumper to bumper (Peter, 14 October; 2.5 left 2.4 m).
+        public const float StopGap = 2.1f;
 
         // How early the ride car slows for a stop, a light or a car given way to: the braking it plans with (m/s²).
         public const float Decel = 3f;

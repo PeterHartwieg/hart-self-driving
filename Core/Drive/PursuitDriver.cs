@@ -140,7 +140,7 @@ namespace DrivenRides.Core.Drive
             if (i.GapAhead is float gap)
             {
                 desired = Math.Min(desired, Follow(gap, i.GapSpeed));
-                holding |= gap < StopGap + 3f && i.GapSpeed < 0.5f;
+                holding |= gap < StopGap + 3f && i.GapSpeed < LeaderOffMs;
             }
             if (i.MaxSpeed is float cap) desired = Math.Min(desired, cap);
             if (along + frontAhead >= Length - 1f) desired = 0f;
@@ -282,12 +282,19 @@ namespace DrivenRides.Core.Drive
 
         public static float Follow(float gap, float leaderMs)
         {
-            if (leaderMs < 0.5f) return Approach(0f, gap - StopGap);
+            if (leaderMs < LeaderOffMs) return Approach(0f, gap - StopGap);
             var room = gap - StopGap + leaderMs * leaderMs / (2f * LeaderBrake);
-            if (room <= 0f) return 0f;
             var t = FollowReaction;
-            return (float)(FollowBrake * (-t + Math.Sqrt(t * t + 2 * room / FollowBrake)));
+            var safe = room <= 0f ? 0f : (float)(FollowBrake * (-t + Math.Sqrt(t * t + 2 * room / FollowBrake)));
+            // Setting off in a queue with the car ahead, as a driver does (Peter, 14 October: "it waits for the car in
+            // front to get to a safe distance instead of accelerating with them"): no faster than it goes, and with
+            // StartHeadway seconds of the gap past the standing gap; above StartMs the braking rule alone.
+            var start = Math.Min(leaderMs + 0.5f, Math.Min(StartMs, (gap - StopGap) / StartHeadway));
+            return Math.Max(safe, start);
         }
+
+        // From a car ahead setting off at LeaderOffMs, the ride car follows at up to StartMs with StartHeadway.
+        public const float LeaderOffMs = 0.3f, StartMs = 5f, StartHeadway = 0.6f;
 
         // Braking (m/s²) per unit of NWH brake input, roughly: 0.2 slowed the limo at about 3.7 m/s² (T3 trace
         // 20261013-200946-0017); lower than that, so a needed stop brakes harder rather than softer.

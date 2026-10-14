@@ -17,8 +17,11 @@ namespace DrivenRides.Core.Drive
     {
         public const float InsideLimit = 20f;
         public const float AskMetres = 6f;
-        // The front stops this far short of a stop line's waypoint: the pedals don't stop it to the centimetre.
-        public const float ShortOfLine = 1f;
+        // The front stops this far short of a stop line's waypoint: the pedals don't stop it to the centimetre (in the
+        // T3 traces of 14 October the front stood 0 to 0.5 m past where it was told to stop, 146 of 164 reds). Gley's
+        // own cars stand with their front at the waypoint (399 stops in the dumps, within 2 cm); at 1 m the ride car
+        // stood 1 to 1.5 m behind them (Peter: "not at the stop line but half a car in front").
+        public const float ShortOfLine = 0.6f;
 
         private readonly HashSet<int> drivenThrough = new HashSet<int>();
         // A red's decision, taken once when the car first sees it set: stop (false) or drive through as on amber
