@@ -69,8 +69,11 @@ public sealed class ReviewRound2Tests
         return (b.Build(), lane);
     }
 
+    // A rounded corner that fails is left sharp, as the lane runs, and the step is still driven: the lane's own
+    // waypoints are what Gley's cars drive (T3 on 0.1.80 blocked ride 16's Hamptons lane and ride 5's Manhattan street
+    // this way, both driven cleanly sharp on 0.1.70).
     [Fact]
-    public void Q3ACornerThatFailsRoundedAndSharpFailsItsStep()
+    public void Q3ACornerThatFailsRoundedIsLeftSharpAndDriven()
     {
         var (graph, lane) = Corner();
         var clean = new Feasibility(graph, Small(), _ => null);
@@ -81,9 +84,23 @@ public sealed class ReviewRound2Tests
         // A post at the corner: the rounded line passes within a metre of it, the sharp one over it.
         var posted = new Feasibility(graph, Small(), Post(0f, 30f));
         var blocked = DrivePlan.Build(graph, lane, Small(), posted.Arc, posted.Clear);
-        var failed = posted.ValidateNow(blocked);
+        var notes = new List<string>();
+        var failed = posted.ValidateNow(blocked, notes);
         Assert.DoesNotContain(3, blocked.Fillets);
-        Assert.Contains(failed, f => f.From == lane[3] && f.To == lane[4] && f.What.Contains("neither rounded nor sharp"));
+        Assert.Empty(failed);
+        Assert.Contains(notes, n => n.Contains($"corner at {lane[3]} left sharp") && n.Contains("post"));
+    }
+
+    // Only corners a fillet rounds are swept: T3 on 0.1.80 swept each waypoint of a straight street as a "corner" (41 of
+    // ride 5's 44) and blocked the street when one sweep failed.
+    [Fact]
+    public void AStraightLanesWaypointsAreNoCorners()
+    {
+        var (graph, lane) = North();
+        var check = new Feasibility(graph, Small(), _ => null);
+        Assert.Empty(DrivePlan.Build(graph, lane, Small(), check.Arc, check.Clear).Fillets);
+        var (bent, bentLane) = Corner();
+        Assert.Equal(new[] { 3 }, DrivePlan.Build(bent, bentLane, Small(), check.Arc, check.Clear).Fillets.ToArray());
     }
 
     [Fact]

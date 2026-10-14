@@ -27,7 +27,9 @@ static class Feasible
         var margin = Opt("--margin") is string m ? float.Parse(m, CultureInfo.InvariantCulture) : Feasibility.DefaultMargin;
         var graph = GraphFile.Load(graphPath, out var limits);
         float Limit(int w) => limits[w];
-        var check = new Feasibility(graph, car, null, margin, Limit);
+        // --pedestrian: every point counts as the pedestrians' ground (the worst the game's NavMesh can say), so the
+        // pavement rule is decided by what counts as carriageway (lanes and junction boxes) alone.
+        var check = new Feasibility(graph, car, null, margin, Limit) { PavementAt = Array.IndexOf(args, "--pedestrian") >= 0 ? _ => true : null };
         Console.WriteLine($"{car}; margin {margin:0.00} m");
 
         var kinds = (Opt("--kinds") ?? "turn,uturn").Split(',').ToHashSet();

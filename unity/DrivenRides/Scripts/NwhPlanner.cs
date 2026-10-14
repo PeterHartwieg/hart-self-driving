@@ -411,14 +411,20 @@ namespace DrivenRides
                         {
                             if (c is MeshCollider mesh && !mesh.convex)
                             {
-                                // A ray from inside a mesh doesn't meet it: rays in from 3 m either side do if the line
-                                // runs through it (review round 1: such a collider was skipped).
-                                var inFromRight = c.Raycast(new Ray(probe + right * 3f, -right), out _, 3f);
-                                var inFromLeft = c.Raycast(new Ray(probe - right * 3f, right), out _, 3f);
-                                if (!inFromRight && !inFromLeft) continue;
+                                // A ray meets a mesh's faces only from their front: from inside a mesh, or from behind a
+                                // one-sided one (a guardrail facing away from the road), the rays out miss it. Rays in
+                                // from 3 m either side: met from both, the line runs through it (review round 1: such a
+                                // collider was skipped); from one, its face is that far to that side (0.1.80 took any
+                                // one as the line running through it).
+                                var inFromRight = c.Raycast(new Ray(probe + right * 3f, -right), out var fromRight, 3f);
+                                var inFromLeft = c.Raycast(new Ray(probe - right * 3f, right), out var fromLeft, 3f);
+                                if (inFromRight && inFromLeft) side = 0f;
+                                else if (inFromRight) side = 3f - fromRight.distance;
+                                else if (inFromLeft) side = fromLeft.distance - 3f;
+                                else continue;
                             }
                             else if ((c.ClosestPoint(probe) - probe).sqrMagnitude > 0.0025f) continue;
-                            side = 0f;
+                            else side = 0f;
                         }
                         var need = half + clear;
                         if (Mathf.Abs(side.Value) >= need) continue;
@@ -464,15 +470,20 @@ namespace DrivenRides
         }
 
         // A route planned for this car, as an NWH ride is planned (Ride.TryCreateRide; the rig's ride cases): wider
-        // U-turns allowed, up to eight rounds of planning, each finding the steps this car can't drive
+        // U-turns allowed, up to PlanRounds rounds of planning, each finding the steps this car can't drive
         // (BlockedSteps) and the steps its line fails on as driven (Feasibility.Validate), and blocking them. The
         // route and its checked plan, or nulls, and a short summary of the added steps driven and the ones blocked.
-        public (Route? Route, DrivePlan? Plan, string Summary) PlanRoute(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds = 8)
+        public (Route? Route, DrivePlan? Plan, string Summary) PlanRoute(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds = PlanRounds)
         {
             var into = new Planned();
             foreach (var _ in PlanRouteWork(graph, start, goals, vehicleType, rounds, null, into)) { }
             return (into.Route, into.Plan, into.Summary);
         }
+
+        // Rounds of planning: each blocks at least one step, so the search ends anyway; this bounds the time. A U-turn
+        // group has several pairs and each failed pair cost a round: T3 on 0.1.80 ran out of eight rounds on ride 1 (8
+        // blocked), and on 0.1.70 the same ride found its route in its eighth (planner round 1 after T3).
+        public const int PlanRounds = 16;
 
         private sealed class Planned
         {
@@ -528,6 +539,8 @@ namespace DrivenRides
                     if (what.Contains(Feasibility.NoCase)) noCase++;
                     shifts.Remove((from, to));
                     Block(from, to, CauseOf(graph, from, to, what));
+                    // One line per rejection, in full: the summary has room for four, cut at 60 characters.
+                    Log.Info($"NWH planner: blocked {StepKind(graph, from, to)} {from} -> {to} for {Car.Name}: {what}.");
                     blockedNotes.Add($"{StepKind(graph, from, to)} {from}->{to} ({(what.Length > 60 ? what.Substring(0, 60) + "..." : what)})");
                 }
                 route = null;
@@ -596,7 +609,7 @@ namespace DrivenRides
         IEnumerable<object?> IWayOnWorld.PlanRoute(int start, IReadOnlyList<Goal> goals, int vehicleType, WayOnJob? job, PlannedRoute into)
         {
             var planned = new Planned();
-            foreach (var y in PlanRouteWork(graph, start, goals, vehicleType, 8, job, planned)) yield return y;
+            foreach (var y in PlanRouteWork(graph, start, goals, vehicleType, PlanRounds, job, planned)) yield return y;
             into.Route = planned.Route;
             into.Plan = planned.Plan;
             into.Summary = planned.Summary;

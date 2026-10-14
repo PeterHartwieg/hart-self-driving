@@ -378,7 +378,9 @@ namespace DrivenRides.Core.Drive
             var line = plan.Line(graph);
             var driver = plan.Driver(line, car.Wheelbase, car.FrontAhead, car.TrackWidth);
             var geometry = CaseGeometry.Build(graph, fixture);
-            var judge = new Judge(graph, geometry, fixture) { PavementAt = PavementAt };
+            // What failed is said with the numbers measured (planner round 1 after T3 on 0.1.80: the log had only
+            // "pavement at" the rear axle, and the four reasons it had room for).
+            var judge = new Judge(graph, geometry, fixture) { PavementAt = PavementAt, OnPavement = (_, what) => verdict.Hit ??= what };
             var path = plan.Path;
             var start = graph.Position(path[0]);
             var next = line.Line.At(1f);
@@ -440,12 +442,12 @@ namespace DrivenRides.Core.Drive
                     if (hit != null && !judge.Failed)
                     {
                         judge.Contact(step, hit);
-                        verdict.Hit = hit;
+                        verdict.Hit = hit + Measured(settled, o.Lateral, model.Steer);
                     }
                     if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples, settled) is string wheel)
                     {
                         judge.Reject(step, "kerb", wheel);
-                        verdict.Hit = wheel;
+                        verdict.Hit = wheel + Measured(settled, o.Lateral, model.Steer);
                     }
                 }
                 if (!judge.Failed && driver.Along >= exitAlong && off > OffLaneLimit)
@@ -670,22 +672,26 @@ namespace DrivenRides.Core.Drive
                 var footprint = Footprint(pose, half);
                 if (world?.Invoke(new BodyBox(Local(pose, car.BodyCentre), new Vec3(half.X + NearMiss, half.Y, half.Z + NearMiss), pose.Heading)) is string hit)
                 {
-                    result.What = FormattableString.Invariant($"{hit} at {driver.Along:0} m");
+                    result.What = FormattableString.Invariant($"{hit} at {driver.Along:0} m") + Measured(settled, o.Lateral, model.Steer);
                     yield break;
                 }
                 if (PavementAt != null && Pavement.CornerOnPavement(graph, footprint, Local(pose, car.BodyCentre), PavementAt) is string pavement)
                 {
-                    result.What = pavement;
+                    result.What = pavement + Measured(settled, o.Lateral, model.Steer);
                     yield break;
                 }
                 if (GroundAt != null && WheelOnKerb(pose, ref kerbSamples, settled) is string kerb)
                 {
-                    result.What = kerb;
+                    result.What = kerb + Measured(settled, o.Lateral, model.Steer);
                     yield break;
                 }
                 yield return null;
             }
         }
+
+        // The model's state where a check failed: how far off its line, its wheel, and whether the margin was on.
+        private string Measured(bool settled, float lateral, double wheel) => FormattableString.Invariant(
+            $" [rear axle {lateral:+0.00;-0.00} m off the line, wheel {wheel:0} deg, {(settled ? "settled: no margin" : $"margin {Margin:0.00} m")}]");
 
         // How far the body's farthest corner moved in a step, at most: the rear axle's move and the turn times the
         // corner's reach from it (review round 2: sampled by the rear axle's travel, a corner swinging round a slow
@@ -697,13 +703,14 @@ namespace DrivenRides.Core.Drive
         }
 
         // The line a plan gives, checked as it will be driven (review rounds 1 and 2): each rounded corner and each
-        // sideways move driven by the model over its stretch (Sweep). A rounded corner that fails is left sharp, and
-        // the sharp corner is then swept on the final line too; a move that fails is dropped, and as the lane without
-        // it is the one found blocked, its step fails. Each failure goes in `failed` (the step to block, and why),
-        // and a plan with any failure must not be driven. Yields after each sweep, so a caller can spread the work.
+        // sideways move driven by the model over its stretch (Sweep). A rounded corner that fails is left sharp: the
+        // lane's own waypoints, which Gley's cars drive and the ride car drove cleanly before corners were rounded (T3
+        // on 0.1.70; 0.1.80 swept the sharp corner too and blocked the lane when that failed, which left Hamptons rides
+        // and a plain Manhattan street without a route). A move that fails is dropped, and as the lane without it is
+        // the one found blocked, its step fails. Each failure goes in `failed` (the step to block, and why), and a
+        // plan with any failure must not be driven. Yields after each sweep, so a caller can spread the work.
         public IEnumerable<object?> Validate(DrivePlan plan, List<(int From, int To, string What)> failed, List<string>? notes = null)
         {
-            var sharp = new HashSet<int>();
             var settled = false;
             for (var round = 0; round < ValidateRounds && !settled; round++)
             {
@@ -717,8 +724,7 @@ namespace DrivenRides.Core.Drive
                     var what = swept.What;
                     if (what == null) continue;
                     plan.Fillets.Remove(k);
-                    sharp.Add(k);
-                    notes?.Add($"corner at {plan.Path[k]} left sharp ({what})");
+                    notes?.Add($"corner at {plan.Path[k]} left sharp, as the lane runs ({what})");
                     changed = true;
                 }
                 foreach (var shift in new List<(int Position, float From, float To, float Offset)>(plan.Shifts))
@@ -733,14 +739,6 @@ namespace DrivenRides.Core.Drive
                     changed = true;
                 }
                 settled = !changed;
-            }
-            var final = plan.Line(graph);
-            foreach (var k in sharp)
-            {
-                var swept = new SweepResult();
-                foreach (var y in SweepWork(plan, final, final.AlongOf[k] - 10f, final.AlongOf[k] + 10f, swept)) yield return y;
-                var what = swept.What;
-                if (what != null && k + 1 < plan.Path.Count) failed.Add((plan.Path[k], plan.Path[k + 1], $"corner at {plan.Path[k]}, neither rounded nor sharp: {what}"));
             }
             if (!settled)
                 foreach (var shift in plan.Shifts)

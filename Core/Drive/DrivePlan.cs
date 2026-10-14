@@ -34,8 +34,12 @@ namespace DrivenRides.Core.Drive
             var expanded = PathExpander.Expand(graph, route, clear, (e, x) => arc(e, x) != null);
             var plan = new DrivePlan(expanded, car.TopKmh);
             var path = expanded.Path;
+            // Only corners a fillet rounds (DriveLine.Fillet): T3 on 0.1.80 swept every waypoint of a straight lane as a
+            // "corner" (41 of ride 5's 44), and a sweep failing on one blocked the street.
             for (var k = 1; k + 1 < path.Count; k++)
-                if (Has(graph.Successors(path[k - 1]), path[k]) && Has(graph.Successors(path[k]), path[k + 1])) plan.Fillets.Add(k);
+                if (Has(graph.Successors(path[k - 1]), path[k]) && Has(graph.Successors(path[k]), path[k + 1])
+                    && DriveLine.Fillet(graph.Position(path[k - 1]), graph.Position(path[k]), graph.Position(path[k + 1])) != null)
+                    plan.Fillets.Add(k);
             if (shift != null)
                 for (var k = 0; k + 1 < path.Count; k++)
                     if (shift(path[k], path[k + 1]) is var (from, to, offset)) plan.Shifts.Add((k, from, to, offset));

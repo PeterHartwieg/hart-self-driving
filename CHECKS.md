@@ -1,3 +1,12 @@
+# In-game checks: planner after T3 on 0.1.80 (nwh-feasible, 0.1.81-planner1)
+
+Disposable save, Food Trucks parked, other gameplay mods off. T3 as before: `tools/turn-tests.sh homepc send run driver=nwh kinds=ride rides=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 cars=limo traffic=on speed=auto`, then `tools/turn-tests.sh homepc fetch`.
+
+1. **Routes.** No leg is `avoided` for "no route" on an ordinary street. Expected: ride-1-0, ride-2-0, ride-5-0 with a wide U-turn as a u-curve (17684 -> 99 or a sibling, as on 0.1.70), ride-4-0 with 7408 -> 15092, ride-16-361 with "no added turns".
+2. **Every rejection in the log.** One `NWH planner: blocked <kind> <from> -> <to> for <car>: <why>.` line per blocked step, with the numbers: the collider and where, the model's offset from its line, its wheel and whether the margin was on; for pavement the corner, its distance from the nearest lane, and that it lies outside any junction's box. Copy these lines into the results notes for any leg still avoided.
+3. **Corners left sharp.** `NWH planner: corner at N left sharp, as the lane runs (...)` lines are notes, not blocks: the leg still drives. Watch one Hamptons guardrail stretch (ride 16): no contact, no kerb.
+4. **Junction boxes.** Each result's `judge.JunctionPavement`, if set, names the farthest a body corner went over pedestrian ground inside a junction's box (carriageway by the rule). Over about 4 m, look at that leg's picture or replay it: if the corner is on a real pavement corner or island, the box rule is too wide there.
+
 # In-game checks: traffic for NWH rides (T3, nwh-traffic branch, 0.1.52-traffic1)
 
 Disposable save, Food Trucks parked, other gameplay mods off. Rig only: `tools/turn-tests.sh homepc send run driver=nwh kinds=ride rides=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 cars=limo,mersaididash traffic=on speed=1`, then `tools/turn-tests.sh homepc fetch`.

@@ -123,7 +123,7 @@ public sealed class FeasibilityTests
         output.WriteLine(verdict.ToString());
         Assert.False(verdict.Feasible);
         Assert.Contains("contact", verdict.Reason);
-        Assert.Equal("post", verdict.Hit);
+        Assert.StartsWith("post [rear axle", verdict.Hit);
         // Without the post, the same car makes it.
         Assert.True(new Feasibility(graph, Small(), _ => null).Step(entry, exit).Feasible);
     }

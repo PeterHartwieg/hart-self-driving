@@ -266,7 +266,12 @@ namespace DrivenRides.Core.Testing
 
         // A footprint corner, pulled PavementInset inward, on pedestrian ground and not within half a lane of any
         // lane (crosswalks are pedestrian ground too, and lie on the lanes).
-        private string? OnPedestrianGround(Sample s) => Testing.Pavement.CornerOnPavement(graph, s.Footprint, s.Centre, PavementAt!);
+        private string? OnPedestrianGround(Sample s) => Testing.Pavement.CornerOnPavement(graph, s.Footprint, s.Centre, PavementAt!, (corner, distance) =>
+        {
+            if (distance <= result.JunctionPavementMetres) return;
+            result.JunctionPavementMetres = distance;
+            result.JunctionPavement = FormattableString.Invariant($"step {s.Step}: a corner on pedestrian ground at ({corner.X:0.0}, {corner.Z:0.0}), {distance:0.0} m from the nearest lane, in a junction's box");
+        });
 
         // A ride has arrived (the driver stopped at the end of its line): it passes if it went through its gates and
         // stands in its lane, its middle within 1 m of the route and its heading within ArrivalHeading of the route's
@@ -341,7 +346,8 @@ namespace DrivenRides.Core.Testing
             Verdict = Failed ? "fail" : timedOut || !Finished ? "incomplete" : "pass",
             Reasons = new List<string>(result.Reasons), GatesPassed = new List<string>(result.GatesPassed), Incidents = new List<string>(result.Incidents),
             EntrySpeed = result.EntrySpeed, MaxIntrusion = result.MaxIntrusion, NearMiss = result.NearMiss, PlainDeviationMax = result.PlainDeviationMax,
-            LastGateLateral = result.LastGateLateral, LastGateHeadingError = result.LastGateHeadingError, IntrusionDetail = result.IntrusionDetail
+            LastGateLateral = result.LastGateLateral, LastGateHeadingError = result.LastGateHeadingError, IntrusionDetail = result.IntrusionDetail,
+            JunctionPavement = result.JunctionPavement, JunctionPavementMetres = result.JunctionPavementMetres,
         };
     }
 }
