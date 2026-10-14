@@ -1,3 +1,7 @@
+# In-game checks: ignore speed limits (nwh-rides4, 0.1.106-rides1)
+
+Options, Driven Rides, "Rides ignore speed limits", off by default. Off: as before, the car keeps to 1.2 times the lane limit. On: on straight avenues it speeds up to the car's own top speed (for example the limo's or the taxi's, see `Departed (NWH): ... top N km/h`), and still slows for corners, follows cars ahead and stops at reds. The option applies from the next ride on, not the one under way.
+
 # In-game checks: stop for pedestrians (nwh-rides3, 0.1.104-rides1)
 
 Options, Driven Rides, "Rides stop for pedestrians", off by default. Off: a ride car neither brakes nor stops for people crossing in front of it and drives through them, as the traffic cars do; the log has no `held by ... (Human)` lines. On: it stops for them as before. Switching it during a ride takes effect at once. Backing off ignores people too when it is off.

@@ -147,12 +147,17 @@ namespace DrivenRides
 
         private readonly LaneGraph graph;
 
-        private NwhPlanner(CarSpec car)
+        // The road's limit per waypoint for the plans (DrivePlan.Build caps the car at DrivePlan.LimitFactor of it), or
+        // null with "Ignore speed limits" on: the car's own top speed, corners still from the line (Options).
+        private readonly Func<int, float>? limitKmh;
+
+        private NwhPlanner(CarSpec car, bool speedLimits)
         {
             Car = car;
             graph = GleyGraph.Graph!;
+            limitKmh = speedLimits ? LimitKmh : (Func<int, float>?)null;
             // The pavement from the pedestrians' NavMesh (Sidewalk): no manoeuvre that puts a corner of the body on it.
-            Check = new Feasibility(graph, car, WorldHit, Feasibility.DefaultMargin, LimitKmh)
+            Check = new Feasibility(graph, car, WorldHit, Feasibility.DefaultMargin, limitKmh)
                 { GroundAt = GroundAt, PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null };
             var h = car.BodyHalf;
             // The driver stops for anything within its half width and 0.4 m of its line (NwhDrive.GapAhead).
@@ -169,11 +174,13 @@ namespace DrivenRides
             var graph = GleyGraph.Graph;
             if (graph == null) return null;
             if (!ReferenceEquals(plannersFor, graph)) { planners.Clear(); plannersFor = graph; }
-            var key = vehicleTypeName + "@" + topKmh.ToString(CultureInfo.InvariantCulture);
+            // One per speed-limit setting: its checks were worked out at those speeds.
+            var speedLimits = !Options.IgnoreSpeedLimits;
+            var key = vehicleTypeName + "@" + topKmh.ToString(CultureInfo.InvariantCulture) + (speedLimits ? "" : "@nolimits");
             if (planners.TryGetValue(key, out var planner)) return planner;
             var spec = NwhShape.For(vehicleTypeName, topKmh);
             if (spec == null) return null;
-            planner = new NwhPlanner(spec);
+            planner = new NwhPlanner(spec, speedLimits);
             planners[key] = planner;
             return planner;
         }
@@ -558,7 +565,7 @@ namespace DrivenRides
                     // step it fails on is blocked like the others (review round 2: never an unchecked plan).
                     // Its turns' checks worked out first as yielding work, so Build finds them known (review round 3).
                     foreach (var y in Check.PrepareWork(route.Waypoints)) yield return y;
-                    var built = DrivePlan.Build(graph, route.Waypoints, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
+                    var built = DrivePlan.Build(graph, route.Waypoints, Car, Check.Arc, Check.Clear, limitKmh, ShiftFor);
                     ThroughGates(built);
                     OffBridges(built);
                     yield return null;
@@ -681,7 +688,7 @@ namespace DrivenRides
         // of it fails, so no caller drives an unchecked fallback.
         public DrivePlan? Plan(LaneGraph graph, IReadOnlyList<int> route, out List<(int From, int To, string What)> failed)
         {
-            var plan = DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
+            var plan = DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, limitKmh, ShiftFor);
             ThroughGates(plan);
             OffBridges(plan);
             var notes = new List<string>();
