@@ -28,6 +28,7 @@ internal sealed class SimResult
     public float OptionLost = float.MinValue;
     // How long each decision took, microseconds (DecideCostTests).
     public readonly List<float> DecideMicros = new();
+    public readonly List<(float Time, int Car, float Drop, float Lasted, string Kind)> TurnDips = new();
     // The same, less the distance the car covers between two decisions at the speed it had (the simulation decides every
     // DecideEvery steps; the game every step): a shortfall within it is the decisions' discretization, not a real one
     // (review round 9, DD1). Reported by the soak.
@@ -66,6 +67,20 @@ internal sealed class SimResult
 internal sealed class TrafficSim : ILiveFlags
 {
     public const float Dt = 0.02f;
+
+    // The ride's slowdowns as a real ride logs them (Core BrakeEvents); in a turn (the wheel at TurnWheel or more), back
+    // up within TurnDipSeconds and with no red: Peter's "brakes in a turn for a second or two" (14 October).
+    public const float TurnDipSeconds = 3f, TurnWheel = 6f;
+    private readonly BrakeEvents slowdowns = new BrakeEvents();
+    private void TurnDip(SimResult result)
+    {
+        if (slowdowns.Step(time, driver.Along, (float)ride.Speed, (float)ride.Steer, decision.Why, decision.Note, decision.StopIsRed) == null) return;
+        var e = slowdowns.Last;
+        if (!e.Back || e.Seconds > TurnDipSeconds || e.Red || e.Wheel < TurnWheel) return;
+        var kind = e.Reason.Length == 0 ? "plan" : e.Reason.StartsWith("behind") ? "behind" : e.Reason.StartsWith("stop line") || e.Reason.StartsWith("give-way line") ? "line" : e.Reason.StartsWith("creeping") ? "creeping" : e.Kind.ToString();
+        result.TurnDips.Add((time, e.Car, e.Peak - e.Low, e.Seconds, kind));
+    }
+
     public const float StallLimit = 30f;
     public const int DecideEvery = 2;
     public static float TraceEvery = float.TryParse(Environment.GetEnvironmentVariable("FT_TRAFFIC_TRACE_EVERY"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var e) ? e : 0.5f;
@@ -360,6 +375,7 @@ internal sealed class TrafficSim : ILiveFlags
 
             // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);
+            TurnDip(result);
             foreach (var c in cars)
             {
                 if (!c.Active || !c.Body.Overlaps(rideBox)) continue;
