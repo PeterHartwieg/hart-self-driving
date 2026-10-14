@@ -65,3 +65,23 @@ public sealed class TurnArcTests
         Assert.InRange(end.Heading * 180 / Math.PI, 85, 95);
     }
 }
+
+// Peter, 14 October 2026: the largest arc the lanes leave room for, judged largest first, so a wide junction is
+// taken at speed rather than hugging its corner.
+public sealed class LargestArcTests
+{
+    private static DrivenRides.Core.Drive.CarSpec Small() => new("small", 2.5f, _ => 40f, new Vec3(0, 0.7f, 1.25f), new Vec3(0.9f, 0.7f, 2f), 50f, 1.5f);
+
+    [Fact]
+    public void TheLargestArcThatDrivesCleanlyIsTaken()
+    {
+        var (graph, entry, exit) = TurnTestGraph.Turn();
+        var radii = TurnArc.Radii(graph, entry, exit, Small().ArcMinRadius());
+        Assert.True(radii.Count >= 2);
+        for (var k = 1; k < radii.Count; k++) Assert.True(radii[k] < radii[k - 1]);
+        Assert.True(radii[0] > (TurnArc.Fit(graph, entry, exit, Small().ArcMinRadius())?.Radius ?? 0f));
+        var verdict = new DrivenRides.Core.Drive.Feasibility(graph, Small(), _ => null).Step(entry, exit);
+        Assert.True(verdict.Feasible, verdict.ToString());
+        Assert.Equal(radii.First(r => TurnArc.Fit(graph, entry, exit, Small().ArcMinRadius(), r) != null), verdict.Arc!.Radius, 2);
+    }
+}

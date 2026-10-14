@@ -140,7 +140,8 @@ namespace DrivenRides
         private string outcomeReason = "";
 
         public bool ShowPanel => phase == Phase.Driving || phase == Phase.Stopping;
-        public string PanelText { get; private set; } = "";
+        // What the ride panel shows as the distance left, updated while the ride drives or stops.
+        public double PanelLeftMetres { get; private set; }
 
         // The car Gley must leave alone: PrivateDriverVehicle.Update is skipped for it.
         public static bool OwnsCarObject(GameObject car) => Active != null && !Active.finished && Active.nwh == null && Active.OwnsCar && Active.car.gameObject == car;
@@ -1117,7 +1118,7 @@ namespace DrivenRides
                 }
             }
             ApplyScale(phase == Phase.Driving);
-            PanelText = $"  {LeftMetres / 1000.0:0.0} km to go";
+            PanelLeftMetres = LeftMetres;
         }
 
         // The end of an NWH ride, once (every exit and a cancel come here): the drive stops, the seam's End runs, and
@@ -1313,7 +1314,7 @@ namespace DrivenRides
                     EndWith(Outcome.Complete, "arrived");
             }
             ApplyScale(phase == Phase.Driving || phase == Phase.Stopping);
-            PanelText = $"  {LeftMetres / 1000.0:0.0} km to go";
+            PanelLeftMetres = LeftMetres;
         }
 
         // Takes off the stops that the summon, the arrival, a crash or the hold put on the car, and nothing else: a
