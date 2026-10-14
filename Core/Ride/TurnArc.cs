@@ -137,7 +137,11 @@ namespace DrivenRides.Core.Ride
         // straights either side of it. Then smaller ones, each 0.8 of the one before, down to the junction box's arc
         // (Fit with no radius) and the car's tightest followable one. Which one the car takes is the feasibility
         // check's: the body against the world, the pavement, kerbs and the lanes, largest first.
-        public static List<float> Radii(LaneGraph graph, int entry, int exit, float minRadius)
+        // On a left turn (across the oncoming lanes, right-hand traffic) only arcs wider than the junction box's that
+        // pass the junction's middle on its near side: the arc's apex, halfWidth more for the body, no further from where the two lanes meet than
+        // the middle is (Peter, 0.1.100: the largest arc, 27 m, swung left from the stop line straight into the
+        // oncoming lanes and the car reversed out of their way).
+        public static List<float> Radii(LaneGraph graph, int entry, int exit, float minRadius, float halfWidth = 1f)
         {
             var radii = new List<float>();
             if (!graph.PlainHeading(entry, out var ux, out var uz) || !graph.PlainHeading(exit, out var vx, out var vz)) return radii;
@@ -160,6 +164,27 @@ namespace DrivenRides.Core.Ride
             }
             if (box is float b0) radii.Add(b0);
             if (radii.Count == 0 || radii[radii.Count - 1] > least + 1f) radii.Add(least);
+            if (cross > 0f)
+            {
+                var meet = new Vec3(e.X + ux * a, e.Y, e.Z + uz * a);
+                var middle = graph.Junctions.CentreOf(new Vec3((e.X + x.X) / 2f, e.Y, (e.Z + x.Z) / 2f)) ?? graph.Junctions.CentreOf(meet);
+                if (middle is Vec3 c)
+                {
+                    // Into the turn from where the lanes meet: half way between back along the entry and on along the exit.
+                    float bxv = -ux + vx, bzv = -uz + vz;
+                    var n = (float)Math.Sqrt(bxv * bxv + bzv * bzv);
+                    if (n > 1e-4f)
+                    {
+                        var reach = ((c.X - meet.X) * bxv + (c.Z - meet.Z) * bzv) / n;
+                        var apex = 1 / Math.Cos(turn / 2) - 1;
+                        // Only the arcs larger than the junction box's (0.1.99's widening): the box's arc and the car's
+                        // tightest one are what T2 and T3 drove before, and a tight left from an inner lane passes the
+                        // middle itself.
+                        var keep = box ?? least;
+                        radii.RemoveAll(r => r > keep + 0.01f && r * apex + halfWidth > reach);
+                    }
+                }
+            }
             return radii;
         }
 

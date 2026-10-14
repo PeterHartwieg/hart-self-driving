@@ -309,9 +309,9 @@ namespace DrivenRides.Core.Drive
             if (arcs.ContainsKey((entry, exit))) yield break;
             Verdict? verdict = null;
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
-            var radii = TurnArc.Radii(graph, entry, exit, arcMinRadius);
+            var radii = TurnArc.Radii(graph, entry, exit, arcMinRadius, car.BodyHalf.X);
             var least = Math.Max(arcMinRadius * TurnArc.RadiusSlack, TurnArc.MinDriveRadius);
-            if (radii.Count == 0) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction" };
+            if (radii.Count == 0) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction and passes its middle on the near side" };
             else if (fixture == null) verdict = new Verdict { Form = "arc", Reason = NoCase };
             else
             {
@@ -415,6 +415,14 @@ namespace DrivenRides.Core.Drive
             var travelled = 0.0;
             var time = 0.0;
             var timedOut = true;
+            // A turn's body keeps to the junction and its own way's lanes (Pavement.OnAnotherWaysLane).
+            var ways = new List<(float X, float Z)>();
+            // Arcs only: through its vias the car follows the game's own lanes.
+            if (fixture.Manoeuvre == CaseKind.Turn && verdict.Form.Contains("arc"))
+            {
+                if (graph.PlainHeading(fixture.Route[fixture.EntryIndex], out var hx, out var hz)) ways.Add((hx, hz));
+                if (fixture.EntryIndex + 1 < fixture.Route.Count && graph.PlainHeading(fixture.Route[fixture.EntryIndex + 1], out var gx, out var gz)) ways.Add((gx, gz));
+            }
             for (var step = 1; time < limit; step++)
             {
                 var o = driver.Step(model.Input(StepSeconds));
@@ -456,6 +464,21 @@ namespace DrivenRides.Core.Drive
                     {
                         judge.Contact(step, hit);
                         verdict.Hit = hit + Measured(settled, o.Lateral, model.Steer, Margin);
+                    }
+                    if (ways.Count == 2 && !judge.Failed && driver.Along > entryAlong - WorldFrom && driver.Along < exitAlong)
+                    {
+                        var centre = Local(pose, car.BodyCentre);
+                        for (var c = 0; c < 4; c++)
+                        {
+                            var corner = footprint[c];
+                            float dx = centre.X - corner.X, dz = centre.Z - corner.Z, l = (float)Math.Sqrt(dx * dx + dz * dz);
+                            if (l > Judge.PavementInset) corner = new Vec3(corner.X + dx / l * Judge.PavementInset, corner.Y, corner.Z + dz / l * Judge.PavementInset);
+                            if (!Pavement.OnAnotherWaysLane(graph, corner, ways)) continue;
+                            var what = FormattableString.Invariant($"a corner over another way's lane outside the junction at ({corner.X:0.0}, {corner.Z:0.0})");
+                            judge.Reject(step, "other-way", what);
+                            verdict.Hit = what;
+                            break;
+                        }
                     }
                     if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples, settled, Margin) is string wheel)
                     {

@@ -13,6 +13,8 @@ namespace DrivenRides.Core.Routing
     public sealed class JunctionBoxes
     {
         private readonly List<(List<(float X, float Z)> Hull, float Y)> boxes = new List<(List<(float, float)>, float)>();
+        // The middle of each junction: of the box round its own waypoints.
+        private readonly List<Vec3> centres = new List<Vec3>();
         private readonly Dictionary<(int, int), List<int>> grid = new Dictionary<(int, int), List<int>>();
         private const float Cell = 50f;
 
@@ -65,6 +67,13 @@ namespace DrivenRides.Core.Routing
                 if (hull.Count < 3) continue;
                 var index = boxes.Count;
                 boxes.Add((hull, y / seen.Count));
+                float gx0 = float.MaxValue, gx1 = float.MinValue, gz0 = float.MaxValue, gz1 = float.MinValue;
+                foreach (var w in group)
+                {
+                    var p = graph.Position(w);
+                    gx0 = Math.Min(gx0, p.X); gx1 = Math.Max(gx1, p.X); gz0 = Math.Min(gz0, p.Z); gz1 = Math.Max(gz1, p.Z);
+                }
+                centres.Add(new Vec3((gx0 + gx1) / 2f, y / seen.Count, (gz0 + gz1) / 2f));
                 float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
                 foreach (var (x, z) in hull) { minX = Math.Min(minX, x); maxX = Math.Max(maxX, x); minZ = Math.Min(minZ, z); maxZ = Math.Max(maxZ, z); }
                 for (var cx = (int)Math.Floor(minX / Cell); cx <= (int)Math.Floor(maxX / Cell); cx++)
@@ -79,9 +88,14 @@ namespace DrivenRides.Core.Routing
         public int Count => boxes.Count;
 
         // Whether a point lies in a junction's box (and level with it).
-        public bool Contains(Vec3 p)
+        public bool Contains(Vec3 p) => IndexOf(p) >= 0;
+
+        // The middle of the junction whose box holds a point (the middle of the box round its waypoints), or null.
+        public Vec3? CentreOf(Vec3 p) => IndexOf(p) is var i && i >= 0 ? centres[i] : (Vec3?)null;
+
+        private int IndexOf(Vec3 p)
         {
-            if (!grid.TryGetValue(((int)Math.Floor(p.X / Cell), (int)Math.Floor(p.Z / Cell)), out var cell)) return false;
+            if (!grid.TryGetValue(((int)Math.Floor(p.X / Cell), (int)Math.Floor(p.Z / Cell)), out var cell)) return -1;
             foreach (var index in cell)
             {
                 var (hull, y) = boxes[index];
@@ -94,9 +108,9 @@ namespace DrivenRides.Core.Routing
                     // Counter-clockwise hull: inside is on the left of every edge.
                     if ((bx - ax) * (p.Z - az) - (bz - az) * (p.X - ax) < 0f) inside = false;
                 }
-                if (inside) return true;
+                if (inside) return index;
             }
-            return false;
+            return -1;
         }
 
         // Andrew's monotone chain, counter-clockwise.
