@@ -161,7 +161,9 @@ namespace DrivenRides
             this.kind = kind;
             this.target = target;
             this.car = car;
-            carIndex = car.GetIndex();
+            // The own car has no traffic car: `car` is then a prefab asset (no scene), whose stored index belongs to no
+            // car in the pool, so -1, which no Gley call can reach.
+            carIndex = car.gameObject.scene.IsValid() ? car.GetIndex() : -1;
             this.prefab = prefab;
             this.vehicleType = vehicleType;
             this.goals = goals;
