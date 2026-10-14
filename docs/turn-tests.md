@@ -56,7 +56,7 @@ Recorded too: entry speed, the closest near-miss level (0.3, 0.2, 0.1 m), the ma
 
 In `<persistentDataPath>/DrivenRides/tests/`. The Mac script `tools/turn-tests.sh` writes `command.tmp` and renames it to `command.txt`; the mod reads and deletes it. A `stop.txt` file stops a run. The mod writes `status.json` (heartbeat, current case, counts), `results-<session>.jsonl` (one line per run) and pictures `<run id>.png`.
 
-Commands: `cars`; `catalogue`; `run tier=quick|full`; `run [kinds=turn,uturn,lanechange,ramp,ride,control] [cars=default|all|<names>] [speed=3] [limit=N] [ids=...] [rides=<lines>]`; `rerun <results file>` (the failed ones); `stop`.
+Commands: `cars`; `catalogue`; `run tier=quick|full`; `run [kinds=turn,uturn,lanechange,ramp,ride,control] [cars=default|all|<names>] [speed=3] [limit=N] [ids=...] [rides=<lines>]`; `rerun <results file>` (the failed ones); `stop`. `run driver=nwh [traffic=on]` drives each case with the car's own NWH physics; a car without a drivable prefab (the taxi) is the drivable car closest in size dressed as it (`NwhDress`, the result line names the `donor`). `dress [car=taxi|<traffic prefab>]` parks a dressed car beside the player to look at (also Ctrl+Alt+Shift+L); `dress remove` takes it away. With `driver=nwh`, each case first goes through the NWH planner (`NwhPlanner`: Core's feasibility check with the world, the case's lanes swept for parked cars); a case it leaves out is `avoided`, with the reason in `why`, and the results line has `plan` (arc, tight arc, vias) and `check`. `check=off` drives every case as the spike did.
 
 ## Tiers and the avoid list
 
@@ -76,6 +76,8 @@ Cases are short (50 m run-up, 40 m run-out: the car reaches its top speed in abo
 - `unity/DrivenRides/Scripts/Testing/`: `TurnTests` (session, commands, files), `TestCar` (sampling, contacts, overlaps, picture), and the test mode in `Ride.cs`.
 - `tools/turn-tests.sh`, `tools/summarise-tests.py`.
 - `tools/rejudge` also checks the ride's turn model away from the game: `drive <entry> <exit> <aim> [samples.csv]` (a turn driven through its vias, against a recorded track), `arcs [lookahead]` (which catalogue turns get a driver's arc for the 6.7 m car, and how closely the car follows it), `arcline <entry> <exit>` (one arc's points).
+- `tools/rejudge <graph> feasible <car> [--ids ...] [--rig results.jsonl] [--out file] [--previous file]` is T1 for NWH cars: Core's `Feasibility` on every catalogue turn and U-turn, one line per case, and the cases whose verdict or form changed against a previous `--out` (exit code 1 if any). No world offline: a kerb estimate (half a lane past the outermost lane on the right) stands in for it, and misses the props at junction corners. `<car>` is `limo`, `mersaididash` (`tools/rejudge/Cars.cs`) or the text of the game log's "NWH shape" line. `--pedestrian` takes every point as the pedestrians' ground, the worst the game's NavMesh can say, so the pavement rule rests on what counts as carriageway alone: within half a lane of a lane, or inside a junction's box (`JunctionBoxes`, the hull of its lanes and their first waypoints out; T3 on 0.1.70 drove the limo's wide U-turns through a median's opening up to 5.4 m from any lane there).
+- `tools/calibrate <graph> <run>-nwh.csv...` fits Core's `CarModel` to the rig's NWH traces: the wheel's smoothing and rate, the front track (NWH's Ackermann), the open-loop error over 1 and 2 s, and the closed-loop error on nwh1 rig cases (the feasibility check's margin).
 
 ## Turn lines
 

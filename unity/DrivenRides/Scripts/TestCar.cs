@@ -30,6 +30,16 @@ namespace DrivenRides
         // judge starts.
         public System.Func<Vector3>? FrontAxleOf;
         private Vector3 boxCenter, boxHalf;
+        // An NWH car's wheels, for the kerb check: they ride on ray casts, not colliders, so a wheel rolling up onto the
+        // pavement touches nothing and the body may never hit the kerb (Peter, turn test 0.1.55: "quite a few are on
+        // the sidewalk at the end", while the judge saw no contact).
+        public NWH.Common.Vehicles.WheelUAPI[]? Wheels;
+        private int[]? kerbSteps;
+        private bool[]? kerbReported;
+        // A wheel this far above the plane of the other three, for this many physics steps in a row, is on a kerb. A
+        // road's camber across the car is a few centimetres; a kerb is about 15.
+        private const float KerbRise = 0.1f;
+        private const int KerbSteps = 5;
         private readonly Collider[] hits = new Collider[32];
         private static readonly float[] Inflations = { 0.3f, 0.2f, 0.1f };
         private float time;
@@ -144,6 +154,14 @@ namespace DrivenRides
         private void FixedUpdate()
         {
             if (Judge == null) return;
+            if (Step == 0 && Sidewalk.Available)
+            {
+                // The pavement from the pedestrians' NavMesh (Sidewalk), recorded so tools/rejudge doesn't fall back
+                // on the kerb estimate.
+                Judge.PavementAt = Sidewalk.At;
+                Judge.OnPavement = (step, what) => Samples.Append("P,").Append(step).Append(',').Append(what.Replace(',', ';')).Append('\n');
+                Samples.Append("N,pavement from the pedestrians' NavMesh\n");
+            }
             Step++;
             time += Time.fixedDeltaTime;
             var outline = Outline();
@@ -164,9 +182,37 @@ namespace DrivenRides
                 NearMiss = NearMiss(),
             };
             Judge.Add(sample);
+            Kerb();
             if (Step % 5 == 0) Track.Add(centre);
             if (!failedBefore && Judge.Failed) Latch(outline, centre);
             Record(sample);
+        }
+
+        private void Kerb()
+        {
+            var wheels = Wheels;
+            if (wheels == null || wheels.Length < 4 || Judge == null) return;
+            kerbSteps ??= new int[wheels.Length];
+            kerbReported ??= new bool[wheels.Length];
+            foreach (var w in wheels) if (w == null || !w.IsGrounded) return;
+            for (var i = 0; i < wheels.Length; i++)
+            {
+                // Off the plane through three other wheels: a slope or a ramp tilts all four together (turn test 0.1.59:
+                // the rear wheels 0.49 m above the front ones on a Hamptons highway ramp read as a kerb).
+                // The planner's check measures the same way (Core WheelPlane).
+                var points = new Core.Routing.Vec3[wheels.Length];
+                for (var j = 0; j < wheels.Length; j++) points[j] = GleyGraph.ToVec(wheels[j].HitPoint);
+                if (!(Core.Drive.WheelPlane.Rise(points, i) is float rise)) continue;
+                var w = wheels[i];
+                kerbSteps[i] = rise > KerbRise ? kerbSteps[i] + 1 : 0;
+                if (kerbSteps[i] < KerbSteps || kerbReported[i]) continue;
+                kerbReported[i] = true;
+                var what = $"kerb: wheel '{w.name}' {rise:0.00} m above the plane of the other wheels, on '{(w.HitCollider != null ? w.HitCollider.name : "?")}' ({(w.HitCollider != null ? LayerMask.LayerToName(w.HitCollider.gameObject.layer) : "?")}) at {w.HitPoint}";
+                var failedBefore = Judge.Failed;
+                Judge.Contact(Step, what);
+                Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n');
+                if (!failedBefore && Judge.Failed) Latch(Outline(), transform.TransformPoint(boxCenter));
+            }
         }
 
         private void Record(Sample s)

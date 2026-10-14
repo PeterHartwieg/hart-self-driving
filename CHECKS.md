@@ -1,3 +1,31 @@
+# In-game checks: planner after T3 on 0.1.81 (nwh-feasible, 0.1.84-planner4)
+
+Disposable save, Food Trucks parked, other gameplay mods off. T3 as before: `tools/turn-tests.sh homepc send run driver=nwh kinds=ride rides=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 cars=limo traffic=on speed=auto`, then `tools/turn-tests.sh homepc fetch`.
+
+1. **Routes.** Rides 1, 2, 4 and 5 as on 0.1.81-planner1 (their 0.1.70 plans). Ride 13 drives its 22 m U-turn and passes: no rig check reads a "lean" any more (its 0.1.81 failure was the limo standing flat on its line). Ride 16-361: the Hamptons gate, shut for the rig's player (it owns nothing behind it). Expect `Gates: N across lanes, M locked` and a `Gate '...' (HamptonsPrivateFenceDoor): shut for the player, doors and trigger over x ..., z ...` line (check the box is about the gate, a few metres, not a whole street), then `NWH planner: the way to the goal goes through the gate ...; the ride ends at waypoint W before it`, and the leg passes, stopping on the lane before the gate with no 'locked' notification and no contact. With a house bought behind that gate in a save (not the rig's), the gate says `opens`, the ride crawls through at 10 km/h and the doors swing open before it.
+2. **Every rejection in the log.** One `NWH planner: blocked <kind> <from> -> <to> for <car>: <why>.` line per blocked step, with the collider or corner, the model's offset from its line, its wheel and the margin (0.50 m for added turns and U-turns, 0.20 m along a lane). A lane corner that fails rounded and sharp is `corner at N, rounded or sharp: ...`. Copy these lines into the results notes for any leg still avoided.
+3. **Block lifetime.** Within a rig session, a leg whose summary says `no route (N manoeuvres blocked earlier this session)` names how many earlier blocks kept it out. Lane and traffic blocks don't carry over: no later leg should be avoided with nothing of its own listed and N = 0.
+4. **Junction boxes.** Each result's `judge.JunctionPavement`, if set, names the farthest a body corner went over pedestrian ground inside a junction's box. Over about 4 m, look at that leg's picture: if the corner is on a real pavement corner or island, the box rule is too wide there.
+
+# In-game checks: traffic for NWH rides (T3, nwh-traffic branch, 0.1.52-traffic1)
+
+Disposable save, Food Trucks parked, other gameplay mods off. Rig only: `tools/turn-tests.sh homepc send run driver=nwh kinds=ride rides=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 cars=limo,mersaididash traffic=on speed=1`, then `tools/turn-tests.sh homepc fetch`.
+
+1. **Startup.** One `Traffic reading:` line with `trafficVehicles`, `obstacleList` and `associatedIntersection` all `found`.
+2. **Lights.** At a red the car stops with its front about a metre short of the line and goes on green. In the box, `NWH drive: in intersection N` and later `out of intersection N`; while it waits inside for oncoming cars the light stays amber, and the oncoming cars stop for it.
+3. **Oncoming cars.** Turning left or U-turning across oncoming lanes it waits short of where its body would enter their lane (log: `giving way to <car> (pose ..., head-on)`), and goes within a few seconds of the last one passing.
+4. **Cars that wait for it.** A traffic car stopped across its way with the ride car in its trigger: the ride car creeps past, or backs off (`backing off from traffic car N`) and goes after it. No standstill for good.
+5. **Results.** Each results line has `contacts`, `contactsMoving`, `stalls` and `redRuns`. Every failure leaves `<run>-traffic-<n>-<kind>.json` beside the `-nwh.csv`: copy it into `tests/traffic-scenarios/` in the repo and `dotnet test` runs it.
+6. **Frame rate** with traffic on stays as it was with the spike (the traffic read is every car within 150 m each physics step).
+
+## Dressed taxi (nwh-taxi branch, 0.1.52-taxi1)
+
+Disposable save, outdoors on a street, Food Trucks parked. The taxi is the drivable car closest in size with the taxi's traffic meshes on it.
+
+1. **Look.** **Ctrl+Alt+Shift+L**: a taxi stands beside you on its handbrake. Log: `Dress donor for ...` (the chosen car and every candidate's score), `Dress parts of ...` (the taxi's renderers and wheels), `Dressed ... as ...` (sizes, wheel mapping, lights, where the look sticks out of the physics box, mismatches). Walk round it: body level and on its wheels, wheels in the arches and touching the ground, nothing of the donor showing, no part floating. Screenshots from the side, front and back, please. Press the key again for a fresh one.
+2. **Drive.** From the Mac: `tools/turn-tests.sh homepc send run driver=nwh cars=taxi kinds=turn limit=5 speed=1`. Watch one or two: wheels turn and steer with the car, brake lights at stops. Each result line has `"donor"`.
+3. **Remove.** `tools/turn-tests.sh homepc send dress remove` takes the parked one away.
+
 # In-game checks: own car spike (self-driving branch)
 
 Disposable save only. You need a car of your own (one with autopark and one without, if you have both), fuel, and some money. Every line in the log starts with `[Mod:Driven Rides]`; at startup three new patch lines (`TaxiSystem.GetPrice`, `ParkingSimulator.RunHourly`, `CarController.EnterVehicle`) must say `Active`. Press **Ctrl+Alt+Shift+G** once outdoors: the `Traffic pool:` line lists the models a stand-in can come from.

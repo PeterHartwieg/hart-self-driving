@@ -24,11 +24,15 @@ namespace DrivenRides.Core.Testing
         public List<string> Incidents = new List<string>();
         public float EntrySpeed, MaxIntrusion, NearMiss, PlainDeviationMax, LastGateLateral, LastGateHeadingError;
         public string? IntrusionDetail;
+        // The farthest a corner on pedestrian ground went from every lane where a junction's box made it carriageway
+        // (Pavement.CornerOnPavement): not a failure, the evidence for whether a box holds real pavement.
+        public string? JunctionPavement;
+        public float JunctionPavementMetres;
 
         public string ToJson() => new Json().Field("Verdict", Verdict).Field("Reasons", Reasons)
             .Field("GatesPassed", GatesPassed).Field("Incidents", Incidents).Field("EntrySpeed", EntrySpeed)
             .Field("MaxIntrusion", MaxIntrusion).Field("NearMiss", NearMiss).Field("PlainDeviationMax", PlainDeviationMax)
             .Field("LastGateLateral", LastGateLateral).Field("LastGateHeadingError", LastGateHeadingError)
-            .Field("IntrusionDetail", IntrusionDetail).ToString();
+            .Field("IntrusionDetail", IntrusionDetail).Field("JunctionPavement", JunctionPavement).ToString();
     }
 }

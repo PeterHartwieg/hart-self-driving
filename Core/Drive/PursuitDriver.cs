@@ -10,14 +10,18 @@ namespace DrivenRides.Core.Drive
     public struct DriveInput
     {
         public float RearX, RearZ, Heading, SpeedMs, Dt;
-        // Metres along the line short of which the car gives way (YieldAlong), or null.
+        // Metres along the line where the front gives way to traffic (TrafficDriver), or null.
         public float? YieldAlong;
         // The wheel's angle now (degrees, positive to the right).
         public float WheelDegrees;
         // Metres along the line where the car's front must stop (a red light), or null.
         public float? StopAlong;
-        // Metres from the car's front to something in its way (a car ahead), or null.
+        // Metres from the car's front to something in its way (a car ahead), or null, and how fast that moves on
+        // along the car's way (m/s; 0 for anything standing, people and parked cars).
         public float? GapAhead;
+        public float GapSpeed;
+        // A speed cap from the traffic rules (creeping past a car that waits for this one), m/s, or null.
+        public float? MaxSpeed;
     }
 
     public struct DriveOutput
@@ -34,28 +38,32 @@ namespace DrivenRides.Core.Drive
     public sealed class PursuitDriver
     {
         private readonly DriveLine line;
-        private readonly float wheelbase, frontAhead, top;
+        private readonly float wheelbase, frontAhead, top, trackWidth;
         private readonly float[] cornerSpeeds;
         private readonly List<(float From, float To, float Speed)> slow = new List<(float, float, float)>();
         private float along;
         private float integral;
-        private int firstPoint;
+        // The pedals' integral term: a replay starting mid-drive restores it with the rest (review round 2, U3).
+        public float Integral { get => integral; set => integral = value; }
 
         // Comfortable braking and the limit past which a red is driven through (amber), m/s².
-        public const float Decel = 2.5f;
+        public const float Decel = TrafficMargins.Decel;
         public const float HardDecel = 5f;
-        public const float StopGap = 2.5f;
+        public const float StopGap = TrafficMargins.StopGap;
         // Sideways acceleration in a corner: 3.5 m/s² takes a 6.5 m arc at 17 km/h and a 20 m one at 30 (Peter, NWH
         // spike: larger turns faster; at 2.5 every corner felt slow).
         public const float Lateral = 3.5f;
         public const float MinCornerMs = 12f / 3.6f;
         public const float LagSeconds = 0.25f;
 
-        // frontAhead: the car's front bumper, metres ahead of the rear axle.
-        public PursuitDriver(DriveLine line, float wheelbase, float frontAhead, float topMs)
+        // frontAhead: the car's front bumper, metres ahead of the rear axle. trackWidth: the front track, for NWH's
+        // Ackermann (CarModel.TrackWidth): the limo turns 0.8 as sharply as a bicycle with the same wheel angle, and a
+        // driver steering for a bicycle ran 0.5 m wide on every arc (tools/calibrate, rig session 20261013-083259).
+        public PursuitDriver(DriveLine line, float wheelbase, float frontAhead, float topMs, float trackWidth = 0f)
         {
             this.line = line;
             this.wheelbase = Math.Max(1f, wheelbase);
+            this.trackWidth = Math.Max(0f, trackWidth);
             this.frontAhead = frontAhead;
             top = topMs;
             cornerSpeeds = line.CornerSpeeds(topMs, Lateral, 10f);
@@ -65,6 +73,9 @@ namespace DrivenRides.Core.Drive
         }
 
         public float Along => along;
+        // Steering for a fitted curve's own curvature (on since 0.1.65); tools/calibrate turns it off to replay runs
+        // driven before.
+        public bool FeedForward { get; set; } = true;
         public float Length => line.Line.Length;
         public float FrontAhead => frontAhead;
 
@@ -84,7 +95,7 @@ namespace DrivenRides.Core.Drive
 
             // The wheel reaches a new angle only after a moment (NWH smooths it and turns it at a limited rate), so the
             // driver steers for where the car will be by then: on along its present curve for LagSeconds.
-            var yawRate = i.SpeedMs * Math.Tan(i.WheelDegrees * Math.PI / 180) / wheelbase;
+            var yawRate = i.SpeedMs * CarModel.Curvature(i.WheelDegrees, wheelbase, trackWidth);
             var turned = yawRate * LagSeconds;
             var ahead = i.SpeedMs * LagSeconds;
             var px = i.RearX + ahead * (float)Math.Sin(i.Heading + turned / 2);
@@ -96,99 +107,110 @@ namespace DrivenRides.Core.Drive
             var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - ph);
             var distance = (float)Math.Sqrt(tx * tx + tz * tz);
             var curvature = 2 * Math.Sin(alpha) / Math.Max(1f, distance);
-            var steer = (float)(Math.Atan(wheelbase * curvature) * 180 / Math.PI);
+            // Feed-forward: the line's own curvature where the car will be once the wheel gets there, with pursuit only
+            // for the error. Pursuit alone unwinds a lookahead early where a curve ends and runs wide where it starts;
+            // out of a U-turn that was an overshoot and a swing back (Peter, T2). Pure pursuit from a car that is
+            // exactly on the line commands ChordCurvature; what it commands beyond that is the correction.
+            var reference = along + ahead;
+            if (FeedForward && Smooth(reference, ld))
+                curvature = LineCurvature(reference, ld) + (curvature - ChordCurvature(reference, ld));
+            var steer = (float)(Math.Atan(wheelbase * curvature / CarModel.YawGain(wheelbase, trackWidth)) * 180 / Math.PI);
 
             var desired = PlannedSpeed(along, i.SpeedMs);
             var holding = false;
+            // The braking a stop ahead needs, m/s²: past Decel the brake goes on in proportion, not only by the speed
+            // error (T3 20261013-200946-0017: a red seen 6 m off at 7 m/s took 4.5 m/s²; the error alone gave 3.7).
+            var need = 0f;
             if (i.StopAlong is float stop)
             {
                 var room = stop - (along + frontAhead);
                 desired = Math.Min(desired, Approach(0f, room));
                 holding = room < 3f;
+                need = Math.Max(need, Need(i.SpeedMs, room));
             }
             if (i.YieldAlong is float give)
             {
                 var room = give - (along + frontAhead);
                 desired = Math.Min(desired, Approach(0f, room));
                 holding |= room < 3f;
+                need = Math.Max(need, Need(i.SpeedMs, room));
             }
             if (i.GapAhead is float gap)
             {
-                desired = Math.Min(desired, Approach(0f, gap - StopGap));
-                holding |= gap < StopGap + 3f;
+                desired = Math.Min(desired, Follow(gap, i.GapSpeed));
+                holding |= gap < StopGap + 3f && i.GapSpeed < 0.5f;
             }
+            if (i.MaxSpeed is float cap) desired = Math.Min(desired, cap);
             if (along + frontAhead >= Length - 1f) desired = 0f;
             // No faster than the corner the wheel is turning now, nor the one it is asked for: the car accelerated
             // out of corners with the wheel still at lock and ran wide (Peter, NWH spike: overshooting the corner).
             var wheel = Math.Max(Math.Abs(i.WheelDegrees), Math.Abs(steer));
-            if (wheel > 3f) desired = Math.Min(desired, Math.Max(MinCornerMs, (float)Math.Sqrt(Lateral * wheelbase / Math.Tan(wheel * Math.PI / 180))));
+            if (wheel > 3f) desired = Math.Min(desired, Math.Max(MinCornerMs, (float)Math.Sqrt(Lateral / CarModel.Curvature(wheel, wheelbase, trackWidth))));
 
             var o = new DriveOutput { SteerDegrees = steer, Along = along, Lateral = lateral, Desired = desired, Lookahead = ld, Holding = holding };
             Pedals(ref o, i.SpeedMs, desired, i.Dt);
+            if (need > Decel && o.Handbrake < 0.5f) { o.Throttle = 0f; o.Brake = Math.Max(o.Brake, Math.Min(1f, need / BrakePerInput)); }
             return o;
         }
 
-        // Giving way (Peter, NWH spike: the car pulled out across a traffic car onto Broadway). Another car moving
-        // at over 1.5 m/s that will cross the next 25 m of the line within 3 s, before this car has gone past that
-        // point, is given way to: the result is metres along the line where the front stops, 2 m short of where they
-        // would meet. A car on the line behind this one is following it, not crossing.
-        public float? YieldAlong(IEnumerable<(float X, float Z, float Vx, float Vz)> others, float speedMs)
+        // A driver like this one, on the same line with the same plan, for foreseeing where the car goes
+        // (TrafficDriver's near field); it keeps its own place on the line.
+        public PursuitDriver Copy()
         {
-            var front = along + frontAhead;
-            float? first = null;
-            foreach (var (x, z, vx, vz) in others)
-            {
-                var speed = (float)Math.Sqrt(vx * vx + vz * vz);
-                if (speed < 1.5f) continue;
-                var (onAlong, onSide) = line.Locate(x, z, Math.Max(0f, along - 15f), 45f);
-                if (Math.Abs(onSide) < 2.2f && onAlong < front + 1f) continue;
-                for (var t = 0.25f; t <= 3f; t += 0.25f)
-                {
-                    float px = x + vx * t, pz = z + vz * t;
-                    var (hitAlong, hitSide) = line.Locate(px, pz, front - 2f, 27f);
-                    if (Math.Abs(hitSide) > 2.2f || hitAlong < front - 1f || hitAlong > front + 25f) continue;
-                    // A meeting point far enough ahead that the other car is through it 1.5 s before this one (at no
-                    // less than 3 m/s) is no conflict.
-                    var ours = (hitAlong - front) / Math.Max(3f, speedMs);
-                    if (ours > t + 1.5f) continue;
-                    // Wait short of the turn that leads there, not of the meeting point: in a tight turn the body swings
-                    // into the other lanes well before the line crosses them (Peter, NWH spike: a U-turn into an
-                    // oncoming car). A car already in the turn finishes it unless the meeting point is right ahead.
-                    var turnStart = TurnStart(front, hitAlong);
-                    float stopAt;
-                    if (turnStart > front + 0.5f) stopAt = Math.Min(hitAlong - 2f, turnStart);
-                    else if (hitAlong - front < 4f) stopAt = front;
-                    else break;
-                    if (first == null || stopAt < first) first = stopAt;
-                    break;
-                }
-            }
-            return first;
+            var copy = new PursuitDriver(line, wheelbase, frontAhead, top, trackWidth) { FeedForward = FeedForward };
+            copy.slow.AddRange(slow);
+            return copy;
         }
 
-        // Where the line first bends 15 degrees away from its heading at `from`, before `to`; `to` if it doesn't.
-        private float TurnStart(float from, float to)
+        // Driving on from a known place on the line (metres along it, the rear axle's).
+        public void Resume(float alongNow) => along = alongNow;
+
+        // A car that starts part way along its line (a dumped traffic scenario): where its rear axle is.
+        public void StartAt(float x, float z) => along = line.Locate(x, z, 0f, line.Line.Length).Along;
+
+        // After backing off: where the rear axle is now, searched up to 12 m back from the last position.
+        public void BackTo(float x, float z) => along = line.Locate(x, z, Math.Max(0f, along - 12f), 13f).Along;
+
+        // The line's curvature at a distance along it (right positive), over the lookahead: a fitted curve's own, and
+        // a kink (a via's corner) spread over the stretch pursuit would round it in.
+        private double LineCurvature(float at, float window)
         {
-            var a = line.Line.At(from);
-            var b = line.Line.At(from + 1f);
-            var h0 = Math.Atan2(b.X - a.X, b.Z - a.Z);
-            for (var s = from + 1f; s < to; s += 0.5f)
-            {
-                var p = line.Line.At(s);
-                var q = line.Line.At(s + 1f);
-                if (Math.Abs(DriveLine.Wrap(Math.Atan2(q.X - p.X, q.Z - p.Z) - h0)) > 15 * Math.PI / 180) return Math.Max(from, s - 1f);
-            }
-            return to;
+            var half = Math.Max(1f, window / 2f);
+            Vec3 a = line.Line.At(at - half), b = line.Line.At(at), c = line.Line.At(at + half);
+            var h1 = Math.Atan2(b.X - a.X, b.Z - a.Z);
+            var h2 = Math.Atan2(c.X - b.X, c.Z - b.Z);
+            var length = Vec3.HorizontalDistance(a, b) + Vec3.HorizontalDistance(b, c);
+            return length > 0.5f ? DriveLine.Wrap(h2 - h1) / (length / 2) : 0.0;
         }
 
-        // The speed the plan allows here: no faster than lets the car slow to each limit ahead at Decel.
+        // Whether the stretch from half a lookahead behind the reference to a lookahead past it lies on a fitted arc or
+        // U-turn curve (DriveLine.Curves), whose curvature is the line's design. Elsewhere (Gley's junction curves,
+        // a via's corner) pursuit rounds the line on its own, as before.
+        private bool Smooth(float at, float lookahead)
+        {
+            foreach (var (from, to) in line.Curves)
+                if (at - lookahead / 2f >= from && at + lookahead <= to) return true;
+            return false;
+        }
+
+        // What pure pursuit commands from the line itself at a distance along it, aiming lookahead further on.
+        private double ChordCurvature(float at, float lookahead)
+        {
+            Vec3 p = line.Line.At(at), q = line.Line.At(at + 0.5f), t = line.Line.At(at + lookahead);
+            var heading = Math.Atan2(q.X - p.X, q.Z - p.Z);
+            float tx = t.X - p.X, tz = t.Z - p.Z;
+            var alpha = DriveLine.Wrap(Math.Atan2(tx, tz) - heading);
+            return 2 * Math.Sin(alpha) / Math.Max(1f, Math.Sqrt(tx * tx + tz * tz));
+        }
+
+        // The speed the plan allows at `at` metres along: no faster than lets the car slow to each limit ahead at
+        // Decel. It keeps no state, so the traffic sweep can ask it about any point ahead.
         public float PlannedSpeed(float at, float speedMs)
         {
             var desired = top;
             var pts = line.Line.Points;
             var horizon = at + 10f + speedMs * speedMs / (2 * Decel);
-            while (firstPoint + 1 < pts.Count && line.Along(firstPoint) < at - 1f) firstPoint++;
-            for (var k = firstPoint; k < pts.Count; k++)
+            for (var k = line.FirstPointFrom(at - 1f); k < pts.Count; k++)
             {
                 var s = line.Along(k);
                 if (s < at - 1f) continue;
@@ -202,6 +224,74 @@ namespace DrivenRides.Core.Drive
             }
             return desired;
         }
+
+        // The plan's speed at `at` with every limit ahead counted, however far: at most PlannedSpeed's, and the same
+        // wherever that is below what the car reaches from speedMs within the next metre (PlannedSpeed looks only
+        // 10 m past its stopping distance, and a limit further on asks for more than that). For the traffic sweep, which
+        // asks it at every pose: the nearest limit ahead is the one with the least speed² + 2 Decel × distance, found
+        // once per line (review round 10: the sweep's look ahead was most of its time).
+        public float PlannedSpeedOnward(float at)
+        {
+            var desired = top;
+            var pts = line.Line.Points;
+            if (onward == null)
+            {
+                onward = new int[pts.Count];
+                var best = -1;
+                var bestKey = double.MaxValue;
+                for (var j = pts.Count - 1; j >= 0; j--)
+                {
+                    var key = (double)cornerSpeeds[j] * cornerSpeeds[j] + 2.0 * Decel * line.Along(j);
+                    if (key <= bestKey) { bestKey = key; best = j; }
+                    onward[j] = best;
+                }
+            }
+            var k = line.FirstPointFrom(at - 1f);
+            for (; k < pts.Count; k++)
+            {
+                var s = line.Along(k);
+                if (s < at - 1f) continue;
+                if (s - at > 0f) break;
+                desired = Math.Min(desired, cornerSpeeds[k]);
+            }
+            if (k < pts.Count)
+            {
+                var j = onward[k];
+                desired = Math.Min(desired, Approach(cornerSpeeds[j], line.Along(j) - at));
+            }
+            foreach (var (from, to, speed) in slow)
+            {
+                if (to < at) continue;
+                desired = Math.Min(desired, from <= at ? speed : Approach(speed, from - at));
+            }
+            return desired;
+        }
+
+        private int[]? onward;
+
+        // Following: the highest speed from which the car, FollowReaction seconds after the car ahead starts braking
+        // at LeaderBrake, stops StopGap behind where that car stops, braking at FollowBrake. A car that stands is
+        // the plain stop at Decel as before. Treating every car ahead as standing kept the ride car 2.3 to 2.6 s
+        // behind normal traffic and crawling (T3 20261013-191420: "very slow, even on straights"); this settles at
+        // about 1.3 s behind a car at 10 m/s.
+        public const float FollowReaction = TrafficMargins.FollowReaction;
+        public const float FollowBrake = TrafficMargins.FollowBrake;
+        public const float LeaderBrake = TrafficMargins.LeaderBrake;
+
+        public static float Follow(float gap, float leaderMs)
+        {
+            if (leaderMs < 0.5f) return Approach(0f, gap - StopGap);
+            var room = gap - StopGap + leaderMs * leaderMs / (2f * LeaderBrake);
+            if (room <= 0f) return 0f;
+            var t = FollowReaction;
+            return (float)(FollowBrake * (-t + Math.Sqrt(t * t + 2 * room / FollowBrake)));
+        }
+
+        // Braking (m/s²) per unit of NWH brake input, roughly: 0.2 slowed the limo at about 3.7 m/s² (T3 trace
+        // 20261013-200946-0017); lower than that, so a needed stop brakes harder rather than softer.
+        public const float BrakePerInput = 12f;
+
+        private static float Need(float speed, float room) => speed <= 0.3f ? 0f : room <= 0.05f ? HardDecel * 2f : speed * speed / (2f * room);
 
         // The highest speed from which the car slows to `speed` within `metres` at Decel.
         public static float Approach(float speed, float metres) =>

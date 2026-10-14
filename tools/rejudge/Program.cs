@@ -1,15 +1,29 @@
 // Judges turn test runs again from their recorded samples, with the current Core judge, so a rule can be fixed and
 // checked without the game (docs/turn-tests.md).
 // Usage: dotnet run --project tools/rejudge -- <lane-graph.json> <results-*.jsonl> [runs folder, default: beside the results]
+//        dotnet run --project tools/rejudge -- <lane-graph.json> feasible <car> [options]: T1, see Feasible.cs
 using System.Globalization;
 using System.Text.Json;
 using DrivenRides.Core.Routing;
 using DrivenRides.Core.Testing;
 
 var graph = LoadGraph(args[0]);
+if (args[1] == "feasible")
+{
+    // T1 (docs/implementation-plan.md, "Tests"): every catalogue turn and U-turn simulated and judged for an NWH car.
+    Feasible.Run(args[0], args.Skip(2).ToArray());
+    return;
+}
 if (args[1] == "stats")
 {
-    Console.WriteLine($"{graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} U-turns, {graph.TrimmedChains} straight ways in cut back");
+    Console.WriteLine($"{graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} U-turns and {graph.InferredWideUTurns} wider ones, {graph.TrimmedChains} straight ways in cut back");
+    return;
+}
+if (args[1] == "carriageway")
+{
+    // carriageway x z [y]: whether a point counts as carriageway for the pavement rule (near a lane, nearer a junction's).
+    var p = new Vec3(float.Parse(args[2], CultureInfo.InvariantCulture), args.Length > 4 ? float.Parse(args[4], CultureInfo.InvariantCulture) : 0f, float.Parse(args[3], CultureInfo.InvariantCulture));
+    Console.WriteLine($"({p.X}, {p.Z}): carriageway {Pavement.OnALane(graph, p)}");
     return;
 }
 if (args[1] == "show")
@@ -138,12 +152,16 @@ if (args[1] == "arcs")
     return;
 }
 var resultsPath = args[1];
+// --parking <m>: the parking lane's width the pavement rule allows past the outermost lane (Pavement.ParkingLane).
+if (Array.IndexOf(args, "--left") > 0) Pavement.Left = true;
+if (Array.IndexOf(args, "--parking") is var pk && pk > 0 && pk + 1 < args.Length) Pavement.ParkingLane = float.Parse(args[pk + 1], CultureInfo.InvariantCulture);
 // --write <file>: also writes the results again with the new verdicts (for tools/tested-steps.py).
 var writeAt = Array.IndexOf(args, "--write");
 var writePath = writeAt > 0 && writeAt + 1 < args.Length ? args[writeAt + 1] : null;
 var folder = args.Length > 2 && !args[2].StartsWith("--") ? args[2] : Path.GetDirectoryName(Path.GetFullPath(resultsPath))!;
 var written = new List<string>();
-int same = 0, changed = 0, missing = 0;
+int same = 0, changed = 0, missing = 0, exempted = 0;
+var lastY = 0f;
 var verdicts = new Dictionary<string, int>();
 foreach (var line in File.ReadLines(resultsPath))
 {
@@ -159,14 +177,39 @@ foreach (var line in File.ReadLines(resultsPath))
         var f = row.Split(',');
         switch (f[0])
         {
-            case "S": judge.Add(ToSample(f)); break;
+            case "S": { var sample = ToSample(f); lastY = sample.Footprint[0].Y; judge.Add(sample); break; }
             case "C": judge.Contact(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "I": judge.Incident(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "R": judge.Replanned(string.Join(",", f.Skip(1))); break;
+            // Recorded with the game's pavement (the pedestrians' NavMesh): its findings, and no kerb estimate.
+            case "N": judge.PavementAt = _ => false; break;
+            case "P":
+            {
+                // The game's finding, unless its point is carriageway by today's rule (Pavement.OnALane: a junction's
+                // box, any lane).
+                var what = string.Join(",", f.Skip(2));
+                var m = System.Text.RegularExpressions.Regex.Match(what, @"\((-?[0-9.]+); (-?[0-9.]+)\)");
+                if (m.Success && Pavement.OnALane(graph, new Vec3(float.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), lastY, float.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))))
+                {
+                    exempted++;
+                    break;
+                }
+                judge.OnThePavement(int.Parse(f[1]), what);
+                break;
+            }
         }
     }
     var end = run.TryGetProperty("end", out var e) ? e.GetString() : "";
+    // A ride is judged on to its arrival.
+    if (end == "arrived") judge.Arrive();
     var result = judge.Result(end == "time limit");
+    // T3's traffic invariants, as the rig applied them (older results: contactsMoving for contacts caused).
+    if (run.TryGetProperty("contacts", out var contactsJ))
+    {
+        int Int(string name) => run.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
+        var caused = run.TryGetProperty("contactsCaused", out _) ? Int("contactsCaused") : Int("contactsMoving");
+        TrafficVerdict.Apply(result, caused, contactsJ.GetInt32() - caused, Int("redRuns"), Int("stalls"));
+    }
     var oldVerdict = run.GetProperty("verdict").GetString();
     var oldReasons = run.TryGetProperty("judge", out var j) ? string.Join(" ", j.GetProperty("Reasons").EnumerateArray().Select(x => x.GetString())) : "";
     var newReasons = string.Join(" ", result.Reasons);
@@ -182,7 +225,7 @@ foreach (var line in File.ReadLines(resultsPath))
         (result.IntrusionDetail != null ? $"\n      {result.IntrusionDetail}" : ""));
 }
 if (writePath != null) File.WriteAllLines(writePath, written);
-Console.WriteLine($"\n{same} unchanged, {changed} changed, {missing} without samples; now: {string.Join(", ", verdicts.Select(v => $"{v.Key} {v.Value}"))}");
+Console.WriteLine($"\n{same} unchanged, {changed} changed, {missing} without samples, {exempted} recorded pavement findings now carriageway; now: {string.Join(", ", verdicts.Select(v => $"{v.Key} {v.Value}"))}");
 
 static Sample ToSample(string[] f)
 {
@@ -215,19 +258,4 @@ static Fixture ToFixture(JsonElement j)
 static float Env(string name, float fallback) =>
     float.TryParse(Environment.GetEnvironmentVariable(name), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : fallback;
 
-static LaneGraph LoadGraph(string path)
-{
-    var root = JsonDocument.Parse(File.ReadAllText(path)).RootElement;
-    int n = root.GetArrayLength();
-    var pos = new Vec3[n]; var nb = new int[n][]; var ol = new int[n][]; var mask = new int[n]; var inter = new bool[n]; var spd = new float[n];
-    var i = 0;
-    foreach (var w in root.EnumerateArray())
-    {
-        var p = w.GetProperty("p"); pos[i] = new Vec3(p[0].GetSingle(), p[1].GetSingle(), p[2].GetSingle());
-        nb[i] = w.GetProperty("n").EnumerateArray().Select(x => x.GetInt32()).ToArray();
-        ol[i] = w.GetProperty("o").EnumerateArray().Select(x => x.GetInt32()).ToArray();
-        foreach (var a in w.GetProperty("a").EnumerateArray()) mask[i] |= 1 << a.GetInt32();
-        inter[i] = w.GetProperty("x").GetInt32() == 1; spd[i] = w.GetProperty("s").GetSingle(); i++;
-    }
-    return new LaneGraph(pos, nb, mask, inter, spd, otherLanes: ol, inferLanes: true, inferTurns: true);
-}
+static LaneGraph LoadGraph(string path) => GraphFile.Load(path, out _);

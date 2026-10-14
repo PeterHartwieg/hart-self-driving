@@ -4,6 +4,8 @@ A separate Workshop mod for Big Ambitions, in its own repo (`~/Coding_Projects/b
 
 **Peter's decisions, 11 October 2026:** own repo; normal world speed by default with the clock at a third of its speed during a ride, and buttons on the ride panel for 2×, 3× and Skip (this replaced the first choice, 3× by default with the clock held to vanilla's cost, after the first test rides); the private driver is dismissed after a ride as in vanilla, so it has to be called again, and the mod adds a shortcut for calling it (see [Driver shortcut](#driver-shortcut)).
 
+**Peter's decision, 13 October 2026:** every ride is driven with the player car's physics (NWH) instead of as a Gley traffic car. The plan for that is [NWH driving](#nwh-driving-from-13-october-2026); the sections before it still describe the Gley ride, whose lifecycle carries over.
+
 ## Goal and scope
 
 Version 1:
@@ -199,6 +201,103 @@ big-ambitions-driven-rides/
 ```
 
 `LaneGraph` and `RoutePlanner` are written so Food Trucks can copy them later for its crew trucks.
+
+## NWH driving (from 13 October 2026)
+
+Peter, 13 October 2026, after the spike (`docs/nwh-drive-spike.md`): every ride is driven by the car physics the player's own car uses (NWH Vehicle Physics 2), not as a Gley traffic car. The route planner, the arcs, the ride lifecycle above and the turn rig stay. His goal for this part: "a scalable and robust implementation that does not need a lot of individual fixes for niche situations". The Gley version took about fifteen builds of per-case fixes (turn lines, U-turns, the pivot, the wiggle), and the spike's three traffic runs hit three different junction failures. This plan is built so that traffic doesn't turn into another chain like that. Fable 5.1 gave input on the architecture (13 October 2026); its Gley claims below were checked against the decompile.
+
+### Rules for the work
+
+- **No case lists.** No list of junctions, waypoints or cars that are avoided or treated specially. What a car can't do comes out of the feasibility check; what it must wait for comes out of the conflict test. `TestedSteps` stays a regression record, not a mechanism.
+- **One car model.** One kinematic model of the NWH car in Core, calibrated from rig traces, is used by the planner, by the Core tests and by the rig's judge. When the planner and the game disagree, the model is wrong, and the fix goes into the model.
+- **Gley's data, not guesses.** Rights of way come from Gley's own waypoints and intersections. The mod predicts other cars only where Gley has no answer.
+- **Every in-game failure becomes an offline test.** A failed traffic run dumps the state of every Gley car near the ride car, and that dump becomes a Core scenario. A fix is shown to pass offline before the next session at the game PC.
+
+### What Gley does at junctions
+
+From the Gley decompile in `build/decompiled-external/GleyTrafficSystem/`:
+
+- Traffic lights are a `stop` flag per waypoint. A light holds yellow while its intersection's `carsInIntersection` is not empty (`TrafficLightsIntersection.cs:102`). `Waypoint.Passed` fills that list at `enter` waypoints and empties it at `exit` ones (`Waypoint.cs:65-75`).
+- Priority junctions are `PriorityIntersection.IsPathFree`: round robin by road, at most three cars inside (`PriorityIntersection.cs:95-102`). A car asks through the public `Waypoint.CanChange()` (`Waypoint.cs:55`).
+- Everything else is the front trigger: `StopInDistance`, follow, a 5 s temporary stop, `AvoidForward`, reverse, and a 3 to 5 s stop after a crash. Gley has no rule for giving way to oncoming cars before a left turn.
+- A car with a `presetPath` skips Gley's junction logic: `WaypointRequested` returns after `SetNextWaypoint` while the path has entries (`DrivingAI.cs:466-484`).
+- Gley cars treat a car on the `Vehicles` layer as the player and stop for it when it is in their front trigger (`VehicleComponent.cs:529-534`). That trigger is short, so a Gley car that cuts in at speed hits it, as it hits the player.
+
+### Options weighed
+
+- **The mod's own defensive driver** (the spike's way): prediction, gaps, timeouts. Each junction type needs its own rule; that is how the spike got three different failures in three runs.
+- **A hidden Gley "ghost" car on the same path that the NWH car follows on a leash.** Rejected. A ghost on a preset path skips Gley's junction logic like any preset-path car. Its own ways out of a jam (`AvoidForward`, reverse) leave the line, so the leash breaks exactly in the jams. In every added turn it pivots on the vias while the NWH car drives the arc, and the two bodies drift metres apart.
+- **The NWH car in Gley's arrays.** Rejected. Gley sizes every array once at `TrafficManager.Initialize` and its jobs move the body themselves.
+- **Chosen:** rights of way from Gley's data, the ride car counted in Gley's intersections, conflicts from other cars' intent, and one priority rule. Four layers, below.
+
+### The four layers
+
+**Layer 0, physics.** The NWH car stays on the `Vehicles` layer. Gley cars treat it as they treat the player. Nothing to tune.
+
+**Layer 1, rights of way from Gley's data.** On the path's waypoints: `stop` (the spike has this), `giveWay` with `CanChange()` at `enter` waypoints, and membership: `IIntersection.VehicleEnter(-1)` when the car's front passes an `enter` waypoint and `VehicleLeft(-1)` at the `exit` one. `IIntersection` is public, `associatedIntersection` is private (AccessTools), and `carsInIntersection` is only counted and removed from (`GenericIntersection.cs:40-48`), so `-1` as the ride car's index is safe; there is one ride at a time. Effect: lights hold yellow while the ride car is in the box, and priority junctions count it. `VehicleLeft(-1)` also runs in every exit, after any teleport and 20 s after entering at the latest, so a junction can't stick on yellow.
+
+**Layer 2, conflicts from intent.** Each physics step, Core gets every active Gley car within 60 m: position, velocity and its target waypoint (`GetTargetWaypoint`). From the lane graph that gives the car's corridor: the lane to its target and, before it has chosen at a junction, every successor. Core sweeps the ride car's body (not its line) along the next 40 m of its line at the planned speeds and finds the first place where the body enters a corridor that another car will occupy before the ride car has cleared it. That place is the yield point. One test covers oncoming cars on left turns and U-turns, merges, the right turn onto Broadway and cross traffic on a shared green. Because it sweeps the body, a U-turn yields where the body reaches the oncoming lane, well before the line crosses it (the spike's U-turn crash). The box cast ahead stays, for parked cars and people only.
+
+**Layer 3, one priority rule.** A standing Gley car that stands because of the ride car is not a conflict. That is readable: `GetCurrentAction()` is public, and the car's `obstacleList` (private) says whether the ride car's collider is what it stopped for. So: a moving car, the ride car yields; a car stopped for the ride car, the ride car goes at creep speed, with the gap check; both stopped head-on in one lane, the ride car backs off along its line (nwh7). This replaces the spike's timers.
+
+**Parked cars in lanes** belong to the planner, not the driver. The car's footprint is swept along each planned lane step against the static layers, parked cars included; a blocked step is blocked for the session (`GleyGraph.BlockStep`) and the route is planned round it. The first 200 m are checked when the ride is planned, the rest ahead of the car as it drives. Parked cars don't move within a session, so the cache holds.
+
+### What the car can drive
+
+One check: simulate `PursuitDriver` on the ride's `DriveLine` with the Core car model, and judge the track with the rig's own `Core.Testing.Judge` (lane, far side early, contact by sweeping the body box against the world). The planner asks the question the rig asks: would this manoeuvre fail?
+
+- **The model.** The kinematic car in `PursuitDriverTests` becomes `Core.Drive.CarModel`: bicycle model, NWH's steering smoothing and its 180°/s rate, the lock at speed, NWH's Ackermann (the front track: the limo turns 0.76 as sharply as a bicycle with the same wheel angle, which is why the spike's driver ran wide on every arc), the planned speed profile. Calibrated per car from the rig's `-nwh.csv` traces; the measured error becomes the margin. `TurnDrive` (the Gley model) goes when the Gley path goes.
+- **Arcs.** `TurnArc.Fit` with the car's smallest radius at corner speed, then simulated and judged.
+- **U-turns.** No via tuning. A U-turn is feasible if the simulated one at 12 to 15 km/h stays inside the far carriageway and clear of the world; otherwise that step is removed for this car and the route goes round the block. Cached per car and junction for the session. Long cars will rarely pass, as Peter wants.
+
+### Tests
+
+- **T0, Core, milliseconds.** Scenarios: a lane-graph fixture, scripted Gley cars with targets and speeds, the ride car. Templates for a four-way light, a priority T, a merge, a U-turn with oncoming cars, head-on in one lane. 500 seeds per template on every `dotnet test`, as Food Trucks' soak. Invariants: no body overlap, no stall over 30 s except at a red, never past a `stop` while it is set. The spike's three failures are the first three scenarios.
+- **T1, Mac, seconds.** Every case in the catalogue simulated and judged against the dumped lane graph (`tools/rejudge`). The diff between two builds is the regression gate.
+- **T2, game, traffic off.** The 30 turns and 33 U-turns of `q4`, two cars, `speed=auto`, about 10 minutes. It measures the model against NWH physics, not behaviour.
+- **T3, game, traffic on.** 20 recorded rides, plus junction scenarios built by loading Gley cars with a `presetPath` timed to meet the ride car. Judged on: contact with a traffic car (and which one was moving), stalls, red runs (the front passes a `stop` waypoint while it is set), and ride time against free-flow time. About 40 runs, 40 minutes, unattended over ssh. On a failure it writes the T0 scenario dump.
+
+Peter's time goes to T2 and T3 starts and to judging the look; the regressions are caught by T0 and T1.
+
+### Phases
+
+1. **Measure (one rig run).** The layer collision matrix for `Vehicles` against Gley's and the parked cars' layers; `VehicleEnter(-1)` holds a light and `VehicleLeft(-1)` releases it; `CanChange()` callable from outside; `obstacleList` readable; the cost of reading every Gley car's target per physics step. Exit: those five answers in the log.
+   Done 13 October 2026 (0.1.54, `measure`, log `build/logs/game/measure2-*`). The ride car's layer, `Vehicles`, collides with Gley's cars (`AiVehicles`), parked cars, `Default` and `Roads`, and ignores `Human`: it drives through people physically, so people stay in the box cast. Gley's cars ignore parked cars. Manhattan has no priority junctions: the 25 give-way waypoints that belong to an intersection are all in the Hamptons; 68 more have none (merges). `CanChange()` answers from outside. Every active Gley car's `obstacleList` is readable. Reading every Gley car within 60 m costs 30 µs a physics step (median, 257 µs at most). `VehicleEnter(-1)` held two lights on yellow for 19 s each, and `VehicleLeft(-1)` let them change 0.3 s later. Lights run 8 s green, 1 s yellow. A newly active intersection is reset by Gley, which clears the count.
+2. **Core traffic model and T0.** Layers 1 to 3 in Core, the scenario format, the five templates. Exit: 500 seeds clean on every template, the spike's three scenarios pass.
+3. **Feasibility planner.** `CarModel`, the simulate-and-judge check, parked cars in the planner. Exit: T1 plans only what T2 passes, and T2 is at or above the Gley numbers of turn test `t13` on the cases it drives.
+4. **Traffic in game (T3).** Exit: 20 rides with no contact with a traffic car the ride car caused, no red run, ride time at most twice free-flow, junction scenarios 95% or better. **Decision point.** If two fix rounds don't get there, fall back to the hybrid: NWH for the own car, Gley with the 0.1.51 patches for the rest. Nothing is wired into real rides before this, so the fallback costs no rework, and phases 2 and 3 improve the Gley path's planner as well.
+5. **Rides.** The own car first: the player's real car with `autoSetInput = false`, no `StandIn` and no swap (`docs/own-car-self-drive.md` shrinks to autopark, fuel, parking charges and the map marker). Then the private driver: its summoned Gley car swapped for an NWH car of the same type at boarding, while the map covers the screen. Then the watchdog on NWH progress, Skip, the bridge skip as a teleport of the NWH car, and 2× and 3× (the rig has only run NWH at about 4.7× with no traffic).
+6. **Per-car calibration.** The 15 drivable models through T2. A car that can't do a manoeuvre is left out of it by the feasibility check, never by a hand list.
+
+**Taxis** (Peter, 13 October 2026): a drivable taxi, built as a re-skin. The taxi has no drivable prefab, so the mod spawns the drivable car closest in size, hides its renderers and puts the taxi traffic model's meshes on it (body, lights and the wheels on NWH's wheel visuals): the reverse of `StandIn`'s dress. It runs beside phases 1 to 4 and is checked in the rig like any other car (T2, then T3).
+
+### Risks
+
+| Risk | What happens | Answer |
+|---|---|---|
+| Gley cars cut in at speed (their trigger is short) | Contacts the ride car didn't cause | T3 logs who was moving; yield margins grow if these dominate |
+| The `-1` membership sticks | A light stays yellow | `VehicleLeft` on every exit and a 20 s limit; phase 1 checks it |
+| Layer assumptions are wrong | Gley cars ignore or hit the ride car | Phase 1's collision matrix |
+| The model is off at speed or on slopes | The planner allows what the car can't drive | T2 traces; over 0.5 m, wider margins, not more model |
+| Gley's `AvoidForward` swings a car into the ride car's lane | Head-on stops | Counted in T3; the back-off rule covers it |
+| Reading every car each physics step is slow | Frame rate drops | Phase 1 measures it; only cars within 60 m |
+| NWH at 2× and 3× | Physics at a larger time step | Phase 5 rides at each speed; physics step stays fixed |
+
+### State, 13 October 2026 (end of day)
+
+Main is 0.1.70 (13bf947), installed on homepc. Built by subagents on branches `nwh-traffic` (traffic rules), `nwh-feasible` (planner, judge) and `nwh-taxi` (dressed taxi), merged into main after each round. Rig results are in `build/tests/` (not committed).
+
+- **Phase 1** done (see above).
+- **Phase 2** done: `JunctionRules`, `TrafficDriver` and `Corridor` in Core, T0 templates at 500 seeds plus every in-game failure dump as a scenario (`tests/traffic-scenarios/`), and replay tests of recorded frames where the simulation can't reproduce a failure. Rules added from T3: following at the leader's speed (about 1.3 s behind), a car counts as ahead only once its rear has passed, conflicts held 1 s, lane changes of following or overtaking Gley cars predicted, back-off from any car that stopped for the ride car, a car standing for good at a lane end reported as a blocked way, a red stoppable at first sight is never dropped.
+- **Phase 3** done: T2 on 0.1.65, 402 runs (63 cases plus 72 wide U-turn pairs, limo, Dash, taxi): 0 failures. The planner leaves out what the car can't drive cleanly. Turns are fitted arcs; U-turns are one fitted curve as wide as the lanes are apart (no curve when the lanes are closer than 1.15 x the car's circle: the car goes round the block, Peter's wish for big cars; the limo makes far fewer U-turns than before). Pavement is the game's pedestrian NavMesh (`NavMeshHelper.NpcNavMeshFilter`), off the carriageway and junction boxes; the ground is one flat collider, so nothing else sees it. Parked cars partly in a lane are passed by moving over in the lane or changing lanes. A blocked way replans and drives on. Car model: bicycle with NWH's Ackermann (front track), yaw factor 0.97, margin 0.5 m (worst measured 0.43 m).
+- **Phase 4** passed in substance: T3 on 0.1.70 (18 recorded rides, 38 legs, limo, traffic on, auto speed): 37 pass, 0 contacts, 0 red runs. Open: one 'intrusion' at a sharp lane kink round a Hamptons gate pillar (judge at kinks; smoothing plain-lane kinks), and two 30 s waits in passing legs (dumps under review). T2 on 0.1.70 was stopped after 7 runs; rerun it.
+- **Taxi:** the dressed taxi (vordtiaravic under the taxi's meshes and engine sound) drives the rig like the others; checked in game by screenshots through the Food Trucks bridge.
+- **Testing:** the game is driven from the Mac through the Food Trucks test bridge (`tools/run-remote.sh`, `tools/ft`) and the rig; sessions share homepc through `C:\Users\Peter\game-lock.txt` (`BA_LOCK_OWNER="Driven Rides session"`).
+- **Next:** finish phase 4's two open items and rerun T2 and T3, then phase 5 (tell the own-car session to start the own car on NWH), then the private driver and taxis on NWH, watchdog, Skip, bridge skip, 2x and 3x.
+
+### Who does what
+
+One session (this one) takes phases 1 to 4 and the drivable taxi, with subagents in their own worktrees. The own-car session (branch `self-driving`) has paused the stand-in and takes the own-car part of phase 5 once phase 4 passes.
 
 ## Milestones
 
