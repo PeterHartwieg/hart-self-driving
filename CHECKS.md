@@ -1,3 +1,7 @@
+# In-game checks: getting out at the end (nwh-rides2, 0.1.96-rides1)
+
+Any ride that arrives, is skipped or is cancelled (Ctrl+Alt+Shift+V), and the end of a rig session: the log has no `"ResetPath" can only be called on an active agent that has been placed on a NavMesh.` line after `Ride ending: ...` or `Ride cancelled: ...`, and you can walk off at once.
+
 # In-game checks: real rides on NWH (nwh-rides, 0.1.90-rides5)
 
 Disposable save, Food Trucks parked, other gameplay mods off, some money for fares. Taxi, stand and private driver rides now drive with the car's own physics, the same planner and driver as `run driver=nwh traffic=on`: the taxi dressed on the drivable car closest in size, the driver in the drivable version of its vehicle.

@@ -1031,6 +1031,9 @@ namespace DrivenRides
                 {
                     var place = NavMesh.SamplePosition(s.StartPosition, out var hit, 5f, NavMesh.AllAreas) ? hit.position : s.StartPosition;
                     player.transform.position = place;
+                    // Shown first: the hidden figure's GameObject is inactive, and DeattachFromObject calls ResetPath
+                    // on its agent (as Ride.Detach).
+                    player.Character.ToggleVisibility(true);
                     player.DeattachFromObject(NavigationBlocker.Taxi);
                     player.Character.WarpSafely(place);
                     player.transform.rotation = s.StartRotation;

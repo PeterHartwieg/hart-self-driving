@@ -2080,8 +2080,7 @@ namespace DrivenRides
             // An arrival puts the player beside the car, kerb side first (Peter); the vanilla finish at the door.
             var place = outcome == Outcome.Complete && !farDrop && BesideCar(out var beside) ? beside
                 : NavMesh.SamplePosition(destination, out var hit, 5f, NavMesh.AllAreas) ? hit.position : destination;
-            Detach(place);
-            player.Character.ToggleVisibility(true);
+            Detach(place, show: true);
             player.Character.Reset();
             return place;
         }
@@ -2099,12 +2098,16 @@ namespace DrivenRides
             return false;
         }
 
-        // Moves the transform onto the NavMesh first: DeattachFromObject re-enables the agent at once.
-        private void Detach(Vector3 place)
+        // Moves the transform onto the NavMesh first: DeattachFromObject re-enables the agent and calls ResetPath at
+        // once. show: the hidden figure is shown there before that. Hiding (ToggleVisibility(false)) deactivates the
+        // character's GameObject, so ResetPath on its still inactive agent logged '"ResetPath" can only be called on
+        // an active agent' at every arrival (Peter's private driver ride on 0.1.94, and every Gley ride before).
+        private void Detach(Vector3 place, bool show = false)
         {
             if (!attached) return;
             if (anchorComponent != null) anchorComponent.Target = null;
             player.transform.position = place;
+            if (show) player.Character.ToggleVisibility(true);
             player.DeattachFromObject(NavigationBlocker.Taxi);
             attached = false;
             player.Character.WarpSafely(place);
@@ -2289,9 +2292,10 @@ namespace DrivenRides
                 {
                     var here = player.transform.position;
                     var place = NavMesh.SamplePosition(here, out var hit, 10f, NavMesh.AllAreas) ? hit.position : pickupPosition;
-                    Detach(place);
+                    Detach(place, show: true);
                 }
                 catch (Exception ex) { Log.Error("Cancel, detach: " + ex); }
+                // Shown already by the detach; again in case the detach threw before it.
                 try { player.Character.ToggleVisibility(true); }
                 catch (Exception ex) { Log.Error("Cancel, visibility: " + ex.Message); }
             }
