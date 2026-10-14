@@ -144,8 +144,9 @@ namespace DrivenRides.Core.Ride
         // How far past the junction's middle a widened left turn's line may reach. 0: up to the middle. From an inner
         // lane the two lanes meet only about 2.8 m beyond the middle (two lanes each way), so a tangent arc wider than
         // about 6.8 m passes it; T1 with 2 m gives the limo a left-turn median of 10.9 m, with 4 m 14.8 m (the First
-        // Avenue turn 14.0 m). 0.1.100's 27.4 m there reached 8.5 m past it and cut into the oncoming lanes.
-        public const float PastMiddle = 0f;
+        // Avenue turn 14.0 m). 0.1.100's 27.4 m there reached 8.5 m past it and cut into the oncoming lanes. Peter chose
+        // 4 m (14 October 2026), about 0.1.101's widths, which he watched in game.
+        public const float PastMiddle = 4f;
 
         public static List<float> Radii(LaneGraph graph, int entry, int exit, float minRadius, float halfWidth = 1f)
         {
