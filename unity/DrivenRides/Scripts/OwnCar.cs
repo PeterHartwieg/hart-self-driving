@@ -406,18 +406,27 @@ namespace DrivenRides
         }
 
         // The houses inside private fences the player may not enter (TaxiSystem.CanEnterPrivateFence, as the taxi asks).
+        // The fenced houses don't move, so they are found once per save; who may enter is asked each time.
+        private static object? fencedFor;
+        private static readonly List<(Vector3 At, int Fence)> fencedHouses = new List<(Vector3, int)>();
+
         private static List<Vector3> LockedFenceHouses()
         {
             var houses = new List<Vector3>();
             try
             {
-                foreach (var b in Object.FindObjectsOfType<CityBuildingController>(true))
+                if (!ReferenceEquals(fencedFor, SaveGameManager.Current))
                 {
-                    var index = b != null && b.building != null ? b.building.locatedInsidePrivateFenceIndex : -1;
-                    if (index < 0) continue;
-                    if (CanEnterFenceMethod?.Invoke(null, new object[] { index }) is bool may && may) continue;
-                    houses.Add(b.transform.position);
+                    fencedHouses.Clear();
+                    foreach (var b in Object.FindObjectsOfType<CityBuildingController>(true))
+                    {
+                        var index = b != null && b.building != null ? b.building.locatedInsidePrivateFenceIndex : -1;
+                        if (index >= 0) fencedHouses.Add((b.transform.position, index));
+                    }
+                    fencedFor = SaveGameManager.Current;
                 }
+                foreach (var (at, fence) in fencedHouses)
+                    if (!(CanEnterFenceMethod?.Invoke(null, new object[] { fence }) is bool may && may)) houses.Add(at);
             }
             catch (Exception ex) { Log.Error("Own car autopark, fences: " + ex.Message); }
             return houses;
