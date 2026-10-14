@@ -33,6 +33,11 @@ public sealed class DecideCostTests
                 decides += r.Decides;
                 allocating += r.DecidesAllocating;
             }
+        var micros = new System.Collections.Generic.List<float>();
+        foreach (var name in TrafficTemplates.Names)
+            for (var seed = 0; seed < 8; seed++) micros.AddRange(TrafficTests.Run(TrafficTemplates.Build(name, seed)).DecideMicros);
+        micros.Sort();
+        output.WriteLine($"decide: p50 {micros[micros.Count / 2]:0} µs, p99 {micros[micros.Count * 99 / 100]:0} µs, max {micros[^1]:0} µs");
         output.WriteLine($"{decides} decisions, {bytes} bytes allocated, {(double)bytes / decides:0.0} a decision, {allocating} decisions after the first second allocating; {watch.ElapsedMilliseconds} ms in all");
         // A decision allocates only a new reason's text (logged in game when it changes) and its buffers growing to
         // more cars than before; not per step. Before review round 1 it was 543 bytes a decision, every one.

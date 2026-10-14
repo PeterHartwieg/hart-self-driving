@@ -2,8 +2,8 @@ namespace DrivenRides.Core.Testing
 {
     // T3's traffic invariants in the verdict (docs/implementation-plan.md, "Tests"; review round 1, A3/S3): a run that
     // the judge passed fails if the ride car caused a contact with a traffic car, ran a red it could have stopped for,
-    // or stood 30 s away from a red. A contact another car caused (the ride car standing, or not moving towards it)
-    // is an incident, not a failure. The rig applies it to each NWH run and tools/rejudge to recorded ones.
+    // or stood 30 s away from a red. A contact another car caused (one that moved sideways into the ride car) is an
+    // incident, not a failure. The rig applies it to each NWH run and tools/rejudge to recorded ones.
     public static class TrafficVerdict
     {
         public static void Apply(JudgeResult result, int contactsCaused, int contactsTaken, int redRuns, int stalls)
@@ -16,22 +16,22 @@ namespace DrivenRides.Core.Testing
             if (failed && result.Verdict == "pass") result.Verdict = "fail";
         }
 
-        // Who caused a contact, from both cars' velocities the physics step before it (the impact changes them: a car
-        // stopped dead by it looked as if it had stood) and the contact's normal (review round 2, U2). Each car's speed
-        // along the normal towards the other: the other car caused it only if it was coming on (over 0.5 m/s) and the
-        // ride car was not (under 0.3 m/s). Anything less clear counts as the ride car's. The normal's sign doesn't
-        // matter: it is turned to point from the ride car's centre towards the other car's.
-        public static bool CausedByRide(float ourVx, float ourVz, float ourX, float ourZ, float theirVx, float theirVz, float theirX, float theirZ, float normalX, float normalZ)
+        // Who caused a contact, from both cars' velocities the physics step before it (the impact changes them) and
+        // headings. The other car's only when it moved sideways into the ride car (review round 9: Gley changes lanes
+        // and merges without looking; Peter crashes there driving himself): going the same way (within the angle the
+        // traffic rules count as the same way), coming across the two cars' mean heading towards it (over 0.1 m/s), the
+        // ride car not (0.1 m/s at most). Everything else, the ride car's moving into a car,
+        // following and junctions included, counts as the ride car's.
+        public static bool CausedByRide(float ourVx, float ourVz, float ourHeading, float ourX, float ourZ, float theirVx, float theirVz, float theirHeading, float theirX, float theirZ)
         {
-            var length = (float)System.Math.Sqrt(normalX * normalX + normalZ * normalZ);
-            if (length < 1e-3f) { normalX = theirX - ourX; normalZ = theirZ - ourZ; length = (float)System.Math.Sqrt(normalX * normalX + normalZ * normalZ); }
-            if (length < 1e-3f) return true;
-            normalX /= length;
-            normalZ /= length;
-            if (normalX * (theirX - ourX) + normalZ * (theirZ - ourZ) < 0f) { normalX = -normalX; normalZ = -normalZ; }
-            var ours = ourVx * normalX + ourVz * normalZ;
-            var theirs = -(theirVx * normalX + theirVz * normalZ);
-            return !(theirs > 0.5f && ours < 0.3f);
+            var sameWay = System.Math.Cos(theirHeading - ourHeading) > 0.64;
+            // Across the two cars' mean heading, towards the other car: each one's own turn counts as its sideways move.
+            var mean = System.Math.Atan2(System.Math.Sin(ourHeading) + System.Math.Sin(theirHeading), System.Math.Cos(ourHeading) + System.Math.Cos(theirHeading));
+            float rx = (float)System.Math.Cos(mean), rz = -(float)System.Math.Sin(mean);
+            if ((theirX - ourX) * rx + (theirZ - ourZ) * rz < 0f) { rx = -rx; rz = -rz; }
+            var theirs = -(theirVx * rx + theirVz * rz);
+            var ours = ourVx * rx + ourVz * rz;
+            return !(sameWay && theirs > 0.1f && ours <= 0.1f);
         }
     }
 }

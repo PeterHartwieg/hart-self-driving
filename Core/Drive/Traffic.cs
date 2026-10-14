@@ -63,8 +63,9 @@ namespace DrivenRides.Core.Drive
     public struct TrafficSnapshot
     {
         public float Time;
-        // The ride car: rear axle, heading (radians, as atan2(dx, dz)), signed speed along its heading.
-        public float RearX, RearZ, Heading, Speed;
+        // The ride car: rear axle, heading (radians, as atan2(dx, dz)), signed speed along its heading, and its wheel's
+        // angle (degrees, positive to the right), for foreseeing its path (TrafficDriver's near field; review round 9).
+        public float RearX, RearZ, Heading, Speed, Wheel;
         // The path's waypoints from a little behind the rear to the stop-line horizon ahead, in path order.
         public IReadOnlyList<PathMark> Marks;
         public IReadOnlyList<OtherCar> Cars;

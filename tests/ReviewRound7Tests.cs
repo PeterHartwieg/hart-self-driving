@@ -60,19 +60,19 @@ public sealed class ReviewRound7Tests
     }
 
     // Standing short of lane A, the ride car noses in in front of crawling car A (car A0 ahead of it, so it can't speed
-    // up). Car B on lane B, 6 m from lane A, is slow now: the lenient judgement lets the ride car go, but if it sped up
-    // to the road's limit it would be there with the ride car. The cautious judgement must keep the option to stop
-    // short of B's way, nose-in or not; whichever order the cars come in.
+    // up). Car B on lane B, 6 m from lane A, comes at 6 m/s: nosing in in front of car A must not let car B off (BB2);
+    // the stop short of B's way stays, whichever order the cars come in. Round 9: with the narrower gaps
+    // (TrafficMargins) the lenient and cautious judgements meet for car B, so the stop may be either's.
     [Theory]
-    [InlineData(false, 50f)]
-    [InlineData(true, 50f)]
-    [InlineData(false, 60f)]
-    [InlineData(true, 60f)]
+    [InlineData(false, 35f)]
+    [InlineData(true, 35f)]
+    [InlineData(false, 40f)]
+    [InlineData(true, 40f)]
     public void NosingInLetsOnlyTheCrawlingCarsOff(bool bFirst, float bx)
     {
         var d = Decide(bFirst, 8f, 0f, -11f, bx, 6f, 18f, out _);
         Assert.True(d.NoseIn, "not nosing in in front of car A");
-        Assert.Equal(2, d.ApproachFor);
+        Assert.Equal(2, d.YieldFor);
         Assert.True(d.YieldAlong <= 18f - 0.95f + 40f, $"the stop for car B at {d.YieldAlong - 40f:0.0} is past its way");
     }
 

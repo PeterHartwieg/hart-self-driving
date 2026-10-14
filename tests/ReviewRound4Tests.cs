@@ -219,7 +219,7 @@ public sealed class ReviewRound4Tests
         Assert.Equal(38f, easy.HoldAlong!.Value, 3);
         // Not quite: where Decel braking from now ends, still short of the van, and no emergency.
         var nearer = ControlFor(30f);
-        nearer.Ahead(0f, 0.02f, 1, alongOf, 31f, 6f, Standing(26f));
+        nearer.Ahead(0f, 0.02f, 1, alongOf, 32.5f, 6f, Standing(27.5f));
         Assert.InRange(nearer.HoldAlong!.Value, 38.01f, 40f - WayOnControl.PastHold);
         Assert.Equal(WayOnControl.Act.Drive, nearer.Ahead(0.02f, 0.02f, 1, alongOf, 38f, 0f, Standing(33f)).Act);
     }

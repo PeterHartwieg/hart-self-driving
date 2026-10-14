@@ -91,8 +91,8 @@ namespace DrivenRides.Core.Drive
         // With DefaultMargin a lane's corners touched guardrails the car passed with more than 0.3 m to spare.
         public const float LaneMargin = 0.2f;
         // Settled in its lane: the rear axle this close to the line and the wheel this straight.
-        private const float SettledOff = 0.2f;
-        private const float SettledWheel = 5f;
+        public const float SettledOff = 0.2f;
+        public const float SettledWheel = 5f;
         private const float StepSeconds = 0.02f;
         // The world is checked every so many metres, from this far before the manoeuvre's entry on.
         private const float WorldEvery = 0.5f;

@@ -814,6 +814,8 @@ namespace DrivenRides
             drive.Recording = true;
             // The driver steers for NWH's Ackermann, as the planner's check assumed (CarModel.TrackWidth).
             if (planner != null) drive.TrackWidth = planner.Car.TrackWidth;
+            // The traffic rules foresee the car's path with its model (TrafficDriver.Model).
+            if (planner != null) drive.Spec = planner.Car;
             if (shifts != null) drive.Shifts = shifts;
             drive.Fillets = fillets;
             drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);

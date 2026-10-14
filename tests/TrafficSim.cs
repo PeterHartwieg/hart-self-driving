@@ -37,6 +37,12 @@ internal sealed class SimResult
     public int PassExhausted, PassUnsettled, FallbackOn, FallbackStop;
     public int PassRoundsMost;
     public float OptionLost = float.MinValue;
+    // How long each decision took, microseconds (DecideCostTests).
+    public readonly List<float> DecideMicros = new();
+    // The same, less the distance the car covers between two decisions at the speed it had (the simulation decides every
+    // DecideEvery steps; the game every step): a shortfall within it is the decisions' discretization, not a real one
+    // (review round 9, DD1). Reported by the soak.
+    public float OptionLostBeyond = float.MinValue;
     public int HarderThanDecel;
     // Stops a car could no longer make explained by news of the car (first seen, its reason to wait changing, a flag
     // changing) within NewsSeconds: new hazards, not counted in OptionLost (review round 8, CC4).
@@ -92,9 +98,11 @@ internal sealed class TrafficSim : ILiveFlags
     private readonly bool trace;
     private float time;
 
-    public TrafficSim(TrafficScenario scenario, bool trace = false, int passRounds = TrafficDriver.MaxPassRounds)
+    // decidePhase: which of the DecideEvery steps the decisions fall on (the regressions sweep it).
+    public TrafficSim(TrafficScenario scenario, bool trace = false, int passRounds = TrafficDriver.MaxPassRounds, int decidePhase = 0)
     {
         sc = scenario;
+        this.decidePhase = decidePhase;
         this.trace = trace;
         graph = sc.BuildGraph();
         stop = sc.Waypoints.Select(w => w.Stop).ToArray();
@@ -111,12 +119,13 @@ internal sealed class TrafficSim : ILiveFlags
         body = new RideBody { Wheelbase = r.Wheelbase, FrontAhead = r.FrontAhead, RearBehind = r.RearBehind, HalfWidth = r.HalfWidth };
         driver = r.BuildDriver(line);
         ride = r.BuildCar();
-        traffic = new TrafficDriver(graph, line, driver, body) { PassRoundsLimit = passRounds };
+        traffic = new TrafficDriver(graph, line, driver, body) { PassRoundsLimit = passRounds, Model = Environment.GetEnvironmentVariable("NOMODEL") == null ? r.BuildCar() : null };
         // Time enough for the whole line at 3 m/s on average, lights included (a dump runs 400 m on from its window).
         seconds = Math.Max(sc.Seconds, 30f + line.Line.Length / 3f);
     }
 
     private readonly float seconds;
+    private readonly int decidePhase;
     // A dump's lights are replayed as the game showed them up to here, then cycled (Junction).
     private readonly float replayEnd;
 
@@ -219,17 +228,20 @@ internal sealed class TrafficSim : ILiveFlags
             var snapshot = new TrafficSnapshot
             {
                 Time = time, RearX = (float)ride.X, RearZ = (float)ride.Z, Heading = (float)ride.Heading, Speed = (float)ride.Speed,
-                Marks = marks, Cars = near, Flags = this,
+                Wheel = (float)ride.Steer, Marks = marks, Cars = near, Flags = this,
             };
             // NwhDrive decides every physics step; the simulation every other one (25 a second), to keep the soak
             // short. Junction events are never lost: a step without a decision keeps the last one's answers only.
-            if (step % DecideEvery == 0)
+            if ((step + decidePhase) % DecideEvery == 0)
             {
                 var whyBefore = decision.Why;
                 var before = GC.GetAllocatedBytesForCurrentThread();
+                var ticks = System.Diagnostics.Stopwatch.GetTimestamp();
                 traffic.Decide(snapshot, decision);
+                var took = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - ticks) * 1e6 / System.Diagnostics.Stopwatch.Frequency);
                 decidedAt = (float)ride.Speed;
                 var bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                result.DecideMicros.Add(took);
                 result.DecideBytes += bytes;
                 if (bytes > 0 && result.Decides > 25 && ReferenceEquals(whyBefore, decision.Why)) result.DecidesAllocating++;
                 result.Decides++;
@@ -300,7 +312,7 @@ internal sealed class TrafficSim : ILiveFlags
             // car, with nothing holding the car in between (flicker).
             simDecel += ((simLastSpeed - (float)ride.Speed) / Dt - simDecel) * Math.Min(1f, Dt / 0.1f);
             simLastSpeed = (float)ride.Speed;
-            if (step % DecideEvery == 0)
+            if ((step + decidePhase) % DecideEvery == 0)
             {
                 var front0 = driver.Along + body.FrontAhead;
                 var x = decision.YieldAlong != null ? decision.YieldFor : -1;
@@ -341,6 +353,10 @@ internal sealed class TrafficSim : ILiveFlags
                     {
                         if (trace && short_ > 0f) result.Trace.Append($"OPTION {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} short by {short_:0.00} m, yield {decision.YieldAlong:0.0} {decision.Why}\n");
                         result.OptionLost = short_;
+                    }
+                    if (!e.Lost && short_ - v * Dt * DecideEvery > result.OptionLostBeyond)
+                    {
+                        result.OptionLostBeyond = short_ - v * Dt * DecideEvery;
                     }
                     if (!e.Lost && needA > PursuitDriver.Decel + 0.3f) result.HarderThanDecel++;
                     e.WayAt = wayAt;
