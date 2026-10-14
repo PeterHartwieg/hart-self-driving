@@ -33,11 +33,6 @@ namespace DrivenRides.Core.Drive
         // How long a car given way to stays a conflict once the check stops finding one (s).
         public const float ConflictMemory = 0f;
 
-        // The emergency rule's floor: the least time a continuation past a car's way may have to spare, in seconds
-        // plus metres of the body's position at the speed (TrafficDriver.MarginFloor).
-        public const float FloorSeconds = 0.25f;
-        public const float FloorMetres = 0.3f;
-
         // The stopping reserve: how far short of a car's way the ride car keeps the option to stop (m), and how many of
         // the brakes' latencies at its speed on top (TrafficDriver.StopShort).
         public const float ReserveMetres = 0.3f;

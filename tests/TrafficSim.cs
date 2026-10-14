@@ -252,7 +252,7 @@ internal sealed class TrafficSim : ILiveFlags
                     // Replaced by the emergency rule (CC2): a stop now for cars all marked as the emergency rule's, or on
                     // past them as a forced commit with the floor to spare.
                     var front1 = driver.Along + body.FrontAhead;
-                    if (decision.ForcedCommit && decision.ForcedMargin >= TrafficDriver.MarginFloor((float)ride.Speed) - 1e-3f && decision.YieldAlong == null) result.FallbackOn++;
+                    if (decision.ForcedCommit && decision.ForcedMargin >= 0f && decision.YieldAlong == null) result.FallbackOn++;
                     else if (decision.YieldAlong is float fy && fy <= front1 + 0.5f && decision.EmergencyFor.Count > 0) result.FallbackStop++;
                     else if (trace) result.Trace.Append($"UNSETTLED {time:0.00} yield {decision.YieldAlong} front {front1:0.0} forced {decision.ForcedCommit} {decision.ForcedMargin:0.00} emergency {decision.EmergencyFor.Count}\n");
                 }
@@ -300,7 +300,7 @@ internal sealed class TrafficSim : ILiveFlags
                 if (whys.Count > 4) whys.Dequeue();
             }
             // Against the floor at the speed the decision was made at.
-            if (decision.ForcedCommit && decision.ForcedMargin < TrafficDriver.MarginFloor(decidedAt) - 1e-3f) result.ForcedUnderFloor++;
+            if (decision.ForcedCommit && decision.ForcedMargin < 0f) result.ForcedUnderFloor++;
             // The stopping option, per traffic car the ride car gives way to (review round 7, BB3). An episode lasts from
             // the first stop for that car until the ride car's front is past where its way was, or the car is gone: a
             // stop lifted and imposed again is the same conflict. While a stop for it is imposed, the car must still be

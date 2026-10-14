@@ -82,7 +82,7 @@ namespace DrivenRides.Core.Drive
                     var entry = -1;
                     for (var k = 0; k < count && entry < 0; k++) if (CoversSwept(k, out _, out _, out _, out _)) entry = k;
                     if (entry < 0) continue;
-                    clears = CommittedClear(c, entry, safeLate, safeSpeed, MarginFloor(Math.Max(0f, slowSpeed[0])), false) && !clearsOutside;
+                    clears = CommittedClear(c, entry, safeLate, safeSpeed, 0f, false) && !clearsOutside;
                     least = Math.Min(least, clearMargin);
                 }
                 if (clears)
@@ -800,9 +800,6 @@ namespace DrivenRides.Core.Drive
 
         private enum Go { On, Stop, Forced, Marginal, StopShort }
 
-        // The least time to spare a continuation without the headway may have: the model's measured error, the brakes'
-        // latency, a Gley car's reaction and the body's uncertainty at the speed (review round 6, decision b).
-        public static float MarginFloor(float speed) => TrafficMargins.FloorSeconds + TrafficMargins.FloorMetres / Math.Max(1f, speed);
 
         // Under the final constraints the front can still stop short of the car's way (pose runStart): physically,
         // after the brakes' latency, at HardDecel.
@@ -842,7 +839,9 @@ namespace DrivenRides.Core.Drive
             var c = s.Cars[i];
             BuildCorridor(c, s, horizon);
             if (Clears(c, runStart, exit, runFrom, headway)) return Go.On;
-            var floor = MarginFloor(slowSpeed[0]);
+            // Without the headway, any time to spare will do (round 9: the floor of round 6, decision b, went; the soak
+            // and the in-game dumps were no worse without it).
+            const float floor = 0f;
             // Still able to stop short of its way (a remembered car can be): the full headway or not at all, a stop
             // short of it (review round 6, decision b; AA2: the memory lowered it there).
             if (runStart > 0 && CanStopShort(runStart, front)) return Go.StopShort;
@@ -2034,7 +2033,7 @@ namespace DrivenRides.Core.Drive
             var v = Math.Max(0f, slowSpeed[0]);
             if (HardStop(v) > room + StopUncertainty)
             {
-                var floor = MarginFloor(v);
+                const float floor = 0f;
                 var clearFloor = CommittedClear(c, entry, safeLate, safeSpeed, floor, false) && !clearsOutside;
                 var margin = clearMargin;
                 var remembered = committedTo.TryGetValue(c.Id, out var since) && now - since <= CommitmentSeconds;
