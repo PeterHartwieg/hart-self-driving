@@ -47,9 +47,9 @@ namespace DrivenRides.Core.Drive
         public float Integral { get => integral; set => integral = value; }
 
         // Comfortable braking and the limit past which a red is driven through (amber), m/s².
-        public const float Decel = 2.5f;
+        public const float Decel = TrafficMargins.Decel;
         public const float HardDecel = 5f;
-        public const float StopGap = 2.5f;
+        public const float StopGap = TrafficMargins.StopGap;
         // Sideways acceleration in a corner: 3.5 m/s² takes a 6.5 m arc at 17 km/h and a 20 m one at 30 (Peter, NWH
         // spike: larger turns faster; at 2.5 every corner felt slow).
         public const float Lateral = 3.5f;
@@ -231,9 +231,9 @@ namespace DrivenRides.Core.Drive
         // the plain stop at Decel as before. Treating every car ahead as standing kept the ride car 2.3 to 2.6 s
         // behind normal traffic and crawling (T3 20261013-191420: "very slow, even on straights"); this settles at
         // about 1.3 s behind a car at 10 m/s.
-        public const float FollowReaction = 0.6f;
-        public const float FollowBrake = 3f;
-        public const float LeaderBrake = 4f;
+        public const float FollowReaction = TrafficMargins.FollowReaction;
+        public const float FollowBrake = TrafficMargins.FollowBrake;
+        public const float LeaderBrake = TrafficMargins.LeaderBrake;
 
         public static float Follow(float gap, float leaderMs)
         {

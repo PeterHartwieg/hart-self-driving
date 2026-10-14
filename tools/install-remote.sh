@@ -10,7 +10,7 @@ PKG="$REPO/build/DrivenRides"
 # 100 seeds with the hard invariants only. DR_SKIP_SOAK=1 skips it.
 if [ "${DR_SKIP_SOAK:-}" != 1 ]; then
   echo "Running the 500-seed traffic soak before installing (DR_SKIP_SOAK=1 skips it)..."
-  DR_TRAFFIC_SEEDS=500 DOTNET_CLI_HOME="$REPO/build/dotnet-home" dotnet test "$REPO/tests" -nologo --filter "FullyQualifiedName~TrafficTests.Soak" \
+  DR_TRAFFIC_SEEDS=500 DOTNET_CLI_HOME="$REPO/build/dotnet-home" dotnet test "$REPO/tests" -c Release -nologo --filter "FullyQualifiedName~TrafficTests.Soak" \
     || { echo "The traffic soak failed; not installing." >&2; exit 1; }
 fi
 # The game PC is shared with other sessions (the Food Trucks mod's): C:\Users\<user>\game-lock.txt names whoever

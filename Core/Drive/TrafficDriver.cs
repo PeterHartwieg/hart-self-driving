@@ -102,14 +102,14 @@ namespace DrivenRides.Core.Drive
         }
 
         private readonly List<int> fallbackCars = new List<int>();
-        // Time either side of the ride car's own passage that a traffic car must keep clear of it.
-        public const float Headway = 1.2f;
-        // Pulling away from a standstill takes a gap this much longer, so a car that has just set off doesn't stop
-        // again for the same traffic a metre on (T3 20261013-185723, ride 8: give way, go, give way at the turn).
-        public const float StartHeadway = 0.8f;
+        // Time either side of the ride car's own passage that a traffic car must keep clear of it; pulling away from a
+        // standstill takes a gap this much longer, so a car that has just set off doesn't stop again for the same
+        // traffic a metre on (T3 20261013-185723, ride 8). The margins are in TrafficMargins.
+        public const float Headway = TrafficMargins.Headway;
+        public const float StartHeadway = TrafficMargins.StartHeadway;
         // Round the ride car's body in the corridor sweep: sideways and lengthways.
-        public const float SideMargin = 0.4f;
-        public const float EndMargin = 0.5f;
+        public const float SideMargin = TrafficMargins.SideMargin;
+        public const float EndMargin = TrafficMargins.EndMargin;
         // Round the body for ground (standing cars), and the least room to squeeze past one at a crawl.
         public const float GroundMargin = 0.4f;
         public const float SqueezeMargin = 0.1f;
@@ -124,10 +124,10 @@ namespace DrivenRides.Core.Drive
         // wait there for good, T3 20261013-191420, ride 1: 300 s), or any that hasn't moved for StuckSeconds.
         public const float StuckSeconds = 60f;
         // How long a car given way to stays a conflict once the sweep stops finding one, while it is still in the way.
-        public const float ConflictMemory = 1f;
+        public const float ConflictMemory = TrafficMargins.ConflictMemory;
         // A traffic car behind the ride car in a lane it joins: the braking it is left to stay behind, and the gap.
-        public const float FollowBrake = 3f;
-        public const float FollowGap = 2f;
+        public const float FollowBrake = TrafficMargins.JoinBrake;
+        public const float FollowGap = TrafficMargins.JoinGap;
         // Past a car that waits for the ride car (in or beside its trigger), and squeezing past a standing car with
         // only the margin touching. 2 m/s past a waiting car looked like a crawl (T3 20261013-185723, ride 8).
         public const float CreepMs = 3.5f;
@@ -799,7 +799,7 @@ namespace DrivenRides.Core.Drive
 
         // The least time to spare a continuation without the headway may have: the model's measured error, the brakes'
         // latency, a Gley car's reaction and the body's uncertainty at the speed (review round 6, decision b).
-        public static float MarginFloor(float speed) => BrakeLatency + TriggerReactCautious + StopUncertainty / Math.Max(1f, speed);
+        public static float MarginFloor(float speed) => TrafficMargins.FloorSeconds + TrafficMargins.FloorMetres / Math.Max(1f, speed);
 
         // Under the final constraints the front can still stop short of the car's way (pose runStart): physically,
         // after the brakes' latency, at HardDecel.
@@ -823,7 +823,7 @@ namespace DrivenRides.Core.Drive
         // and through pedals that act a tenth of a second late the car stood at the way instead of short of it, or,
         // where the clamp was not held to the way, ran past. Without it the driver brakes harder for a stop it can
         // only just make, and stands short of the way (ReviewRound7Tests).
-        public static float StopShort(float way, float v) => way - StopUncertainty - 2f * BrakeLatency * v;
+        public static float StopShort(float way, float v) => way - TrafficMargins.ReserveMetres - TrafficMargins.ReserveLatencies * BrakeLatency * v;
 
         // On or stop now, for a conflict the car can't stop short of:
         // - on if it clears on the trajectory it can keep under every constraint, with headway, a car behind counted

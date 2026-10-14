@@ -52,7 +52,9 @@ public sealed class TrafficTests
         var lostBeyond = new ConcurrentBag<string>();
         var times = new List<float>();
         var forcedSeeds = new ConcurrentBag<(int Seed, string What)>();
-        Parallel.For(0, seeds, seed =>
+        // DR_SOAK_SERIAL=1 runs the seeds one after another (to check the parallel run gives the same results).
+        var parallel = new ParallelOptions { MaxDegreeOfParallelism = Environment.GetEnvironmentVariable("DR_SOAK_SERIAL") == "1" ? 1 : -1 };
+        Parallel.For(0, seeds, parallel, seed =>
         {
             var r = Run(TrafficTemplates.Build(template, seed));
             System.Threading.Interlocked.Add(ref forced, r.ForcedCommits);
