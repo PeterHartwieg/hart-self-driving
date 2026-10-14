@@ -51,7 +51,8 @@ namespace DrivenRides.Core.Drive
         // to the road's limit, as a car that is pulling away does, rather than keeping its pace.
         // leaderMs: the speed of a car close ahead of it on its way, which it can't pass (review round 2, U4: a car
         // crawling behind another counted as pulling away to the limit); none: float.MaxValue.
-        public void Build(LaneGraph graph, in OtherCar car, ILiveFlags flags, float seconds, float beyond, Func<int, int> roadHeld, bool speedingUp = false, float leaderMs = float.MaxValue)
+        // cruising: seen at a steady pace for a while (TrafficDriver): a slow car doing so isn't pulling away.
+        public void Build(LaneGraph graph, in OtherCar car, ILiveFlags flags, float seconds, float beyond, Func<int, int> roadHeld, bool speedingUp = false, float leaderMs = float.MaxValue, bool cruising = false)
         {
             Segments.Clear();
             Speed = car.Speed;
@@ -62,7 +63,7 @@ namespace DrivenRides.Core.Drive
             var limit = (target >= 0 ? graph.SpeedMs(target) : LaneGraph.DefaultSpeedMs) * 1.1f;
             SpeedingUp = speedingUp;
             Limit = limit;
-            TopSpeed = Speed < StartingMs || speedingUp ? Math.Max(Speed, limit) : Math.Max(Speed, Math.Min(limit, Speed + 1f));
+            TopSpeed = Speed < StartingMs && !cruising || speedingUp ? Math.Max(Speed, limit) : Math.Max(Speed, Math.Min(limit, Speed + 1f));
             if (leaderMs < TopSpeed) TopSpeed = Math.Max(Speed, leaderMs + 1f);
             var reach = Math.Min(160f, Far(seconds) + 2f + beyond);
             float hx = (float)Math.Sin(car.Heading), hz = (float)Math.Cos(car.Heading);

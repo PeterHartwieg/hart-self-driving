@@ -157,6 +157,9 @@ internal sealed class TrafficSim : ILiveFlags
         var episodes = new Dictionary<int, Episode>();
         var gone = new List<int>();
         var prevYieldFor = -1;
+        var decidedAt = 0f;
+        float simDecel = 0f, simLastSpeed = (float)ride.Speed;
+        var sinceLeft = -1f;
         var lastKind = "";
         var wasFree = true;
         var marginalBefore = false;
@@ -225,6 +228,7 @@ internal sealed class TrafficSim : ILiveFlags
                 var whyBefore = decision.Why;
                 var before = GC.GetAllocatedBytesForCurrentThread();
                 traffic.Decide(snapshot, decision);
+                decidedAt = (float)ride.Speed;
                 var bytes = GC.GetAllocatedBytesForCurrentThread() - before;
                 result.DecideBytes += bytes;
                 if (bytes > 0 && result.Decides > 25 && ReferenceEquals(whyBefore, decision.Why)) result.DecidesAllocating++;
@@ -246,6 +250,7 @@ internal sealed class TrafficSim : ILiveFlags
             foreach (var e in decision.Events)
                 if (junctions.TryGetValue(e.Junction, out var jn))
                 {
+                    if (e.Kind != JunctionEventKind.Enter) sinceLeft = time;
                     if (e.Kind == JunctionEventKind.Enter) jn.Inside.Add(-1);
                     else jn.Inside.Remove(-1);
                 }
@@ -282,7 +287,8 @@ internal sealed class TrafficSim : ILiveFlags
                 whys.Enqueue($"{time:0.0} {decision.Why} ({ride.Speed:0.0} m/s)");
                 if (whys.Count > 4) whys.Dequeue();
             }
-            if (decision.ForcedCommit && decision.ForcedMargin < TrafficDriver.MarginFloor((float)ride.Speed) - 1e-3f) result.ForcedUnderFloor++;
+            // Against the floor at the speed the decision was made at.
+            if (decision.ForcedCommit && decision.ForcedMargin < TrafficDriver.MarginFloor(decidedAt) - 1e-3f) result.ForcedUnderFloor++;
             // The stopping option, per traffic car the ride car gives way to (review round 7, BB3). An episode lasts from
             // the first stop for that car until the ride car's front is past where its way was, or the car is gone: a
             // stop lifted and imposed again is the same conflict. While a stop for it is imposed, the car must still be
@@ -292,6 +298,8 @@ internal sealed class TrafficSim : ILiveFlags
             // carries over, so a lifted stop that costs the option counts. Late: a first stop needing more than Decel
             // with nothing holding the car before; Again: a stop imposed again within a second of the last for that
             // car, with nothing holding the car in between (flicker).
+            simDecel += ((simLastSpeed - (float)ride.Speed) / Dt - simDecel) * Math.Min(1f, Dt / 0.1f);
+            simLastSpeed = (float)ride.Speed;
             if (step % DecideEvery == 0)
             {
                 var front0 = driver.Along + body.FrontAhead;
@@ -300,11 +308,12 @@ internal sealed class TrafficSim : ILiveFlags
                 {
                     // Where the body would come into the car's way: past a cautious stop by the stop uncertainty, past any
                     // other by the margin round the body that the stop was found with.
-                    var wayAt = decision.ApproachFor == x ? decision.ApproachAlong + TrafficDriver.StopUncertainty : decision.YieldAlong!.Value + TrafficDriver.EndMargin;
+                    var wayAt = decision.ApproachFor == x ? decision.ApproachAlong + TrafficDriver.StopUncertainty : decision.YieldWay + TrafficDriver.EndMargin;
                     var v = (float)ride.Speed;
                     var room = wayAt - front0;
                     var needA = v * v / (2f * Math.Max(0.05f, room - v * TrafficDriver.BrakeLatency));
-                    var short_ = v * TrafficDriver.BrakeLatency + v * v / (2f * PursuitDriver.HardDecel) - room;
+                    // The brakes' latency only if the car isn't slowing already (as TrafficDriver.HardStop).
+                    var short_ = v * (simDecel > TrafficDriver.BrakingDecel ? 0f : TrafficDriver.BrakeLatency) + v * v / (2f * PursuitDriver.HardDecel) - room;
                     var imposed = x != prevYieldFor;
                     if (!episodes.TryGetValue(x, out var e) || front0 > e.WayAt + 0.5f)
                     {
@@ -327,7 +336,7 @@ internal sealed class TrafficSim : ILiveFlags
                     if (short_ > 0f && !decision.EmergencyFor.Contains(x) && result.NotEmergency == null)
                         result.NotEmergency = $"{time:0.00} s, car {x}, {decision.Note.Kind}, short by {short_:0.00} m: {decision.Why}";
                     if (!e.Lost && short_ > 0f && result.LostKind == null)
-                        result.LostKind = $"{decision.Note.Kind}{(imposed ? " imposed" : " held")}{(seen.Contains(x) && news.TryGetValue(x, out var nt) ? $" news {time - nt:0}s" : "")}";
+                        result.LostKind = $"{decision.Note.Kind}{(imposed ? " imposed" : " held")}{(decision.EmergencyFor.Contains(x) ? " em" : "")}{(traffic.CommittedTo(x) ? " latched" : "")}{(traffic.Rules.Inside.Count > 0 ? " in" : "")} pose{Math.Min(3, decision.Note.Pose)}{(sinceLeft >= 0f && time - sinceLeft < 3f ? " left" : "")} v{(v < 3f ? "<3" : v < 7f ? "<7" : ">7")} [{traffic.VerdictsOn(x)}]";
                     if (!e.Lost && short_ > result.OptionLost)
                     {
                         if (trace && short_ > 0f) result.Trace.Append($"OPTION {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} short by {short_:0.00} m, yield {decision.YieldAlong:0.0} {decision.Why}\n");

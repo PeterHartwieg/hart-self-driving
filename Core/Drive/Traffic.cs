@@ -99,6 +99,9 @@ namespace DrivenRides.Core.Drive
         // Layer 2: where the front gives way to a moving car, and which.
         public float? YieldAlong;
         public int YieldFor = -1;
+        // Where the front would be when the body, with its margins, first came into that car's way (the stop is short of
+        // it by what it keeps: StopShort, a stop now): for the trace and the T0 simulation's stopping-option gate.
+        public float YieldWay;
         // Where and when the conflict is, for the trace.
         // Kept as numbers and written out only when read (the adapter reads it when the reason changes): no string is
         // built each physics step (review round 1, O7).

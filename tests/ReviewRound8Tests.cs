@@ -35,13 +35,13 @@ public sealed class ReviewRound8Tests
     // small steps, both car orders (which car the snapshot lists first): no contact, no stall, and no stop the car can
     // no longer make handed to the driver except by the emergency rule. Every stop kept for a car is lifted only on a
     // trajectory with the other car's kept stop in place (CC1).
-    // With car B listed first (and so the slower-reacting car 2 on lane A) 7 of the 1200 runs end in a contact: the ride
-    // car stops for car B with its nose past car A's keep-clear point, stands across lane A, and car A, judged by the
-    // emergency rule to stop in its trigger, runs on 0.15 m too far (it reacts in 0.13 s; the rule counts on 0.1 s).
-    // Left open in round 8 (two attempted fixes stalled other templates); see the review notes.
+    // With car B listed first (and so the slower-reacting car 2 on lane A) 7 of the 1200 runs ended in a contact in
+    // round 8: the ride car stopped for car B with its nose past car A's keep-clear point and stood across lane A. Now
+    // the keep-clear holds from the body's own pose too (a stop there is the emergency rule's), and a car standing in a
+    // crossing car's way backs out when it can (LaneBack).
     [Theory]
     [InlineData(false)]
-    [InlineData(true, Skip = "open: stands across lane A waiting for car B (round 8 notes)")]
+    [InlineData(true)]
     public void CrossingTwoLanesAcrossASweepOfTimes(bool bFirst)
     {
         var runs = 0;
