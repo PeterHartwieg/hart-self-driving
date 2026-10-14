@@ -242,6 +242,8 @@ namespace DrivenRides
         {
             var own = InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi;
             var ride = TryCreateRide(taxiSystem, target, minutes);
+            // A refused own-car trip leaves no ride to clear the planner's ignored car (DropState); it is cleared here.
+            if (ride == null && own && planNwh != null) planNwh.Ignore = null;
             if (ride != null || !own) return ride;
             // Vanilla's ride would take the player to the door and leave the car behind; instead nothing happens.
             Notice.Show("Your car can't drive itself there: " + lastVanillaReason + ".");
@@ -371,7 +373,8 @@ namespace DrivenRides
                     spawn = SpawnBeside(manager, ownCar.transform, prefab);
                     if (spawn == null) return Vanilla("no free lane beside the car");
                     // The line must start under the car: from the lane waypoint behind its rear axle, not one ahead.
-                    start = OwnCarTaxi.StartBehind(graph, ownCar, spawn.listIndex);
+                    var ownY = ownCar.transform.position.y;
+                    start = OwnCarTaxi.StartBehind(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY));
                 }
                 else
                 {

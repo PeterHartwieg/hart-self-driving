@@ -35,7 +35,9 @@ namespace DrivenRides
                 return;
             }
             if (BuildingManager.IsInsideBuilding || UndergroundParkingManager.IsInsideParking) { Notice.Show("Drive out onto the street first."); return; }
-            if (car.CurrentSpeed > 5f) { Notice.Show("Stop the car first."); return; }
+            // The same standstill the start check asks for (StartRefusal), so the map doesn't open for a trip it refuses.
+            var body = car.vehicleController?.vehicleRigidbody;
+            if (body != null ? body.velocity.magnitude > 0.3f : car.CurrentSpeed > 1f) { Notice.Show("Stop the car first."); return; }
             // The game's own test (VehicleParkingHelper.ParkInClosestSpot): a condition of 1 is a wreck.
             if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Notice.Show("The car is too damaged to drive."); return; }
             if (instance == null)
@@ -185,7 +187,7 @@ namespace DrivenRides
 
         // The route's first waypoint: the lane waypoint nearest the car, or the one before it on the same lane when the
         // nearest is ahead of the rear axle, so the planned line starts under the car.
-        public static int StartBehind(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest)
+        public static int StartBehind(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest, Func<int, bool> goodStart)
         {
             var all = GleyGraph.Waypoints;
             if (all == null || nearest < 0 || nearest >= all.Length) return nearest;
@@ -196,7 +198,7 @@ namespace DrivenRides
             foreach (var p in graph.Predecessors(nearest))
             {
                 var along = all[nearest].position - all[p].position;
-                if (along.sqrMagnitude > 0.01f && Vector3.Dot(along.normalized, forward) > 0.7f && !graph.IsIntersection(p)) return p;
+                if (along.sqrMagnitude > 0.01f && Vector3.Dot(along.normalized, forward) > 0.7f && !graph.IsIntersection(p) && goodStart(p)) return p;
             }
             return nearest;
         }
