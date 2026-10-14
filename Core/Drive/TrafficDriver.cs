@@ -286,6 +286,9 @@ namespace DrivenRides.Core.Drive
             braking = rideDecel > BrakingDecel && s.Speed > 0.3f;
             approachBuilt.Clear();
             poolUsed = 0;
+            // Swapped, not copied: UnionWith boxes its enumerator, garbage every physics step.
+            (followersWas, followersNow) = (followersNow, followersWas);
+            followersNow.Clear();
             nosedIn.Clear();
             heldNow.Clear();
             holdsApplied = null;
@@ -1578,6 +1581,8 @@ namespace DrivenRides.Core.Drive
                     if (float.IsPositiveInfinity(t)) return StaysBehind(c, 0f, ua, null, null, 0, quick);
                     // Once it stays behind from the first pose in its lane on, it does from the later ones.
                     if (k > runStart && behindFrom == runStart) continue;
+                    // Further back than it needs to stop at Gley's braking: it follows (as Conflict has it).
+                    if (FollowsBehind(c.Id, ua - corridor.Far(t), t) || ClosesShort(Their(t), speeds[k], ua - corridor.Far(t))) { behindFrom = runStart; continue; }
                     // No headway here: following the car behind through its trigger is the margin.
                     if (!StaysBehind(c, t, ua - corridor.Far(t), times, speeds, k, quick)) return false;
                     behindFrom = runStart;
@@ -1595,6 +1600,33 @@ namespace DrivenRides.Core.Drive
             }
             return true;
         }
+
+        // A car coming up behind in the lane the body joins, `behind` metres back when the body is in it at time t (the
+        // corridor built last): further back than it needs to stop at Gley's braking (TriggerBrake after
+        // TriggerReactCautious, and FollowGap), at the speed it can have by then.
+        // Once judged so, a car keeps counting as following while it is half that far back, so the judgement doesn't
+        // come and go as it closes in (a stop imposed again a moment later is a harder brake than the one avoided).
+        private bool FollowsBehind(int id, float behind, float t)
+        {
+            var their = Their(t);
+            var need = their * TriggerReactCautious + their * their / (2f * TriggerBrake);
+            if (followersWas.Contains(id)) need /= 2f;
+            if (behind < need + FollowGap) return false;
+            followersNow.Add(id);
+            return true;
+        }
+
+        // It closes on the ride car short of FollowGap, braking at FollowBrake while the ride car speeds up at SlowAccel
+        // from `ours` (the closing speed, not both from a stand: the ride car doesn't stay at its turning speed).
+        private static bool ClosesShort(float their, float ours, float behind)
+        {
+            var closing = Math.Max(0f, their - ours);
+            return closing * closing / (2f * (FollowBrake + SlowAccel)) + FollowGap < behind;
+        }
+
+        private float Their(float t) => corridor.SpeedingUp ? Math.Min(corridor.TopSpeed, corridor.Speed + Corridor.Accel * t) : corridor.Speed;
+
+        private HashSet<int> followersWas = new HashSet<int>(), followersNow = new HashSet<int>();
 
         private float clearMargin;
         // The last CommittedClear's true was for staying outside the car's way, not clearing through it.
@@ -1717,8 +1749,15 @@ namespace DrivenRides.Core.Drive
                     {
                         // At the pace it has, or, pulling away, at the speed it will have reached by then.
                         var their = corridor.SpeedingUp ? Math.Min(corridor.TopSpeed, corridor.Speed + Corridor.Accel * late[k]) : corridor.Speed;
-                        var braking = Math.Max(0f, their * their - slowSpeed[k] * slowSpeed[k]) / (2f * FollowBrake);
-                        conflict = corridor.Far(late[k]) + braking + FollowGap >= ua;
+                        var behind = ua - corridor.Far(late[k]);
+                        // Still further back than it needs to stop at Gley's own braking (TriggerBrake after
+                        // TriggerReactCautious; Gley's cars stop harder than that, 20 m/s² at the 90th percentile in the
+                        // dumps of 14 October) once the body is in its lane: a car coming up behind, which follows the
+                        // ride car, not a reason to wait (Peter, 14 October: left turns onto 4th Avenue stopped for cars
+                        // 40 to 60 m back). Else it must not close on the ride car past FollowGap braking at FollowBrake
+                        // while the ride car speeds up at SlowAccel from the speed it joins at (the closing speed, not
+                        // both from a stand: the ride car doesn't stay at its turning speed in the lane).
+                        conflict = !FollowsBehind(c.Id, behind, late[k]) && !ClosesShort(their, slowSpeed[k], behind);
                     }
                 }
                 // Coming into its way at an angle behind it, as it goes on ahead, and on along its way after it: joining
