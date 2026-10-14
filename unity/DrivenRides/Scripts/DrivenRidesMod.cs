@@ -15,7 +15,7 @@ namespace DrivenRides
     [ModEntryOnInitializationLoad]
     public sealed class DrivenRidesMod : IModBigAmbitions
     {
-        public const string Version = "0.1.84";
+        public const string Version = "0.1.85-traffic25";
 
         public string[] RelativeAssetBundlePaths => Array.Empty<string>();
 
@@ -26,6 +26,15 @@ namespace DrivenRides
             try { Options.Register(context.ModId); }
             catch (Exception ex) { Log.Error("Options: " + ex); }
             Patches.Apply();
+            // The traffic code's first calls compiled now, not in the first ride's physics steps (review round 11:
+            // each T3 session's first ride had one decision of 13 to 18 ms).
+            try
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var decisions = DrivenRides.Core.Drive.TrafficWarmUp.Run();
+                Log.Info($"Traffic warm-up: {decisions} decisions in {watch.Elapsed.TotalMilliseconds:0} ms.");
+            }
+            catch (Exception ex) { Log.Error("Traffic warm-up: " + ex); }
             return Task.CompletedTask;
         }
 

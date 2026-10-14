@@ -210,6 +210,10 @@ namespace DrivenRides.Core.Drive
             this.driver = driver;
             this.body = body;
             roadHeld = Rules.RoadHeld;
+            // The line's lengths and the plan's onward speeds are worked out on first use: here, at the ride's start,
+            // not in its first physics step (review round 11).
+            line.FirstPointFrom(0f);
+            driver.PlannedSpeedOnward(0f);
         }
 
         public bool BackingOff => backingFrom >= 0 || laneBackFrom >= 0 || standOffBacking;
