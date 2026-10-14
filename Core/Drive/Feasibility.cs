@@ -124,6 +124,10 @@ namespace DrivenRides.Core.Drive
         // As the rig's kerb check: a wheel this much above the lowest is on a kerb (a road's camber across the car is
         // a few centimetres, a kerb about 15), here at two world samples in a row (1 m).
         public const float KerbRise = 0.1f;
+        // A kerb is at most this high: a wheel higher above the plane of the others is the ground probe meeting
+        // something else (a bridge deck, a hider collider; 0.1.90 read 0.96 to 0.99 m by a bridge with the car
+        // settled on its line). A wall that high is the body's to meet.
+        public const float KerbMax = 0.35f;
         private const int KerbSamples = 2;
         public CarSpec Car => car;
         public int Simulations { get; private set; }
@@ -495,7 +499,7 @@ namespace DrivenRides.Core.Drive
             }
             string? up = null;
             for (var i = 0; i < 4 && up == null; i++)
-                if (WheelPlane.Rise(ground, i) is float rise && rise > KerbRise)
+                if (WheelPlane.Rise(ground, i) is float rise && rise > KerbRise && rise <= KerbMax)
                     up = FormattableString.Invariant($"kerb: a {(i < 2 ? "rear" : "front")} wheel {rise:0.00} m above the plane of the others at ({wheels[i].X:0.0}, {wheels[i].Z:0.0})");
             samples = up != null ? samples + 1 : 0;
             return samples >= KerbSamples ? up : null;

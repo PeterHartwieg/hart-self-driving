@@ -242,6 +242,9 @@ namespace DrivenRides
                 | LayerMask.GetMask("Human", "Ignore Raycast"));
         private static readonly RaycastHit[] groundHits = new RaycastHit[8];
 
+        // The highest step a wheel can be on above the line's height: a kerb is about 0.15 m.
+        private const float MaxStep = Feasibility.KerbMax;
+
         // The ground's height under a point, from 2 m above it down to 2 m below.
         private float? GroundAt(Vec3 p) => GroundBelow(p, Ignore);
 
@@ -253,6 +256,9 @@ namespace DrivenRides
             for (var h = 0; h < n; h++)
             {
                 if (ignore != null && groundHits[h].transform.IsChildOf(ignore)) continue;
+                // Nothing a wheel could climb onto: a deck or a hider over the lane, a metre up (0.1.90: "a rear wheel
+                // 0.96 m above the plane of the others" for a car settled on its line by a bridge).
+                if (groundHits[h].point.y > p.Y + MaxStep) continue;
                 if (highest == null || groundHits[h].point.y > highest) highest = groundHits[h].point.y;
             }
             return highest;
@@ -275,7 +281,22 @@ namespace DrivenRides
             var top = centre.y + half.y;
             if (top <= bottom) return null;
             var raisedHalf = new Vector3(half.x, Mathf.Max(0.05f, (top - bottom) / 2f), half.z);
-            return Overlap(new Vector3(centre.x, (top + bottom) / 2f, centre.z), raisedHalf, rotation, mask != 0 ? mask : RaisedMask);
+            var lane = new Vector3(centre.x, ground, centre.z);
+            var n = Physics.OverlapBoxNonAlloc(new Vector3(centre.x, (top + bottom) / 2f, centre.z), raisedHalf, hits, rotation, mask != 0 ? mask : RaisedMask, QueryTriggerInteraction.Ignore);
+            for (var h = 0; h < n; h++)
+                if ((Ignore == null || !hits[h].transform.IsChildOf(Ignore)) && !Gates.IsOpenDoor(hits[h]) && !IsRoadSurface(hits[h], lane)) return Name(hits[h]);
+            return null;
+        }
+
+        // Whether a road collider is the surface under the car at a point on its line: a ray down onto it there meets a
+        // face looking up within SurfaceReach of the line's height. A divider or a kerb beside the line isn't under it;
+        // a bridge deck or a joint plate the line runs on is, wherever its bounds reach.
+        private const float SurfaceReach = 0.6f;
+
+        private static bool IsRoadSurface(Collider c, Vector3 onLine)
+        {
+            if (!c.Raycast(new Ray(onLine + Vector3.up * 2f, Vector3.down), out var down, 4f)) return false;
+            return down.normal.y > 0.7f && Mathf.Abs(down.point.y - onLine.y) <= SurfaceReach;
         }
 
         private static string Name(Collider c) => $"'{c.name}' ({LayerMask.LayerToName(c.gameObject.layer)})";
@@ -400,6 +421,9 @@ namespace DrivenRides
                         var c = hits[h];
                         if (Ignore != null && c.transform.IsChildOf(Ignore)) continue;
                         if (Gates.IsOpenDoor(c)) continue;
+                        // The road the wheels drive on, though it rises above RoadClearance somewhere in its bounds (0.1.90:
+                        // a bridge's 25 x 24 m 'BridgeJointCollider', taken for something in the lane).
+                        if (hit == RaisedMask && IsRoadSurface(c, centre)) continue;
                         // Its edge nearest the line at this point, sideways: a ray each way from the line at a height the
                         // obstacle has (a guardrail is 0.8 m tall). Not its bounds: a long curved guardrail's box
                         // (34 x 33 m in the Hamptons) holds the whole lane, and every step along it was blocked.
