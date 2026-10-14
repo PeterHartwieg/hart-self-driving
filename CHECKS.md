@@ -1,3 +1,12 @@
+# In-game checks: real rides on NWH (nwh-rides, 0.1.90-rides1)
+
+Disposable save, Food Trucks parked, other gameplay mods off, some money for fares. Taxi and stand rides now drive the dressed taxi with its own physics, the same planner and driver as `run driver=nwh traffic=on`. Private driver rides are still Gley rides in this build.
+
+1. **By hand.** Hail a taxi in traffic and pick a place 1 to 2 km away. When the map closes you ride in a taxi that looks like the one you hailed. Log: `NWH ride planned for <car> in N ms: ...`, `NWH ride: <donor> dressed as <taxi> where the traffic car ... stands`, `NWH ride: traffic car N handed back to the pool`, `Departed (NWH): ...`. At the end you get out beside the car; `NWH ride: traffic car N takes the ride car's place` and the taxi drives off. Same with a taxi stand.
+2. **Unattended.** `tools/turn-tests.sh homepc send ride kind=taxi min=800 max=1500`, or `kind=stand`. It hails the nearest taxi within 200 m (a stand within 400 m), picks a random building at that distance (`seed=N` repeats one, `x=.. z=..` names one) and goes through `TaxiSystem.TravelTo`, so the fare is charged. One line per ride in `ride-results.jsonl` (fetch it with `tools/turn-tests.sh homepc fetch`): `driven`, `end` (`Complete: arrived`, `Vanilla: ...`, `Cancelled: ...`), `seconds`, `contacts`, `contactsCaused`, `redRuns`, `stalls`, `arrivedMetres`.
+3. **Look for:** the swap at boarding hidden by the map, no jump or bounce when the taxi starts, no contact with traffic, the car stopping at reds, the player beside the car at the end, a traffic taxi in its place that drives on. Skip mid-ride: fade, you are at the door, the taxi is gone.
+4. **Ends.** Every ride ends with `Ride finished` or `Ride cancelled`, and `NWH ride tally: ...` and a traffic cost line.
+
 # In-game checks: planner after T3 on 0.1.81 (nwh-feasible, 0.1.84-planner4)
 
 Disposable save, Food Trucks parked, other gameplay mods off. T3 as before: `tools/turn-tests.sh homepc send run driver=nwh kinds=ride rides=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 cars=limo traffic=on speed=auto`, then `tools/turn-tests.sh homepc fetch`.

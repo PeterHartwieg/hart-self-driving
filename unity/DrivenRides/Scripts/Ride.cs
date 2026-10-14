@@ -77,6 +77,15 @@ namespace DrivenRides
         private bool ownCarPlaced;
         // Fuel is charged for the trip as first planned; a replan keeps only the rest of the way in the route.
         private readonly double plannedMetres;
+        // An NWH ride (docs/implementation-plan.md, phase 5): the car driven by its own physics (NwhRideCar, the seam
+        // for every kind of ride car) and its driver, the same NwhDrive the rig drives with. `car` is then only the
+        // traffic car the ride was called with, taken away at boarding. Null: a Gley ride.
+        private NwhRideCar? nwh;
+        private NwhDrive? nwhDrive;
+        private bool nwhReleased;
+        // The car the player sees and rides in.
+        private Transform Body => nwh != null && nwh.Car.Root != null ? nwh.Car.Root.transform : car.transform;
+        private bool PlayerInside => nwh != null && nwh.PlayerInside;
 
         // Vanilla's exit warps the player a frame later and, with no room, calls EnterVehicle (CarController.cs:640-650).
         // A ride that has given up must not be re-entered by that call, so EnterVehicle on the car is refused for a few
@@ -157,7 +166,10 @@ namespace DrivenRides
         public string PanelText { get; private set; } = "";
 
         // The car Gley must leave alone: PrivateDriverVehicle.Update is skipped for it.
-        public static bool OwnsCarObject(GameObject car) => Active != null && !Active.finished && Active.OwnsCar && Active.car.gameObject == car;
+        public static bool OwnsCarObject(GameObject car) => Active != null && !Active.finished && Active.nwh == null && Active.OwnsCar && Active.car.gameObject == car;
+        // The ride drives a Gley car: the patches on Gley's driving touch only that car (an NWH ride's traffic car is
+        // gone, and Gley may have given its index to another).
+        private bool GleyDriven => nwh == null;
         public static bool OwnsPlayer => Active != null && !Active.finished && Active.attached;
         public static bool IsDriving => Active != null && !Active.finished && !Active.cancelled && Active.phase == Phase.Driving;
         public static Vector3 PickupPosition => Active!.pickupPosition;
@@ -181,7 +193,8 @@ namespace DrivenRides
             carLength = LengthOf(prefab);
             carSteering = new Steering(PooledCopy(prefab));
             nwhPlanner = kind == Kind.Test ? null : planNwh;
-            nwhPlanner?.BeginRide();
+            // The plan PlanRoute checked for this route is driven as it is (Expand).
+            nwhTaken = nwhPlanner != null ? planNwhPlan : null;
             path = Expand(route);
             save = SaveGameManager.Current;
             manager = InstanceBehavior<GameManager>.Instance;
@@ -269,6 +282,7 @@ namespace DrivenRides
         private static IEnumerator? TryCreateRide(TaxiSystem taxiSystem, EntityController target, float minutes)
         {
             VehicleComponent? loaded = null;
+            spawnedNwh = null;
             PrivateDriverVehicle? parked = null;
             CarController? ownCar = null;
             StandIn? dressed = null;
@@ -328,7 +342,21 @@ namespace DrivenRides
                 if (prefab == null) return Vanilla("no vehicle prefab");
                 planLength = LengthOf(prefab);
                 planSteering = new Steering(PooledCopy(prefab));
-                planNwh = PlanForNwh ? NwhPlanner.ForTrafficPrefab(prefab.gameObject, 0f) : null;
+                // Driven with the car's own physics (NWH, docs/implementation-plan.md phase 5): the drivable prefab of
+                // the driver's vehicle type, or the taxi dressed on the drivable car closest in size, planned for that
+                // car by its planner. Otherwise the Gley ride.
+                var driverType = taxi is PrivateDriverVehicle driverTaxi ? driverTaxi.vehicleInstance?.vehicleTypeName : null;
+                var driverTop = taxi is PrivateDriverVehicle topTaxi ? topTaxi.vehicleInstance?.VehicleType?.maxSpeed ?? 0 : 0;
+                var nwhTop = driverTop > 0 ? driverTop : prefab.maxPossibleSpeed;
+                planNwh = null;
+                planNwhPlan = null;
+                if (DrivesWithNwh(kind))
+                {
+                    planNwh = NwhRides.Planner(driverType, prefab.gameObject, nwhTop);
+                    if (planNwh == null) Log.Info("NWH ride: no drivable car for " + prefab.name + "; a Gley ride.");
+                    // A new ride: blocks from what stood in the last ride's way go (NwhPlanner.BeginRide).
+                    else planNwh.BeginRide();
+                }
 
                 var graph = GleyGraph.Graph;
                 var manager = TrafficManager.HasInstance && TrafficManager.IsInitialized ? TrafficManager.Instance : null;
@@ -414,9 +442,22 @@ namespace DrivenRides
                         start = first;
                     }
                 }
+                // An NWH ride is planned as the rig plans its rides (NwhPlanner.PlanRoute): from the start the search
+                // found, to the same goals, each added step checked for this car, the first lanes swept, the line
+                // checked as driven, a failed step blocked and the route planned again.
+                if (route != null && planNwh != null)
+                {
+                    var nwhClock = Stopwatch.StartNew();
+                    var (nwhRoute, nwhPlan, summary) = planNwh.PlanRoute(graph, route.Waypoints[0], goals, vehicleType);
+                    planMs += nwhClock.ElapsedMilliseconds;
+                    Log.Info($"NWH ride planned for {planNwh.Car.Name} in {nwhClock.ElapsedMilliseconds} ms: {summary}.");
+                    if (nwhRoute == null || nwhPlan == null) return Vanilla("no route this car can drive (" + summary + ")");
+                    route = nwhRoute;
+                    planNwhPlan = nwhPlan;
+                }
                 // Steps the game's data doesn't have are checked against the world; a blocked one is remembered and the
                 // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
-                for (var attempt = 0; route != null && attempt < 6; attempt++)
+                for (var attempt = 0; route != null && planNwh == null && attempt < 6; attempt++)
                 {
                     var blocked = planNwh != null ? planNwh.BlockedSteps(graph, route.Waypoints) : FindBlockedSteps(graph, route.Waypoints, planSteering);
                     // The NWH car's line checked as driven too: a step it fails on is blocked like the others.
@@ -481,6 +522,21 @@ namespace DrivenRides
                     Log.Info($"Own car: stand-in loaded at waypoint {spawn!.listIndex}, {Vector3.Distance(ownCar.transform.position, spawn.position):0.0} m from the car.");
                 }
 
+                // The NWH car where the traffic car stands, while the map covers the screen; Board takes the traffic
+                // car away in this same frame (TravelTo runs the ride's first step at once), before a physics step.
+                // Thrown on failure, so the catch below lets go of a car loaded above.
+                if (planNwh != null)
+                {
+                    var gleyT = car!.transform;
+                    TestCar.BodyBox(car, out var gleyCentre, out _);
+                    var middle = gleyT.TransformPoint(gleyCentre);
+                    var ground = NwhPlanner.GroundBelow(GleyGraph.ToVec(middle), gleyT) ?? gleyT.position.y;
+                    var facing = Quaternion.Euler(0f, gleyT.eulerAngles.y, 0f);
+                    spawnedNwh = NwhRides.Spawn(driverType, prefab.gameObject, middle, facing, out var nwhWhy);
+                    if (spawnedNwh == null) throw new InvalidOperationException("no NWH car: " + nwhWhy);
+                    NwhRides.PlaceBody(spawnedNwh, middle, ground, facing);
+                    Log.Info($"NWH ride: {NwhCar.Id(spawnedNwh.TypeName)}{(spawnedNwh.Look != null ? " dressed as " + spawnedNwh.Look : "")} where the traffic car {car.name} stands.");
+                }
                 GleyGraph.DumpRide(start, goals, route.Waypoints, destination);
                 var addedTurns = 0;
                 for (var k = 0; k + 1 < route.Waypoints.Count; k++)
@@ -493,8 +549,10 @@ namespace DrivenRides
                 {
                     ownCar = ownCar,
                     standIn = dressed,
+                    nwh = spawnedNwh != null ? new NwhRideCar { Car = spawnedNwh, Spec = planNwh!.Car } : null,
                 };
                 loaded = null;
+                spawnedNwh = null;
                 Log.Info($"Ride accepted: {kind}, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, drive {route.DriveSeconds:0} s, walk {route.WalkSeconds:0} s, planned in {planMs} ms, budget {minutes:0.0} game minutes.");
                 Active = ride;
                 return ride.Run();
@@ -502,6 +560,8 @@ namespace DrivenRides
             catch (Exception ex)
             {
                 Log.Error("Ride not started: " + ex);
+                if (spawnedNwh?.Root != null) Object.Destroy(spawnedNwh.Root);
+                spawnedNwh = null;
                 if (dressed != null)
                 {
                     try { dressed.Undress(); } catch (Exception undressEx) { Log.Error("Stand-in not undressed: " + undressEx.Message); }
@@ -531,10 +591,14 @@ namespace DrivenRides
         private static float planLength;
         private static Steering planSteering;
         // A ride car driven by its own physics (NWH) is planned with its drivable prefab's shape and Core's feasibility
-        // check instead of the Gley model (NwhPlanner); TestedSteps is then a record, not a filter. Off until rides
-        // are driven that way (docs/implementation-plan.md, phase 5); the rig's driver=nwh uses NwhPlanner directly.
-        internal static bool PlanForNwh { get; set; }
+        // check instead of the Gley model (NwhPlanner); TestedSteps is then a record, not a filter.
         private static NwhPlanner? planNwh;
+        private static DrivePlan? planNwhPlan;
+        private static NwhCar? spawnedNwh;
+
+        // Which rides are driven with the car's own physics (docs/implementation-plan.md, phase 5); the others are
+        // Gley rides.
+        private static bool DrivesWithNwh(Kind kind) => kind == Kind.Taxi || kind == Kind.Stand;
         private readonly NwhPlanner? nwhPlanner;
         private float carLength;
         private Steering carSteering;
@@ -853,9 +917,10 @@ namespace DrivenRides
 
         private double LeftMetres => progress?.LeftMetres ?? route.LengthMetres;
 
-        internal bool OwnsCar =>
-            car != null && car.gameObject.activeInHierarchy && car.GetIndex() == carIndex &&
-            (!departed || ReferenceEquals(car.presetPath, owned));
+        internal bool OwnsCar => nwh != null
+            ? !nwhReleased && nwh.Car.Root != null && nwh.Car.Root.activeInHierarchy
+            : car != null && car.gameObject.activeInHierarchy && car.GetIndex() == carIndex &&
+              (!departed || ReferenceEquals(car.presetPath, owned));
 
         private bool SaveChanged => fakeSaveChange || !ReferenceEquals(SaveGameManager.Current, save);
 
@@ -913,7 +978,9 @@ namespace DrivenRides
                 // An arrival needs no fade: the player steps out beside the car (Peter). Skip and the vanilla finish
                 // fade, as vanilla does. The game's fades are stepped here, so an exception in them runs the finally.
                 // A destination far from where the car stops (a house back from the road) gets the vanilla door.
-                farDrop = outcome == Outcome.Complete && target != null && car != null && Vector3.Distance(car.transform.position, target.GetNavMeshTargetPosition()) > FarDropMetres;
+                farDrop = outcome == Outcome.Complete && target != null && OwnsCar && Vector3.Distance(Body.position, target.GetNavMeshTargetPosition()) > FarDropMetres;
+                // The car stands while the player gets out (the drive has stopped it on arrival; Skip stops it here).
+                nwhDrive?.Stop(outcomeReason);
                 if (outcome == Outcome.Vanilla || farDrop)
                 {
                     faded = true;
@@ -926,7 +993,8 @@ namespace DrivenRides
                 var steps = Bookkeeping();
                 while (steps.MoveNext()) yield return steps.Current;
                 if (cancelled) yield break;
-                if (outcome == Outcome.Complete) ReleaseComplete();
+                if (nwh != null) ReleaseNwh(outcomeReason, swap: true);
+                else if (outcome == Outcome.Complete) ReleaseComplete();
                 else ReleaseVanilla();
                 RestoreCamera();
                 if (faded)
@@ -1103,10 +1171,18 @@ namespace DrivenRides
         {
             pickupPosition = player.transform.position;
             pickupRotation = player.transform.rotation;
+            if (nwh != null) HandOverToNwh();
+            if (PlayerInside)
+            {
+                // The player stays in the driver's seat with the car's own camera (NwhRideCar.PlayerInside).
+                InstanceBehavior<CityManager>.Instance.cityMap.Close();
+                Log.Info($"Boarded inside the car at {pickupPosition}.");
+                return;
+            }
             player.ResetNavigation();
             anchor = new GameObject("DrivenRides.Anchor");
-            anchor.transform.SetPositionAndRotation(car.transform.position, car.transform.rotation);
-            anchor.AddComponent<RideAnchor>().Target = car.transform;
+            anchor.transform.SetPositionAndRotation(Body.position, Body.rotation);
+            anchor.AddComponent<RideAnchor>().Target = Body;
             anchorComponent = anchor.GetComponent<RideAnchor>();
             anchorComponent.Valid = () => OwnsCar;
             // Set first, so cleanup also undoes a partly finished attachment.
@@ -1131,8 +1207,117 @@ namespace DrivenRides
             if (Active != null) Active.mapClosed = true;
         }
 
+        // ---- NWH rides (docs/implementation-plan.md, phase 5) ----
+
+        // Boarding an NWH ride: the traffic car the ride was called with goes back to Gley's pool while the map still
+        // covers the screen; the NWH car stands where it stood. A private driver's car takes its PrivateDriverVehicle
+        // with it, which takes the driver off the phone, as a vanilla ride does at its end.
+        private void HandOverToNwh()
+        {
+            if (nwh == null || nwh.PlayerInside || car == null) return;
+            try
+            {
+                if (car.gameObject.activeInHierarchy && car.GetIndex() == carIndex) TrafficManager.Instance.RemoveVehicle(carIndex);
+                Log.Info($"NWH ride: traffic car {carIndex} handed back to the pool; {NwhCar.Id(nwh.Car.TypeName)} drives.");
+            }
+            catch (Exception ex) { Log.Error("NWH ride, traffic car: " + ex.Message); }
+        }
+
+        private void DepartNwh()
+        {
+            if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car was gone before departure"); return; }
+            if (nwhPlan == null) { EndWith(Outcome.Vanilla, "no checked plan to drive"); return; }
+            var n = nwh!;
+            var drive = n.Car.Root.AddComponent<NwhDrive>();
+            drive.MeasureCost = true;
+            // The planner's way on, as the rig's ride cases have it: round a blocked step, the look-ahead, taking up.
+            drive.WayOn.Replan = NwhBlocked;
+            drive.WayOn.LookAhead = NwhLookAhead;
+            drive.WayOn.Take = NwhTake;
+            drive.Begin(n.Car, nwhPlan, n.Spec, nwhPlan.TopKmh > 0 ? nwhPlan.TopKmh : TopSpeed);
+            nwhDrive = drive;
+            departed = true;
+            progress = new RouteProgress(Points(path));
+            IndexRoute();
+            if (!PlayerInside) SwitchCamera();
+            phase = Phase.Driving;
+            Log.Info($"Departed (NWH): {path.Count} waypoints, {route.LengthMetres:0} m, top {(nwhPlan.TopKmh > 0 ? nwhPlan.TopKmh : TopSpeed):0} km/h, light cycle {GreenLightTime()} s.");
+        }
+
+        private void TickNwh()
+        {
+            var drive = nwhDrive!;
+            var body = Body;
+            progress!.Update(GleyGraph.ToVec(body.position));
+            var along = alongOffset + progress.AlongMetres;
+            var speed = nwh!.Car.Body.velocity.magnitude;
+            trace.Sample(body.position, body.eulerAngles.y, speed, -1, drive.WaitingNow ? "waiting" : "driving", along, progress.LeftMetres, path.Count);
+            lastAlong = along;
+            if (phase == Phase.Driving)
+            {
+                if (drive.Ended)
+                {
+                    if (drive.Arrived) EndWith(Outcome.Complete, "arrived");
+                    else EndWith(Outcome.Vanilla, "NWH drive: " + drive.EndReason);
+                }
+            }
+            ApplyScale(phase == Phase.Driving);
+            PanelText = $"  {LeftMetres / 1000.0:0.0} km to go";
+        }
+
+        // The end of an NWH ride, once (every exit and a cancel come here): the drive stops, the seam's End runs, and
+        // the mod's own car goes. With `swap` (a finish, not a cancel), a traffic car of the ride's model takes its
+        // place on the lane and drives on, as the car does after a vanilla ride; the player has got out already.
+        private void ReleaseNwh(string reason, bool swap)
+        {
+            if (nwh == null || nwhReleased) return;
+            nwhReleased = true;
+            try { nwhDrive?.Stop(reason); } catch (Exception ex) { Log.Error("NWH release, drive: " + ex.Message); }
+            if (nwhDrive != null && nwhDrive.DecideCost != null && nwhDrive.DecideCost.Total > 0) Log.Info(nwhDrive.CostLine());
+            if (nwhDrive != null) Log.Info($"NWH ride tally: {nwhDrive.Contacts} contacts with traffic cars ({nwhDrive.ContactsCaused} caused by the ride car), {nwhDrive.RedRuns} red runs, {nwhDrive.Stalls} standstills over 30 s.");
+            LastTally = nwhDrive != null ? (nwhDrive.Contacts, nwhDrive.ContactsCaused, nwhDrive.RedRuns, nwhDrive.Stalls) : default;
+            try { nwh.End?.Invoke(reason); } catch (Exception ex) { Log.Error("NWH release, end: " + ex.Message); }
+            if (!nwh.Owned) return;
+            var root = nwh.Car.Root;
+            if (root == null) return;
+            if (swap)
+            {
+                try { TrafficTakesOver(root.transform); }
+                catch (Exception ex) { Log.Error("NWH release, traffic car: " + ex.Message); }
+            }
+            Object.Destroy(root);
+        }
+
+        // A traffic car of the ride's model on the lane where the NWH car stands, in its pose, if Gley has one free.
+        private void TrafficTakesOver(Transform body)
+        {
+            var manager = TrafficManager.Instance;
+            var at = body.position;
+            var forward = body.forward;
+            var y = at.y;
+            var leave = WithCollidersOff(body, () => manager.GetClosestWaypoint(at, 15f,
+                w => IsValidForLeaving(w, y) && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f && Vector3.Dot(w.position - at, forward) > 0f, prefab));
+            if (leave == null || !HasInactivePooledCar(prefab)) { Log.Info("NWH ride: no free lane or traffic car to take over; the car just goes."); return; }
+            var middle = NwhRides.BodyMiddle(nwh!.Car);
+            // Out of the way first: the traffic car is loaded where the ride car's colliders still are.
+            foreach (var c in body.GetComponentsInChildren<Collider>()) c.enabled = false;
+            var loaded = manager.LoadVehicle(prefab.gameObject, leave, true);
+            if (loaded == null) { Log.Info("NWH ride: the traffic car could not be loaded; the car just goes."); return; }
+            TestCar.BodyBox(loaded, out var centre, out _);
+            var facing = Quaternion.Euler(0f, body.eulerAngles.y, 0f);
+            var position = new Vector3(middle.x, loaded.transform.position.y, middle.z) - facing * new Vector3(centre.x, 0f, centre.z);
+            if (loaded.rb != null) { loaded.rb.position = position; loaded.rb.rotation = facing; }
+            loaded.transform.SetPositionAndRotation(position, facing);
+            Log.Info($"NWH ride: traffic car {loaded.GetIndex()} takes the ride car's place, heading for waypoint {leave.listIndex}.");
+        }
+
+        // How the last ride ended, and the last NWH ride's tally (the rig's ride command records them).
+        public static string LastEnd { get; set; } = "";
+        public static (int Contacts, int Caused, int RedRuns, int Stalls) LastTally { get; set; }
+
         private void Depart()
         {
+            if (nwh != null) { DepartNwh(); return; }
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car was gone before departure"); return; }
             if (kind == Kind.Taxi) taxi!.DriveAway();
             owned.Clear();
@@ -1234,6 +1419,7 @@ namespace DrivenRides
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car is no longer the ride's"); return; }
 
             if (throwNext) { throwNext = false; throw new InvalidOperationException("Debug: exception inside the ride's frame update."); }
+            if (nwh != null) { TickNwh(); return; }
             progress!.Update(GleyGraph.ToVec(car.transform.position));
             // An arc turn the car is past without having started it (a bridge skip, a replan) is done with.
             while (arcAlong < 0f && arcAt < arcs.Count && (!routeIndex.TryGetValue(arcs[arcAt].Exit, out var exitAt) || exitAt < progress.NextIndex - 1)) arcAt++;
@@ -1365,7 +1551,7 @@ namespace DrivenRides
         public static bool HoldsAtRed(int vehicleIndex)
         {
             var ride = Active;
-            if (ride == null || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || !Options.TrafficLights || !ride.OwnsCar) return false;
+            if (ride == null || !ride.GleyDriven || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || !Options.TrafficLights || !ride.OwnsCar) return false;
             var next = TrafficManager.Instance.GetTargetWaypoint(vehicleIndex);
             return next != null && next.stop;
         }
@@ -1443,7 +1629,7 @@ namespace DrivenRides
 
         private void SteerArc()
         {
-            if (!departed || finished || cancelled || arcAt >= arcs.Count || car == null || progress == null || !OwnsCar) return;
+            if (!GleyDriven || !departed || finished || cancelled || arcAt >= arcs.Count || car == null || progress == null || !OwnsCar) return;
             var (entry, exit, line) = arcs[arcAt];
             // Stopping at a light or giving way, Gley brakes by the distance to its real target.
             if (TrafficManager.Instance.GetCurrentDrivingState(carIndex).Item2 != SpecialDriveActionTypes.Forward)
@@ -1500,7 +1686,7 @@ namespace DrivenRides
 
         private void TurnAboutCentre()
         {
-            if (!departed || finished || cancelled || car == null || car.rb == null || !OwnsCar) return;
+            if (!GleyDriven || !departed || finished || cancelled || car == null || car.rb == null || !OwnsCar) return;
             if (!(RotationAngleField?.GetValue(TrafficManager.Instance) is NativeArray<float> angles) || carIndex >= angles.Length) return;
             var degrees = angles[carIndex];
             if (Mathf.Abs(degrees) < 0.0001f) return;
@@ -1850,7 +2036,7 @@ namespace DrivenRides
         public static bool? HasPassed(int vehicleIndex, int waypointIndex, Vector3 waypoint, Vector3 carCentre)
         {
             var ride = Active;
-            if (ride == null || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || ride.progress == null || !ride.OwnsCar) return null;
+            if (ride == null || !ride.GleyDriven || ride.finished || ride.cancelled || !ride.departed || ride.carIndex != vehicleIndex || ride.progress == null || !ride.OwnsCar) return null;
             if ((waypoint - carCentre).sqrMagnitude < 25f) return true;
             return ride.routeIndex.TryGetValue(waypointIndex, out var k) && k < ride.progress.NextIndex;
         }
@@ -1859,7 +2045,7 @@ namespace DrivenRides
         public static Vector3? CarCentre(int vehicleIndex)
         {
             var ride = Active;
-            if (ride == null || ride.carIndex != vehicleIndex || ride.car == null || ride.car.rb == null) return null;
+            if (ride == null || !ride.GleyDriven || ride.carIndex != vehicleIndex || ride.car == null || ride.car.rb == null) return null;
             return ride.car.rb.worldCenterOfMass;
         }
 
@@ -1894,6 +2080,7 @@ namespace DrivenRides
             if (outcome != Outcome.None) return;
             outcome = result;
             outcomeReason = reason;
+            LastEnd = $"{result}: {reason}";
             phase = Phase.Finishing;
         }
 
@@ -1921,6 +2108,17 @@ namespace DrivenRides
                 if (cancelled) yield break;
             }
 
+            if (PlayerInside)
+            {
+                // The seam's arrival (the own car's autopark) instead of placing the player; the car has stopped.
+                Log.Info($"Ride done, the player inside the car: {NowMinutes() - startMinute:0.0} game minutes in all.");
+                if (nwh!.Arrive != null)
+                {
+                    var arriving = Flatten(nwh.Arrive());
+                    while (arriving.MoveNext()) { yield return arriving.Current; if (cancelled) yield break; }
+                }
+                yield break;
+            }
             if (kind == Kind.OwnCar)
             {
                 var arrive = ArriveInOwnCar();
@@ -1972,9 +2170,9 @@ namespace DrivenRides
         private bool BesideCar(out Vector3 place)
         {
             place = default;
-            if (car == null || !car.gameObject.activeInHierarchy) return false;
-            var t = car.transform;
-            var offset = Mathf.Max(1f, car.colliderWidth / 2f) + 0.8f;
+            if (!OwnsCar) return false;
+            var t = Body;
+            var offset = Mathf.Max(1f, nwh != null ? nwh.Car.BodyHalf.x : car.colliderWidth / 2f) + 0.8f;
             foreach (var side in new[] { t.right, -t.right })
             {
                 if (NavMesh.SamplePosition(t.position + side * offset, out var hit, 1.5f, NavMesh.AllAreas)) { place = hit.position; return true; }
@@ -2125,7 +2323,9 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
-            if (arcAlong >= 0f && TrafficManager.HasInstance) EndArc();
+            if (arcAlong >= 0f && TrafficManager.HasInstance && GleyDriven) EndArc();
+            // Whatever way the ride ended, its NWH car never outlives it.
+            try { ReleaseNwh("the ride ended", swap: false); } catch (Exception ex) { Log.Error("NWH release: " + ex.Message); }
             if (steeringWas >= 0f)
             {
                 try
@@ -2166,6 +2366,7 @@ namespace DrivenRides
         {
             if (finished || cancelled) return;
             cancelled = true;
+            LastEnd = "Cancelled: " + reason;
             Log.Info("Ride cancelled: " + reason + ".");
             replanJob = null;
             if (attached && player != null)
@@ -2184,8 +2385,10 @@ namespace DrivenRides
             }
             try { RestoreCamera(); } catch (Exception ex) { Log.Error("Cancel, camera: " + ex.Message); }
             try { RestoreScale(); } catch (Exception ex) { Log.Error("Cancel, time scale: " + ex.Message); }
-            // A loaded car was held before departure, so it is released even if the ride never left.
-            if (kind == Kind.OwnCar)
+            // A loaded car was held before departure, so it is released even if the ride never left. An NWH ride's car
+            // stops where it is and goes (the own car: its End hands it back where it stands, the player inside).
+            if (nwh != null) ReleaseNwh("cancelled: " + reason, swap: false);
+            else if (kind == Kind.OwnCar)
             {
                 RemoveStandIn();
                 try
@@ -2235,6 +2438,7 @@ namespace DrivenRides
             cancelled = true;
             finished = true;
             Log.Info("Ride disposed: the save changed and its owners are gone or replaced.");
+            try { ReleaseNwh("disposed", swap: false); } catch (Exception ex) { Log.Error("NWH release: " + ex.Message); }
             if (anchor != null)
             {
                 for (var i = anchor.transform.childCount - 1; i >= 0; i--) anchor.transform.GetChild(i).SetParent(null, true);
@@ -2265,7 +2469,8 @@ namespace DrivenRides
         // Vanilla's charge for the straight line from the car to the destination (TaxiSystem.GetTravelDurationMinutes).
         private double VanillaMinutesLeft()
         {
-            var from = car != null && car.gameObject.activeInHierarchy ? car.transform.position : player.transform.position;
+            var from = nwh != null ? (OwnsCar ? Body.position : player.transform.position)
+                : car != null && car.gameObject.activeInHierarchy ? car.transform.position : player.transform.position;
             var to = target != null ? target.GetNavMeshTargetPosition() : from;
             return Vector3.Distance(from, to) * 0.04 * PlayerPrefSettings.GameSpeed * timeMultiplier;
         }
@@ -2297,7 +2502,8 @@ namespace DrivenRides
         {
             var ride = Active;
             if (ride == null) { Notice.Show("No ride."); return; }
-            TrafficManager.Instance.RemoveVehicle(ride.carIndex);
+            if (ride.nwh != null) { if (ride.nwh.Owned && ride.nwh.Car.Root != null) Object.Destroy(ride.nwh.Car.Root); }
+            else TrafficManager.Instance.RemoveVehicle(ride.carIndex);
             Log.Info("Debug: ride car removed.");
         }
 
