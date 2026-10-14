@@ -85,6 +85,11 @@ namespace DrivenRides.Core.Drive
         // The world callback names what it found with this in front when it can move away (a parked car): a
         // manoeuvre failed by it is checked again later, one failed by the built world is not (NwhPlanner.CauseOf).
         public const string Movable = "movable: ";
+        // Along a lane (its corners and sideways moves, Sweep), the model keeps within this of the car: T3 on 0.1.81
+        // (session 20261014-085228), the limo cutting ride 16's Hamptons corners by up to 1.1 m, the model 0.15 to
+        // 0.18 m from it; ride 5's street out of a junction, 0.12 m. DefaultMargin is for the added manoeuvres' swings.
+        // With DefaultMargin a lane's corners touched guardrails the car passed with more than 0.3 m to spare.
+        public const float LaneMargin = 0.2f;
         // Settled in its lane: the rear axle this close to the line and the wheel this straight.
         private const float SettledOff = 0.2f;
         private const float SettledWheel = 5f;
@@ -442,12 +447,12 @@ namespace DrivenRides.Core.Drive
                     if (hit != null && !judge.Failed)
                     {
                         judge.Contact(step, hit);
-                        verdict.Hit = hit + Measured(settled, o.Lateral, model.Steer);
+                        verdict.Hit = hit + Measured(settled, o.Lateral, model.Steer, Margin);
                     }
-                    if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples, settled) is string wheel)
+                    if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples, settled, Margin) is string wheel)
                     {
                         judge.Reject(step, "kerb", wheel);
-                        verdict.Hit = wheel + Measured(settled, o.Lateral, model.Steer);
+                        verdict.Hit = wheel + Measured(settled, o.Lateral, model.Steer, Margin);
                     }
                 }
                 if (!judge.Failed && driver.Along >= exitAlong && off > OffLaneLimit)
@@ -473,38 +478,9 @@ namespace DrivenRides.Core.Drive
         // round 1: the margin put a settled car's wheels on the kerb beside an outer lane).
         private float TrackHalf => car.TrackWidth > 0f ? car.TrackWidth / 2f : Math.Max(0.5f, car.BodyHalf.X - 0.25f);
 
-        // The ground under the four wheels where they are (rear left, rear right, front left, front right), or null.
-        private Vec3[]? Track(Pose pose)
+        private string? WheelOnKerb(Pose pose, ref int samples, bool settled, float margin)
         {
-            var half = TrackHalf;
-            var at = new[]
-            {
-                Local(pose, new Vec3(-half, 0f, 0f)), Local(pose, new Vec3(half, 0f, 0f)),
-                Local(pose, new Vec3(-half, 0f, car.Wheelbase)), Local(pose, new Vec3(half, 0f, car.Wheelbase)),
-            };
-            for (var i = 0; i < 4; i++)
-            {
-                if (!(GroundAt!(at[i]) is float h)) return null;
-                at[i] = new Vec3(at[i].X, h, at[i].Z);
-            }
-            return at;
-        }
-
-        // Both wheels of one side up (a car run wide onto the pavement): the car at a pose (its rear axle) leans
-        // beyond the road's cross-fall by more than KerbRise. Measured where the wheels really are, not the margin
-        // wider (review round 3). What, or null; null too without GroundAt or a lane near.
-        public string? Leaning(Pose pose)
-        {
-            if (GroundAt == null || !(WheelPlane.CrossFall(graph, Local(pose, car.BodyCentre), pose.Heading, GroundAt) is float fall) || !(Track(pose) is Vec3[] real)) return null;
-            var roll = WheelPlane.Roll(real, fall * 2f * TrackHalf);
-            return Math.Abs(roll) > KerbRise
-                ? FormattableString.Invariant($"kerb: the {(roll > 0 ? "left" : "right")} wheels {Math.Abs(roll):0.00} m above the {(roll > 0 ? "right" : "left")} ones beyond the road's cross-fall at ({pose.X:0.0}, {pose.Z:0.0})")
-                : null;
-        }
-
-        private string? WheelOnKerb(Pose pose, ref int samples, bool settled)
-        {
-            var half = TrackHalf + (settled ? 0f : Margin);
+            var half = TrackHalf + (settled ? 0f : margin);
             var wheels = new[]
             {
                 Local(pose, new Vec3(-half, 0f, 0f)), Local(pose, new Vec3(half, 0f, 0f)),
@@ -521,7 +497,6 @@ namespace DrivenRides.Core.Drive
             for (var i = 0; i < 4 && up == null; i++)
                 if (WheelPlane.Rise(ground, i) is float rise && rise > KerbRise)
                     up = FormattableString.Invariant($"kerb: a {(i < 2 ? "rear" : "front")} wheel {rise:0.00} m above the plane of the others at ({wheels[i].X:0.0}, {wheels[i].Z:0.0})");
-            up ??= Leaning(pose);
             samples = up != null ? samples + 1 : 0;
             return samples >= KerbSamples ? up : null;
         }
@@ -546,7 +521,7 @@ namespace DrivenRides.Core.Drive
             var model = car.Model(p0.X, p0.Z, Math.Atan2(p1.X - p0.X, p1.Z - p0.Z));
             driver.StartAt(p0.X, p0.Z);
             model.Speed = driver.PlannedSpeed(start, car.TopKmh / 3.6f);
-            return FollowWork(driver, model, line, from, to, result);
+            return FollowWork(driver, model, line, from, to, result, LaneMargin);
         }
 
         // What a sweep or a join met (null: nothing), and the rear axle's last distance from the line.
@@ -577,7 +552,7 @@ namespace DrivenRides.Core.Drive
             model.SetWheel(pose.Wheel);
             var from = driver.Along;
             var to = JoinEnd(line, from);
-            foreach (var y in FollowWork(driver, model, line, from, to, result)) yield return y;
+            foreach (var y in FollowWork(driver, model, line, from, to, result, Margin)) yield return y;
             if (result.What != null) result.What = "joining the new line: " + result.What;
             else if (Math.Abs(result.Lateral) > JoinSettled)
                 result.What = FormattableString.Invariant($"joining the new line: still {result.Lateral:+0.00;-0.00} m off it after {to - from:0} m");
@@ -646,9 +621,9 @@ namespace DrivenRides.Core.Drive
         // The model driven along a line from `from` to `to`, checked from the start: its body against the world, its
         // corners against the pavement, its wheels against kerbs, each time a corner of the body has moved WorldEvery
         // metres. What it meets, or null; the rear axle's last distance from the line.
-        private IEnumerable<object?> FollowWork(PursuitDriver driver, CarModel model, DriveLine line, float from, float to, SweepResult result)
+        private IEnumerable<object?> FollowWork(PursuitDriver driver, CarModel model, DriveLine line, float from, float to, SweepResult result, float margin)
         {
-            var turningHalf = new Vec3(car.BodyHalf.X + Margin, car.BodyHalf.Y, car.BodyHalf.Z + Margin);
+            var turningHalf = new Vec3(car.BodyHalf.X + margin, car.BodyHalf.Y, car.BodyHalf.Z + margin);
             var lastCheck = double.NegativeInfinity;
             var travelled = 0.0;
             var kerbSamples = 0;
@@ -672,17 +647,17 @@ namespace DrivenRides.Core.Drive
                 var footprint = Footprint(pose, half);
                 if (world?.Invoke(new BodyBox(Local(pose, car.BodyCentre), new Vec3(half.X + NearMiss, half.Y, half.Z + NearMiss), pose.Heading)) is string hit)
                 {
-                    result.What = FormattableString.Invariant($"{hit} at {driver.Along:0} m") + Measured(settled, o.Lateral, model.Steer);
+                    result.What = FormattableString.Invariant($"{hit} at {driver.Along:0} m") + Measured(settled, o.Lateral, model.Steer, margin);
                     yield break;
                 }
                 if (PavementAt != null && Pavement.CornerOnPavement(graph, footprint, Local(pose, car.BodyCentre), PavementAt) is string pavement)
                 {
-                    result.What = pavement + Measured(settled, o.Lateral, model.Steer);
+                    result.What = pavement + Measured(settled, o.Lateral, model.Steer, margin);
                     yield break;
                 }
-                if (GroundAt != null && WheelOnKerb(pose, ref kerbSamples, settled) is string kerb)
+                if (GroundAt != null && WheelOnKerb(pose, ref kerbSamples, settled, margin) is string kerb)
                 {
-                    result.What = kerb + Measured(settled, o.Lateral, model.Steer);
+                    result.What = kerb + Measured(settled, o.Lateral, model.Steer, margin);
                     yield break;
                 }
                 yield return null;
@@ -690,8 +665,8 @@ namespace DrivenRides.Core.Drive
         }
 
         // The model's state where a check failed: how far off its line, its wheel, and whether the margin was on.
-        private string Measured(bool settled, float lateral, double wheel) => FormattableString.Invariant(
-            $" [rear axle {lateral:+0.00;-0.00} m off the line, wheel {wheel:0} deg, {(settled ? "settled: no margin" : $"margin {Margin:0.00} m")}]");
+        private static string Measured(bool settled, float lateral, double wheel, float margin) => FormattableString.Invariant(
+            $" [rear axle {lateral:+0.00;-0.00} m off the line, wheel {wheel:0} deg, {(settled ? "settled: no margin" : $"margin {margin:0.00} m")}]");
 
         // How far the body's farthest corner moved in a step, at most: the rear axle's move and the turn times the
         // corner's reach from it (review round 2: sampled by the rear axle's travel, a corner swinging round a slow
@@ -703,14 +678,15 @@ namespace DrivenRides.Core.Drive
         }
 
         // The line a plan gives, checked as it will be driven (review rounds 1 and 2): each rounded corner and each
-        // sideways move driven by the model over its stretch (Sweep). A rounded corner that fails is left sharp: the
-        // lane's own waypoints, which Gley's cars drive and the ride car drove cleanly before corners were rounded (T3
-        // on 0.1.70; 0.1.80 swept the sharp corner too and blocked the lane when that failed, which left Hamptons rides
-        // and a plain Manhattan street without a route). A move that fails is dropped, and as the lane without it is
-        // the one found blocked, its step fails. Each failure goes in `failed` (the step to block, and why), and a
-        // plan with any failure must not be driven. Yields after each sweep, so a caller can spread the work.
+        // sideways move driven by the model over its stretch (Sweep, at LaneMargin). A rounded corner that fails is
+        // left sharp, and the sharp corner is swept on the final line: one that fails too blocks its step, and the
+        // route goes round it (T3 on 0.1.81: ride 16 drove a Hamptons gate's sharp corner blind into its door). A
+        // move that fails is dropped, and as the lane without it is the one found blocked, its step fails. Each
+        // failure goes in `failed` (the step to block, and why), and a plan with any failure must not be driven.
+        // Yields after each sweep, so a caller can spread the work.
         public IEnumerable<object?> Validate(DrivePlan plan, List<(int From, int To, string What)> failed, List<string>? notes = null)
         {
+            var sharp = new HashSet<int>();
             var settled = false;
             for (var round = 0; round < ValidateRounds && !settled; round++)
             {
@@ -724,7 +700,8 @@ namespace DrivenRides.Core.Drive
                     var what = swept.What;
                     if (what == null) continue;
                     plan.Fillets.Remove(k);
-                    notes?.Add($"corner at {plan.Path[k]} left sharp, as the lane runs ({what})");
+                    sharp.Add(k);
+                    notes?.Add($"corner at {plan.Path[k]} left sharp ({what})");
                     changed = true;
                 }
                 foreach (var shift in new List<(int Position, float From, float To, float Offset)>(plan.Shifts))
@@ -739,6 +716,13 @@ namespace DrivenRides.Core.Drive
                     changed = true;
                 }
                 settled = !changed;
+            }
+            var final = plan.Line(graph);
+            foreach (var k in sharp)
+            {
+                var swept = new SweepResult();
+                foreach (var y in SweepWork(plan, final, final.AlongOf[k] - 10f, final.AlongOf[k] + 10f, swept)) yield return y;
+                if (swept.What != null && k + 1 < plan.Path.Count) failed.Add((plan.Path[k], plan.Path[k + 1], $"corner at {plan.Path[k]}, rounded or sharp: {swept.What}"));
             }
             if (!settled)
                 foreach (var shift in plan.Shifts)

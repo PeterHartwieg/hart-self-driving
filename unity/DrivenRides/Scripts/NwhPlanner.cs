@@ -187,31 +187,25 @@ namespace DrivenRides
             return type != null ? For(type, topKmh) : null;
         }
 
-        // Blocks of the InLane kind (BlockCause) hold this long, then the step is swept again.
-        public const float InLaneSeconds = 180f;
-
         public void Block(int from, int to, BlockCause cause = BlockCause.Manoeuvre) => blocked[(from, to)] = (cause, Time.realtimeSinceStartup);
 
-        public bool IsBlocked(int from, int to)
-        {
-            if (!blocked.TryGetValue((from, to), out var b)) return false;
-            if (b.Cause == BlockCause.InLane && Time.realtimeSinceStartup - b.At > InLaneSeconds)
-            {
-                // Checked afresh: a manoeuvre's verdict was cached with what stood in its way then.
-                blocked.Remove((from, to));
-                Check.Forget(from, to);
-                return false;
-            }
-            return true;
-        }
+        public bool IsBlocked(int from, int to) => blocked.ContainsKey((from, to));
 
-        // A new ride: what blocked the last one on its way doesn't block this one, and no lane is taken as clear from
-        // the last ride's sweep (the parked cars there may have been cleared and parked again since).
+        // A new ride: only a manoeuvre the car can't make in the built world (BlockCause.Manoeuvre) stays blocked for
+        // the session. What stood on the way (traffic, no motion) or in a lane (a parked car, a prop, a lane's corner)
+        // blocked the last ride only: the new one sweeps its lanes again when it plans and as the car comes near them
+        // (review round 1 gave InLane 180 s; T3 on 0.1.80 then found later rides with no route and no block of their
+        // own listed). No lane is taken as clear from the last ride's sweep either.
         public void BeginRide()
         {
             var stale = new List<(int, int)>();
-            foreach (var pair in blocked) if (pair.Value.Cause == BlockCause.OnTheWay) stale.Add(pair.Key);
-            foreach (var key in stale) blocked.Remove(key);
+            foreach (var pair in blocked) if (pair.Value.Cause != BlockCause.Manoeuvre) stale.Add(pair.Key);
+            foreach (var key in stale)
+            {
+                blocked.Remove(key);
+                // Checked afresh: a manoeuvre's verdict was cached with what stood in its way then.
+                Check.Forget(key.Item1, key.Item2);
+            }
             laneClear.Clear();
         }
 
@@ -405,8 +399,11 @@ namespace DrivenRides
                         float? side = null;
                         if (c.Raycast(new Ray(probe, right), out var toRight, 3f)) side = toRight.distance;
                         if (c.Raycast(new Ray(probe, -right), out var toLeft, 3f) && (side == null || toLeft.distance < side.Value)) side = -toLeft.distance;
-                        // Neither way: the line runs through it (a convex one holds the point), or it is only ahead or
-                        // behind within this metre's box.
+                        // Neither way: the line runs through it (a convex one holds the point, or it crosses the line
+                        // within this metre: a gate's door across the lane, which T3 on 0.1.81 drove into on ride 16,
+                        // was passed over as ahead or behind), or it is only ahead or behind within this metre's box.
+                        if (side == null && (c.Raycast(new Ray(probe - forward * 0.5f, forward), out _, 1f) || c.Raycast(new Ray(probe + forward * 0.5f, -forward), out _, 1f)))
+                            side = 0f;
                         if (side == null)
                         {
                             if (c is MeshCollider mesh && !mesh.convex)
@@ -564,7 +561,10 @@ namespace DrivenRides
             if (noCase > 0) Log.Info($"NWH planner: {noCase} steps blocked with no case to check them on.");
             into.Route = route;
             into.Plan = route != null ? plan : null;
-            into.Summary = (route != null ? $"{(driven.Count > 0 ? string.Join(", ", driven) : "no added turns")}, {changes} lane changes" : "no route")
+            // With no route, how many steps blocked earlier in the session (manoeuvres this car can't make) the search
+            // also kept out, so a "no route" with no block of its own listed says why.
+            var earlier = blocked.Count - blockedNotes.Count;
+            into.Summary = (route != null ? $"{(driven.Count > 0 ? string.Join(", ", driven) : "no added turns")}, {changes} lane changes" : $"no route ({Math.Max(0, earlier)} manoeuvres blocked earlier this session)")
                 + (blockedNotes.Count > 0 ? $"; blocked {blockedNotes.Count}: {string.Join("; ", blockedNotes.GetRange(0, Math.Min(4, blockedNotes.Count)))}{(blockedNotes.Count > 4 ? "; ..." : "")}" : "")
                 + (noCase > 0 ? $"; {noCase} with no case to check" : "");
         }

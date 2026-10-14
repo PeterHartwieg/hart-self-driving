@@ -69,11 +69,11 @@ public sealed class ReviewRound2Tests
         return (b.Build(), lane);
     }
 
-    // A rounded corner that fails is left sharp, as the lane runs, and the step is still driven: the lane's own
-    // waypoints are what Gley's cars drive (T3 on 0.1.80 blocked ride 16's Hamptons lane and ride 5's Manhattan street
-    // this way, both driven cleanly sharp on 0.1.70).
+    // A rounded corner that fails is left sharp, and the sharp corner is swept too: one the car can't drive on its line
+    // blocks its step, so the route goes round it (T3 on 0.1.81: ride 16 drove a Hamptons gate's corner blind into
+    // its door).
     [Fact]
-    public void Q3ACornerThatFailsRoundedIsLeftSharpAndDriven()
+    public void Q3ACornerThatFailsRoundedAndSharpFailsItsStep()
     {
         var (graph, lane) = Corner();
         var clean = new Feasibility(graph, Small(), _ => null);
@@ -84,11 +84,9 @@ public sealed class ReviewRound2Tests
         // A post at the corner: the rounded line passes within a metre of it, the sharp one over it.
         var posted = new Feasibility(graph, Small(), Post(0f, 30f));
         var blocked = DrivePlan.Build(graph, lane, Small(), posted.Arc, posted.Clear);
-        var notes = new List<string>();
-        var failed = posted.ValidateNow(blocked, notes);
+        var failed = posted.ValidateNow(blocked);
         Assert.DoesNotContain(3, blocked.Fillets);
-        Assert.Empty(failed);
-        Assert.Contains(notes, n => n.Contains($"corner at {lane[3]} left sharp") && n.Contains("post"));
+        Assert.Contains(failed, f => f.From == lane[3] && f.To == lane[4] && f.What.Contains("rounded or sharp") && f.What.Contains("post"));
     }
 
     // Only corners a fillet rounds are swept: T3 on 0.1.80 swept each waypoint of a straight street as a "corner" (41 of
@@ -133,26 +131,20 @@ public sealed class ReviewRound2Tests
         Assert.False(now.SameShape(vias));
     }
 
+    // T3 on 0.1.81, ride 13: the limo stood on its line in a median's crossing, a raised island 1 m beside its wheels,
+    // and the roll check (gone) read a 0.48 m lean from the ground sampled beside the lane. Standing or driving on its
+    // line beside an island is no kerb; a wheel going up onto it is.
     [Fact]
-    public void Q6BothWheelsOfOneSideUpIsAKerbASlopeIsNot()
+    public void Q6AnIslandBesideTheLaneIsNoKerbAWheelOnItIs()
     {
-        // Left pair 0.15 m up: each wheel lies in the plane of the other three, so Rise sees nothing; Roll does.
-        var leftUp = new[] { new Vec3(-0.75f, 0.15f, 0), new Vec3(0.75f, 0, 0), new Vec3(-0.75f, 0.15f, 2.5f), new Vec3(0.75f, 0, 2.5f) };
-        for (var i = 0; i < 4; i++) Assert.InRange(WheelPlane.Rise(leftUp, i)!.Value, -0.01f, 0.01f);
-        Assert.InRange(WheelPlane.Roll(leftUp, 0f), 0.14f, 0.16f);
-        // A road falling 2% to the right: the same lean is the road's own.
-        var (graph, _) = North();
-        float? Cambered(Vec3 p) => -0.02f * p.X;
-        var fall = WheelPlane.CrossFall(graph, new Vec3(0, 0, 25), 0, Cambered);
-        Assert.InRange(fall!.Value, 0.0199f, 0.0201f);
-        var onCamber = leftUp.Select(w => new Vec3(w.X, Cambered(w)!.Value, w.Z)).ToArray();
-        Assert.InRange(WheelPlane.Roll(onCamber, fall.Value * 1.5f), -0.01f, 0.01f);
-        // The check finds a car whose left wheels stand on a kerb 1.8 m left of the lane's middle.
-        var lane = North().Lane;
-        var kerbed = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -1.8f ? 0.15f : 0f };
-        var plan = DrivePlan.Build(graph, lane, Small(), kerbed.Arc, kerbed.Clear);
-        var found = kerbed.Join(plan, plan.Line(graph), new CarPose(-1.4f, 20f, 0f));
-        Assert.True(found != null && found.Contains("left wheels"), found ?? "null");
+        var (graph, lane) = North();
+        var check = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -1.8f ? 0.47f : 0f };
+        var plan = DrivePlan.Build(graph, lane, Small(), check.Arc, check.Clear);
+        Assert.Null(check.Join(plan, plan.Line(graph), new CarPose(0f, 20f, 0f)));
+        Assert.Null(check.Sweep(plan, plan.Line(graph), 10f, 40f));
+        var wheelUp = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -0.6f && p.Z > 30f && p.Z < 31f ? 0.15f : 0f };
+        var found = wheelUp.Sweep(plan, plan.Line(graph), 10f, 45f);
+        Assert.True(found != null && found.Contains("kerb: a"), found ?? "null");
     }
 
     [Fact]

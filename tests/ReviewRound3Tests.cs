@@ -330,18 +330,6 @@ public sealed class ReviewRound3Tests
     }
 
     [Fact]
-    public void R5TheRollIsMeasuredWhereTheWheelsAre()
-    {
-        var w = new World();
-        // The rear axle 0.9 m left of the lane's middle: the real left wheels at 1.65 m, the margin-wider ones at 2.15.
-        var pose = new Pose(-0.9f, 0f, 20f, 0f);
-        var nearKerb = new Feasibility(w.Graph, Small()) { GroundAt = p => p.X < -2.0f ? 0.15f : 0f };
-        Assert.Null(nearKerb.Leaning(pose));
-        var onKerb = new Feasibility(w.Graph, Small()) { GroundAt = p => p.X < -1.6f ? 0.15f : 0f };
-        Assert.Contains("left wheels", onKerb.Leaning(pose) ?? "");
-    }
-
-    [Fact]
     public void R7ThePlannersHoldGoesIntoTheTrafficSnapshot()
     {
         var snapshot = new TrafficSnapshot { PlannerHoldAlong = 48f };

@@ -1,11 +1,11 @@
-# In-game checks: planner after T3 on 0.1.80 (nwh-feasible, 0.1.81-planner1)
+# In-game checks: planner after T3 on 0.1.81 (nwh-feasible, 0.1.81-planner2)
 
 Disposable save, Food Trucks parked, other gameplay mods off. T3 as before: `tools/turn-tests.sh homepc send run driver=nwh kinds=ride rides=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 cars=limo traffic=on speed=auto`, then `tools/turn-tests.sh homepc fetch`.
 
-1. **Routes.** No leg is `avoided` for "no route" on an ordinary street. Expected: ride-1-0, ride-2-0, ride-5-0 with a wide U-turn as a u-curve (17684 -> 99 or a sibling, as on 0.1.70), ride-4-0 with 7408 -> 15092, ride-16-361 with "no added turns".
-2. **Every rejection in the log.** One `NWH planner: blocked <kind> <from> -> <to> for <car>: <why>.` line per blocked step, with the numbers: the collider and where, the model's offset from its line, its wheel and whether the margin was on; for pavement the corner, its distance from the nearest lane, and that it lies outside any junction's box. Copy these lines into the results notes for any leg still avoided.
-3. **Corners left sharp.** `NWH planner: corner at N left sharp, as the lane runs (...)` lines are notes, not blocks: the leg still drives. Watch one Hamptons guardrail stretch (ride 16): no contact, no kerb.
-4. **Junction boxes.** Each result's `judge.JunctionPavement`, if set, names the farthest a body corner went over pedestrian ground inside a junction's box (carriageway by the rule). Over about 4 m, look at that leg's picture or replay it: if the corner is on a real pavement corner or island, the box rule is too wide there.
+1. **Routes.** Rides 1, 2, 4 and 5 as on 0.1.81-planner1 (their 0.1.70 plans). Ride 13 drives its 22 m U-turn and passes: no rig check reads a "lean" any more (its 0.1.81 failure was the limo standing flat on its line). Ride 16-361 either goes round the Hamptons gate or reports it: a `NWH planner: blocked lane ... ('Door_1' ...` or `in the lane: 'Door_2'` line, never a contact with a door.
+2. **Every rejection in the log.** One `NWH planner: blocked <kind> <from> -> <to> for <car>: <why>.` line per blocked step, with the collider or corner, the model's offset from its line, its wheel and the margin (0.50 m for added turns and U-turns, 0.20 m along a lane). A lane corner that fails rounded and sharp is `corner at N, rounded or sharp: ...`. Copy these lines into the results notes for any leg still avoided.
+3. **Block lifetime.** Within a rig session, a leg whose summary says `no route (N manoeuvres blocked earlier this session)` names how many earlier blocks kept it out. Lane and traffic blocks don't carry over: no later leg should be avoided with nothing of its own listed and N = 0.
+4. **Junction boxes.** Each result's `judge.JunctionPavement`, if set, names the farthest a body corner went over pedestrian ground inside a junction's box. Over about 4 m, look at that leg's picture: if the corner is on a real pavement corner or island, the box rule is too wide there.
 
 # In-game checks: traffic for NWH rides (T3, nwh-traffic branch, 0.1.52-traffic1)
 
