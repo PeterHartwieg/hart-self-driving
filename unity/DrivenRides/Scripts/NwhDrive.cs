@@ -58,6 +58,7 @@ namespace DrivenRides
         private string? blockedWhat;
         private Recovery? recovery;
         private float pushSeconds, staticHeldSeconds;
+        private bool stuckReplanned;
         private int lastBlockerLayer = -1;
         private string lastBlocker = "";
 
@@ -98,6 +99,23 @@ namespace DrivenRides
         // TraceLines steps, the traffic recorder behind the scenario dumps, and the traffic cost. Off on a ride: nothing
         // kept, and none of their buffers made (review round 2, U5).
         public bool Recording;
+        // A ride's cost records without the rig's trace (phase 5: decision cost per frame at 2x and 3x).
+        public bool MeasureCost;
+        // Per frame: the traffic decision's microseconds summed over the frame's physics steps, and how many steps
+        // the frame had (at 2x and 3x a frame has more of them; fixedDeltaTime never changes).
+        public CostSamples? FrameCost, FrameSteps;
+        private int costFrame = -1;
+        private float costThisFrame;
+        private int stepsThisFrame;
+        private double scaleSum;
+        private int scaleFrames;
+        // The planner's jobs (WayOnControl) get this much per frame in all, shared by the frame's physics steps, so
+        // a faster ride doesn't spend more of each frame planning; at least WayOnMinStepMs per step, so a job always
+        // moves on.
+        public const double WayOnFrameMs = 3.0;
+        private const double WayOnMinStepMs = 0.5;
+        private int budgetFrame = -1;
+        private double budgetLeftMs;
         private const int TraceLines = 30000;
         private const string TraceHeader = "t,along,lateral,speed,desired,steer,input,angle,throttle,brake,handbrake,gear,stop,gap,yield,cap,traffic,forced,marginal\n";
         private string[]? traceRing;
@@ -122,11 +140,67 @@ namespace DrivenRides
                 DecideCost = new CostSamples();
                 CarsRead = new CostSamples();
             }
+            if (MeasureCost && DecideCost == null)
+            {
+                ReadCost = new CostSamples();
+                DecideCost = new CostSamples();
+                CarsRead = new CostSamples();
+            }
+            if ((Recording || MeasureCost) && FrameCost == null)
+            {
+                FrameCost = new CostSamples();
+                FrameSteps = new CostSamples();
+            }
             UsePath(path, arcs, slow);
+            // On the line where the car stands: a ride's car stands where its traffic car stood, a little short of
+            // the path's first waypoint, and a rig case may start nudged along its lane.
+            var rearNow = car.RearAxle;
+            driver.StartAt(rearNow.x, rearNow.z);
+            lastProgressAlong = driver.Along;
+            prevFront = driver.Along + car.FrontAhead;
             gley = new GleyTraffic(car.Root);
             startedAt = Time.time;
             lastProgressTime = Time.time;
         }
+
+        // A checked plan (NwhPlanner.PlanRoute, Plan) driven with the shape it was checked for: NWH's Ackermann
+        // (CarModel.TrackWidth), the traffic rules' model of the car (TrafficDriver.Model), the plan's sideways moves
+        // and rounded corners. Rides and the rig's planned cases start this way.
+        public void Begin(NwhCar car, DrivePlan plan, CarSpec spec, float topKmh)
+        {
+            TrackWidth = spec.TrackWidth;
+            Spec = spec;
+            Shifts = plan.Shifts;
+            Fillets = plan.Fillets;
+            Begin(car, plan.Path, plan.Arcs, plan.Slow, topKmh);
+        }
+
+        // Drives on along a new plan from where the car stands now (after a teleport: the bridge skip), whatever it
+        // was doing: blocked, backing off or holding.
+        public void DriveOn(DrivePlan plan)
+        {
+            if (Ended || driver == null) return;
+            blockedWhat = null;
+            recovery = null;
+            backing = false;
+            pushSeconds = staticHeldSeconds = 0f;
+            Restart(plan);
+        }
+
+        // The ride's watchdog (RideWatch, Replan): no progress along the line for a while, so the step the front is on
+        // is given up as a blocked one, and the planner plans round it as for any block. False when it can't (already
+        // blocked, ended, or no way on to plan).
+        public bool GiveUpStep(string why)
+        {
+            if (Ended || driver == null || blockedWhat != null || WayOn.Replan == null) return false;
+            var front = driver.Along + Car.FrontAhead;
+            var position = 0;
+            while (position + 1 < path.Count && line.AlongOf[position + 1] <= front) position++;
+            return Block(position, front, why);
+        }
+
+        // Metres of line left to the front bumper.
+        public float LeftMetres => driver == null ? 0f : Mathf.Max(0f, driver.Length - driver.Along - Car.FrontAhead);
 
         // Drives on along a new path from where the car is (a blocked step planned round, Replan): the line, the
         // driver and the traffic rules start afresh on it, and no intersection keeps counting the car.
@@ -216,7 +290,10 @@ namespace DrivenRides
             {
                 var at = 0;
                 while (at + 1 < path.Count && line.AlongOf[at + 1] <= front) at++;
+                var planTicks = Stopwatch.GetTimestamp();
+                WayOn.BudgetMs = StepBudget();
                 var ahead = WayOn.Ahead(Time.time, Time.fixedDeltaTime, at, line.AlongOf, front, speed, PoseNow);
+                budgetLeftMs -= (Stopwatch.GetTimestamp() - planTicks) * MicrosPerTick / 1000.0;
                 if (ahead.Act == WayOnControl.Act.Restart && ahead.Plan != null) { Restart(ahead.Plan); return; }
                 if (ahead.Act == WayOnControl.Act.End) { End(ahead.Why, false); return; }
                 if (ahead.Act == WayOnControl.Act.Block) Block(ahead.Position >= 0 ? ahead.Position : at, front, ahead.Why);
@@ -230,7 +307,9 @@ namespace DrivenRides
             };
             ticks = Stopwatch.GetTimestamp();
             traffic.Decide(snapshot, decision);
-            DecideCost?.Add((float)((Stopwatch.GetTimestamp() - ticks) * MicrosPerTick));
+            var decideMicros = (float)((Stopwatch.GetTimestamp() - ticks) * MicrosPerTick);
+            DecideCost?.Add(decideMicros);
+            PerFrame(decideMicros);
             foreach (var e in decision.Events)
             {
                 gley.Apply(e);
@@ -265,7 +344,10 @@ namespace DrivenRides
                     if (Mathf.Abs(speed) > 0.2f) return;
                     // The way on is planned over the next physics steps while the car stands.
                     if (WayOn.Job == null) Log.Info($"NWH drive: {recovery.Ended} ({recovery.Backed:0.0} m); asking for another way.");
+                    var planTicks = Stopwatch.GetTimestamp();
+                    WayOn.BudgetMs = StepBudget();
                     var way = WayOn.Blocked(blockedPosition, blockedWhat, PoseNow);
+                    budgetLeftMs -= (Stopwatch.GetTimestamp() - planTicks) * MicrosPerTick / 1000.0;
                     if (way.Act == WayOnControl.Act.Wait) return;
                     if (way.Act != WayOnControl.Act.Restart || way.Plan == null) { End(way.Why.Length > 0 ? way.Why : "blocked: " + blockedWhat, false); return; }
                     blockedWhat = null;
@@ -327,9 +409,16 @@ namespace DrivenRides
             if (Ended) return;
             if (o.Along + Car.FrontAhead >= driver.Length - 1.5f && Mathf.Abs(speed) < 0.3f) { End("arrived", true); return; }
             if (BlockedRule(o, speed, gap)) return;
-            // Stuck: 30 s without 2 m of progress while nothing holds the car.
-            if (o.Along > lastProgressAlong + 2f || WaitingNow) { lastProgressAlong = o.Along; lastProgressTime = Time.time; }
-            else if (Time.time - lastProgressTime > 30f) { End("stuck", false); return; }
+            // Stuck: 30 s without 2 m of progress while nothing holds the car. With a way on to plan (a ride), the step
+            // ahead is given up once and planned round, as for any block; stuck again after that, the drive ends.
+            if (o.Along > lastProgressAlong + 2f || WaitingNow) { lastProgressAlong = o.Along; lastProgressTime = Time.time; stuckReplanned = false; }
+            else if (Time.time - lastProgressTime > 30f)
+            {
+                lastProgressTime = Time.time;
+                if (!stuckReplanned && WayOn.Replan != null) { stuckReplanned = true; Block(o, "stuck: no progress for 30 s"); return; }
+                End("stuck", false);
+                return;
+            }
             stillSeconds = Mathf.Abs(speed) < 0.2f && !WaitingNow && o.Desired > 1f ? stillSeconds + Time.fixedDeltaTime : 0f;
             if (stillSeconds > 1f && stillSeconds < 1.03f) Log.Info($"NWH drive: standing with throttle {o.Throttle:0.00}, gear {transmission.Gear}, engine {(vehicle.powertrain.engine.IsRunning ? "running" : "off")}, rpm {vehicle.powertrain.engine.OutputRPM:0}.");
         }
@@ -583,12 +672,39 @@ namespace DrivenRides
             if (Car?.Vehicle != null) { Car.Vehicle.input.Throttle = 0f; Car.Vehicle.input.Handbrake = 1f; }
         }
 
+        // This step's share of the frame's planning time (WayOnFrameMs).
+        private double StepBudget()
+        {
+            if (Time.frameCount != budgetFrame) { budgetFrame = Time.frameCount; budgetLeftMs = WayOnFrameMs; }
+            return Math.Max(WayOnMinStepMs, budgetLeftMs);
+        }
+
+        // Sums the decision cost per rendered frame: a frame's physics steps are run before its Update.
+        private void PerFrame(float micros)
+        {
+            if (FrameCost == null || FrameSteps == null) return;
+            if (Time.frameCount != costFrame)
+            {
+                if (costFrame >= 0) { FrameCost.Add(costThisFrame); FrameSteps.Add(stepsThisFrame); }
+                costFrame = Time.frameCount;
+                scaleSum += Time.timeScale;
+                scaleFrames++;
+                costThisFrame = 0f;
+                stepsThisFrame = 0;
+            }
+            costThisFrame += micros;
+            stepsThisFrame++;
+        }
+
         // The traffic cost over the drive (review round 1, O7): Gley's cars read within TrafficDriver.SeeMetres and
         // TrafficDriver.Decide, per physics step.
         public string CostLine() => DecideCost == null || ReadCost == null || CarsRead == null ? "NWH drive: traffic cost not recorded." :
             $"NWH drive: traffic cost over {DecideCost.Total} steps: reading Gley's cars within {TrafficDriver.SeeMetres:0} m " +
             $"({CarsRead.Percentile(50):0} cars at the median, {CarsRead.Max:0} at most) p50 {ReadCost.Percentile(50):0} µs, p99 {ReadCost.Percentile(99):0} µs; " +
-            $"deciding p50 {DecideCost.Percentile(50):0} µs, p99 {DecideCost.Percentile(99):0} µs, max {DecideCost.Max:0} µs.";
+            $"deciding p50 {DecideCost.Percentile(50):0} µs, p99 {DecideCost.Percentile(99):0} µs, max {DecideCost.Max:0} µs" +
+            (FrameCost != null && FrameSteps != null && FrameCost.Total > 0
+                ? $"; per frame at {scaleSum / Math.Max(1, scaleFrames):0.#}x on average ({FrameSteps.Percentile(50):0} physics steps at the median, {FrameSteps.Max:0} at most) p50 {FrameCost.Percentile(50):0} µs, p99 {FrameCost.Percentile(99):0} µs, max {FrameCost.Max:0} µs."
+                : ".");
 
         public void Stop(string reason) { if (!Ended) End(reason, false); }
 

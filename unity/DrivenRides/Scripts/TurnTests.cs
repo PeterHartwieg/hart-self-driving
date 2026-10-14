@@ -201,6 +201,14 @@ namespace DrivenRides
                     if (rest.Contains("remove")) NwhDress.Remove();
                     else NwhDress.SpawnBeside(args.TryGetValue("car", out var which) ? which : "taxi");
                     break;
+                // ride [kind=taxi|stand|driver] ...: a real ride through the game's taxi flow (RideCommand).
+                case "ride": StartCoroutine(RideCommand.Run(args, Folder)); break;
+                // ridemode nwh|gley|options: rides with car physics, the Gley rides, or the options page's choice, until
+                // the game quits (Options.CarPhysicsOverride; PlayerPrefs untouched).
+                case "ridemode":
+                    Options.CarPhysicsOverride = rest.Contains("nwh") ? true : rest.Contains("gley") ? false : (bool?)null;
+                    Log.Info($"Ride mode: {(Options.CarPhysicsOverride == null ? "the options page's" : Options.CarPhysicsOverride.Value ? "car physics (NWH)" : "Gley")}; car physics now {(Options.CarPhysics ? "on" : "off")}.");
+                    break;
                 default: Log.Error("Turn tests: unknown command " + words[0]); break;
             }
         }
@@ -665,7 +673,8 @@ namespace DrivenRides
             TrafficManager.Instance.ClearTrafficOnArea(start.position, 40f);
             // The planner's questions before the car is loaded, as a ride asks them when it is planned: can this car
             // make the manoeuvre, and are the case's lanes free of parked cars (loaded now, near the anchor).
-            var planner = s.NwhCheck && fixture.Path == null ? (NwhCar.HasPrefab(model.Name) ? NwhPlanner.For(model.Name, model.TopSpeed) : NwhPlanner.ForTrafficPrefab(model.Prefab, model.TopSpeed)) : null;
+            // The same choice of car and planner as a real ride's (NwhRides).
+            var planner = s.NwhCheck && fixture.Path == null ? NwhRides.Planner(model.Name, model.Prefab, model.TopSpeed) : null;
             DrivenRides.Core.Drive.DrivePlan? ridePlan = null;
             if (planner != null)
             {
@@ -705,15 +714,12 @@ namespace DrivenRides
             var ahead = graph.PlainHeading(route[0], out var lx, out var lz) ? new Vector3(lx, 0f, lz) : all[firstPath.Count > 1 ? firstPath[1] : route[1]].position - start.position;
             ahead.y = 0f;
             var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(ahead) : Quaternion.identity;
-            var car = NwhCar.HasPrefab(model.Name)
-                ? NwhCar.Spawn(model.Name, start.position + Vector3.up * 0.4f, rotation, out var why)
-                : NwhCar.SpawnDressed(model.Prefab, start.position + Vector3.up * 0.4f, rotation, out why);
+            var car = NwhRides.Spawn(model.Name, model.Prefab, start.position + Vector3.up * 0.4f, rotation, out var why);
             if (car == null) { Record(s, line, "setup-error", "no NWH car: " + why, null, null); yield break; }
             if (car.Look != null) line["donor"] = NwhCar.Id(car.TypeName);
             s.NwhCar = car;
-            // The prefab's origin is not its rear axle: the waypoint is where the rear axle starts.
-            car.Root.transform.position -= rotation * new Vector3(0f, 0f, car.RearZ);
-            Physics.SyncTransforms();
+            // The waypoint is where the rear axle starts.
+            NwhRides.PlaceRearAxle(car, start.position, rotation);
 
             var testCar = car.Root.AddComponent<TestCar>();
             testCar.SetBody(car.BodyCentre, car.BodyHalf);
@@ -728,8 +734,7 @@ namespace DrivenRides
             for (var nudge = 0; nudge <= 10; nudge++)
             {
                 placed = start.position + rotation * Vector3.forward * nudge;
-                car.Root.transform.position = placed + Vector3.up * 0.4f - rotation * new Vector3(0f, 0f, car.RearZ);
-                Physics.SyncTransforms();
+                NwhRides.PlaceRearAxle(car, placed, rotation);
                 var outline = testCar.Outline();
                 var middle = (outline[0] + outline[2]) / 2f;
                 middle.y = placed.y + (0.35f + 1.5f) / 2f;
@@ -812,13 +817,15 @@ namespace DrivenRides
             s.DrivenPath = path;
             var drive = car.Root.AddComponent<NwhDrive>();
             drive.Recording = true;
-            // The driver steers for NWH's Ackermann, as the planner's check assumed (CarModel.TrackWidth).
-            if (planner != null) drive.TrackWidth = planner.Car.TrackWidth;
-            // The traffic rules foresee the car's path with its model (TrafficDriver.Model).
-            if (planner != null) drive.Spec = planner.Car;
-            if (shifts != null) drive.Shifts = shifts;
-            drive.Fillets = fillets;
-            drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);
+            // A planned case starts as a ride does (NwhDrive.Begin with the plan and the shape it was checked for);
+            // the controls and check=off drive their own path.
+            if (planner != null && firstPlan != null) drive.Begin(car, firstPlan, planner.Car, model.TopSpeed > 0 ? model.TopSpeed : 50);
+            else
+            {
+                if (shifts != null) drive.Shifts = shifts;
+                drive.Fillets = fillets;
+                drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);
+            }
             // A car that can't get on gives up the step it is on; the planner blocks it for this car, as a ride would
             // before planning again.
             // A ride drives on round it: the step is blocked for this car, the rest of the ride planned again from it,

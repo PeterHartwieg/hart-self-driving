@@ -22,6 +22,7 @@ namespace DrivenRides
         private const string ClockId = "clockpercent";
         private const string ShortcutId = "shortcut";
         private const string LightsId = "lights";
+        private const string CarPhysicsId = "carphysics";
         private static readonly float[] Speeds = { 1f, 2f, 3f };
         private const int DefaultSpeedIndex = 0;
         // The clock's rate during a ride in percent: 0 stops it, 100 is normal (Peter, 12 October 2026).
@@ -36,6 +37,11 @@ namespace DrivenRides
         public static int ClockPercent { get; private set; } = DefaultClockPercent;
         public static float ClockFactor => ClockPercent / 100f;
         public static bool Shortcut { get; private set; } = true;
+        // Taxi and private driver rides drive with the car's own physics (NWH, phase 5); off, they are the Gley rides
+        // as before. The rig's `ridemode` command overrides it for a session without touching PlayerPrefs.
+        public static bool CarPhysics { get => CarPhysicsOverride ?? carPhysics; private set => carPhysics = value; }
+        private static bool carPhysics = true;
+        public static bool? CarPhysicsOverride;
         public static bool TrafficLights { get => LightsOverride ?? lights; private set => lights = value; }
         private static bool lights = true;
         // Set by a test session (lights obeyed), never written to PlayerPrefs, so the options page can't undo it.
@@ -52,11 +58,13 @@ namespace DrivenRides
             ClockPercent = ClampClock(UnityEngine.PlayerPrefs.GetInt(Key(ClockId), DefaultClockPercent));
             Shortcut = UnityEngine.PlayerPrefs.GetInt(Key(ShortcutId), 1) != 0;
             TrafficLights = UnityEngine.PlayerPrefs.GetInt(Key(LightsId), 1) != 0;
+            CarPhysics = UnityEngine.PlayerPrefs.GetInt(Key(CarPhysicsId), 1) != 0;
 
             var options = new ModOptions()
                 .AddHeader("drivenrides:options_header")
                 .AddToggle(TaxisId, "drivenrides:options_taxis", true, value => { Taxis = value; Log.Info($"Option: driven taxis {(value ? "on" : "off")}."); })
                 .AddToggle(DriverId, "drivenrides:options_driver", true, value => { PrivateDriver = value; Log.Info($"Option: driven private driver {(value ? "on" : "off")}."); })
+                .AddToggle(CarPhysicsId, "drivenrides:options_carphysics", true, value => { CarPhysics = value; Log.Info($"Option: rides with car physics {(value ? "on" : "off")}."); })
                 .AddToggle(OwnCarId, "drivenrides:options_owncar", true, value => { OwnCar = value; Log.Info($"Option: own car self driving {(value ? "on" : "off")}."); })
                 .AddDropdown(AutoparkId, "drivenrides:options_autopark",
                     new[] { "drivenrides:options_autopark_off", "drivenrides:options_autopark_cars", "drivenrides:options_autopark_every" },
@@ -70,7 +78,7 @@ namespace DrivenRides
                 .AddToggle(LightsId, "drivenrides:options_lights", true, value => { TrafficLights = value; Log.Info($"Option: stop at red lights {(value ? "on" : "off")}."); })
                 .AddToggle(ShortcutId, "drivenrides:options_shortcut", true, value => { Shortcut = value; Log.Info($"Option: driver shortcut {(value ? "on" : "off")}."); });
             OptionsService.Register(id, options);
-            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, own car {(OwnCar ? "on" : "off")}, autopark {Autopark}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}.");
+            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, own car {(OwnCar ? "on" : "off")}, autopark {Autopark}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}, car physics {(CarPhysics ? "on" : "off")}.");
         }
 
         public static void Unregister()

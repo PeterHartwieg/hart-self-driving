@@ -3,6 +3,7 @@
     "drivenrides:options_header": "Driven Rides",
     "drivenrides:options_taxis": "Taxi rides drive through the city",
     "drivenrides:options_driver": "Private driver rides drive through the city",
+    "drivenrides:options_carphysics": "Rides drive with real car physics (off: the older traffic-car rides)",
     "drivenrides:options_owncar": "Your own car drives itself (L in the driver's seat)",
     "drivenrides:options_autopark": "At the end of a self-driven trip",
     "drivenrides:options_autopark_off": "Park the car yourself",
