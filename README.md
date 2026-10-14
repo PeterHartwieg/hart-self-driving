@@ -1,4 +1,4 @@
-# Driven Rides
+# HART. Self Driving
 
 A mod for Big Ambitions. Taxi rides, taxi stands, your private driver and your own car drive you through the city instead of fading to black. The car is a real car with the game's own driving physics, the same your car has when you drive it. It finds its way through traffic, stops at red lights, gives way and turns at junctions. You ride along, the camera follows the car, and you get out at the door.
 
@@ -20,7 +20,7 @@ Version 0.2.0-rc1, a release candidate. Built for Big Ambitions 1.0 (Steam build
 
 ## Options
 
-In the game's Mods options, under Driven Rides:
+In the game's Mods options, under HART. Self Driving:
 
 | Option | Default |
 |---|---|
@@ -57,7 +57,7 @@ The panel's speed buttons and clock slider change the same settings, so the next
 
 ## Removing the mod
 
-Driven Rides adds nothing to your save. A save made during a ride stores the place where you got in, so loading it puts you back there on foot, as if the ride never started. To remove the mod, unsubscribe on the Workshop (or delete the `DrivenRides` folder from `ModsLocal`) and start the game. Your saves load without it.
+HART. Self Driving adds nothing to your save. A save made during a ride stores the place where you got in, so loading it puts you back there on foot, as if the ride never started. To remove the mod, unsubscribe on the Workshop (or delete the `DrivenRides` folder from `ModsLocal`) and start the game. Your saves load without it.
 
 The options stay in the game's settings (Unity's PlayerPrefs, keys starting with `m:`). They do nothing without the mod.
 

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: ModManifest
   m_EditorClassIdentifier: 
   ModId: DrivenRides
-  DisplayName: Driven Rides
+  DisplayName: HART. Self Driving
   Author: Peter Hartwieg
   Version: 0.2.0-rc1
   AssetBundleName: drivenrides.unity3d

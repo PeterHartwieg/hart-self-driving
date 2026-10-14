@@ -17,7 +17,7 @@ namespace DrivenRides
     {
         public const string Version = "0.2.0-rc1";
         // The name players see; tools/rename-mod.sh changes it here and in the manifest, locales and README.
-        public const string DisplayName = "Driven Rides";
+        public const string DisplayName = "HART. Self Driving";
 
         public string[] RelativeAssetBundlePaths => Array.Empty<string>();
 

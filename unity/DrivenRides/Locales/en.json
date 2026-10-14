@@ -1,6 +1,6 @@
 {
     "drivenrides:notification": "{message}",
-    "drivenrides:options_header": "Driven Rides",
+    "drivenrides:options_header": "HART. Self Driving",
     "drivenrides:options_taxis": "Taxis drive you there",
     "drivenrides:options_driver": "Your private driver drives you there",
     "drivenrides:options_carphysics": "Real car physics (off: the older, simpler rides)",
@@ -29,7 +29,7 @@
     "drivenrides:notice_not_during_ride": "Not during a ride.",
     "drivenrides:notice_driver_outside": "Your driver is waiting outside.",
     "drivenrides:notice_no_driver": "You have no private driver.",
-    "drivenrides:notice_owncar_off": "Self-driving is off in the Driven Rides options.",
+    "drivenrides:notice_owncar_off": "Self-driving is switched off in the mod options.",
     "drivenrides:notice_owncar_only_cars": "Only cars can drive themselves.",
     "drivenrides:notice_owncar_street": "Drive out onto the street first.",
     "drivenrides:notice_owncar_stop": "Stop the car first.",
