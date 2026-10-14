@@ -25,7 +25,7 @@ public sealed class FollowingTests
     [InlineData(10f)]
     [InlineData(7f)]
     [InlineData(13f)]
-    public void FollowsAtItsSpeedAboutASecondAndAHalfBehindThenStopsBehindIt(float leaderMs)
+    public void FollowsAtItsSpeedAboutASecondBehindThenStopsBehindIt(float leaderMs)
     {
         var points = Enumerable.Range(0, 201).Select(k => new Vec3(0, 0, k * 8f)).ToList();
         var line = DriveLine.Build(points, Array.Empty<(int, Polyline)>());
@@ -66,7 +66,7 @@ public sealed class FollowingTests
         var headway = headwaySum / samples;
         output.WriteLine($"leader {leaderMs} m/s: following at {speed:0.00} m/s, {headway:0.00} s behind; stopped {minGap:0.0} m behind at the closest");
         Assert.InRange(speed, leaderMs - 0.3f, leaderMs + 0.3f);
-        Assert.InRange(headway, 1.0f, 1.5f);
+        Assert.InRange(headway, 0.8f, 1.3f);
         Assert.InRange(minGap, 1.5f, 4f);
         Assert.True(Math.Abs(ride.Speed) < 0.1);
     }

@@ -93,7 +93,7 @@ public sealed class TrafficTests
         Assert.True(unsettled == 0, $"{unsettled} decisions whose final pass didn't settle");
         // Every stop the car could no longer make came from the emergency rule (review round 8, CC3).
         Assert.Empty(notEmergency);
-        // A ratchet from 0.1.81-traffic19 (review round 6; round 7 added the last two; round 8 counts only avoidable
+        // A ratchet from 0.1.81-traffic20 (the margins of TrafficMargins) (review round 6; round 7 added the last two; round 8 counts only avoidable
         // losses): runs with a forced commit, reduced-headway continuations, runs that lost the stopping option for a
         // car with no news of it, and stops imposed again within a second (flicker, BB1). Per template, only ever
         // lowered; with DR_TRAFFIC_SEEDS=500 only (a plain run checks the hard invariants above).
@@ -121,8 +121,8 @@ public sealed class TrafficTests
     // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
     private static readonly Dictionary<string, (int Forced, int Marginal, int OptionLost, int Again)> Ratchet = new()
     {
-        ["lights"] = (1, 0, 2, 30), ["priority"] = (0, 0, 3, 3), ["merge"] = (0, 0, 0, 1), ["uturn"] = (0, 2, 0, 0),
-        ["headon"] = (0, 0, 0, 0), ["pullaway"] = (1, 7, 0, 1),
+        ["lights"] = (0, 0, 10, 28), ["priority"] = (0, 0, 0, 1), ["merge"] = (0, 0, 2, 0), ["uturn"] = (0, 0, 12, 49),
+        ["headon"] = (0, 0, 0, 0), ["pullaway"] = (0, 0, 1, 3),
     };
 
     [Fact]

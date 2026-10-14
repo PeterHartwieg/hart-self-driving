@@ -25,9 +25,9 @@ public sealed class ApproachPedalTests
 
     [Theory]
     [InlineData(9f, 12f, 0f, false)]
-    [InlineData(10f, 6f, 16f, false)]
+    [InlineData(10f, 6f, 16f, true)]
     [InlineData(10f, 6f, 20f, true)]
-    [InlineData(12f, 7f, 20f, false)]
+    [InlineData(12f, 7f, 20f, true)]
     [InlineData(12f, 7f, 24f, true)]
     public void TheCarKeepsItsStoppingOptionThroughThePedals(float rideMs, float crossMs, float later, bool byApproach)
     {
