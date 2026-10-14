@@ -27,8 +27,9 @@ namespace DrivenRides
     // line per ride goes to ride-results.jsonl beside the rig's results.
     //
     //   ride [kind=taxi|stand|driver|own] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
-    //        [autopark=off|cars|every] [skip=N] [exit=N] (own: the player's own car drives itself; it is put on a lane by
-    //        the player first; skip presses Skip N seconds in, exit gets the player out N seconds in)
+    //        [autopark=off|cars|every] [skip=N] [exit=N] [kerb=M] (own: the player's own car drives itself; it is put on a
+    //        lane by the player first, or M metres to the right of it with kerb=M; skip presses Skip N seconds in, exit
+    //        gets the player out N seconds in)
     // `ridemode nwh|gley|options` picks car physics or the Gley rides for the rides after it (TurnTests).
     internal static class RideCommand
     {
@@ -221,6 +222,14 @@ namespace DrivenRides
             result["car"] = car.vehicleType.vehicleTypeName;
             result["autoparkSupported"] = car.vehicleType.autoParkSupported;
             var player = InstanceBehavior<GameManager>.Instance.playerController;
+            // kerb=M: seated M metres to the right of the lane, as a car parked at the kerb (it pulls out first).
+            var kerb = args.TryGetValue("kerb", out var kv) && float.TryParse(kv, NumberStyles.Float, CultureInfo.InvariantCulture, out var km) ? km : 0f;
+            if (kerb != 0f && ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
+            {
+                car.ExitVehicle();
+                var settleOut = Time.unscaledTime + 1f;
+                while (Time.unscaledTime < settleOut) yield return null;
+            }
             if (!ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
             {
                 if (VehicleHelper.GetCurrentVehicleBase() is VehicleController other) other.ExitVehicle();
@@ -232,7 +241,7 @@ namespace DrivenRides
                 var rotation = TrafficManager.Instance.GetWaypointOrientation(lane);
                 // The car's rear axle on the lane waypoint, as a car stopped in the lane stands.
                 var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _);
-                var at = lane.position - rotation * new Vector3(0f, 0f, wrapped != null ? wrapped.RearZ : 0f);
+                var at = lane.position + rotation * new Vector3(kerb, 0f, -(wrapped != null ? wrapped.RearZ : 0f));
                 OwnCarTaxi.Teleport(car, at, rotation);
                 VehicleHelper.DestroyBlockingVehicles(car.gameObject, car.vehicleType, car.transform);
                 result["seatedAt"] = new JArray(Math.Round(at.x, 1), Math.Round(at.z, 1), lane.listIndex);
