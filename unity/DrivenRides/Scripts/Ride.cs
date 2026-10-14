@@ -259,6 +259,7 @@ namespace DrivenRides
 
         private static IEnumerator? TryCreateRide(TaxiSystem taxiSystem, EntityController target, float minutes)
         {
+            lastVanillaReason = "an error (see the log)";
             VehicleComponent? loaded = null;
             spawnedNwh = null;
             PrivateDriverVehicle? parked = null;
@@ -331,13 +332,17 @@ namespace DrivenRides
                     planNwh = ownCar.vehicleType != null ? NwhPlanner.For(ownCar.vehicleType.vehicleTypeName, ownTop) : null;
                     if (planNwh == null) return Vanilla("this car has no drivable shape to plan with");
                     planNwh.BeginRide();
+                    // The car the player sits in is no obstacle to its own trip: not in the first lanes' sweep, not in
+                    // the start check, not in the replans on the way. Planners are cached per car type, so it is set
+                    // back for every other ride and when this one ends (DropState).
+                    planNwh.Ignore = ownCar.transform;
                 }
                 else if (DrivesWithNwh(kind))
                 {
                     planNwh = NwhRides.Planner(driverType, prefab.gameObject, nwhTop);
                     if (planNwh == null) Log.Info("NWH ride: no drivable car for " + prefab.name + "; a Gley ride.");
                     // A new ride: blocks from what stood in the last ride's way go (NwhPlanner.BeginRide).
-                    else planNwh.BeginRide();
+                    else { planNwh.BeginRide(); planNwh.Ignore = null; }
                 }
 
                 var graph = GleyGraph.Graph;
@@ -365,7 +370,8 @@ namespace DrivenRides
                 {
                     spawn = SpawnBeside(manager, ownCar.transform, prefab);
                     if (spawn == null) return Vanilla("no free lane beside the car");
-                    start = spawn.listIndex;
+                    // The line must start under the car: from the lane waypoint behind its rear axle, not one ahead.
+                    start = OwnCarTaxi.StartBehind(graph, ownCar, spawn.listIndex);
                 }
                 else
                 {
@@ -1680,8 +1686,16 @@ namespace DrivenRides
             {
                 // An NWH car is teleported: its rear axle onto the first route waypoint on the far side, at rest, and
                 // the drive goes on along the rest of the route, planned for the car from there.
+                // The own car pays the game's bridge fuel, and only crosses if its tank covers it, as vanilla's skip.
+                var ownOnBridge = kind == Kind.OwnCar ? OwnCarDrive.Car : null;
+                if (ownOnBridge != null && !OwnCarTaxi.HasFuelForBridge(ownOnBridge, Vector3.Distance(from, to)))
+                {
+                    Notice.Show("Not enough fuel to cross the bridge.");
+                    Cancel("not enough fuel for the bridge");
+                    yield break;
+                }
                 if (!LandNwh(at, out var landedAt, out var why)) { EndWith(Outcome.Vanilla, "bridge: " + why); yield break; }
-                if (kind == Kind.OwnCar && OwnCarDrive.Car != null) OwnCarTaxi.ChargeBridgeFuel(OwnCarDrive.Car, Vector3.Distance(from, landedAt));
+                if (ownOnBridge != null) OwnCarTaxi.ChargeBridgeFuel(ownOnBridge, Vector3.Distance(from, landedAt));
                 to = landedAt;
                 if (bridges != null)
                     foreach (var other in bridges)
@@ -2217,6 +2231,7 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
+            if (kind == Kind.OwnCar && nwhPlanner != null) nwhPlanner.Ignore = null;
             if (arcAlong >= 0f && TrafficManager.HasInstance && GleyDriven) EndArc();
             // Whatever way the ride ended, its NWH car never outlives it.
             try { ReleaseNwh("the ride ended", swap: false); } catch (Exception ex) { Log.Error("NWH release: " + ex.Message); }

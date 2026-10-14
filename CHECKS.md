@@ -45,7 +45,7 @@ Disposable save, outdoors on a street, Food Trucks parked. The taxi is the driva
 
 Disposable save only. You need a car of your own (one with autopark and one without, if you have both), fuel, and some money. Every line in the log starts with `[Mod:Driven Rides]`; at startup the patch lines `TaxiSystem.GetPrice`, `CarController.Update` and `CarController.ExitVehicle` must say `Active`.
 
-1. **Start.** Sit in your car, stopped on a street. **L** opens the city map; pick a place 1 to 2 km away. The map closes and the car drives off by itself with you in the driver's seat and the car's own camera. Log: `Own car: driving itself (...)`, `NWH ride planned for ...`, `Departed (NWH)`.
+1. **Start.** Sit in your car, stopped in a driving lane (not at the kerb, which is refused for now). **L** opens the city map; pick a place 1 to 2 km away. The map closes and the car drives off by itself with you in the driver's seat and the car's own camera. Log: `Own car: driving itself (...)`, `NWH ride planned for ...`, `Departed (NWH)`.
 2. **Keys.** During the trip WASD and the handbrake do nothing; the steering wheel doesn't fight the drive (steering assist held off). The ride panel's speed buttons, clock slider and Skip work.
 3. **Arrival.** The car stops near the destination and you're still in the seat with control. Fuel went down as for a normal drive. Log: `Own car: the keys are the player's again (arrived)`.
 4. **Autopark.** Options, Driven Rides, "At the end of a self-driven trip": with *Autopark cars that have autopark*, a car with autopark parks itself (fade, then parked, still in the seat), one without stays on the street. With *Autopark every car*, both park. With *Park the car yourself*, neither. Log: `Own car: autoparked` or `no autopark (...)`.
@@ -55,7 +55,7 @@ Disposable save only. You need a car of your own (one with autopark and one with
 8. **Hospital** mid-trip (**Ctrl+Alt+Shift+V**): the car stops where it is; the hospital takes over.
 9. **Refusals:** L while driving fast says "Stop the car first"; L in a parking garage says "Drive out onto the street first"; L in a car parked at the kerb, or facing against the lane, says it can't drive itself there ("pull out into the lane first"), and works once the car stands in the lane; an empty tank says so; with the own car option off, L in the car does nothing.
 10. **Mid-trip:** the game's autopark button and the bridge's skip button say "Not while the car drives itself". A car that runs out of fuel or is wrecked mid-trip stops, with a notice, and you're in it with control.
-11. **Bridge:** a trip to the Hamptons skips the bridge as the driver's rides do, and the tank goes down by what the game's own bridge skip charges.
+11. **Bridge:** a trip to the Hamptons skips the bridge as the driver's rides do, and the tank goes down by what the game's own bridge skip charges; with too little fuel for it, the trip ends before the bridge with a notice.
 12. A second trip straight after, and a private driver ride after that, both work.
 
 # In-game checks: Milestone 0 (spike, 0.1.0)

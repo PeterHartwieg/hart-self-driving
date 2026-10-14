@@ -243,12 +243,14 @@ namespace DrivenRides
         {
             var t = car.Root.transform;
             var figure = InstanceBehavior<GameManager>.Instance?.playerController?.Character?.transform;
+            // Nor the autopark gap collider, which the game turns on only while a spot is offered.
+            var gap = car.Root.GetComponentInChildren<VehicleParkingHelper>(true)?.parallelParkingCollider;
             var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             var max = -min;
             var found = false;
             foreach (var c in car.Root.GetComponentsInChildren<Collider>(false))
             {
-                if (c.isTrigger || !c.enabled || (figure != null && c.transform.IsChildOf(figure))) continue;
+                if (c.isTrigger || !c.enabled || c == gap || (figure != null && c.transform.IsChildOf(figure))) continue;
                 Bounds b;
                 if (c is BoxCollider box) b = new Bounds(box.center, box.size);
                 else if (c is MeshCollider mesh && mesh.sharedMesh != null) b = mesh.sharedMesh.bounds;

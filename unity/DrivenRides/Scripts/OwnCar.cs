@@ -170,14 +170,41 @@ namespace DrivenRides
         {
             var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out var why);
             if (wrapped == null) return why;
-            var rear = wrapped.RearAxle;
             var forward = car.transform.forward;
-            var pose = new DrivenRides.Core.Drive.CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z));
+            // The check is made for the car as it is: standing, with its wheels where they are.
+            var speed = Vector3.Dot(wrapped.Body.velocity, forward);
+            if (Mathf.Abs(speed) > 0.3f) return "stop the car first";
+            var rear = wrapped.RearAxle;
+            var pose = new DrivenRides.Core.Drive.CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z), speed, car.vehicleController.steering.angle);
             var line = plan.Line(graph);
             if (!line.Joins(pose.X, pose.Z, pose.Heading, out _)) return "pull out into the lane first";
             var result = new DrivenRides.Core.Drive.Feasibility.SweepResult();
             foreach (var _ in planner.Check.JoinWork(plan, line, pose, result)) { }
             return result.What != null ? "it can't drive off from here (" + result.What + ")" : null;
+        }
+
+        // The route's first waypoint: the lane waypoint nearest the car, or the one before it on the same lane when the
+        // nearest is ahead of the rear axle, so the planned line starts under the car.
+        public static int StartBehind(DrivenRides.Core.Routing.LaneGraph graph, CarController car, int nearest)
+        {
+            var all = GleyGraph.Waypoints;
+            if (all == null || nearest < 0 || nearest >= all.Length) return nearest;
+            var forward = car.transform.forward;
+            var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _);
+            var rear = wrapped != null ? wrapped.RearAxle : car.transform.position;
+            if (Vector3.Dot(all[nearest].position - rear, forward) <= 0f) return nearest;
+            foreach (var p in graph.Predecessors(nearest))
+            {
+                var along = all[nearest].position - all[p].position;
+                if (along.sqrMagnitude > 0.01f && Vector3.Dot(along.normalized, forward) > 0.7f && !graph.IsIntersection(p)) return p;
+            }
+            return nearest;
+        }
+
+        public static bool HasFuelForBridge(CarController car, float metres)
+        {
+            try { return car.GetCurrentFuel() >= FuelFor(car, metres); }
+            catch (Exception ex) { Log.Error("Own car bridge fuel check: " + ex.Message); return true; }
         }
 
         // The bridge skip's fuel, as the game charges it (SkipBridgeHelper.GetFuelConsumption): the ride's own skip
