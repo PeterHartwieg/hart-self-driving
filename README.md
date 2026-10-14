@@ -57,7 +57,7 @@ The panel's speed buttons and clock slider change the same settings, so the next
 
 Driven Rides adds nothing to your save. A save made during a ride stores the place where you got in, so loading it puts you back there on foot, as if the ride never started. To remove the mod, unsubscribe on the Workshop (or delete the `DrivenRides` folder from `ModsLocal`) and start the game. Your saves load without it.
 
-The options stay in the game's settings under keys starting with `m:DrivenRides:`. They do nothing without the mod.
+The options stay in the game's settings (Unity's PlayerPrefs, keys starting with `m:`). They do nothing without the mod.
 
 ## Evidence
 
