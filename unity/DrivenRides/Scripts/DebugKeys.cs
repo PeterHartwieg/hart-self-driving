@@ -10,7 +10,8 @@ using UnityEngine.InputSystem;
 
 namespace DrivenRides
 {
-    // Spike debug keys on Ctrl+Alt+Shift with letters the game doesn't bind (docs/implementation-plan.md).
+    // Debug keys on Ctrl+Alt+Shift with letters the game doesn't bind (docs/implementation-plan.md). Added to the
+    // runtime object only in test mode (TestMode), like the turn-test rig.
     internal sealed class DebugKeys : MonoBehaviour
     {
         private static readonly (Key Key, string Label, Action Action)[] Keys =

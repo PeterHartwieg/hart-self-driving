@@ -68,7 +68,7 @@ namespace DrivenRides
             {
                 var watch = Stopwatch.StartNew();
                 var look = MeasureTraffic(trafficPrefab);
-                if (look == null) { why = key + " has no Gley VehicleComponent or no meshes"; Log.Info("Dress donor for " + key + ": " + why + "."); donors[key] = null; return null; }
+                if (look == null) { why = key + " has no Gley VehicleComponent or no meshes"; Log.Trace("Dress donor for " + key + ": " + why + "."); donors[key] = null; return null; }
                 var candidates = new List<Donor>();
                 if (TypesField?.GetValue(null) is Dictionary<string, VehicleType> types)
                     foreach (var type in types.Values)
@@ -83,7 +83,7 @@ namespace DrivenRides
                 // Same number of wheels if any has it (a four-wheeled taxi on a four-wheeled car).
                 var same = candidates.Where(c => c.Drivable.Wheels == look.Wheels).ToList();
                 best = (same.Count > 0 ? same : candidates).OrderBy(c => c.Score).FirstOrDefault();
-                Log.Info($"Dress donor for {key} ({look}): {(best != null ? NwhCar.Id(best.TypeName) : "none")}, {watch.ElapsedMilliseconds} ms. Candidates by score: " +
+                Log.Trace($"Dress donor for {key} ({look}): {(best != null ? NwhCar.Id(best.TypeName) : "none")}, {watch.ElapsedMilliseconds} ms. Candidates by score: " +
                          string.Join("; ", candidates.OrderBy(c => c.Score).Select(c => $"{NwhCar.Id(c.TypeName)} {c.Score:0.00} ({c.Drivable})")) + ".");
                 if (best == null) why = "no drivable car to dress as " + key;
             }
@@ -342,10 +342,10 @@ namespace DrivenRides
                 if (Mathf.Abs(drivable.Length - look.Length) > 0.3f) mismatches.Add($"length {look.Length:0.00} on {drivable.Length:0.00}");
 
                 if (partsLogged.Add(trafficPrefab.name))
-                    Log.Info($"Dress parts of {trafficPrefab.name}: renderers {string.Join(", ", allRenderers.GroupBy(r => r.name).Select(g => g.Count() > 1 ? $"{g.Key} x{g.Count()}" : g.Key))}; " +
+                    Log.Trace($"Dress parts of {trafficPrefab.name}: renderers {string.Join(", ", allRenderers.GroupBy(r => r.name).Select(g => g.Count() > 1 ? $"{g.Key} x{g.Count()}" : g.Key))}; " +
                              $"wheels {string.Join(", ", trafficWheels.Select(t => $"{t.Graphics.name} r {t.Radius:0.00}"))}; shadow {(shadow != null ? shadow.name : "none")}; took off {stripped}.");
                 car.Look = trafficPrefab.name;
-                Log.Info($"Dressed {NwhCar.Id(donor.TypeName)} as {trafficPrefab.name}: look {look}; donor {drivable} (length {drivable.Length - look.Length:+0.00;-0.00}, width {drivable.Width - look.Width:+0.00;-0.00}, " +
+                Log.Trace($"Dressed {NwhCar.Id(donor.TypeName)} as {trafficPrefab.name}: look {look}; donor {drivable} (length {drivable.Length - look.Length:+0.00;-0.00}, width {drivable.Width - look.Width:+0.00;-0.00}, " +
                          $"wheelbase {drivable.Wheelbase - look.Wheelbase:+0.00;-0.00}, track {drivable.Track - look.Track:+0.00;-0.00}, score {donor.Score:0.00}). " +
                          $"Copied {allRenderers.Length - wheelRenderers} body and {wheelRenderers} wheel renderers ({lods} LOD groups), body shifted {shift.x:0.00}, {shift.y:0.00}, {shift.z:0.00}; " +
                          $"hid {hidden} of the donor's ({lightSources} light sources left on it). Wheels: {string.Join("; ", mapping)}. Lights: {lightsText}. Engine: {engineText}. " +
@@ -476,9 +476,9 @@ namespace DrivenRides
             if (!TrafficManager.HasInstance || !TrafficManager.IsInitialized) { Notice.Show("Traffic is not ready."); return; }
             if (BuildingManager.IsInsideBuilding) { Notice.Show("Go outside first."); return; }
             var prefab = TrafficPrefab(which);
-            if (prefab == null) { Log.Info($"Dress: no traffic prefab '{which}' in the pool."); Notice.Show($"No traffic car '{which}'."); return; }
+            if (prefab == null) { Log.Trace($"Dress: no traffic prefab '{which}' in the pool."); Notice.Show($"No traffic car '{which}'."); return; }
             var donor = DonorFor(prefab, out var why);
-            if (donor == null) { Log.Info("Dress: " + why + "."); Notice.Show(why); return; }
+            if (donor == null) { Log.Trace("Dress: " + why + "."); Notice.Show(why); return; }
             var player = InstanceBehavior<GameManager>.Instance.playerController.transform;
             var rotation = Quaternion.Euler(0f, player.eulerAngles.y, 0f);
             var size = new Vector3(Mathf.Max(donor.Look.Width, donor.Drivable.Width), Mathf.Max(donor.Look.Height, donor.Drivable.Height), Mathf.Max(donor.Look.Length, donor.Drivable.Length));
@@ -492,15 +492,15 @@ namespace DrivenRides
                     .Any(c => !c.transform.IsChildOf(player));
                 if (!blocked) { spot = at; break; }
             }
-            if (spot == null) { Notice.Show("No free spot beside you."); Log.Info("Dress: no free spot beside the player."); return; }
+            if (spot == null) { Notice.Show("No free spot beside you."); Log.Trace("Dress: no free spot beside the player."); return; }
             var car = NwhCar.SpawnDressed(prefab, spot.Value + Vector3.up * 0.4f, rotation, out why);
-            if (car == null) { Log.Info("Dress: " + why + "."); Notice.Show("Dress failed: " + why); return; }
+            if (car == null) { Log.Trace("Dress: " + why + "."); Notice.Show("Dress failed: " + why); return; }
             // The spot is for the body's middle, not the prefab's origin.
             car.Root.transform.position -= rotation * new Vector3(car.BodyCentre.x, 0f, car.BodyCentre.z);
             Physics.SyncTransforms();
             car.Root.AddComponent<HoldStill>().Vehicle = car.Vehicle;
             shown = car;
-            Log.Info($"Dress: {prefab.name} on {NwhCar.Id(car.TypeName)} beside the player at {car.Root.transform.position}.");
+            Log.Trace($"Dress: {prefab.name} on {NwhCar.Id(car.TypeName)} beside the player at {car.Root.transform.position}.");
             Notice.Show($"{prefab.name} on {NwhCar.Id(car.TypeName)} beside you.");
         }
 

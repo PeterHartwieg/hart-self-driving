@@ -35,12 +35,16 @@ namespace DrivenRides
             runtimeObject.AddComponent<RideHost>();
             runtimeObject.AddComponent<RidePanel>();
             runtimeObject.AddComponent<DriverShortcut>();
-            runtimeObject.AddComponent<DebugKeys>();
-            runtimeObject.AddComponent<TurnTests>();
+            // Testing only: the debug keys and the turn-test rig, which polls its command files.
+            if (TestMode.On)
+            {
+                runtimeObject.AddComponent<DebugKeys>();
+                runtimeObject.AddComponent<TurnTests>();
+            }
             // Built now, so the first ride's planning time doesn't include it.
             try { _ = GleyGraph.Graph; }
             catch (Exception ex) { Log.Error("Lane graph: " + ex); }
-            Log.Info($"City ready ({TestedSteps.Count} manoeuvres left out from turn tests).");
+            Log.Trace($"City ready ({TestedSteps.Count} manoeuvres left out from turn tests).");
         }
 
         // Fires before the city scene goes, so the ride's player and managers still exist (LoadScene.cs:27-31).

@@ -65,13 +65,13 @@ namespace DrivenRides
                 found.Steps = GateCrossing.Steps(graph, found.Gate);
                 if (found.Steps.Count == 0) continue;
                 current.Add(found);
-                Log.Info($"Gate '{door.name}' ({door.GetType().Name}): {(locked ? "shut for the player" : "opens")}, doors and trigger over x {b0.min.x:0.0}..{b0.max.x:0.0}, z {b0.min.z:0.0}..{b0.max.z:0.0}, {found.Steps.Count} lane steps through it.");
+                Log.Trace($"Gate '{door.name}' ({door.GetType().Name}): {(locked ? "shut for the player" : "opens")}, doors and trigger over x {b0.min.x:0.0}..{b0.max.x:0.0}, z {b0.min.z:0.0}..{b0.max.z:0.0}, {found.Steps.Count} lane steps through it.");
                 foreach (var c in found.DoorColliders) byCollider[c] = found;
                 foreach (var s in found.Steps) byStep[s] = found;
             }
             var locked0 = 0;
             foreach (var f in current) if (f.Gate.Locked) locked0++;
-            Log.Info($"Gates: {current.Count} across lanes, {locked0} locked for the player.");
+            Log.Trace($"Gates: {current.Count} across lanes, {locked0} locked for the player.");
         }
 
         // A door of a gate that opens for this ride: the planner counts it as open (out of the way).

@@ -42,7 +42,7 @@ namespace DrivenRides
 
         public static Vec3 ToVec(Vector3 v) => new Vec3(v.x, v.y, v.z);
 
-        // Spike builds write the lane graph once per graph size to the game's data folder, for route analysis away
+        // Test mode (TestMode) writes the lane graph once per graph size to the game's data folder, for route analysis away
         // from the game: <LocalLow>/Hovgaard Games/Big Ambitions/DrivenRides/lane-graph-<count>.json.
         public static string DataFolder => System.IO.Path.Combine(Application.persistentDataPath, "DrivenRides");
 
@@ -69,7 +69,7 @@ namespace DrivenRides
                 }
                 sb.Append("]\n");
                 System.IO.File.WriteAllText(path, sb.ToString());
-                Log.Info("Lane graph written to " + path + ".");
+                Log.Trace("Lane graph written to " + path + ".");
             }
             catch (Exception ex) { Log.Error("Lane graph dump: " + ex.Message); }
         }
@@ -176,8 +176,8 @@ namespace DrivenRides
             graph = new LaneGraph(positions, neighbors, allowed, intersection, speed, otherLanes: otherLanes, inferLanes: true, inferTurns: true);
             waypoints = all;
             scene = current;
-            Log.Info($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, {graph.GivenLaneChanges} with Gley lane changes, {graph.InferredLaneChanges} with inferred ones, {graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} with U-turns, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
-            Dump(all, otherLanes);
+            Log.Trace($"Lane graph: {n} waypoints, {graph.DroppedEdges} bad edges dropped, {misplaced} with listIndex not their position, {noType} allowing no vehicle type, {listsDiffer} where allowedAgents and allowedCars differ, {graph.GivenLaneChanges} with Gley lane changes, {graph.InferredLaneChanges} with inferred ones, {graph.InferredTurns} junction entries with added turns, {graph.InferredUTurns} with U-turns, top speed {graph.TopSpeedMs * 3.6f:0} km/h, built in {watch.ElapsedMilliseconds} ms.");
+            if (TestMode.On) Dump(all, otherLanes);
             return true;
         }
     }

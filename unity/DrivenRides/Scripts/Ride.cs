@@ -344,7 +344,7 @@ namespace DrivenRides
                 else if (DrivesWithNwh(kind))
                 {
                     planNwh = NwhRides.Planner(driverType, prefab.gameObject, nwhTop);
-                    if (planNwh == null) Log.Info("NWH ride: no drivable car for " + prefab.name + "; a Gley ride.");
+                    if (planNwh == null) Log.Trace("NWH ride: no drivable car for " + prefab.name + "; a Gley ride.");
                     // A new ride: blocks from what stood in the last ride's way go (NwhPlanner.BeginRide).
                     else { planNwh.BeginRide(); planNwh.Ignore = null; }
                 }
@@ -377,7 +377,7 @@ namespace DrivenRides
                     // The line must start under the car: from the lane waypoint behind its rear axle, not one ahead.
                     var ownY = ownCar.transform.position.y;
                     start = OwnCarTaxi.StartUnder(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out ownSideways);
-                    Log.Info(ownSideways < float.MaxValue ? $"Own car: starts on the step from waypoint {start}, {ownSideways:+0.0;-0.0} m to the side of it." : $"Own car: no lane step runs under the car; nearest waypoint {start}.");
+                    Log.Trace(ownSideways < float.MaxValue ? $"Own car: starts on the step from waypoint {start}, {ownSideways:+0.0;-0.0} m to the side of it." : $"Own car: no lane step runs under the car; nearest waypoint {start}.");
                 }
                 else
                 {
@@ -411,7 +411,7 @@ namespace DrivenRides
                     planMs += ms;
                     if (route != null)
                     {
-                        if (label != "the destination's side") Log.Info($"Goal: {label} ({goals.Count} goals).");
+                        if (label != "the destination's side") Log.Trace($"Goal: {label} ({goals.Count} goals).");
                         break;
                     }
                 }
@@ -422,9 +422,9 @@ namespace DrivenRides
                     // The summoned driver stops at the waypoint nearest the player, whatever kind of lane it is; some are
                     // pockets with no lane out. Then the route starts from a proper traffic lane nearby, and Gley steers
                     // the car straight to it.
-                    Log.Info("No route from the car's waypoint: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
+                    Log.Trace("No route from the car's waypoint: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
                     route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
-                    if (route != null) Log.Info($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(origin.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
+                    if (route != null) Log.Trace($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(origin.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
                 }
                 // An NWH ride is planned as the rig plans its rides (NwhPlanner.PlanRoute): from the start the search
                 // found, to the same goals, each added step checked for this car, the first lanes swept, the line
@@ -434,7 +434,7 @@ namespace DrivenRides
                     var nwhClock = Stopwatch.StartNew();
                     var (nwhRoute, nwhPlan, summary) = planNwh.PlanRoute(graph, route.Waypoints[0], goals, vehicleType);
                     planMs += nwhClock.ElapsedMilliseconds;
-                    Log.Info($"NWH ride planned for {planNwh.Car.Name} in {nwhClock.ElapsedMilliseconds} ms: {summary}.");
+                    Log.Trace($"NWH ride planned for {planNwh.Car.Name} in {nwhClock.ElapsedMilliseconds} ms: {summary}.");
                     if (nwhRoute == null || nwhPlan == null) return Vanilla("no route this car can drive (" + summary + ")");
                     route = nwhRoute;
                     planNwhPlan = nwhPlan;
@@ -451,7 +451,7 @@ namespace DrivenRides
                     {
                         if (planNwh != null) planNwh.Block(from, to, NwhPlanner.CauseOf(graph, from, to, what));
                         else GleyGraph.BlockStep(from, to);
-                        Log.Info($"Step {from} -> {to} blocked by '{what}'.");
+                        Log.Trace($"Step {from} -> {to} blocked by '{what}'.");
                     }
                     route = Plan(graph, route.Waypoints[0], goals, vehicleType, out var ms, out why);
                     planMs += ms;
@@ -490,7 +490,7 @@ namespace DrivenRides
                     taxi = SwapDriver(parked, loaded);
                     car = loaded;
                     loaded = null;
-                    Log.Info($"Driver swapped from a parked car to a traffic car at waypoint {spawn!.listIndex}, {Vector3.Distance(parked.transform.position, spawn.position):0.0} m away.");
+                    Log.Trace($"Driver swapped from a parked car to a traffic car at waypoint {spawn!.listIndex}, {Vector3.Distance(parked.transform.position, spawn.position):0.0} m away.");
                 }
                 else if (ownCar != null)
                 {
@@ -513,16 +513,16 @@ namespace DrivenRides
                     spawnedNwh = NwhRides.Spawn(driverType, prefab.gameObject, middle, facing, out var nwhWhy);
                     if (spawnedNwh == null) throw new InvalidOperationException("no NWH car: " + nwhWhy);
                     NwhRides.PlaceBody(spawnedNwh, middle, ground, facing);
-                    Log.Info($"NWH ride: {NwhCar.Id(spawnedNwh.TypeName)}{(spawnedNwh.Look != null ? " dressed as " + spawnedNwh.Look : "")} where the traffic car {car.name} stands.");
+                    Log.Trace($"NWH ride: {NwhCar.Id(spawnedNwh.TypeName)}{(spawnedNwh.Look != null ? " dressed as " + spawnedNwh.Look : "")} where the traffic car {car.name} stands.");
                 }
-                GleyGraph.DumpRide(start, goals, route.Waypoints, destination);
+                if (TestMode.On) GleyGraph.DumpRide(start, goals, route.Waypoints, destination);
                 var addedTurns = 0;
                 for (var k = 0; k + 1 < route.Waypoints.Count; k++)
                 {
                     foreach (var t in graph.MissingTurns(route.Waypoints[k])) if (t == route.Waypoints[k + 1]) addedTurns++;
                     if (graph.IsUTurn(route.Waypoints[k], route.Waypoints[k + 1])) addedTurns++;
                 }
-                if (addedTurns > 0) Log.Info($"Route uses {addedTurns} turn{(addedTurns == 1 ? "" : "s")} or U-turn{(addedTurns == 1 ? "" : "s")} the game's traffic data doesn't have.");
+                if (addedTurns > 0) Log.Trace($"Route uses {addedTurns} turn{(addedTurns == 1 ? "" : "s")} or U-turn{(addedTurns == 1 ? "" : "s")} the game's traffic data doesn't have.");
                 // The own car has no traffic car: the planning prefab stands in for it where the ride keeps one.
                 var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car ?? prefab, prefab, vehicleType, goals, route, spawn != null)
                 {
@@ -676,7 +676,7 @@ namespace DrivenRides
                 Shape = new CarShape(wheelDistance, steer, front - mass.z, mass.y, 0f);
                 BodyCentre.z -= mass.z;
                 if (Logged.Add(copy.name))
-                    Log.Info($"Steering for {copy.name}: pivot {Pivot:0.00} m ahead of the origin, wheel distance {Shape.WheelDistance:0.00} m, lock {Shape.MaxSteerDegrees:0.0} ({(drivable != null ? "its drivable version" : "Gley's, held to " + FallbackRadius + " m")}; Gley {copy.wheelDistance:0.00} m, {copy.maxSteer:0.0}), circle {MinRadius:0.0} m, front axle {Shape.FrontAxle:0.00} m ahead, centre of mass {Shape.CentreAhead:0.00} m ahead and {Shape.CentreHeight:0.00} m up, body {BodyHalf * 2f} at {BodyCentre}.");
+                    Log.Trace($"Steering for {copy.name}: pivot {Pivot:0.00} m ahead of the origin, wheel distance {Shape.WheelDistance:0.00} m, lock {Shape.MaxSteerDegrees:0.0} ({(drivable != null ? "its drivable version" : "Gley's, held to " + FallbackRadius + " m")}; Gley {copy.wheelDistance:0.00} m, {copy.maxSteer:0.0}), circle {MinRadius:0.0} m, front axle {Shape.FrontAxle:0.00} m ahead, centre of mass {Shape.CentreAhead:0.00} m ahead and {Shape.CentreHeight:0.00} m up, body {BodyHalf * 2f} at {BodyCentre}.");
             }
 
             private static readonly HashSet<string> Logged = new HashSet<string>();
@@ -1003,7 +1003,7 @@ namespace DrivenRides
             {
                 // The player stays in the driver's seat with the car's own camera (NwhRideCar.PlayerInside).
                 InstanceBehavior<CityManager>.Instance.cityMap.Close();
-                Log.Info($"Boarded inside the car at {pickupPosition}.");
+                Log.Trace($"Boarded inside the car at {pickupPosition}.");
                 return;
             }
             player.ResetNavigation();
@@ -1026,7 +1026,7 @@ namespace DrivenRides
                 catch (Exception ex) { Log.Error("Guider: " + ex.Message); }
             }
             InstanceBehavior<CityManager>.Instance.cityMap.Close();
-            Log.Info($"Boarded at {pickupPosition}.");
+            Log.Trace($"Boarded at {pickupPosition}.");
         }
 
         public static void OnCityMapClosed()
@@ -1045,7 +1045,7 @@ namespace DrivenRides
             try
             {
                 if (car.gameObject.activeInHierarchy && car.GetIndex() == carIndex) TrafficManager.Instance.RemoveVehicle(carIndex);
-                Log.Info($"NWH ride: traffic car {carIndex} handed back to the pool; {NwhCar.Id(nwh.Car.TypeName)} drives.");
+                Log.Trace($"NWH ride: traffic car {carIndex} handed back to the pool; {NwhCar.Id(nwh.Car.TypeName)} drives.");
             }
             catch (Exception ex) { Log.Error("NWH ride, traffic car: " + ex.Message); }
         }
@@ -1063,7 +1063,9 @@ namespace DrivenRides
             if (nwhPlan == null) { EndWith(Outcome.Vanilla, "no checked plan to drive"); return; }
             var n = nwh!;
             var drive = n.Car.Root.AddComponent<NwhDrive>();
-            drive.MeasureCost = true;
+            // The traffic cost records and the slowdown dumps are for test sessions only (TestMode).
+            drive.MeasureCost = TestMode.On;
+            drive.SlowdownDumps = TestMode.On;
             // The planner's way on, as the rig's ride cases have it: round a blocked step, the look-ahead, taking up.
             drive.WayOn.Replan = NwhBlocked;
             drive.WayOn.LookAhead = NwhLookAhead;
@@ -1076,7 +1078,7 @@ namespace DrivenRides
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds, NwhWatchLimits);
             if (!PlayerInside) SwitchCamera();
             phase = Phase.Driving;
-            Log.Info($"Departed (NWH): {path.Count} waypoints, {route.LengthMetres:0} m, top {(nwhPlan.TopKmh > 0 ? nwhPlan.TopKmh : TopSpeed):0} km/h, light cycle {GreenLightTime()} s.");
+            Log.Trace($"Departed (NWH): {path.Count} waypoints, {route.LengthMetres:0} m, top {(nwhPlan.TopKmh > 0 ? nwhPlan.TopKmh : TopSpeed):0} km/h, light cycle {GreenLightTime()} s.");
         }
 
         private void TickNwh()
@@ -1129,8 +1131,8 @@ namespace DrivenRides
             if (nwh == null || nwhReleased) return;
             nwhReleased = true;
             try { nwhDrive?.Stop(reason); } catch (Exception ex) { Log.Error("NWH release, drive: " + ex.Message); }
-            if (nwhDrive != null && nwhDrive.DecideCost != null && nwhDrive.DecideCost.Total > 0) Log.Info(nwhDrive.CostLine());
-            if (nwhDrive != null) Log.Info($"NWH ride tally: {nwhDrive.Contacts} contacts with traffic cars ({nwhDrive.ContactsCaused} caused by the ride car), {nwhDrive.RedRuns} red runs, {nwhDrive.Stalls} standstills over 30 s.");
+            if (nwhDrive != null && nwhDrive.DecideCost != null && nwhDrive.DecideCost.Total > 0) Log.Trace(nwhDrive.CostLine());
+            if (nwhDrive != null) Log.Trace($"NWH ride tally: {nwhDrive.Contacts} contacts with traffic cars ({nwhDrive.ContactsCaused} caused by the ride car), {nwhDrive.RedRuns} red runs, {nwhDrive.Stalls} standstills over 30 s.");
             LastTally = nwhDrive != null ? (nwhDrive.Contacts, nwhDrive.ContactsCaused, nwhDrive.RedRuns, nwhDrive.Stalls) : default;
             try { nwh.End?.Invoke(reason); } catch (Exception ex) { Log.Error("NWH release, end: " + ex.Message); }
             if (!nwh.Owned) return;
@@ -1153,18 +1155,18 @@ namespace DrivenRides
             var y = at.y;
             var leave = WithCollidersOff(body, () => manager.GetClosestWaypoint(at, 15f,
                 w => IsValidForLeaving(w, y) && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f && Vector3.Dot(w.position - at, forward) > 0f, prefab));
-            if (leave == null || !HasInactivePooledCar(prefab)) { Log.Info("NWH ride: no free lane or traffic car to take over; the car just goes."); return; }
+            if (leave == null || !HasInactivePooledCar(prefab)) { Log.Trace("NWH ride: no free lane or traffic car to take over; the car just goes."); return; }
             var middle = NwhRides.BodyMiddle(nwh!.Car);
             // Out of the way first: the traffic car is loaded where the ride car's colliders still are.
             foreach (var c in body.GetComponentsInChildren<Collider>()) c.enabled = false;
             var loaded = manager.LoadVehicle(prefab.gameObject, leave, true);
-            if (loaded == null) { Log.Info("NWH ride: the traffic car could not be loaded; the car just goes."); return; }
+            if (loaded == null) { Log.Trace("NWH ride: the traffic car could not be loaded; the car just goes."); return; }
             TestCar.BodyBox(loaded, out var centre, out _);
             var facing = Quaternion.Euler(0f, body.eulerAngles.y, 0f);
             var position = new Vector3(middle.x, loaded.transform.position.y, middle.z) - facing * new Vector3(centre.x, 0f, centre.z);
             if (loaded.rb != null) { loaded.rb.position = position; loaded.rb.rotation = facing; }
             loaded.transform.SetPositionAndRotation(position, facing);
-            Log.Info($"NWH ride: traffic car {loaded.GetIndex()} takes the ride car's place, heading for waypoint {leave.listIndex}.");
+            Log.Trace($"NWH ride: traffic car {loaded.GetIndex()} takes the ride car's place, heading for waypoint {leave.listIndex}.");
         }
 
         // How the last ride ended, and the last NWH ride's tally (the rig's ride command records them).
@@ -1192,12 +1194,15 @@ namespace DrivenRides
                 if (music.musicPlayer != null && !music.musicPlayer.mute) { music.musicPlayer.mute = true; muted.Add(music.musicPlayer); }
             if (kind != Kind.Test)
             {
-                probe = car.gameObject.AddComponent<CollisionProbe>();
-                probe.Trace = trace;
+                if (TestMode.On)
+                {
+                    probe = car.gameObject.AddComponent<CollisionProbe>();
+                    probe.Trace = trace;
+                }
                 SwitchCamera();
             }
             phase = Phase.Driving;
-            Log.Info($"Departed: {owned.Count} waypoints for Gley, light cycle {GreenLightTime()} s.");
+            Log.Trace($"Departed: {owned.Count} waypoints for Gley, light cycle {GreenLightTime()} s.");
         }
 
         private static List<Vec3> Points(List<int> waypoints)
@@ -1385,7 +1390,7 @@ namespace DrivenRides
             if (red && state == SpecialDriveActionTypes.StopInPoint)
             {
                 if (!Options.TrafficLights) { Go(); Event("Light: red, driving through (option off)."); return; }
-                if (loggedRed != next!.listIndex) { loggedRed = next.listIndex; Log.Info($"Light: waiting at the red at waypoint {next.listIndex}."); }
+                if (loggedRed != next!.listIndex) { loggedRed = next.listIndex; Log.Trace($"Light: waiting at the red at waypoint {next.listIndex}."); }
             }
             // Gley's give-way mode, set at a give-way waypoint, isn't taken off a car on a preset path: on spike 20 the
             // car crawled at 5 m/s through the Hamptons. Off again once the car's target isn't a give-way point.
@@ -1472,7 +1477,7 @@ namespace DrivenRides
                     lockArray[carIndex] = carSteering.Shape.MaxSteerDegrees;
                     steering[carIndex] = carSteering.Shape.MaxSteerDegrees * Time.fixedDeltaTime * carSteering.SteeringFactor;
                 }
-                Log.Info($"Top speed {top} km/h ({(driverTopSpeed > 0 ? $"vehicle type {driverVehicleType}" : "traffic model")}; Gley model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
+                Log.Trace($"Top speed {top} km/h ({(driverTopSpeed > 0 ? $"vehicle type {driverVehicleType}" : "traffic model")}; Gley model {car.minPossibleSpeed}-{car.maxPossibleSpeed}, rolled {car.GetMaxSpeed()}).");
             }
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
         }
@@ -1866,7 +1871,7 @@ namespace DrivenRides
                 WideUTurns = nwhPlanner != null,
             });
             replanSeconds = 0f;
-            Log.Info("Watchdog: replanning (" + watch!.LastReason + ").");
+            Log.Trace("Watchdog: replanning (" + watch!.LastReason + ").");
         }
 
         // The NWH ride's plan for the present route (its path is `path`), for the NwhDrive that drives it.
@@ -1935,12 +1940,12 @@ namespace DrivenRides
             if (IsWaiting()) watch!.Waiting(unpausedSeconds);
             else Restart();
             watch!.Replanned(unpausedSeconds);
-            Log.Info($"Watchdog: replanned, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, {job.Expanded} expanded.");
+            Log.Trace($"Watchdog: replanned, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, {job.Expanded} expanded.");
         }
 
         private void Event(string text)
         {
-            Log.Info(text);
+            Log.Trace(text);
             trace.Note(text);
         }
 
@@ -2033,7 +2038,7 @@ namespace DrivenRides
             if (PlayerInside)
             {
                 // The seam's arrival (the own car's autopark) instead of placing the player; the car has stopped.
-                Log.Info($"Ride done, the player inside the car: {NowMinutes() - startMinute:0.0} game minutes in all.");
+                Log.Trace($"Ride done, the player inside the car: {NowMinutes() - startMinute:0.0} game minutes in all.");
                 if (nwh!.Arrive != null)
                 {
                     // The arrival may fade (the own car's autopark): a cancel meanwhile must unfade (Cancel, `faded`).
@@ -2054,7 +2059,7 @@ namespace DrivenRides
             yield return null;
             if (!player.Character.navmeshAgent.isOnNavMesh)
             {
-                Log.Info($"Player not on the NavMesh at {place} after one frame; warping there again.");
+                Log.Trace($"Player not on the NavMesh at {place} after one frame; warping there again.");
                 player.Character.WarpSafely(place);
                 yield return null;
                 if (!player.Character.navmeshAgent.isOnNavMesh)
@@ -2072,7 +2077,7 @@ namespace DrivenRides
                 manager.ChangeHunger(10);
             }
             if (!string.IsNullOrEmpty(happinessModifier)) HappinessHelper.AddModifier(happinessModifier);
-            Log.Info($"Ride done: {NowMinutes() - startMinute:0.0} game minutes in all.");
+            Log.Trace($"Ride done: {NowMinutes() - startMinute:0.0} game minutes in all.");
         }
 
         private Vector3 PlacePlayer()
@@ -2234,7 +2239,7 @@ namespace DrivenRides
             finished = true;
             phase = Phase.Done;
             DropState();
-            Log.Info("Ride finished.");
+            Log.Trace("Ride finished.");
         }
 
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
@@ -2378,7 +2383,7 @@ namespace DrivenRides
         {
             rideSpeed = speed;
             Options.RememberSpeed(speed);
-            Log.Info($"Ride speed {speed:0}x.");
+            Log.Trace($"Ride speed {speed:0}x.");
         }
 
 
@@ -2397,7 +2402,7 @@ namespace DrivenRides
             if (ride == null) { Notice.Show("No ride."); return; }
             if (ride.nwh != null) { if (ride.nwh.Owned && ride.nwh.Car.Root != null) Object.Destroy(ride.nwh.Car.Root); }
             else TrafficManager.Instance.RemoveVehicle(ride.carIndex);
-            Log.Info("Debug: ride car removed.");
+            Log.Trace("Debug: ride car removed.");
         }
 
         public static void DebugThrow()
@@ -2410,7 +2415,7 @@ namespace DrivenRides
         {
             if (Active == null) { Notice.Show("No ride."); return; }
             Active.fakeSaveChange = true;
-            Log.Info("Debug: the ride's save now differs from the current one.");
+            Log.Trace("Debug: the ride's save now differs from the current one.");
         }
 
         public static void DebugClear()
@@ -2420,7 +2425,7 @@ namespace DrivenRides
             if (system != null && TravelField?.GetValue(system) != null)
             {
                 TravelField.SetValue(system, null);
-                Log.Info("Debug: TaxiSystem's travel coroutine field cleared.");
+                Log.Trace("Debug: TaxiSystem's travel coroutine field cleared.");
             }
         }
     }

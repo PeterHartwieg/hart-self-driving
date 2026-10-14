@@ -6,9 +6,9 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // Spike builds: what the ride car does, for finding where it goes wrong away from the game. Four samples a
-    // second to <LocalLow>/.../DrivenRides/ride-trace.csv (the latest ride only), and every collision with
-    // something that isn't a vehicle to the log.
+    // Test mode only (TestMode): what the ride car does, for finding where it goes wrong away from the game. Four
+    // samples a second to <LocalLow>/.../DrivenRides/ride-trace.csv (the latest ride only), and every collision with
+    // something that isn't a vehicle to the log. In a normal game it keeps and writes nothing.
     internal sealed class RideTrace
     {
         private readonly StringBuilder lines = new StringBuilder("t,x,z,heading,speed,target,state,along,left,path\n");
@@ -17,6 +17,7 @@ namespace DrivenRides
 
         public void Sample(Vector3 position, float heading, float speed, int target, string state, double along, double left, int pathLeft)
         {
+            if (!TestMode.On) return;
             time += Time.unscaledDeltaTime;
             if (time < next) return;
             next = time + 0.25f;
@@ -26,11 +27,15 @@ namespace DrivenRides
                  .Append(',').Append(state).Append(',').Append(along.ToString("0", inv)).Append(',').Append(left.ToString("0", inv)).Append(',').Append(pathLeft).Append('\n');
         }
 
-        public void Note(string text) => lines.Append("# ").Append(time.ToString("0.00", CultureInfo.InvariantCulture)).Append(' ').Append(text).Append('\n');
+        public void Note(string text)
+        {
+            if (TestMode.On) lines.Append("# ").Append(time.ToString("0.00", CultureInfo.InvariantCulture)).Append(' ').Append(text).Append('\n');
+        }
 
         // A ride's trace goes to ride-trace.csv (the latest only); a test ride's to the file it names.
         public void Save(string? file = null)
         {
+            if (!TestMode.On) return;
             try
             {
                 var path = file ?? Path.Combine(GleyGraph.DataFolder, "ride-trace.csv");

@@ -43,7 +43,7 @@ namespace DrivenRides
                 }
             }
             catch (Exception ex) { Log.Error("Bridges: " + ex.Message); }
-            Log.Info($"Bridges: {skipped.Count} lane waypoints on bridge skips, left out of the planner's checks.");
+            Log.Trace($"Bridges: {skipped.Count} lane waypoints on bridge skips, left out of the planner's checks.");
             return skipped;
         }
 

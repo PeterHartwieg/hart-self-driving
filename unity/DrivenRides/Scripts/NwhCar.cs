@@ -113,7 +113,7 @@ namespace DrivenRides
                 body.isKinematic = false;
                 foreach (var w in vehicle.powertrain.wheels) if (w?.wheelUAPI != null) w.wheelUAPI.enabled = true;
                 if (Logged.Add(vehicleTypeName))
-                    Log.Info($"NWH car {vehicleTypeName}: wheelbase {car.Wheelbase:0.00} m, lock {car.MaxSteer:0.0} ({car.LockAt(25f / 3.6f):0.0} at 25 km/h, {car.LockAt(50f / 3.6f):0.0} at 50), " +
+                    Log.Trace($"NWH car {vehicleTypeName}: wheelbase {car.Wheelbase:0.00} m, lock {car.MaxSteer:0.0} ({car.LockAt(25f / 3.6f):0.0} at 25 km/h, {car.LockAt(50f / 3.6f):0.0} at 50), " +
                              $"front {car.FrontAhead:0.00} m ahead of the rear axle, body {car.BodyHalf * 2f} at {car.BodyCentre}, mass {body.mass:0} kg, " +
                              $"gearbox {vehicle.powertrain.transmission.transmissionType} ({vehicle.powertrain.transmission.automaticTransmissionDNRShiftType}), layer {layerWas}, now {LayerMask.LayerToName(root.layer)}; " +
                              $"took off {stripped}; kept {kept}. {GleySees(root)}");

@@ -110,7 +110,7 @@ namespace DrivenRides
         {
             if (modId == null) return;
             Save(ClockId, ClockPercent);
-            Log.Info($"Clock during rides {ClockPercent}%.");
+            Log.Trace($"Clock during rides {ClockPercent}%.");
         }
 
         private static void Save(string optionId, int value, bool flush = true)

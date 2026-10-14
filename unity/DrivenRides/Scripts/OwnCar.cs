@@ -47,7 +47,7 @@ namespace DrivenRides
                 instance = host.AddComponent<OwnCarTaxi>();
             }
             instance.Car = car;
-            Log.Info($"Own car: choosing a destination for {car.vehicleType.vehicleTypeName}.");
+            Log.Trace($"Own car: choosing a destination for {car.vehicleType.vehicleTypeName}.");
             InstanceBehavior<CityManager>.Instance.cityMap.SetTaxiMode(instance);
         }
 
@@ -89,7 +89,7 @@ namespace DrivenRides
                 if (diff < bestDiff) { bestDiff = diff; best = v.prefab.GetComponent<VehicleComponent>(); }
             }
             if (best == null) why = "no car in the traffic pool to plan with";
-            else Log.Info($"Own car: planned as {best.name} ({length:0.0} m, {bestDiff:0.0} m off; the car has no traffic twin).");
+            else Log.Trace($"Own car: planned as {best.name} ({length:0.0} m, {bestDiff:0.0} m off; the car has no traffic twin).");
             return best;
         }
 
@@ -134,9 +134,9 @@ namespace DrivenRides
                     Teleport(car, RootFor(wrapped, lane), facing);
                     VehicleHelper.DestroyBlockingVehicles(car.gameObject, car.vehicleType, car.transform);
                     car.SavePosition();
-                    Log.Info($"Own car: the trip was cut short; the car is on the lane at waypoint {lane.listIndex}, {Vector3.Distance(lane.position, destination):0} m from the destination.");
+                    Log.Trace($"Own car: the trip was cut short; the car is on the lane at waypoint {lane.listIndex}, {Vector3.Distance(lane.position, destination):0} m from the destination.");
                 }
-                else Log.Info("Own car: the trip was cut short and there is no lane near the destination; the car stays where it is.");
+                else Log.Trace("Own car: the trip was cut short and there is no lane near the destination; the car stays where it is.");
                 yield return null;
             }
             var park = Autopark(car, stop, target != null ? target.GetNavMeshTargetPosition() : (Vector3?)null);
@@ -246,7 +246,7 @@ namespace DrivenRides
                 var used = FuelFor(car, metres);
                 if (used <= 0f) return;
                 car.SetFuel(Mathf.Max(0f, car.GetCurrentFuel() - used));
-                Log.Info($"Own car: {used:0.00} fuel for the bridge ({metres:0} m).");
+                Log.Trace($"Own car: {used:0.00} fuel for the bridge ({metres:0} m).");
             }
             catch (Exception ex) { Log.Error("Own car bridge fuel: " + ex.Message); }
         }
@@ -271,16 +271,16 @@ namespace DrivenRides
             var supported = car.vehicleType != null && car.vehicleType.autoParkSupported;
             if (mode == AutoparkMode.Off || (mode == AutoparkMode.CarsWithIt && !supported))
             {
-                Log.Info($"Own car: no autopark ({(mode == AutoparkMode.Off ? "off in the options" : "the car has none")}).");
+                Log.Trace($"Own car: no autopark ({(mode == AutoparkMode.Off ? "off in the options" : "the car has none")}).");
                 yield break;
             }
             yield return null;
             if (stop() || car == null || !car.controlledByPlayer) yield break;
             // As vanilla, which only offers a spot below 10 km/h (VehicleParkingHelper.Update): a player already
             // driving off isn't pulled into a spot.
-            if (car.CurrentSpeed >= 10f) { Log.Info("Own car: no autopark, the car is moving."); yield break; }
+            if (car.CurrentSpeed >= 10f) { Log.Trace("Own car: no autopark, the car is moving."); yield break; }
             // As vanilla: a wrecked car doesn't autopark.
-            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Log.Info("Own car: no autopark, the car is wrecked."); yield break; }
+            if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Log.Trace("Own car: no autopark, the car is wrecked."); yield break; }
             if (!(ParkingHelperField?.GetValue(car) is VehicleParkingHelper helper) || helper == null)
             {
                 Log.Error("Own car autopark: the car has no parking helper.");
@@ -294,10 +294,10 @@ namespace DrivenRides
             if (spot == null || car == null || !car.controlledByPlayer)
             {
                 if (spot == null) Notice.Show($"No free parking spot within {HuntRadii[HuntRadii.Length - 1]:0} m; park the car yourself.");
-                Log.Info($"Own car: no free autopark spot within {HuntRadii[HuntRadii.Length - 1]:0} m ({hunt.Seen} spots seen).");
+                Log.Trace($"Own car: no free autopark spot within {HuntRadii[HuntRadii.Length - 1]:0} m ({hunt.Seen} spots seen).");
                 yield break;
             }
-            Log.Info($"Own car: autoparking {Vector3.Distance(car.transform.position, spot.transform.position):0.0} m away{(supported ? "" : " (the car has no autopark of its own)")}.");
+            Log.Trace($"Own car: autoparking {Vector3.Distance(car.transform.position, spot.transform.position):0.0} m away{(supported ? "" : " (the car has no autopark of its own)")}.");
             // The steps of the game's ParkInClosestSpot, done here so each stage is known: the fade, a last check (the
             // player still in the car, the spot still free), the teleport and the legal parking state, and the
             // unfade, which always runs once the fade has.
@@ -318,7 +318,7 @@ namespace DrivenRides
                 parked = true;
             }
             yield return UiFader.UnFade();
-            Log.Info(parked ? "Own car: autoparked." : "Own car: autopark called off (the player got out, or the spot was taken).");
+            Log.Trace(parked ? "Own car: autoparked." : "Own car: autopark called off (the player got out, or the spot was taken).");
         }
 
         // The game's teleport writes the rigidbody; its transform follows only at the next physics step, and the parking
@@ -476,7 +476,7 @@ namespace DrivenRides
             vehicle.input.autoSetInput = false;
             Zero(vehicle);
             active = car;
-            Log.Info($"Own car: driving itself ({wrapped.TypeName}, wheelbase {wrapped.Wheelbase:0.00} m).");
+            Log.Trace($"Own car: driving itself ({wrapped.TypeName}, wheelbase {wrapped.Wheelbase:0.00} m).");
             return wrapped;
         }
 
@@ -495,7 +495,7 @@ namespace DrivenRides
                 }
             }
             catch (Exception ex) { Log.Error("Own car: handing the keys back: " + ex.Message); }
-            Log.Info("Own car: the keys are the player's again (" + reason + ").");
+            Log.Trace("Own car: the keys are the player's again (" + reason + ").");
         }
 
         private static void Zero(NWH.VehiclePhysics2.VehicleController vehicle)
@@ -525,7 +525,7 @@ namespace DrivenRides
             ending = true;
             try
             {
-                Log.Info("Own car: the player got out during the trip.");
+                Log.Trace("Own car: the player got out during the trip.");
                 Ride.CancelActive("the player got out of the car");
                 End("the player got out");
             }

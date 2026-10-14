@@ -1,6 +1,6 @@
 # Turn tests: an automated in-game test rig
 
-The mod drives the manoeuvres it adds (and the ramps) by itself, with the car models that ride, and reports failures with a picture, so they can be fixed without a test drive. Started and read over ssh while the game runs a disposable test save. Debug tooling: it does nothing unless a command file appears.
+The mod drives the manoeuvres it adds (and the ramps) by itself, with the car models that ride, and reports failures with a picture, so they can be fixed without a test drive. Started and read over ssh while the game runs a disposable test save. Debug tooling: it runs only in a game started with `-drivenrides-test` or `-foodtrucks-test` (the test PC's sessions pass the second), and then does nothing unless a command file appears. The same flag turns on the debug keys, the ride trace, the lane graph and ride dumps, the slowdown dumps, the traffic cost lines and the detailed log; without it the log has the startup lines, one line as each ride starts and one as it ends, and errors.
 
 The design went through six review rounds (Fable 5.1, GPT 6 Astra; `build/review-tests/`, not committed) and was then cut back to this lean version on purpose: it is a test rig. Left out for now: a kerb check, crests, a traffic-on pass, from-stop variants, Hamptons house-loading checks.
 

@@ -23,6 +23,7 @@ namespace DrivenRides
         {
             Log.Init(context.Logger);
             Log.Info($"Version {Version} loading.");
+            if (TestMode.On) Log.Info("Test mode: debug keys, the turn-test rig, traces and dumps are on.");
             try { Options.Register(context.ModId); }
             catch (Exception ex) { Log.Error("Options: " + ex); }
             Patches.Apply();
@@ -32,7 +33,7 @@ namespace DrivenRides
             {
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 var decisions = DrivenRides.Core.Drive.TrafficWarmUp.Run();
-                Log.Info($"Traffic warm-up: {decisions} decisions in {watch.Elapsed.TotalMilliseconds:0} ms.");
+                Log.Trace($"Traffic warm-up: {decisions} decisions in {watch.Elapsed.TotalMilliseconds:0} ms.");
             }
             catch (Exception ex) { Log.Error("Traffic warm-up: " + ex); }
             return Task.CompletedTask;
@@ -56,9 +57,21 @@ namespace DrivenRides
         // The game's mod logger adds its own "[Mod:Driven Rides]" prefix.
         public static void Info(string message)
         {
+            if (!TestMode.On && IsTrace(message)) return;
             if (logger != null) logger.Info(message);
             else Debug.Log("[Driven Rides] " + message);
         }
+
+        // Per-step and diagnostic lines: only in test mode (TestMode), so a normal game logs the startup, one line
+        // as a ride starts and one as it ends, and errors.
+        public static void Trace(string message)
+        {
+            if (TestMode.On) Info(message);
+        }
+
+        // The driving and planning code (NwhDrive, NwhPlanner) logs its per-step lines through Info with these
+        // prefixes; outside test mode they are dropped here, so those files stay as their owners left them.
+        private static readonly string[] TracePrefixes = { "NWH drive: ", "NWH planner: ", "NWH shape for " };
 
         public static void Error(string message)
         {
@@ -67,6 +80,13 @@ namespace DrivenRides
         }
 
         public static void Error(Exception exception) => Error(exception.ToString());
+
+        private static bool IsTrace(string message)
+        {
+            foreach (var prefix in TracePrefixes)
+                if (message.StartsWith(prefix, StringComparison.Ordinal)) return true;
+            return false;
+        }
     }
 
     internal static class Notice

@@ -48,7 +48,7 @@ namespace DrivenRides
                     catch (Exception ex) { Log.Error("Pavement filter: " + ex.Message); }
                 }
                 if (filter is NavMeshQueryFilter found && found.areaMask == 0) filter = null;
-                Log.Info(filter != null ? $"Pavement: the pedestrians' NavMesh filter (areaMask {filter.Value.areaMask:X}, agent {filter.Value.agentTypeID})." : "Pavement: the pedestrians' NavMesh filter isn't there yet; the kerb estimate stands in.");
+                Log.Trace(filter != null ? $"Pavement: the pedestrians' NavMesh filter (areaMask {filter.Value.areaMask:X}, agent {filter.Value.agentTypeID})." : "Pavement: the pedestrians' NavMesh filter isn't there yet; the kerb estimate stands in.");
                 return filter;
             }
         }

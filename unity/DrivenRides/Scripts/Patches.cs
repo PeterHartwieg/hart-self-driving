@@ -226,7 +226,7 @@ namespace DrivenRides
         private static bool SetPausePrefix(bool newPause)
         {
             if (!openingPhone || !newPause || !Ride.IsDriving) return true;
-            Log.Info("Phone opened during a ride: time goes on.");
+            Log.Trace("Phone opened during a ride: time goes on.");
             return false;
         }
 

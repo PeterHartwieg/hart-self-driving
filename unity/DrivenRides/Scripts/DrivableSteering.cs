@@ -63,7 +63,7 @@ namespace DrivenRides
             {
                 var asset = PrefabHelper.LoadPrefabAssetByName("Vehicles/PlayerVehicles/" + Id(type));
                 var vehicle = asset != null ? asset.GetComponentInChildren<NWH.VehiclePhysics2.VehicleController>(true) : null;
-                if (asset == null || vehicle == null) { Log.Info($"Drivable steering for {type}: no drivable prefab."); return null; }
+                if (asset == null || vehicle == null) { Log.Trace($"Drivable steering for {type}: no drivable prefab."); return null; }
                 float min = float.MaxValue, max = float.MinValue;
                 foreach (var wheel in asset.GetComponentsInChildren<NWH.Common.Vehicles.WheelUAPI>(true))
                 {
@@ -73,9 +73,9 @@ namespace DrivenRides
                 }
                 var wheelbase = max - min;
                 var steer = vehicle.steering.maximumSteerAngle;
-                if (wheelbase < 1f || steer < 5f) { Log.Info($"Drivable steering for {type}: wheelbase {wheelbase:0.00} m, lock {steer:0.0}, not usable."); return null; }
+                if (wheelbase < 1f || steer < 5f) { Log.Trace($"Drivable steering for {type}: wheelbase {wheelbase:0.00} m, lock {steer:0.0}, not usable."); return null; }
                 var curve = vehicle.steering.speedSensitiveSteeringCurve;
-                Log.Info($"Drivable steering for {type}: wheelbase {wheelbase:0.00} m, lock {steer:0.0} degrees ({steer * Mathf.Clamp01(curve?.Evaluate(25f / 3.6f / 50f) ?? 1f):0.0} at 25 km/h).");
+                Log.Trace($"Drivable steering for {type}: wheelbase {wheelbase:0.00} m, lock {steer:0.0} degrees ({steer * Mathf.Clamp01(curve?.Evaluate(25f / 3.6f / 50f) ?? 1f):0.0} at 25 km/h).");
                 return (wheelbase, steer, curve);
             }
             catch (Exception ex) { Log.Error($"Drivable steering for {type}: {ex.Message}"); return null; }

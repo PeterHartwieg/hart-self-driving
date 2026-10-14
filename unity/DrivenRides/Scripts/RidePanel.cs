@@ -213,7 +213,7 @@ namespace DrivenRides
                 skip.Paint(Accent, AccentHover, Color.white);
                 shownSpeed = -1;
 
-                Log.Info($"Ride panel built on canvas '{canvas.name}' ({unitsPerPixel:0.##} units per design pixel, sibling {rootRect.GetSiblingIndex()}), font {regular?.name ?? "TMP default"} from {fontFrom}, bold {(bold != null ? bold.name : "by style")}.");
+                Log.Trace($"Ride panel built on canvas '{canvas.name}' ({unitsPerPixel:0.##} units per design pixel, sibling {rootRect.GetSiblingIndex()}), font {regular?.name ?? "TMP default"} from {fontFrom}, bold {(bold != null ? bold.name : "by style")}.");
                 return true;
             }
             catch (Exception ex)
