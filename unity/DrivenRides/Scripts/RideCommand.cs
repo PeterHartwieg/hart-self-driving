@@ -172,7 +172,10 @@ namespace DrivenRides
         private static EntityController? Destination(Dictionary<string, string> args, Vector3 from, JObject result)
         {
             float Arg(string name, float fallback) => args.TryGetValue(name, out var v) && float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : fallback;
-            var all = Object.FindObjectsOfType<CityBuildingController>().Where(b => b != null && b.building != null).ToList();
+            // Inactive ones too: the Hamptons' buildings are switched off while the player is in Manhattan (hamptons=on
+            // found 0 candidates). None behind a gated community's gate: the game's taxi refuses those unless the player
+            // owns a building inside (TaxiSystem.CanEnterPrivateFence).
+            var all = Object.FindObjectsOfType<CityBuildingController>(true).Where(b => b != null && b.building != null && b.building.locatedInsidePrivateFenceIndex < 0).ToList();
             CityBuildingController? pick;
             if (args.ContainsKey("x") && args.ContainsKey("z"))
             {

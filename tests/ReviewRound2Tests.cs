@@ -164,6 +164,9 @@ public sealed class ReviewRound2Tests
         var wheelUp = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -0.6f && p.Z > 30f && p.Z < 31f ? 0.15f : 0f };
         var found = wheelUp.Sweep(plan, plan.Line(graph), 10f, 45f);
         Assert.True(found != null && found.Contains("kerb: a"), found ?? "null");
+        // A metre up under one wheel is no kerb: the ground probe met something else (0.1.90, by a bridge).
+        var deck = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -0.6f && p.Z > 30f && p.Z < 31f ? 0.97f : 0f };
+        Assert.Null(deck.Sweep(plan, plan.Line(graph), 10f, 45f));
     }
 
     [Fact]
