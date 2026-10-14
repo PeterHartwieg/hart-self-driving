@@ -28,6 +28,8 @@ internal sealed class SimResult
     public float OptionLost = float.MinValue;
     // How long each decision took, microseconds (DecideCostTests).
     public readonly List<float> DecideMicros = new();
+    // The most the ride car's rear axle was off its line while turning (the wheel past 6 degrees), metres.
+    public float TurnOff;
     public readonly List<(float Time, int Car, float Drop, float Lasted, string Kind)> TurnDips = new();
     // The same, less the distance the car covers between two decisions at the speed it had (the simulation decides every
     // DecideEvery steps; the game every step): a shortfall within it is the decisions' discretization, not a real one
@@ -288,6 +290,7 @@ internal sealed class TrafficSim : ILiveFlags
                 input.GapSpeed = decision.GapSpeed;
                 input.MaxSpeed = decision.MaxSpeed;
                 o = driver.Step(input);
+                if (Math.Abs(ride.Steer) > 6.0) result.TurnOff = Math.Max(result.TurnOff, Math.Abs(o.Lateral));
                 ride.Step(o, Dt);
             }
             backing = decision.BackOff;

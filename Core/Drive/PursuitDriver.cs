@@ -50,9 +50,11 @@ namespace DrivenRides.Core.Drive
         public const float Decel = TrafficMargins.Decel;
         public const float HardDecel = 5f;
         public const float StopGap = TrafficMargins.StopGap;
-        // Sideways acceleration in a corner: 3.5 m/s² takes a 6.5 m arc at 17 km/h and a 20 m one at 30 (Peter, NWH
-        // spike: larger turns faster; at 2.5 every corner felt slow).
-        public const float Lateral = 3.5f;
+        // Sideways acceleration in a corner: 4 m/s² takes a 6.5 m arc at 18 km/h and a 20 m one at 32 (Peter, NWH
+        // spike: larger turns faster; at 2.5 every corner felt slow; 14 October: faster turns, as a confident player
+        // drives). The rig's traces hold the line to 0.3 m at the median and 0.9 m at the 95th percentile up to 4 m/s²;
+        // past it the error grows (3.6 m at the 95th percentile at 4 to 4.5).
+        public const float Lateral = 4f;
         public const float MinCornerMs = 12f / 3.6f;
         public const float LagSeconds = 0.25f;
 
