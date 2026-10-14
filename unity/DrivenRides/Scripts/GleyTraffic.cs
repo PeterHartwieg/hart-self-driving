@@ -46,6 +46,10 @@ namespace DrivenRides
         public static List<VehicleComponent>? Pool() =>
             TrafficManager.HasInstance ? (TrafficVehiclesField?.GetValue(TrafficManager.Instance) as TrafficVehicles)?.GetVehicleList() : null;
 
+        // Each Gley model's shape once a session (the name only for a car not seen before: Unity's name allocates).
+        private static readonly HashSet<string> loggedShapes = new HashSet<string>();
+        private static readonly HashSet<int> loggedIds = new HashSet<int>();
+
         // Every active Gley car within `radius` of `near`, as Core sees it. Components[i] is the car of into[i].
         public void ReadCars(Vector3 near, float radius, List<OtherCar> into)
         {
@@ -63,7 +67,15 @@ namespace DrivenRides
                 if (d.sqrMagnitude > radius * radius) continue;
                 var forward = Vector3.ProjectOnPlane(v.transform.forward, Vector3.up).normalized;
                 var length = v.length > 0.5f ? v.length : 4.5f;
-                var middle = front - forward * (length / 2f);
+                // The front trigger sits at the front wheels (VehicleComponent.GetFrontAxle), not the bumper; Gley's own
+                // checks centre the body on the car's root (PositionValidator.IsValid). The body is there, and the
+                // trigger reaches past the bumper by its length less the overhang (the stop-line gap, 14 October: the
+                // bodies were read up to a metre behind where they are).
+                var middle = v.transform.position;
+                var axle = Vector3.Dot(front - middle, forward);
+                var overhang = axle > 0f && axle < length / 2f ? length / 2f - axle : 0f;
+                if (axle <= 0f || axle >= length / 2f) middle = front - forward * (length / 2f);
+                if (loggedIds.Add(v.GetInstanceID()) && loggedShapes.Add(v.name)) Log.Info($"Gley car {v.name}: length {length:0.00} m, front wheels {axle:0.00} m ahead of the middle, bumper {overhang:0.00} m past them.");
                 var vel = v.rb.velocity;
                 var target = -1;
                 try { target = manager.GetTargetWaypoint(v.GetIndex())?.listIndex ?? -1; }
@@ -71,7 +83,7 @@ namespace DrivenRides
                 into.Add(new OtherCar
                 {
                     Id = v.GetIndex(), X = middle.x, Z = middle.z, Heading = Mathf.Atan2(forward.x, forward.z), Vx = vel.x, Vz = vel.z,
-                    Length = length, Width = v.colliderWidth > 0.5f ? v.colliderWidth : 1.9f, TriggerLength = TriggerLength(v),
+                    Length = length, Width = v.colliderWidth > 0.5f ? v.colliderWidth : 1.9f, TriggerLength = Mathf.Max(0.5f, TriggerLength(v) - overhang),
                     Target = target, StoppedForUs = HoldsUs(v), MayChangeLane = MayChangeLane(v),
                 });
                 Components.Add(v);
