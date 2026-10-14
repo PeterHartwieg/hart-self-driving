@@ -47,6 +47,7 @@ public sealed class RememberedCommitmentTests
         float z = -20f, ax = -100f, bx = 60f;
         var d = new TrafficDecision();
         var bad = new List<string>();
+        var roundsMost = 0;
         for (var step = 0; step < 150; step++)
         {
             var t = step * dt;
@@ -68,6 +69,8 @@ public sealed class RememberedCommitmentTests
             traffic.Decide(new TrafficSnapshot { Time = t, RearX = 0f, RearZ = z, Heading = 0f, Speed = rideMs, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags() }, d);
             var front = z + car.FrontAhead;
             var frontAlong = front + 40f;
+            roundsMost = Math.Max(roundsMost, d.PassRounds);
+            if (d.Unsettled) bad.Add($"{t:0.00} s: the final pass didn't settle in {d.PassRounds} rounds");
             if (step % 5 == 0) output.WriteLine($"{t:0.00} front {front:0.0} A {ax:0.0} B {(cars.Count > 1 ? bx : float.NaN):0.0} yield {d.YieldAlong - 40f:0.0} marginal {d.MarginalCommit} forced {d.ForcedCommit} {d.Why} {d.YieldNote}");
             // Going on (no stop at or short of the front) while car A is about to be where the ride car's body would
             // stand: waved on into A's way.
@@ -83,6 +86,7 @@ public sealed class RememberedCommitmentTests
             z += v * dt;
         }
         foreach (var l in bad.Take(5)) output.WriteLine(l);
+        output.WriteLine($"final pass up to {roundsMost} rounds");
         Assert.Empty(bad);
     }
 }

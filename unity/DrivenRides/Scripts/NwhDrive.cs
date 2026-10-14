@@ -78,6 +78,8 @@ namespace DrivenRides
         // round 5, Y1).
         public int MarginalCommits;
         private bool marginalBefore;
+        // Decisions whose final pass was still tightening the stops when it ran out of rounds (review round 7, BB4).
+        public int UnsettledDecisions;
         // The last reasons given, for the forced-commit log line (review round 4, X4).
         private readonly Queue<string> recentWhys = new Queue<string>();
         // Gley cars that have the ride car in their trigger (obstacleList), from where and how fast when it came in:
@@ -249,9 +251,14 @@ namespace DrivenRides
             if (decision.MarginalCommit && !marginalBefore)
             {
                 MarginalCommits++;
-                Log.Info($"NWH drive: going on past traffic car {decision.MarginalFor}'s way, committed to before, with {decision.MarginalMargin:0.00} s to spare (under the headway; {speed:0.0} m/s, {driver.Along:0} m).");
+                Log.Info($"NWH drive: going on past traffic car {decision.MarginalFor}'s way past the point it could stop short, with {decision.MarginalMargin:0.00} s to spare (under the headway; {speed:0.0} m/s, {driver.Along:0} m).");
             }
             marginalBefore = decision.MarginalCommit;
+            if (decision.Unsettled)
+            {
+                UnsettledDecisions++;
+                Log.Info($"NWH drive: the final pass still tightened the stops after {decision.PassRounds} rounds ({driver.Along:0} m, {speed:0.0} m/s).");
+            }
             if (decision.Why != lastWhy)
             {
                 if (decision.Why.Length > 0) Log.Info($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");

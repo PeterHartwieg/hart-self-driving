@@ -29,12 +29,17 @@ internal sealed class SimResult
     // review round 5, Y1).
     public int MarginalCommits;
     public float MarginalLeast = float.MaxValue;
-    // The soak's invariants (review round 6, decision a): a forced commit with less than the floor to spare, and the
-    // stopping option lost while a stop short of a car's way was imposed (the braking it needs growing past Decel and
-    // past what it was when imposed).
+    // The soak's invariants (review round 6, decision a; round 7, BB3): a forced commit with less than the floor to
+    // spare, and the stopping option lost while a stop for a car was imposed (metres the car could no longer stop
+    // short of its way by, at HardDecel; TrafficSim). HarderThanDecel: decisions where keeping it took more than Decel.
     public int ForcedUnderFloor;
-    public float OptionLost;
-    // Stops short of a car's way imposed when the car could no longer make them at Decel (found late).
+    // Decisions whose final pass ran out of rounds, and of them those still tightening when judged once more (BB4).
+    public int PassExhausted, PassUnsettled;
+    public int PassRoundsMost;
+    public float OptionLost = float.MinValue;
+    public int HarderThanDecel;
+    // Stops for a car imposed when the car could no longer make them at Decel (found late), and stops imposed again
+    // within a second of the last for the same car with nothing holding the car in between (flicker).
     public int ApproachesLate, ApproachesAgain;
     // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
@@ -121,14 +126,19 @@ internal sealed class TrafficSim : ILiveFlags
         return true;
     }
 
+    private struct Episode
+    {
+        public float WayAt, LastYield;
+        public bool Lost;
+    }
+
     public SimResult Run()
     {
         var forcedBefore = false;
-        var approachFor = -1;
-        var approachNeed = 0f;
-        var approachAlong = 0f;
-        var approachKept = false;
-        var approachLast = new Dictionary<int, float>();
+        var episodes = new Dictionary<int, Episode>();
+        var gone = new List<int>();
+        var prevYieldFor = -1;
+        var lastKind = "";
         var wasFree = true;
         var marginalBefore = false;
         var whys = new Queue<string>();
@@ -190,6 +200,9 @@ internal sealed class TrafficSim : ILiveFlags
                 result.DecideBytes += bytes;
                 if (bytes > 0 && result.Decides > 25 && ReferenceEquals(whyBefore, decision.Why)) result.DecidesAllocating++;
                 result.Decides++;
+                if (decision.PassRounds >= TrafficDriver.MaxPassRounds) result.PassExhausted++;
+                if (decision.Unsettled) result.PassUnsettled++;
+                result.PassRoundsMost = Math.Max(result.PassRoundsMost, decision.PassRounds);
             }
             else decision.Events.Clear();
             foreach (var e in decision.Events)
@@ -232,33 +245,64 @@ internal sealed class TrafficSim : ILiveFlags
                 if (whys.Count > 4) whys.Dequeue();
             }
             if (decision.ForcedCommit && decision.ForcedMargin < TrafficDriver.MarginFloor((float)ride.Speed) - 1e-3f) result.ForcedUnderFloor++;
-            if (decision.ApproachFor >= 0)
+            // The stopping option, per traffic car the ride car gives way to (review round 7, BB3). An episode lasts from
+            // the first stop for that car until the ride car's front is past where its way was, or the car is gone: a
+            // stop lifted and imposed again is the same conflict. While a stop for it is imposed, the car must still be
+            // able to stop short of the car's way at all: after the brakes' latency, at HardDecel (OptionLost, metres
+            // short). Unless that was gone when the stop was first imposed, or when the way was found nearer while the
+            // stop was held all along (newly seen: the prediction's, counted as late); a stop lifted and imposed again
+            // carries over, so a lifted stop that costs the option counts. Late: a first stop needing more than Decel
+            // with nothing holding the car before; Again: a stop imposed again within a second of the last for that
+            // car, with nothing holding the car in between (flicker).
+            if (step % DecideEvery == 0)
             {
                 var front0 = driver.Along + body.FrontAhead;
-                var roomA = decision.ApproachAlong + TrafficDriver.StopUncertainty - front0 - (float)ride.Speed * TrafficDriver.BrakeLatency;
-                var needA = (float)(ride.Speed * ride.Speed) / (2f * Math.Max(0.05f, roomA));
-                // Judged against the boundary as it stands: where the prediction moves it nearer (a car seen to be faster,
-                // a way found to reach further), the need starts afresh; that is the prediction's, not the driving's.
-                if (decision.ApproachFor != approachFor || decision.ApproachAlong < approachAlong - 0.3f)
+                var x = decision.YieldAlong != null ? decision.YieldFor : -1;
+                if (x >= 0)
                 {
-                    approachNeed = Math.Max(PursuitDriver.Decel, needA);
-                    // Imposed too late to stop at Decel already: the prediction's, counted, not the driving's to keep.
-                    // Late only if nothing held the car the decision before (else it was already braking for that).
-                    if (needA > PursuitDriver.Decel + 0.3f && wasFree)
+                    // Where the body would come into the car's way: past a cautious stop by the stop uncertainty, past any
+                    // other by the margin round the body that the stop was found with.
+                    var wayAt = decision.ApproachFor == x ? decision.ApproachAlong + TrafficDriver.StopUncertainty : decision.YieldAlong!.Value + TrafficDriver.EndMargin;
+                    var v = (float)ride.Speed;
+                    var room = wayAt - front0;
+                    var needA = v * v / (2f * Math.Max(0.05f, room - v * TrafficDriver.BrakeLatency));
+                    var short_ = v * TrafficDriver.BrakeLatency + v * v / (2f * PursuitDriver.HardDecel) - room;
+                    var imposed = x != prevYieldFor;
+                    if (!episodes.TryGetValue(x, out var e) || front0 > e.WayAt + 0.5f)
                     {
-                        if (approachLast.TryGetValue(decision.ApproachFor, out var last) && time - last < 1f) result.ApproachesAgain++;
-                        else result.ApproachesLate++;
+                        e = new Episode { WayAt = wayAt, Lost = short_ > 0f, LastYield = time };
+                        if (wasFree && needA > PursuitDriver.Decel + 0.3f) result.ApproachesLate++;
                     }
-                    approachKept = needA <= PursuitDriver.Decel + 0.3f;
+                    else
+                    {
+                        if (imposed && wasFree && time - e.LastYield < 1f)
+                        {
+                            result.ApproachesAgain++;
+                            if (trace) result.Trace.Append($"AGAIN {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} after {time - e.LastYield:0.00} s, last kind {lastKind}: {decision.Why} {decision.YieldNote}\n");
+                        }
+                        // Held all along and the way found nearer: the prediction's.
+                        if (!imposed && wayAt < e.WayAt - 0.3f && short_ > 0f) e.Lost = true;
+                    }
+                    if (!e.Lost && short_ > result.OptionLost)
+                    {
+                        if (trace && short_ > 0f) result.Trace.Append($"OPTION {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} short by {short_:0.00} m, yield {decision.YieldAlong:0.0} {decision.Why}\n");
+                        result.OptionLost = short_;
+                    }
+                    if (!e.Lost && needA > PursuitDriver.Decel + 0.3f) result.HarderThanDecel++;
+                    e.WayAt = wayAt;
+                    e.LastYield = time;
+                    episodes[x] = e;
                 }
-                approachFor = decision.ApproachFor;
-                approachAlong = decision.ApproachAlong;
-                approachLast[approachFor] = time;
-                if (needA - approachNeed > result.OptionLost + 0.3f && trace) result.Trace.Append($"OPTION {time:0.00} car {decision.ApproachFor} along {decision.ApproachAlong:0.0} front {front0:0.0} v {ride.Speed:0.0} need {needA:0.0} from {approachNeed:0.0} yield {decision.YieldAlong:0.0} {decision.Why}\n");
-                if (approachKept) result.OptionLost = Math.Max(result.OptionLost, needA - approachNeed);
+                prevYieldFor = x;
+                lastKind = decision.ApproachFor >= 0 && decision.ApproachFor == x ? "approach" : x >= 0 ? decision.YieldNote : lastKind;
+                if (episodes.Count > 0)
+                {
+                    gone.Clear();
+                    foreach (var kv in episodes) if (!near.Any(c => c.Id == kv.Key) || front0 > kv.Value.WayAt + 0.5f) gone.Add(kv.Key);
+                    foreach (var id in gone) episodes.Remove(id);
+                }
+                wasFree = decision.YieldAlong == null && decision.StopAlong == null && decision.GapAhead == null && decision.MaxSpeed == null;
             }
-            else approachFor = -1;
-            wasFree = decision.YieldAlong == null && decision.StopAlong == null && decision.GapAhead == null && decision.MaxSpeed == null;
             if (decision.ForcedCommit && !forcedBefore)
             {
                 result.ForcedCommits++;

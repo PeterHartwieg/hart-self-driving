@@ -114,21 +114,32 @@ public sealed class ReviewRound6Tests
         Assert.False(run.CommittedWhileHeld, $"committed to A at {run.FirstCommit:0.00} s, held outside its way");
     }
 
-    // AA2: committed to crossing lane A (judged cautiously clear at 3.6 s), then held back by the planner from 3.72 s,
-    // and let go while the commitment is still remembered and the car can still stop short of A's way. Car A comes so
-    // that the headway fails there but the measured-error floor would pass: it must stop short, as with no
-    // commitment (before, the memory let it on with the floor). Both car orders, two release times.
+    // AA2: committed to crossing lane A (judged cautiously clear where the stopping option was about to go), then held
+    // back by the planner a moment later, and let go while the commitment is still remembered and the car can still
+    // stop short of A's way. Car A comes so that the headway fails there but the measured-error floor would pass: it
+    // must stop short, as with no commitment (before, the memory let it on with the floor). Both car orders, two
+    // release times. Car A's start is found by search, the first that gets a commitment (the judgement's geometry
+    // moves it: review round 7's sweep found car A a little earlier).
     [Theory]
-    [InlineData(false, 4.8f)]
-    [InlineData(true, 4.8f)]
-    [InlineData(false, 5.2f)]
-    [InlineData(true, 5.2f)]
-    public void ARememberedCommitmentNeedsTheFullHeadwayWhileTheCarCanStillStop(bool bFirst, float release)
+    [InlineData(false, 1.08f)]
+    [InlineData(true, 1.08f)]
+    [InlineData(false, 1.48f)]
+    [InlineData(true, 1.48f)]
+    public void ARememberedCommitmentNeedsTheFullHeadwayWhileTheCarCanStillStop(bool bFirst, float releaseAfter)
     {
-        var run = Drive(bFirst, holdZ: 6f, holdFrom: 3.72f, release: release, ax0: -90f, rideMs: 8f, rearZ0: -40f, steps: 300);
-        Assert.True(run.FirstCommit < 3.72f, "no commitment before the hold");
-        Assert.True(run.CommittedAtRelease, "the commitment was no longer remembered at the release");
-        Assert.False(run.Marginal);
-        Assert.Empty(run.Bad);
+        var tried = 0;
+        for (var ax0 = -112f; ax0 <= -80f; ax0 += 2f)
+        {
+            var free = Drive(bFirst, holdZ: 6f, holdFrom: 1000f, release: 1000f, ax0: ax0, rideMs: 8f, rearZ0: -40f, steps: 150);
+            if (float.IsNaN(free.FirstCommit)) continue;
+            var holdFrom = (float)Math.Round((free.FirstCommit + 0.12f) / 0.04f) * 0.04f;
+            var run = Drive(bFirst, holdZ: 6f, holdFrom: holdFrom, release: holdFrom + releaseAfter, ax0: ax0, rideMs: 8f, rearZ0: -40f, steps: 300);
+            if (!(run.FirstCommit < holdFrom) || !run.CommittedAtRelease) continue;
+            tried++;
+            output.WriteLine($"car A from {ax0}: committed at {run.FirstCommit:0.00} s, held from {holdFrom:0.00} s, released at {holdFrom + releaseAfter:0.00} s (front {run.FrontAtRelease:0.0}, {run.VAtRelease:0.0} m/s)");
+            Assert.False(run.Marginal, $"car A from {ax0}: on with less than the headway");
+            Assert.Empty(run.Bad);
+        }
+        Assert.True(tried > 0, "no start for car A gave a commitment still remembered at the release");
     }
 }

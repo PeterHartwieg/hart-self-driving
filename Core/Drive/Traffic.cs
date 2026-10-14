@@ -128,6 +128,10 @@ namespace DrivenRides.Core.Drive
         // where the front is to be able to stop.
         public int ApproachFor = -1;
         public float ApproachAlong;
+        // The final pass (TrafficDriver): its rounds, and whether its last round still tightened the stops (then the
+        // statistics above were judged once more on the trajectory as it ended; review round 7, BB4).
+        public int PassRounds;
+        public bool Unsettled;
         // Layer 3: backing off along the line, away from a car standing nose to nose with the ride car.
         public bool BackOff;
         public int BackOffFrom = -1;
@@ -144,7 +148,8 @@ namespace DrivenRides.Core.Drive
             GapSpeed = 0f;
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
-            StopIsRed = BackOff = NoseIn = ForcedCommit = MarginalCommit = false;
+            StopIsRed = BackOff = NoseIn = ForcedCommit = MarginalCommit = Unsettled = false;
+            PassRounds = 0;
             ForcedFor = ApproachFor = MarginalFor = -1;
             ForcedMargin = MarginalMargin = 0f;
             Events.Clear();

@@ -99,13 +99,16 @@ public sealed class CommittedTests
     [Fact]
     public void GoesOnForcedOnlyWhenStandingWouldBeHit()
     {
-        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -16f, crossMs: 10f, standingAtZ: null, trigger: 1f);
+        // Car 1 1.8 s off: going on clears it by more than the floor (0.48 s to spare). Review round 7: the sweep now
+        // counts the body between two poses too, so its way is left a little later; 1.6 s off leaves 0.33 s, under the
+        // floor, and the emergency rule stops.
+        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: 1f);
         output.WriteLine($"{d.Why} yield {d.YieldAlong} forced {d.ForcedCommit}");
         Assert.True(d.ForcedCommit);
         Assert.Equal(1, d.ForcedFor);
         Assert.Null(d.YieldAlong);
         // The same with a trigger long enough to stop the car short of the body: a plain stop, nothing forced.
-        var safe = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -16f, crossMs: 10f, standingAtZ: null, trigger: 5f);
+        var safe = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: 5f);
         Assert.False(safe.ForcedCommit);
         Assert.True(safe.YieldAlong <= 30.5f);
     }

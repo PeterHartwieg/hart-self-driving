@@ -908,6 +908,7 @@ namespace DrivenRides
                 line["redRuns"] = drive.RedRuns;
                 line["forcedCommits"] = drive.ForcedCommits;
                 line["marginalCommits"] = drive.MarginalCommits;
+                line["unsettledDecisions"] = drive.UnsettledDecisions;
                 // Gley's stop for the ride car in its trigger, as measured: speed, metres and seconds to a standstill.
                 var stops = new JArray();
                 foreach (var (ms, metres, seconds) in drive.TriggerStops) stops.Add(new JArray(ms, metres, seconds));

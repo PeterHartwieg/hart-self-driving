@@ -34,7 +34,9 @@ namespace DrivenRides.Core.Drive
             public Segment(Box box, float u0) { Box = box; U0 = u0; }
         }
 
-        public readonly List<Segment> Segments = new List<Segment>();
+        // At its full size from the start: corridors are pooled and reused for any car (TrafficDriver), so a list growing
+        // would allocate in the middle of a ride.
+        public readonly List<Segment> Segments = new List<Segment>(MaxSegments + 1);
         public float Speed, TopSpeed, Length;
         public bool SpeedingUp;
         // The road's limit where it is (with Gley's 10 %): the most it may reach.
