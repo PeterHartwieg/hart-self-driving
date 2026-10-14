@@ -743,20 +743,9 @@ namespace DrivenRides.Core.Drive
             return HardStop(v) <= rearAt[runStart - 1] + body.FrontAhead - front;
         }
 
-        // Where the front is to stop short of the car's way: as the cautious approach stops (StopUncertainty to spare,
-        // and short by what the brakes take to act at the speed now, so the driver, braking by the distance left, keeps
-        // the option), but never nearer than it can stop at HardDecel.
-        private float StopShortAt(int runStart) => StopShort(rearAt[runStart - 1] + body.FrontAhead, Math.Max(0f, slowSpeed[0]));
+        // Where the front is to stop short of the car's way: where the body would first come into it.
+        private float StopShortAt(int runStart) => rearAt[runStart - 1] + body.FrontAhead;
 
-        // The stop handed to the driver for a car's way at `way`: StopUncertainty short of it, and short by what the
-        // brakes take to act (their latency, and as long again to build up) at the speed now, so a driver braking by
-        // the distance left keeps the option. Review round 7, BB6: round 6 also kept it no nearer than the car could
-        // stop at HardDecel after the latency; recomputed each decision, that clamp ran ahead of a car braking a little
-        // under HardDecel (the driver brakes by the distance left, without the latency) all the way to the car's way,
-        // and through pedals that act a tenth of a second late the car stood at the way instead of short of it, or,
-        // where the clamp was not held to the way, ran past. Without it the driver brakes harder for a stop it can
-        // only just make, and stands short of the way (ReviewRound7Tests).
-        public static float StopShort(float way, float v) => way - TrafficMargins.ReserveMetres - TrafficMargins.ReserveLatencies * BrakeLatency * v;
 
         // On or stop, for a conflict found too late for the cautious judgement's stop: on if it clears on the trajectory
         // it can keep under every constraint, with headway, a car behind counted on to brake only once the body is in its
@@ -1698,7 +1687,7 @@ namespace DrivenRides.Core.Drive
             {
                 var (way, _, cautious) = kv.Value;
                 if (hard > way && !fresh.Contains(kv.Key)) { scratch.Add(kv.Key); continue; }
-                var target = cautious ? StopShort(way, v) : way;
+                var target = way;
                 if (target < best) { best = target; bestFor = kv.Key; bestWay = way; bestCautious = cautious; }
             }
             for (var i = 0; i < scratch.Count; i++) holds.Remove(scratch[i]);
@@ -1724,7 +1713,7 @@ namespace DrivenRides.Core.Drive
             foreach (var kv in holds)
             {
                 if (kv.Key == except || hard > kv.Value.Way) continue;
-                best = Math.Min(best, kv.Value.Cautious ? StopShort(kv.Value.Way, v) : kv.Value.Way);
+                best = Math.Min(best, kv.Value.Way);
             }
             return best;
         }

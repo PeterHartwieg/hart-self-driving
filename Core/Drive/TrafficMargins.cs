@@ -32,10 +32,5 @@ namespace DrivenRides.Core.Drive
 
         // How long a car given way to stays a conflict once the check stops finding one (s).
         public const float ConflictMemory = 0f;
-
-        // The stopping reserve: how far short of a car's way the ride car keeps the option to stop (m), and how many of
-        // the brakes' latencies at its speed on top (TrafficDriver.StopShort).
-        public const float ReserveMetres = 0.3f;
-        public const float ReserveLatencies = 1.5f;
     }
 }

@@ -110,9 +110,9 @@ public sealed class ReviewRound7Tests
         Assert.True(r.ApproachesAgain <= 1, $"{r.ApproachesAgain} stops imposed again");
     }
 
-    // BB6: a cautious stop (and a stop short for a remembered commitment) is handed to the driver StopUncertainty and
-    // twice the brakes' latency travel short of the way (TrafficDriver.StopShort). Driven through pedals that act a
-    // tenth of a second late, from every distance between where the car could only just stop at HardDecel after the
+    // BB6: a cautious stop is handed to the driver at the way itself (round 9: the stopping reserve, StopUncertainty
+    // and twice the brakes' latency travel short of it, went; the driver's braking by the distance left keeps it).
+    // Driven through pedals that act a tenth of a second late, from every distance between where the car could only just stop at HardDecel after the
     // latency and where the stop needs no more than Decel, handed the stop as TrafficDriver hands it each decision: the
     // front stands short of the way every time. (Round 6 also clamped the stop to no nearer than a HardDecel stop;
     // recomputed each decision, the clamp ran ahead of the car to the way, or past it.)
@@ -138,7 +138,7 @@ public sealed class ReviewRound7Tests
             for (var step = 0; step < 1000 && (v > 0.05f || step < 10); step++)
             {
                 var front = z + car.FrontAhead;
-                var stop = TrafficDriver.StopShort(way, v);
+                var stop = way;
                 // Where round 6's clamp would have set it.
                 clamped |= front + v * TrafficDriver.BrakeLatency + v * v / (2f * PursuitDriver.HardDecel) > stop + 0.01f;
                 var o = driver.Step(new DriveInput { RearX = 0f, RearZ = z, Heading = 0f, SpeedMs = v, Dt = dt, YieldAlong = stop });
