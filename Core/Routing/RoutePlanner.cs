@@ -200,27 +200,31 @@ namespace DrivenRides.Core.Routing
                 for (int k = 0; k < successors.Count; k++) RelaxAdded(i, successors[k], entry.Cost, 0);
                 // From the start too, even just past a junction: the car stands there, it isn't coming out of a turn
                 // (T3: rides refused because the only way off their first step was blocked).
-                if (!float.IsPositiveInfinity(laneChangePenalty) && !graph.IsIntersection(i) && (i == start || !graph.IsJunctionExitWaypoint(i)))
+                if (!float.IsPositiveInfinity(laneChangePenalty) && ((!graph.IsIntersection(i) && (i == start || !graph.IsJunctionExitWaypoint(i))) || (i == start && successors.Count == 0)))
                 {
                     // A lane change goes diagonally to the second waypoint after the one beside i, so the car moves
                     // over gently while driving on. Never inside a junction, and never from the first waypoint after
                     // one, where the car may still be coming out of a turn (spike 9: into a wall).
                     IReadOnlyList<int> sideways = graph.Lateral(i);
+                    // A car standing at a lane's end (no successor: a pocket, a stand) has no other way off: it pulls
+                    // into the lane beside whatever lies ahead in it (0.1.90: a taxi on such a waypoint got no route, every
+                    // goal reachable once lane changes were allowed).
+                    bool stuck = i == start && successors.Count == 0;
                     for (int k = 0; k < sideways.Count; k++)
                     {
                         int beside = sideways[k];
-                        if (graph.IsIntersection(beside)) continue;
+                        if (graph.IsIntersection(beside) && !stuck) continue;
                         IReadOnlyList<int> ahead = graph.Successors(beside);
                         for (int m = 0; m < ahead.Count; m++)
                         {
                             int first = ahead[m];
-                            if (first == i || graph.IsIntersection(first)) continue;
+                            if (first == i || (graph.IsIntersection(first) && !stuck)) continue;
                             IReadOnlyList<int> further = graph.Successors(first);
                             // Nor may it end on a junction entry: the car should be straight in its lane before it turns.
                             // The quicker change to the first waypoint costs a little more, for short blocks only.
-                            if (!graph.IsJunctionEntryWaypoint(first)) RelaxAdded(i, first, entry.Cost, laneChangePenalty + SharpChangeSeconds);
+                            if (stuck || !graph.IsJunctionEntryWaypoint(first)) RelaxAdded(i, first, entry.Cost, laneChangePenalty + SharpChangeSeconds);
                             for (int f = 0; f < further.Count; f++)
-                                if (further[f] != i && !graph.IsIntersection(further[f]) && !graph.IsJunctionEntryWaypoint(further[f]))
+                                if (further[f] != i && (stuck || (!graph.IsIntersection(further[f]) && !graph.IsJunctionEntryWaypoint(further[f]))))
                                     RelaxAdded(i, further[f], entry.Cost, laneChangePenalty);
                         }
                     }
