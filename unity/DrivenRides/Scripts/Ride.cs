@@ -598,7 +598,7 @@ namespace DrivenRides
 
         // Which rides are driven with the car's own physics (docs/implementation-plan.md, phase 5); the others are
         // Gley rides.
-        private static bool DrivesWithNwh(Kind kind) => kind == Kind.Taxi || kind == Kind.Stand;
+        private static bool DrivesWithNwh(Kind kind) => kind == Kind.Taxi || kind == Kind.Stand || kind == Kind.PrivateDriver;
         private readonly NwhPlanner? nwhPlanner;
         private float carLength;
         private Steering carSteering;

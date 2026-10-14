@@ -104,6 +104,36 @@ namespace DrivenRides
                     result["taxiMetres"] = Math.Round(Vector3.Distance(stand.transform.position, player.position), 1);
                     taxi = stand;
                     break;
+                case "driver":
+                    // Called as the L key calls it (the phone's own handler), unless one waits already; then it drives
+                    // to the player and stops, which takes up to a couple of minutes.
+                    if (SmartphonePrivateDriverUI.CurrentVehicle == null)
+                    {
+                        var vehicles = SaveGameManager.Current.privateDriverVehicleInstances;
+                        if (vehicles == null || vehicles.Count == 0) { result["refused"] = "no private driver vehicle"; yield break; }
+                        var vehicle = args.TryGetValue("vehicle", out var which) ? vehicles.FirstOrDefault(v => v.vehicleTypeName.Contains(which)) ?? vehicles[0] : vehicles[0];
+                        InstanceBehavior<UIs>.Instance.smartphoneUI.privateDriverUI.OnClickVehicle(vehicle);
+                        result["called"] = vehicle.vehicleTypeName;
+                    }
+                    var waitFrom = Time.unscaledTime;
+                    PrivateDriverVehicle? driver = null;
+                    while (Time.unscaledTime - waitFrom < 180f)
+                    {
+                        driver = SmartphonePrivateDriverUI.CurrentVehicle;
+                        if (driver != null)
+                        {
+                            var body = driver.GetComponent<Rigidbody>();
+                            var near = Vector3.Distance(driver.transform.position, player.position) < 25f;
+                            // A parked driver (called from indoors) is there at once.
+                            if (driver.GetVehicleIndex() < 0 || (near && (body == null || body.velocity.magnitude < 0.5f))) break;
+                        }
+                        yield return null;
+                    }
+                    if (driver == null) { result["refused"] = "the driver didn't come"; yield break; }
+                    result["waitedSeconds"] = Math.Round(Time.unscaledTime - waitFrom, 1);
+                    result["taxiMetres"] = Math.Round(Vector3.Distance(driver.transform.position, player.position), 1);
+                    taxi = driver;
+                    break;
                 default:
                     result["refused"] = "unknown kind " + kind;
                     yield break;
