@@ -53,7 +53,6 @@ namespace DrivenRides
         {
             if (instance != null) Object.Destroy(instance.gameObject);
             instance = null;
-            hiddenCars.Clear();
             OwnCarDrive.Drop();
         }
 
@@ -66,38 +65,72 @@ namespace DrivenRides
 
         public string GetHappinessModifierName() => null!;
 
-        // Hidden while the stand-in drives: no meshes, no colliders, held in place. It stays active, so it stays in the
-        // game's list of player vehicles and saves where it stands.
-        private static readonly Dictionary<CarController, (List<Renderer> Renderers, List<Collider> Colliders)> hiddenCars =
-            new Dictionary<CarController, (List<Renderer>, List<Collider>)>();
+        // A traffic model to plan with: Gley answers questions about lanes and free waypoints for a pooled car type,
+        // so the car's own traffic twin if it has one, else the pooled car closest in length (cars only, never a taxi).
+        // Nothing is loaded; the car itself drives.
+        private static readonly FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
 
-        public static void Hide(CarController car)
+        public static VehicleComponent? PlanPrefab(CarController car, out string why)
         {
-            if (hiddenCars.ContainsKey(car)) return;
-            var renderers = new List<Renderer>();
-            var colliders = new List<Collider>();
-            foreach (var r in car.GetComponentsInChildren<Renderer>()) if (r.enabled) { r.enabled = false; renderers.Add(r); }
-            foreach (var c in car.GetComponentsInChildren<Collider>()) if (c.enabled) { c.enabled = false; colliders.Add(c); }
-            car.SetFreeze(true);
-            // The map marker stays: vanilla's exit shows it, at the start, where the car is until it arrives.
-            hiddenCars[car] = (renderers, colliders);
-            Log.Info($"Own car hidden ({renderers.Count} parts, {colliders.Count} colliders).");
+            why = "";
+            var twin = PrefabHelper.LoadPrefabAssetByName("Vehicles/" + NwhCar.Id(car.vehicleType?.vehicleTypeName ?? car.name));
+            var twinCar = twin != null ? twin.GetComponent<VehicleComponent>() : null;
+            if (twinCar != null) return twinCar;
+            var length = car.vehicleController != null ? NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _)?.Length ?? 4.5f : 4.5f;
+            if (!(TrafficVehiclesField?.GetValue(TrafficManager.Instance) is TrafficVehicles vehicles)) { why = "no traffic pool"; return null; }
+            VehicleComponent? best = null;
+            var bestDiff = float.MaxValue;
+            foreach (var v in vehicles.GetVehicleList())
+            {
+                if (v == null || v.prefab == null || v.vehicleType != VehicleTypes.Car || v.prefab.GetComponent<TaxiController>() != null) continue;
+                var diff = Mathf.Abs(v.length - length);
+                if (diff < bestDiff) { bestDiff = diff; best = v.prefab.GetComponent<VehicleComponent>(); }
+            }
+            if (best == null) why = "no car in the traffic pool to plan with";
+            else Log.Info($"Own car: planned as {best.name} ({length:0.0} m, {bestDiff:0.0} m off; the car has no traffic twin).");
+            return best;
         }
 
-        public static void Show(CarController car)
+        // The ride car for the seam (NwhRideCar): the player inside, the car not the mod's, the keys handed back at
+        // every end, and at the end the arrival: a skipped or given-up trip puts the car on the lane nearest the
+        // destination first (as vanilla puts a passenger at the door), then autopark as the options say.
+        public static NwhRideCar RideCar(CarController car, NwhCar wrapped, DrivenRides.Core.Drive.CarSpec spec, EntityController? target) => new NwhRideCar
         {
-            if (car == null || !hiddenCars.TryGetValue(car, out var was)) return;
-            hiddenCars.Remove(car);
-            foreach (var r in was.Renderers) if (r != null) r.enabled = true;
-            foreach (var c in was.Colliders) if (c != null) c.enabled = true;
-            car.SetFreeze(false);
-        }
+            Car = wrapped,
+            Spec = spec,
+            PlayerInside = true,
+            Owned = false,
+            End = reason =>
+            {
+                OwnCarDrive.End(reason);
+                // The drive was added to the player's car; it goes with the ride.
+                if (car != null && car.TryGetComponent<NwhDrive>(out var drive)) Object.Destroy(drive);
+            },
+            Arrive = () => Arrive(car, target),
+        };
 
-        // The hidden car's id, for the hourly parking charges; null when no car is hidden.
-        public static string? HiddenId()
+        private static IEnumerator Arrive(CarController car, EntityController? target)
         {
-            foreach (var car in hiddenCars.Keys) if (car != null && car.vehicleInstance != null) return car.vehicleInstance.id;
-            return null;
+            if (car == null) yield break;
+            var drive = car.GetComponent<NwhDrive>();
+            if (drive != null && !drive.Arrived && target != null)
+            {
+                var destination = target.GetNavMeshTargetPosition();
+                var y = destination.y;
+                var lane = TrafficManager.Instance.GetClosestWaypoint(destination, 50f,
+                    w => w.allowedCars != null && w.allowedCars.Count > 0 && TrafficManager.WithinHeight(w, y, 5f) && TrafficManager.IsNotIntersection(w));
+                if (lane != null)
+                {
+                    Teleport(car, lane.position, TrafficManager.Instance.GetWaypointOrientation(lane));
+                    VehicleHelper.DestroyBlockingVehicles(car.gameObject, car.vehicleType, car.transform);
+                    car.SavePosition();
+                    Log.Info($"Own car: the trip was cut short; the car is on the lane at waypoint {lane.listIndex}, {Vector3.Distance(lane.position, destination):0} m from the destination.");
+                }
+                else Log.Info("Own car: the trip was cut short and there is no lane near the destination; the car stays where it is.");
+                yield return null;
+            }
+            var park = Autopark(car, () => false);
+            while (park.MoveNext()) yield return park.Current;
         }
 
         // Fuel for the way driven, as the game charges a skipped bridge (SkipBridgeHelper.GetFuelConsumption).
@@ -109,24 +142,12 @@ namespace DrivenRides
             return FuelMethod?.Invoke(null, new object[] { car, metres }) is float used && used > 0f ? used : 0f;
         }
 
-        // As the bridge skip refuses a car without the fuel for it.
+        // As the bridge skip refuses a car without the fuel for it: the trip needs about what the bridge skip charges for
+        // the planned way (the car then burns its own as it drives).
         public static bool HasFuelFor(CarController car, float metres)
         {
             try { return car.GetCurrentFuel() >= FuelFor(car, metres); }
             catch (Exception ex) { Log.Error("Own car fuel check: " + ex.Message); return true; }
-        }
-
-        public static void ChargeFuel(CarController car, float metres)
-        {
-            try
-            {
-                var used = FuelFor(car, metres);
-                if (used <= 0f) return;
-                var left = Mathf.Max(0f, car.GetCurrentFuel() - used);
-                car.SetFuel(left);
-                Log.Info($"Own car: {used:0.00} fuel for {metres:0} m, {left:0.00} left.");
-            }
-            catch (Exception ex) { Log.Error("Own car fuel: " + ex.Message); }
         }
 
         // Autopark as the options say: off, only cars that have it, or every car. The game's autopark is a fade and a

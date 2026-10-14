@@ -31,12 +31,14 @@ Taxis, the private driver and the own car are switched on and off separately on 
 
 ## On NWH driving (from 14 October 2026)
 
-Every ride now drives with the game's own car physics (`docs/implementation-plan.md`, "NWH driving"), so the own car drives itself: the stand-in, its dress, hiding the car and the exit and re-entry below are on their way out (they go once the NWH rides branch is merged). What stays: L in the driver's seat, the map, no fare, the autopark setting, the clock slider, Skip and the cancel paths.
+Every ride now drives with the game's own car physics (`docs/implementation-plan.md`, "NWH driving"), so the own car drives itself. The stand-in, its dress, hiding the car and the exit and re-entry are gone (removed after the NWH rides branch, 0.1.90); the sections below "What the game does" are kept for the facts about the game they record, not as the design. What stays: L in the driver's seat, the map, no fare, the autopark setting, the clock slider, Skip and the cancel paths.
 
 - **The ride car** is the player's car as it stands, wrapped for `NwhDrive` (`NwhCar.Wrap`); nothing is spawned or stripped, so the car's own fuel use, damage and parking state carry on.
 - **Input** (`OwnCarDrive`): NWH's `autoSetInput` off while the ride drives, back on at every end, the car left on its brakes. The game's steering assist adds its own angle each frame (`CarController.Update`, `_angleAssist`), so a postfix holds `externallyAddedAngle` at 0 during the ride.
 - **Getting out** during the trip ends the ride first (`CarController.ExitVehicle` prefix), then the game takes the player out where the car stands.
-- **Ride.cs** gets a seam from the NWH rides work: its NwhCar from a provider and a "player rides inside" flag (no attach, anchor, hide, exit or enter), with the autopark hook at the end instead of the teleport.
+- **Ride.cs** drives it through the NWH rides seam, `NwhRideCar` (`NwhRides.cs`), filled by `OwnCarTaxi.RideCar`: `PlayerInside` (no attach, anchor, hiding, exit or entry; a cancel leaves the player and the car where they are), `Owned = false`, `End` (the keys back, the drive component off the car), `Arrive` (after a Skip or a given-up trip the car goes to the lane nearest the destination, then autopark).
+- **Planning** uses the car's drivable prefab's shape (`NwhPlanner.For`, the car's own vehicle type) and, where Gley's questions need a traffic model (lanes allowed, a free waypoint), the car's traffic twin or the pooled car closest in length (`OwnCarTaxi.PlanPrefab`); nothing is loaded.
+- **Open:** a modded car without a `Vehicles/PlayerVehicles/<id>` prefab has no shape to plan with and gets "can't drive itself there"; planning from the live car would cover it.
 - **No longer needed:** the parking-charge suppression (the car is the active vehicle the whole time), the fuel charge (the car burns its own), the re-entry refusal.
 
 ## What the game does

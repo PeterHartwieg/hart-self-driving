@@ -41,18 +41,18 @@ Disposable save, outdoors on a street, Food Trucks parked. The taxi is the driva
 2. **Drive.** From the Mac: `tools/turn-tests.sh homepc send run driver=nwh cars=taxi kinds=turn limit=5 speed=1`. Watch one or two: wheels turn and steer with the car, brake lights at stops. Each result line has `"donor"`.
 3. **Remove.** `tools/turn-tests.sh homepc send dress remove` takes the parked one away.
 
-# In-game checks: own car spike (self-driving branch)
+# In-game checks: own car driving itself (NWH)
 
-Disposable save only. You need a car of your own (one with autopark and one without, if you have both), fuel, and some money. Every line in the log starts with `[Mod:Driven Rides]`; at startup three new patch lines (`TaxiSystem.GetPrice`, `ParkingSimulator.RunHourly`, `CarController.EnterVehicle`) must say `Active`. Press **Ctrl+Alt+Shift+G** once outdoors: the `Traffic pool:` line lists the models a stand-in can come from.
+Disposable save only. You need a car of your own (one with autopark and one without, if you have both), fuel, and some money. Every line in the log starts with `[Mod:Driven Rides]`; at startup the patch lines `TaxiSystem.GetPrice`, `CarController.Update` and `CarController.ExitVehicle` must say `Active`.
 
-1. **Start.** Sit in your car, stopped on a street. **L** opens the city map; pick a place 1 to 2 km away. The map closes, you ride along as with the driver, the clock follows the clock slider. Log: `Own car: the stand-in is ...` (its own twin, or which car is dressed), `Stand-in dressed: ...` if dressed.
-2. **Look.** If dressed: does the car on the street look like yours (body, wheels in place, wheels turning and steering)? Screenshots from close by, please. Lights are expected to be missing in this spike, and a car's own traffic twin keeps its random traffic colour.
-3. **Arrival.** You end in the driver's seat, engine on, vehicle camera. Fuel went down a little. Log: `Own car placed where the stand-in stopped`.
-4. **Autopark.** Options, Driven Rides, "At the end of a self-driven trip": with *Autopark cars that have autopark*, a car with autopark parks itself (fade, then parked, still in the seat), one without stays on the street. With *Autopark every car*, both park. With *Park the car yourself*, neither. Log: `Own car: autoparking ...` or `no autopark (...)`.
-5. **Skip** mid-trip: fade, the car is on the lane nearest the destination with you in it, the clock moved on.
-6. **Save** mid-trip and load: you stand beside your car where you started.
-7. **Hospital** mid-trip (**Ctrl+Alt+Shift+V**): the car is visible where you started; the hospital takes over.
-8. **Parking:** a trip across a full hour mark leaves no new parking fee or ticket for that hour on the car.
+1. **Start.** Sit in your car, stopped on a street. **L** opens the city map; pick a place 1 to 2 km away. The map closes and the car drives off by itself with you in the driver's seat and the car's own camera. Log: `Own car: driving itself (...)`, `NWH ride planned for ...`, `Departed (NWH)`.
+2. **Keys.** During the trip WASD and the handbrake do nothing; the steering wheel doesn't fight the drive (steering assist held off). The ride panel's speed buttons, clock slider and Skip work.
+3. **Arrival.** The car stops near the destination and you're still in the seat with control. Fuel went down as for a normal drive. Log: `Own car: the keys are the player's again (arrived)`.
+4. **Autopark.** Options, Driven Rides, "At the end of a self-driven trip": with *Autopark cars that have autopark*, a car with autopark parks itself (fade, then parked, still in the seat), one without stays on the street. With *Autopark every car*, both park. With *Park the car yourself*, neither. Log: `Own car: autoparked` or `no autopark (...)`.
+5. **Skip** mid-trip: fade, the car is on the lane nearest the destination with you in it, the clock moved on, then autopark as above.
+6. **Getting out** mid-trip (the exit key): the trip ends, the car stops where it is, you're on foot beside it. Log: `Own car: the player got out during the trip`.
+7. **Save** mid-trip and load: you sit in your car where it was when you saved.
+8. **Hospital** mid-trip (**Ctrl+Alt+Shift+V**): the car stops where it is; the hospital takes over.
 9. **Refusals:** L while driving fast says "Stop the car first"; L in a parking garage says "Drive out onto the street first"; a destination too far for the fuel left says the car can't drive there; with the own car option off, L in the car does nothing.
 10. A second trip straight after, and a private driver ride after that, both work.
 
