@@ -188,7 +188,8 @@ namespace DrivenRides
 
         public void Block(int from, int to, BlockCause cause = BlockCause.Manoeuvre) => blocked[(from, to)] = (cause, Time.realtimeSinceStartup);
 
-        public bool IsBlocked(int from, int to) => blocked.ContainsKey((from, to));
+        // A step through a gate that stays shut for the player (Gates) is blocked like the others.
+        public bool IsBlocked(int from, int to) => blocked.ContainsKey((from, to)) || Gates.LockedStep(from, to);
 
         // A new ride: only a manoeuvre the car can't make in the built world (BlockCause.Manoeuvre) stays blocked for
         // the session. What stood on the way (traffic, no motion) or in a lane (a parked car, a prop, a lane's corner)
@@ -206,6 +207,8 @@ namespace DrivenRides
                 Check.Forget(key.Item1, key.Item2);
             }
             laneClear.Clear();
+            // The gates and whether each opens for the player now (a house bought since).
+            Gates.Refresh(graph);
         }
 
         // The cause a step found blocked gets, from what failed it (WayOnPlanner.CauseOf).
@@ -260,7 +263,7 @@ namespace DrivenRides
         {
             var n = Physics.OverlapBoxNonAlloc(centre, half, hits, rotation, mask, QueryTriggerInteraction.Ignore);
             for (var h = 0; h < n; h++)
-                if (Ignore == null || !hits[h].transform.IsChildOf(Ignore)) return Name(hits[h]);
+                if ((Ignore == null || !hits[h].transform.IsChildOf(Ignore)) && !Gates.IsOpenDoor(hits[h])) return Name(hits[h]);
             return null;
         }
 
@@ -394,6 +397,7 @@ namespace DrivenRides
                     {
                         var c = hits[h];
                         if (Ignore != null && c.transform.IsChildOf(Ignore)) continue;
+                        if (Gates.IsOpenDoor(c)) continue;
                         // Its edge nearest the line at this point, sideways: a ray each way from the line at a height the
                         // obstacle has (a guardrail is 0.8 m tall). Not its bounds: a long curved guardrail's box
                         // (34 x 33 m in the Hamptons) holds the whole lane, and every step along it was blocked.
@@ -496,8 +500,9 @@ namespace DrivenRides
         private const int SearchStep = 2000;
         private const int MaxExpansions = 200000;
 
-        private IEnumerable<object?> PlanRouteWork(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds, WayOnJob? job, Planned into)
+        private IEnumerable<object?> PlanRouteWork(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds, WayOnJob? job, Planned into, bool atGate = false)
         {
+            if (!Gates.Read) Gates.Refresh(graph);
             // The pedestrians' NavMesh may have come since the planner was made (Sidewalk).
             Check.PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null;
             var blockedNotes = new List<string>();
@@ -528,6 +533,7 @@ namespace DrivenRides
                     // Its turns' checks worked out first as yielding work, so Build finds them known (review round 3).
                     foreach (var y in Check.PrepareWork(route.Waypoints)) yield return y;
                     var built = DrivePlan.Build(graph, route.Waypoints, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
+                    ThroughGates(built);
                     yield return null;
                     var notes = new List<string>();
                     foreach (var y in Check.Validate(built, found, notes)) yield return y;
@@ -567,12 +573,64 @@ namespace DrivenRides
             // With no route, how many steps blocked earlier in the session (manoeuvres this car can't make) the search
             // also kept out, so a "no route" with no block of its own listed says why.
             var earlier = blocked.Count - blockedNotes.Count;
+            // No way round a gate that stays shut for the player, and the goal behind it: the ride ends before the
+            // gate, on the lane, with room to stop clear of its doors and trigger, and the player walks the rest
+            // (Peter, 14 October 2026; the game's taxi refuses such a ride outright, TaxiSystem.CanEnterPrivateFence).
+            if (route == null && !atGate)
+            {
+                Route? through = null;
+                var probe = RoutePlanner.Begin(graph, new RouteRequest
+                {
+                    Start = start, Goals = goals, VehicleType = vehicleType, IsDisabled = GleyGraph.IsDisabled,
+                    IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || blocked.ContainsKey((a, b)), WideUTurns = true,
+                });
+                Func<bool>? stop = job != null ? () => job.OverBudget : (Func<bool>?)null;
+                while (probe.Status == PlanStatus.Running && probe.Expanded < MaxExpansions)
+                {
+                    probe.Step(job != null ? SearchStep : MaxExpansions, stop);
+                    if (probe.Status == PlanStatus.Running) yield return null;
+                }
+                through = probe.Status == PlanStatus.Found ? probe.Result : null;
+                if (through != null)
+                {
+                    var w = through.Waypoints;
+                    for (var k = 0; k + 1 < w.Count; k++)
+                    {
+                        if (!(Gates.On(w[k], w[k + 1]) is Gates.Found gate) || !gate.Gate.Locked) continue;
+                        var stopAt = GateCrossing.DropOff(graph, w, k, gate.Gate, GateClear);
+                        if (stopAt <= 0) break;
+                        Log.Info($"NWH planner: the way to the goal goes through the gate '{gate.Gate.Name}', shut for the player; the ride ends at waypoint {w[stopAt]} before it.");
+                        var atTheGate = new Planned();
+                        foreach (var y in PlanRouteWork(graph, start, new[] { new Goal(w[stopAt], 0f) }, vehicleType, rounds, job, atTheGate, true)) yield return y;
+                        into.Route = atTheGate.Route;
+                        into.Plan = atTheGate.Plan;
+                        into.Summary = $"ends at the gate '{gate.Gate.Name}' (shut for the player), at waypoint {w[stopAt]}: " + atTheGate.Summary;
+                        yield break;
+                    }
+                }
+            }
             into.Summary = (route != null ? $"{(driven.Count > 0 ? string.Join(", ", driven) : "no added turns")}, {changes} lane changes" : $"no route ({Math.Max(0, earlier)} manoeuvres blocked earlier this session)")
                 + (blockedNotes.Count > 0 ? $"; blocked {blockedNotes.Count}: {string.Join("; ", blockedNotes.GetRange(0, Math.Min(4, blockedNotes.Count)))}{(blockedNotes.Count > 4 ? "; ..." : "")}" : "")
                 + (noCase > 0 ? $"; {noCase} with no case to check" : "");
         }
 
         private static string StepKind(LaneGraph graph, int from, int to) => WayOnPlanner.StepKind(graph, from, to);
+
+        // A ride ending before a shut gate stops its front this far outside the gate's doors and trigger.
+        public const float GateClear = 3f;
+
+        // Through a gate that opens for the player, the step before it and the step through it at SqueezeKmh: the
+        // doors swing open in about a second once the car is in their trigger (FenceDoor.openDuration).
+        private static void ThroughGates(DrivePlan plan)
+        {
+            var path = plan.Path;
+            for (var k = 0; k + 1 < path.Count; k++)
+            {
+                if (!(Gates.On(path[k], path[k + 1]) is Gates.Found gate) || gate.Gate.Locked) continue;
+                if (k > 0) plan.Slow.Add((k - 1, Feasibility.SqueezeKmh));
+                plan.Slow.Add((k, Feasibility.SqueezeKmh));
+            }
+        }
 
         public static int RouteStepAt(IReadOnlyList<int> route, IReadOnlyList<int> path, int position) => WayOnPlanner.RouteStepAt(route, path, position);
 
@@ -583,6 +641,7 @@ namespace DrivenRides
         public DrivePlan? Plan(LaneGraph graph, IReadOnlyList<int> route, out List<(int From, int To, string What)> failed)
         {
             var plan = DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
+            ThroughGates(plan);
             var notes = new List<string>();
             failed = Check.ValidateNow(plan, notes);
             foreach (var note in notes) Log.Info("NWH planner: " + note + ".");
