@@ -1,3 +1,21 @@
+# In-game checks: clean install from the package (release-prep, 0.2.0-rc1)
+
+The first run as a player would meet the mod: from the package, with no test flag. Build it with `tools/package-mod.sh` and copy `build/package/DrivenRides/` (or unzip `build/package/DrivenRides-0.2.0-rc1.zip`) to the game PC.
+
+1. **A game without the mod.** No `DrivenRides` folder in `ModsLocal` and no Workshop subscription to it (a parked copy outside `ModsLocal` is fine). Park Food Trucks and switch off other gameplay mods. Delete or rename `<LocalLow>/Hovgaard Games/Big Ambitions/DrivenRides/` (the test sessions' traces and dumps) so you can see whether a normal game writes there.
+2. **No test flag.** Steam's launch options for Big Ambitions have neither `-drivenrides-test` nor `-foodtrucks-test` (the test PC's sessions add the second; start the game from Steam, not `run-remote.sh`).
+3. **Install.** Copy the package folder into `ModsLocal` as `DrivenRides`. Start the game. The Mods menu lists it and it loads with no error. `Player.log`: `Version 0.2.0-rc1 loading.`, `Harmony 2.4.2...`, one `Patch ...: Active` line per hook and no `Not active`, the `Options: ...` line. No `Test mode` line, no `Debug keys ready`, no `Traffic warm-up`, no `City ready`, no `Lane graph:` lines.
+4. **Options page.** Mods options, Driven Rides: nine settings with the texts from `Locales/en.json`, none showing a raw `drivenrides:` key. Note any text that is cut off or reads oddly.
+5. **New save.** A new character. Hail a taxi and pick a place 1 to 2 km away: the taxi drives, the panel card shows, you get out at the door. The log has one `Ride accepted: ...` line, one `Ride ending: Complete (arrived) ...` line and nothing per step (no `NWH drive:`, `NWH planner:`, `Departed`, `Light:` or `Watchdog` lines).
+6. **The rest of the rides.** A taxi stand ride, Skip mid-ride (fade, door), 2x and 3x on the panel, the clock slider. With money for a private driver: L calls it, L again walks you to it, the ride drives. With a car: L in the driver's seat, a trip, autopark. Each ride adds a start and an end line, no more.
+7. **Notices.** Each in plain English, no raw key: L with no private driver ("You have no private driver."), L in a moving car ("Stop the car first."), a book or other activity during a ride ("Not during a ride."). If a ride falls back to the vanilla ride: "No driving route for this ride. You get there the usual way."
+8. **Nothing for testing.** Ctrl+Alt+Shift+G, X, K, V, U, J and L do nothing. After the rides, `<LocalLow>/Hovgaard Games/Big Ambitions/DrivenRides/` does not exist (no `ride-trace.csv`, `rides.jsonl`, `lane-graph-*.json`, `tests/`).
+9. **Save during a ride.** Start a taxi ride, open the pause menu mid-ride, save as a second slot, then let the ride finish. Save again normally and quit.
+10. **Uninstall.** Delete `ModsLocal\DrivenRides`. Start the game: the Mods menu no longer lists it. Load the normal save: it loads, you can walk, and a taxi ride is the base game's fade. Load the mid-ride save: you stand on foot where you got in, can walk and take a taxi. `Player.log` has no exception naming `DrivenRides`.
+11. **Reinstall.** Copy the package back, start the game, load the save: rides drive again, and the options kept their values.
+
+Results and the log go to the README's evidence table (rows "A normal game ..." and "A save made with the mod loads without it").
+
 # In-game checks: the ride panel as a card (ride-panel, 0.1.97-panel1)
 
 Disposable save, Food Trucks parked, other gameplay mods off. The IMGUI box at the top centre is gone; the panel is now a uGUI card under the Objectives panel (design Option B). It works the same as before; only the look changed. Compare it against the design canvas, "Option B: small card".
