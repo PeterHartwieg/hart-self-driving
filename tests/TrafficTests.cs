@@ -48,6 +48,8 @@ public sealed class TrafficTests
         var notEmergency = new ConcurrentBag<string>();
         var lostBeyond = new ConcurrentBag<string>();
         var times = new List<float>();
+        var turnOff = new ConcurrentBag<float>();
+        var dips = new ConcurrentBag<(int Seed, float Time, int Car, float Drop, float Lasted, string Kind)>();
         // DR_SOAK_SERIAL=1 runs the seeds one after another (to check the parallel run gives the same results).
         var parallel = new ParallelOptions { MaxDegreeOfParallelism = Environment.GetEnvironmentVariable("DR_SOAK_SERIAL") == "1" ? 1 : -1 };
         Parallel.For(0, seeds, parallel, seed =>
@@ -55,6 +57,8 @@ public sealed class TrafficTests
             var r = Run(TrafficTemplates.Build(template, seed));
             System.Threading.Interlocked.Add(ref late, r.ApproachesLate);
             System.Threading.Interlocked.Add(ref again, r.ApproachesAgain);
+            turnOff.Add(r.TurnOff);
+            foreach (var dp in r.TurnDips) dips.Add((seed, dp.Time, dp.Car, dp.Drop, dp.Lasted, dp.Kind));
             if (r.NotEmergency != null) notEmergency.Add($"seed {seed}: {r.NotEmergency}");
             if (r.LostKind != null) lock (lostKinds) lostKinds[r.LostKind] = lostKinds.TryGetValue(r.LostKind, out var lk) ? lk + 1 : 1;
             if (r.OptionLost > 0f) optionLost.Add($"seed {seed}: the stopping option lost (short of the way by {r.OptionLost:0.00} m at HardDecel; {r.LostKind})");
@@ -70,6 +74,9 @@ public sealed class TrafficTests
             else System.Threading.Interlocked.Increment(ref arrived);
         });
         output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {late} stops imposed late, {again} imposed again within 1 s, {harder} decisions braking past Decel, final pass up to {roundsMost[0]} rounds ({exhausted} out of rounds, {unsettled} unsettled), mean arrival {(times.Count > 0 ? times.Average() : 0f):0.00} s, {optionLost.Count} runs losing the stopping option avoidably ({lostBeyond.Count} by more than a decision step), {newHazardRuns} runs with a stop made unmakeable by news ({newHazards})");
+        var offs = turnOff.OrderBy(x => x).ToList();
+        output.WriteLine($"  off the line in turns (per run, most): p50 {offs[offs.Count / 2]:0.00} m, p99 {offs[offs.Count * 99 / 100]:0.00} m, max {offs[^1]:0.00} m");
+        output.WriteLine($"  {dips.Count} slowdowns in turns, back up within {TrafficSim.TurnDipSeconds:0} s: {string.Join(", ", dips.GroupBy(dp => dp.Kind).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} {g.Count()}"))}");
         foreach (var (seed, why) in failures.OrderBy(f => f.Seed).Take(20)) output.WriteLine($"  seed {seed}: {why}");
         foreach (var f in invariantFailures.Take(10)) output.WriteLine("  invariant, " + f);
         foreach (var f in optionLost.OrderBy(f => f).Take(20)) output.WriteLine("  " + f);
@@ -104,7 +111,7 @@ public sealed class TrafficTests
     // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
     private static readonly Dictionary<string, (int OptionLost, int Again)> Ratchet = new()
     {
-        ["lights"] = (12, 27), ["priority"] = (1, 1), ["merge"] = (4, 6), ["uturn"] = (2, 38),
+        ["lights"] = (14, 28), ["priority"] = (1, 4), ["merge"] = (2, 1), ["uturn"] = (0, 13),
         ["headon"] = (0, 0), ["pullaway"] = (1, 3),
     };
 

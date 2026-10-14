@@ -53,6 +53,8 @@ namespace DrivenRides
         private readonly List<OtherCar> cars = new List<OtherCar>();
         private readonly TrafficDecision decision = new TrafficDecision();
         private string lastWhy = "";
+        // One line per slowdown, on every ride (Core BrakeEvents).
+        private readonly BrakeEvents slowdowns = new BrakeEvents();
         private bool backing;
         // The blocked rule (BlockedRule): what blocked the car, and until when it backs off before giving up.
         private string? blockedWhat;
@@ -325,6 +327,8 @@ namespace DrivenRides
                 if (decision.Why.Length > 0) Log.Info($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");
                 lastWhy = decision.Why;
             }
+            var slowdown = slowdowns.Step(Time.time, driver.Along, speed, vehicle.steering.angle, decision.Why, decision.Note, decision.StopIsRed);
+            if (slowdown != null) Log.Info("NWH drive: " + slowdown);
 
             var input = vehicle.input;
             var transmission = vehicle.powertrain.transmission;
