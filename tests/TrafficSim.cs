@@ -119,7 +119,7 @@ internal sealed class TrafficSim : ILiveFlags
         body = new RideBody { Wheelbase = r.Wheelbase, FrontAhead = r.FrontAhead, RearBehind = r.RearBehind, HalfWidth = r.HalfWidth };
         driver = r.BuildDriver(line);
         ride = r.BuildCar();
-        traffic = new TrafficDriver(graph, line, driver, body) { PassRoundsLimit = passRounds, Model = r.BuildCar() };
+        traffic = new TrafficDriver(graph, line, driver, body) { PassRoundsLimit = passRounds, Model = Environment.GetEnvironmentVariable("NOMODEL") == null ? r.BuildCar() : null };
         // Time enough for the whole line at 3 m/s on average, lights included (a dump runs 400 m on from its window).
         seconds = Math.Max(sc.Seconds, 30f + line.Line.Length / 3f);
     }

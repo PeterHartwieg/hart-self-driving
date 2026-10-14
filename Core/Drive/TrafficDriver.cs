@@ -911,7 +911,7 @@ namespace DrivenRides.Core.Drive
         private float foreseenAt = float.MinValue, foreseenTo;
         // Foreseen again every ForeseeEvery (a few physics steps; the poses are at fixed cells along the line, so the
         // last ones hold in between), and at most ForeseeSeconds on.
-        public const float ForeseeEvery = 0.1f, ForeseeSeconds = 8f, ForeseeStep = 0.02f;
+        public const float ForeseeEvery = 0.2f, ForeseeSeconds = 8f, ForeseeStep = 0.02f;
 
         // The near field: from the car as it is (rear axle, heading, speed, wheel) through the stopping distance and
         // until the car has settled on the line, capped at `end`.
