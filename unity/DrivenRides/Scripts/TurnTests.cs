@@ -186,8 +186,8 @@ namespace DrivenRides
             {
                 case "cars": WriteCars(); break;
                 case "catalogue": WriteCatalogue(); break;
-                case "run": Start(args, null); break;
-                case "rerun": if (rest.Count > 0) Start(args, rest[0]); break;
+                case "run": StartRun(args, null); break;
+                case "rerun": if (rest.Count > 0) StartRun(args, rest[0]); break;
                 case "stop": if (session != null) session.StopRequested = true; break;
                 case "measure":
                     if (rest.Contains("ground"))
@@ -213,7 +213,8 @@ namespace DrivenRides
             }
         }
 
-        private void Start(Dictionary<string, string> args, string? rerunFile)
+        // Not "Start": Unity takes a method of that name for its message and logs "Start() can not take parameters".
+        private void StartRun(Dictionary<string, string> args, string? rerunFile)
         {
             if (session != null || routine != null) { Log.Error("Turn tests: a session is already running."); return; }
             routine = RunSession(args, rerunFile);

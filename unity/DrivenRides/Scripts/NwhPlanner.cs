@@ -296,6 +296,8 @@ namespace DrivenRides
             {
                 int from = w[k], to = w[k + 1];
                 var step = Vec3.HorizontalDistance(graph.Position(from), graph.Position(to));
+                // A bridge the ride skips is never driven (Bridges).
+                if (Bridges.Skips(from)) { gone += step; continue; }
                 if (Contains(graph.Successors(from), to))
                 {
                     if (gone < laneMetres && LaneBlocked(graph, from, to, out _) is string parked) result.Add((from, to, parked));
@@ -342,7 +344,7 @@ namespace DrivenRides
             {
                 int from = path[k], to = path[k + 1];
                 gone += Vec3.HorizontalDistance(graph.Position(from), graph.Position(to));
-                if (!Contains(graph.Successors(from), to) || laneClear.Contains((from, to))) continue;
+                if (!Contains(graph.Successors(from), to) || laneClear.Contains((from, to)) || Bridges.Skips(from)) continue;
                 var what = LaneBlocked(graph, from, to, out var at);
                 result.Add((from, to, what, at));
                 if (what == null && near is Vec3 n && Vec3.HorizontalDistance(n, graph.Position(to)) <= LoadedMetres) laneClear.Add((from, to));
@@ -534,6 +536,7 @@ namespace DrivenRides
                     foreach (var y in Check.PrepareWork(route.Waypoints)) yield return y;
                     var built = DrivePlan.Build(graph, route.Waypoints, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
                     ThroughGates(built);
+                    OffBridges(built);
                     yield return null;
                     var notes = new List<string>();
                     foreach (var y in Check.Validate(built, found, notes)) yield return y;
@@ -616,6 +619,20 @@ namespace DrivenRides
 
         private static string StepKind(LaneGraph graph, int from, int to) => WayOnPlanner.StepKind(graph, from, to);
 
+        // Nothing of a plan is checked where a bridge skip jumps the car (Bridges): no corner within two waypoints of a
+        // skipped stretch (a corner's sweep reaches 10 m either side), no sideways move on one.
+        private static void OffBridges(DrivePlan plan)
+        {
+            var path = plan.Path;
+            bool Near(int k)
+            {
+                for (var q = Math.Max(0, k - 2); q <= k + 2 && q < path.Count; q++) if (Bridges.Skips(path[q])) return true;
+                return false;
+            }
+            plan.Fillets.RemoveWhere(Near);
+            plan.Shifts.RemoveAll(shift => Bridges.Skips(path[shift.Position]));
+        }
+
         // A ride ending before a shut gate stops its front this far outside the gate's doors and trigger.
         public const float GateClear = 3f;
 
@@ -642,6 +659,7 @@ namespace DrivenRides
         {
             var plan = DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, LimitKmh, ShiftFor);
             ThroughGates(plan);
+            OffBridges(plan);
             var notes = new List<string>();
             failed = Check.ValidateNow(plan, notes);
             foreach (var note in notes) Log.Info("NWH planner: " + note + ".");
