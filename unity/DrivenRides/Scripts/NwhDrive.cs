@@ -58,6 +58,7 @@ namespace DrivenRides
         private string? blockedWhat;
         private Recovery? recovery;
         private float pushSeconds, staticHeldSeconds;
+        private bool stuckReplanned;
         private int lastBlockerLayer = -1;
         private string lastBlocker = "";
 
@@ -408,9 +409,16 @@ namespace DrivenRides
             if (Ended) return;
             if (o.Along + Car.FrontAhead >= driver.Length - 1.5f && Mathf.Abs(speed) < 0.3f) { End("arrived", true); return; }
             if (BlockedRule(o, speed, gap)) return;
-            // Stuck: 30 s without 2 m of progress while nothing holds the car.
-            if (o.Along > lastProgressAlong + 2f || WaitingNow) { lastProgressAlong = o.Along; lastProgressTime = Time.time; }
-            else if (Time.time - lastProgressTime > 30f) { End("stuck", false); return; }
+            // Stuck: 30 s without 2 m of progress while nothing holds the car. With a way on to plan (a ride), the step
+            // ahead is given up once and planned round, as for any block; stuck again after that, the drive ends.
+            if (o.Along > lastProgressAlong + 2f || WaitingNow) { lastProgressAlong = o.Along; lastProgressTime = Time.time; stuckReplanned = false; }
+            else if (Time.time - lastProgressTime > 30f)
+            {
+                lastProgressTime = Time.time;
+                if (!stuckReplanned && WayOn.Replan != null) { stuckReplanned = true; Block(o, "stuck: no progress for 30 s"); return; }
+                End("stuck", false);
+                return;
+            }
             stillSeconds = Mathf.Abs(speed) < 0.2f && !WaitingNow && o.Desired > 1f ? stillSeconds + Time.fixedDeltaTime : 0f;
             if (stillSeconds > 1f && stillSeconds < 1.03f) Log.Info($"NWH drive: standing with throttle {o.Throttle:0.00}, gear {transmission.Gear}, engine {(vehicle.powertrain.engine.IsRunning ? "running" : "off")}, rpm {vehicle.powertrain.engine.OutputRPM:0}.");
         }

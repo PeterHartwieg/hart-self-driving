@@ -1223,6 +1223,13 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("NWH ride, traffic car: " + ex.Message); }
         }
 
+        // Watchdog limits for an NWH ride: the driver handles its own stops (lights, traffic, blocks and their
+        // replans), so there is no restart. No 5 m of progress for 20 s (unscaled, pauses left out) gives up the step
+        // ahead, and the planner plans round it; no 5 m in the 30 s after that ends the ride the vanilla way. The
+        // ride deadline stays three times the planned driving time plus a minute. The drive's own stuck limit is 30 s
+        // of game time.
+        private static readonly WatchLimits NwhWatchLimits = new WatchLimits { RestartAfterSeconds = 1e6, ReplanAfterSeconds = 20 };
+
         private void DepartNwh()
         {
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car was gone before departure"); return; }
@@ -1239,6 +1246,7 @@ namespace DrivenRides
             departed = true;
             progress = new RouteProgress(Points(path));
             IndexRoute();
+            watch = new RideWatch(unpausedSeconds, route.DriveSeconds, NwhWatchLimits);
             if (!PlayerInside) SwitchCamera();
             phase = Phase.Driving;
             Log.Info($"Departed (NWH): {path.Count} waypoints, {route.LengthMetres:0} m, top {(nwhPlan.TopKmh > 0 ? nwhPlan.TopKmh : TopSpeed):0} km/h, light cycle {GreenLightTime()} s.");
@@ -1259,6 +1267,25 @@ namespace DrivenRides
                 {
                     if (drive.Arrived) EndWith(Outcome.Complete, "arrived");
                     else EndWith(Outcome.Vanilla, "NWH drive: " + drive.EndReason);
+                }
+                else if (OnBridge()) return;
+                else
+                {
+                    // The watchdog on progress along the route: waiting at a light or in traffic isn't stalling.
+                    if (drive.WaitingNow) watch!.Waiting(unpausedSeconds);
+                    switch (watch!.Update(unpausedSeconds, along))
+                    {
+                        case WatchVerdict.Restart: watch.Restarted(unpausedSeconds); break;
+                        case WatchVerdict.Replan:
+                            // Stalled: the step ahead is given up as a blocked one and the planner plans round it, as
+                            // for any block the drive finds itself.
+                            Event("Watchdog: " + watch.LastReason + (drive.GiveUpStep("watchdog: " + watch.LastReason)
+                                ? "; giving up the step ahead and planning round it." : "; the drive is replanning already."));
+                            watch.Replanned(unpausedSeconds);
+                            break;
+                        // Still stuck: the vanilla finish (fade, the rest of the way charged, the door).
+                        case WatchVerdict.GiveUp: EndWith(Outcome.Vanilla, "watchdog: " + watch.LastReason); break;
+                    }
                 }
             }
             ApplyScale(phase == Phase.Driving);
@@ -1734,7 +1761,7 @@ namespace DrivenRides
 
         private bool OnBridge()
         {
-            var here = car.transform.position;
+            var here = Body.position;
             // Found once per ride: a scene search every frame is what made 0.1.5 lag.
             bridges ??= Object.FindObjectsOfType<Streets.BridgeTriggerController>();
             foreach (var bridge in bridges)
@@ -1752,8 +1779,8 @@ namespace DrivenRides
                 var bestAngle = float.MaxValue;
                 foreach (var t in targets)
                 {
-                    if (t == null || Vector3.Dot(t.position - here, car.transform.forward) < 0f) continue;
-                    var angle = Mathf.Abs(Mathf.DeltaAngle(car.transform.eulerAngles.y, t.eulerAngles.y));
+                    if (t == null || Vector3.Dot(t.position - here, Body.forward) < 0f) continue;
+                    var angle = Mathf.Abs(Mathf.DeltaAngle(Body.eulerAngles.y, t.eulerAngles.y));
                     if (angle < bestAngle) { bestAngle = angle; best = t; }
                 }
                 if (best == null) { Event("Bridge: no skip target ahead."); return false; }
@@ -1776,12 +1803,55 @@ namespace DrivenRides
             return false;
         }
 
+        // The bridge skip for an NWH ride: the route from the first of its waypoints at or past path position `at`, a
+        // plan for the car from there (NwhPlanner.Plan), the car at rest with its rear axle on that waypoint facing
+        // along the lane, and the drive going on along the plan (NwhDrive.DriveOn). False, with why, if any of it fails;
+        // the ride then finishes the vanilla way.
+        private bool LandNwh(int at, out Vector3 landedAt, out string why)
+        {
+            landedAt = Body.position;
+            why = "";
+            var graph = GleyGraph.Graph;
+            if (graph == null || nwhPlanner == null || nwhDrive == null) { why = "no planner"; return false; }
+            var w = route.Waypoints;
+            var r = -1;
+            for (var k = at; k < path.Count && r < 0; k++) r = IndexOf(w, path[k]);
+            if (r < 0 || r + 1 >= w.Count) { why = "no route waypoint past the bridge"; return false; }
+            var rest = new List<int>();
+            for (var k = r; k < w.Count; k++) rest.Add(w[k]);
+            var plan = nwhPlanner.Plan(graph, rest, out var failed);
+            if (plan == null) { why = failed.Count > 0 ? $"step {failed[0].From} -> {failed[0].To} fails as driven" : "no plan"; return false; }
+            var all = GleyGraph.Waypoints!;
+            var land = all[rest[0]].position;
+            var heading = graph.PlainHeading(rest[0], out var hx, out var hz) ? new Vector3(hx, 0f, hz) : all[rest[1]].position - land;
+            heading.y = 0f;
+            var rotation = heading.sqrMagnitude > 0.01f ? Quaternion.LookRotation(heading) : Body.rotation;
+            NwhRides.PlaceRearAxle(nwh!.Car, land, rotation);
+            landedAt = land;
+            alongOffset += progress!.AlongMetres;
+            route = Route.Fixed(graph, rest);
+            nwhTaken = plan;
+            path = Expand(route);
+            progress = new RouteProgress(Points(path));
+            IndexRoute();
+            lastAlong = alongOffset;
+            nwhDrive.DriveOn(nwhPlan ?? plan);
+            Event($"Bridge: the car landed on waypoint {rest[0]}; {rest.Count} route waypoints on.");
+            return true;
+        }
+
+        private static int IndexOf(IReadOnlyList<int> list, int value)
+        {
+            for (var k = 0; k < list.Count; k++) if (list[k] == value) return k;
+            return -1;
+        }
+
         private IEnumerator SkipBridge()
         {
             var (target, at) = bridgeSkip!.Value;
             bridgeSkip = null;
             var all = GleyGraph.Waypoints!;
-            var from = car.transform.position;
+            var from = Body.position;
             var to = all[path[at]].position;
             Event($"Bridge: skipping {Vector3.Distance(from, to):0} m to waypoint {path[at]}.");
             faded = true;
@@ -1789,39 +1859,53 @@ namespace DrivenRides
             while (fade.MoveNext()) yield return fade.Current;
             if (cancelled) yield break;
 
-            // The car onto the far side, facing along the route; the path from there on.
-            var ahead = all[path[at + 1]].position - to;
-            var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(new Vector3(ahead.x, 0f, ahead.z)) : target.rotation;
-            if (car.rb != null)
+            if (nwh != null)
             {
-                car.rb.velocity = Vector3.zero;
-                car.rb.angularVelocity = Vector3.zero;
-                car.rb.position = to + Vector3.up * 0.3f;
-                car.rb.rotation = rotation;
+                // An NWH car is teleported: its rear axle onto the first route waypoint on the far side, at rest, and
+                // the drive goes on along the rest of the route, planned for the car from there.
+                if (!LandNwh(at, out var landedAt, out var why)) { EndWith(Outcome.Vanilla, "bridge: " + why); yield break; }
+                to = landedAt;
+                if (bridges != null)
+                    foreach (var other in bridges)
+                        if (other != null && Vector3.Distance(other.transform.position, Body.position) < 300f) skipped.Add(other);
+                yield return null;
             }
-            car.transform.SetPositionAndRotation(to + Vector3.up * 0.3f, rotation);
-            // Every bridge trigger near the landing is done with too.
-            if (bridges != null)
-                foreach (var other in bridges)
-                    if (other != null && Vector3.Distance(other.transform.position, to) < 300f) skipped.Add(other);
-            alongOffset += progress!.AlongMetres;
-            var rest = path.GetRange(at, path.Count - at);
-            var shifted = new HashSet<int>();
-            foreach (var k in slowPath) if (k >= at) shifted.Add(k - at);
-            slowPath.Clear();
-            slowPath.UnionWith(shifted);
-            shifted.Clear();
-            foreach (var k in uTurnPath) if (k >= at) shifted.Add(k - at);
-            uTurnPath.Clear();
-            uTurnPath.UnionWith(shifted);
-            path = rest;
-            owned.Clear();
-            for (var k = 1; k < path.Count; k++) owned.Add(path[k]);
-            progress = new RouteProgress(Points(path));
-            IndexRoute();
-            lastAlong = alongOffset;
-            Go();
-            yield return null;
+            else
+            {
+                // The car onto the far side, facing along the route; the path from there on.
+                var ahead = all[path[at + 1]].position - to;
+                var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(new Vector3(ahead.x, 0f, ahead.z)) : target.rotation;
+                if (car.rb != null)
+                {
+                    car.rb.velocity = Vector3.zero;
+                    car.rb.angularVelocity = Vector3.zero;
+                    car.rb.position = to + Vector3.up * 0.3f;
+                    car.rb.rotation = rotation;
+                }
+                car.transform.SetPositionAndRotation(to + Vector3.up * 0.3f, rotation);
+                // Every bridge trigger near the landing is done with too.
+                if (bridges != null)
+                    foreach (var other in bridges)
+                        if (other != null && Vector3.Distance(other.transform.position, to) < 300f) skipped.Add(other);
+                alongOffset += progress!.AlongMetres;
+                var rest = path.GetRange(at, path.Count - at);
+                var shifted = new HashSet<int>();
+                foreach (var k in slowPath) if (k >= at) shifted.Add(k - at);
+                slowPath.Clear();
+                slowPath.UnionWith(shifted);
+                shifted.Clear();
+                foreach (var k in uTurnPath) if (k >= at) shifted.Add(k - at);
+                uTurnPath.Clear();
+                uTurnPath.UnionWith(shifted);
+                path = rest;
+                owned.Clear();
+                for (var k = 1; k < path.Count; k++) owned.Add(path[k]);
+                progress = new RouteProgress(Points(path));
+                IndexRoute();
+                lastAlong = alongOffset;
+                Go();
+                yield return null;
+            }
 
             // The game's own bridge time: 0.04 game minutes per metre at the game speed (SkipBridgeHelper).
             var minutes = Vector3.Distance(from, to) * 0.04f * PlayerPrefSettings.GameSpeed;
