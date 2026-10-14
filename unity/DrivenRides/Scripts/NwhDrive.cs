@@ -27,6 +27,9 @@ namespace DrivenRides
         public NwhCar Car = null!;
         // The front track for NWH's Ackermann (CarModel.TrackWidth), set before Begin; 0 steers as for a bicycle.
         public float TrackWidth;
+        // The car's measured shape, set before Begin: the traffic rules foresee its path with its model (TrafficDriver.Model;
+        // without it they sweep the planned line).
+        public CarSpec? Spec;
         // Lane steps passed on a line moved sideways (DrivePlan.Shifts), set before Begin.
         public List<(int Position, float From, float To, float Offset)> Shifts = new List<(int, float, float, float)>();
         // Plain lane corners rounded off on the line (DrivePlan.Fillets), set before Begin.
@@ -182,7 +185,7 @@ namespace DrivenRides
             }
             rearBehind = car.RearZ - (car.BodyCentre.z - car.BodyHalf.z);
             var body = new RideBody { Wheelbase = car.Wheelbase, FrontAhead = car.FrontAhead, RearBehind = rearBehind, HalfWidth = car.BodyHalf.x };
-            traffic = new TrafficDriver(GleyGraph.Graph!, line, driver, body);
+            traffic = new TrafficDriver(GleyGraph.Graph!, line, driver, body) { Model = Spec?.Model(0, 0, 0) };
         }
 
         private void FixedUpdate()
@@ -230,8 +233,9 @@ namespace DrivenRides
             }
             var snapshot = new TrafficSnapshot
             {
-                Time = Time.time, RearX = rear.x, RearZ = rear.z, Heading = heading, Speed = speed, Marks = marks, Cars = cars, Flags = gley,
-                GapBehind = traffic.BackingOff || decision.GapAhead < 4f ? GapBehind() : null, GapAhead = castGap,
+                Time = Time.time, RearX = rear.x, RearZ = rear.z, Heading = heading, Speed = speed, Wheel = vehicle.steering.angle, Marks = marks, Cars = cars, Flags = gley,
+                // Read whenever the car stands too: backing out of a crossing car's way counts on it (LaneBack).
+                GapBehind = traffic.BackingOff || decision.GapAhead < 4f || Mathf.Abs(speed) < TrafficDriver.StandingMs ? GapBehind() : null, GapAhead = castGap,
                 PlannerHoldAlong = WayOn.HoldAlong,
             };
             ticks = Stopwatch.GetTimestamp();
@@ -668,7 +672,8 @@ namespace DrivenRides
             origin.y = t.position.y + 0.8f;
             var mask = Mask();
             if (NwhCar.GleyLayer >= 0) mask |= 1 << NwhCar.GleyLayer;
-            var n = Physics.BoxCastNonAlloc(origin, half, -t.forward, hits, t.rotation, 4f, mask, QueryTriggerInteraction.Ignore);
+            // As far as the car ever backs (TrafficDriver.MaxBackOff, and BackOffClear past it).
+            var n = Physics.BoxCastNonAlloc(origin, half, -t.forward, hits, t.rotation, TrafficDriver.MaxBackOff + TrafficDriver.BackOffClear, mask, QueryTriggerInteraction.Ignore);
             float? best = null;
             for (var i = 0; i < n; i++)
             {

@@ -154,6 +154,18 @@ namespace DrivenRides.Core.Drive
             return o;
         }
 
+        // A driver like this one, on the same line with the same plan, for foreseeing where the car goes
+        // (TrafficDriver's near field); it keeps its own place on the line.
+        public PursuitDriver Copy()
+        {
+            var copy = new PursuitDriver(line, wheelbase, frontAhead, top, trackWidth) { FeedForward = FeedForward };
+            copy.slow.AddRange(slow);
+            return copy;
+        }
+
+        // Driving on from a known place on the line (metres along it, the rear axle's).
+        public void Resume(float alongNow) => along = alongNow;
+
         // A car that starts part way along its line (a dumped traffic scenario): where its rear axle is.
         public void StartAt(float x, float z) => along = line.Locate(x, z, 0f, line.Line.Length).Along;
 

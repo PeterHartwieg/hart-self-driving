@@ -189,6 +189,11 @@ namespace DrivenRides.Core.Drive
 
         private const int MaxPoses = 64;
         private readonly Box[] poses = new Box[MaxPoses];
+        // Per pose: the body braking hard from now instead (the near field's other candidate; alt[k] valid while
+        // altOn[k]), and how much it is grown by for the model's remaining error.
+        private readonly Box[] alt = new Box[MaxPoses], alt2 = new Box[MaxPoses];
+        private readonly bool[] altOn = new bool[MaxPoses], alt2On = new bool[MaxPoses];
+        private readonly float[] grow = new float[MaxPoses];
         private readonly float[] rearAt = new float[MaxPoses], early = new float[MaxPoses], late = new float[MaxPoses], slowSpeed = new float[MaxPoses], fastSpeed = new float[MaxPoses];
         // The slow times and speeds again, under the stops the car already has (SafeTimes): a pose past one is never
         // reached (infinite time). What committing past a car's way counts on (review round 2, U1).
@@ -284,10 +289,13 @@ namespace DrivenRides.Core.Drive
             // judged (review round 8: T0 merge at 14 m/s, the stopping distance at Decel as long as the 40 m sweep,
             // the merge point was seen only past the point of no return).
             var reachV = Math.Max(0f, speed) + FastAccel;
-            var sweepLength = Math.Min((MaxPoses - 2) * SweepStep, Math.Max(SweepMetres, reachV * BrakeLatency + reachV * reachV / (2f * PursuitDriver.Decel) + body.Length + EndMargin + StopUncertainty));
+            var stopping = reachV * BrakeLatency + reachV * reachV / (2f * PursuitDriver.Decel) + body.Length + EndMargin + StopUncertainty;
+            var sweepLength = Math.Min((MaxPoses - 2) * SweepStep, Math.Max(SweepMetres, stopping));
             var end = Math.Min(along + sweepLength, line.Line.Length - body.FrontAhead);
             if (d.StopAlong is float stop) end = Math.Min(end, stop - body.FrontAhead + 1f);
             creeps.Clear();
+            // The near field (that stopping distance) where the model foresees the body (review round 9, DD1).
+            Foresee(s, along, end, stopping);
             Sweep(s, along, end);
 
             // Layer 3 first: cars standing for the ride car, ground, backing off.
@@ -424,11 +432,11 @@ namespace DrivenRides.Core.Drive
             sweepMaxX = sweepMaxZ = float.MinValue;
             for (var k = 0; k < count; k++)
             {
-                var p = poses[k].Grown(SideMargin, EndMargin);
-                sweepMinX = Math.Min(sweepMinX, p.X - p.ExtentX);
-                sweepMaxX = Math.Max(sweepMaxX, p.X + p.ExtentX);
-                sweepMinZ = Math.Min(sweepMinZ, p.Z - p.ExtentZ);
-                sweepMaxZ = Math.Max(sweepMaxZ, p.Z + p.ExtentZ);
+                // Every box CoversSwept checks, as it grows them.
+                Extend(poses[k].Grown(SideMargin + grow[k], EndMargin));
+                if (k > 0) Extend(mids[k].Grown(SideMargin + grow[k], EndMargin));
+                if (altOn[k]) Extend(alt[k].Grown(SideMargin + grow[k], EndMargin));
+                if (alt2On[k]) Extend(alt2[k].Grown(SideMargin + grow[k], EndMargin));
             }
             for (var k = 0; k < count; k++) keepClearFrom[k] = -1;
             followed.Clear();
@@ -472,8 +480,12 @@ namespace DrivenRides.Core.Drive
                 // commitment decides (Committed).
                 if (deferNow)
                 {
-                    // Too close to stop short of: the emergency rule's (Committed), not a stop kept for it.
-                    holds.Remove(c.Id);
+                    // Too close to stop short of: the emergency rule's (Committed), not a stop kept for it. Unless the
+                    // cautious judgement keeps one for it that the car can still make: that stays, judged as before
+                    // (review round 9: dropped here, it came back a moment later past where the car could make it, T0
+                    // lights 55).
+                    if (holds.TryGetValue(c.Id, out var kept) && HardStopFront(front) <= kept.Way) approachCars.Add(i);
+                    else holds.Remove(c.Id);
                     continue;
                 }
                 if (nosedInFor == c.Id)
@@ -869,16 +881,116 @@ namespace DrivenRides.Core.Drive
         // comes into a car's way between two poses is found at the later one, as one that comes into it there (review
         // round 7, BB1: at fixed poses such a graze was never found; with poses that slid with the car, one decision in
         // three, which made the stop come and go).
+        // In the near field the poses are where the model foresees the body (Foresee), grown by the model's remaining error
+        // while it turns, and the body braking hard from now is checked too.
         private bool CoversSwept(int k, out float ua, out float ub, out float sin, out float cos)
         {
-            if (corridor.Covers(poses[k].Grown(SideMargin, EndMargin), out ua, out ub, out sin, out cos)) return true;
-            return k > 0 && corridor.Covers(mids[k].Grown(SideMargin, EndMargin), out ua, out ub, out sin, out cos);
+            var side = SideMargin + grow[k];
+            if (corridor.Covers(poses[k].Grown(side, EndMargin), out ua, out ub, out sin, out cos)) return true;
+            if (k > 0 && corridor.Covers(mids[k].Grown(side, EndMargin), out ua, out ub, out sin, out cos)) return true;
+            if (altOn[k] && corridor.Covers(alt[k].Grown(side, EndMargin), out ua, out ub, out sin, out cos)) return true;
+            return alt2On[k] && corridor.Covers(alt2[k].Grown(side, EndMargin), out ua, out ub, out sin, out cos);
+        }
+
+        // The ride car's model (wheelbase, lock, Ackermann, yaw factor, the wheel's rate): with it the near field is
+        // swept where the car will really be, not on the planned line (review round 9, DD1: the body's heading lags the
+        // line's into a turn, and its corner came into the way of a car stopping at its give-way line, found only at
+        // the body's own pose). Without it, the planned line throughout.
+        public CarModel? Model { get; set; }
+        private PursuitDriver? foreseer;
+        // Foreseen rear-axle poses at whole SweepStep cells along the line, from goCell: going on (as the driver drives
+        // the plan, no stops), braking at HardDecel, and keeping the speed it has (as while a car ahead, a creep or a
+        // cap holds it): the driver steers for the speed it has, so the three bracket the paths between. Whether the
+        // car is still turning there (Feasibility's settled test), and when they were foreseen.
+        private readonly float[] goX = new float[MaxPoses], goZ = new float[MaxPoses], goH = new float[MaxPoses];
+        private readonly bool[] goTurning = new bool[MaxPoses];
+        private readonly float[] brakeX = new float[MaxPoses], brakeZ = new float[MaxPoses], brakeH = new float[MaxPoses];
+        private readonly float[] keepX = new float[MaxPoses], keepZ = new float[MaxPoses], keepH = new float[MaxPoses];
+        private int goCell, goCount, brakeCount, keepCount;
+        private enum Pace { Go, Brake, Keep }
+        private float foreseenAt = float.MinValue, foreseenTo;
+        // Foreseen again every ForeseeEvery (a few physics steps; the poses are at fixed cells along the line, so the
+        // last ones hold in between), and at most ForeseeSeconds on.
+        public const float ForeseeEvery = 0.1f, ForeseeSeconds = 8f, ForeseeStep = 0.02f;
+
+        // The near field: from the car as it is (rear axle, heading, speed, wheel) through the stopping distance and
+        // until the car has settled on the line, capped at `end`.
+        private void Foresee(in TrafficSnapshot s, float along, float end, float near)
+        {
+            if (Model == null || s.Speed < -0.1f)
+            {
+                goCount = brakeCount = keepCount = 0;
+                return;
+            }
+            if (s.Time - foreseenAt < ForeseeEvery && s.Time >= foreseenAt && foreseenTo >= Math.Min(end, along + near)) return;
+            foreseenAt = s.Time;
+            if (foreseer == null) foreseer = driver.Copy();
+            var first = (int)Math.Floor(along / SweepStep) + 1;
+            goCell = first;
+            // On past the near field by as far as the car can go before the next foresight, so this one is reused
+            // until then.
+            var ahead = Math.Min(end, along + near + (Math.Max(0f, s.Speed) + FastAccel * ForeseeEvery) * ForeseeEvery);
+            goCount = Run(s, along, end, ahead, Pace.Go, goX, goZ, goH, goTurning, first);
+            brakeCount = Run(s, along, end, end, Pace.Brake, brakeX, brakeZ, brakeH, null, first);
+            keepCount = Math.Min(goCount, Run(s, along, end, ahead, Pace.Keep, keepX, keepZ, keepH, null, first));
+            foreseenTo = along + goCount * SweepStep;
+        }
+
+        // The model driven from the snapshot's pose: on as the plan goes, braking at HardDecel to a stand, or at the
+        // speed it has. Records the rear axle at each whole cell passed, until past `near` and settled (or stood), at
+        // most to `end`.
+        private int Run(in TrafficSnapshot s, float along, float end, float near, Pace pace, float[] xs, float[] zs, float[] hs, bool[]? turning, int first)
+        {
+            var braking = pace == Pace.Brake;
+            var keep = Math.Max(0f, s.Speed);
+            var m = Model!;
+            var p = foreseer!;
+            m.X = s.RearX;
+            m.Z = s.RearZ;
+            m.Heading = s.Heading;
+            m.Speed = Math.Max(0f, s.Speed);
+            m.SetWheel(s.Wheel);
+            p.Resume(along);
+            var n = 0;
+            float prevAlong = along, px = s.RearX, pz = s.RearZ, ph = s.Heading;
+            var settled = false;
+            for (var t = 0f; t < ForeseeSeconds && n < MaxPoses; t += ForeseeStep)
+            {
+                var o = p.Step(m.Input(ForeseeStep));
+                var a = o.Along;
+                if (t > 0f)
+                    for (var cell = first + n; cell * SweepStep <= a && n < MaxPoses; cell++)
+                    {
+                        var f = a - prevAlong > 1e-4f ? (cell * SweepStep - prevAlong) / (a - prevAlong) : 1f;
+                        f = Math.Max(0f, Math.Min(1f, f));
+                        xs[n] = px + ((float)m.X - px) * f;
+                        zs[n] = pz + ((float)m.Z - pz) * f;
+                        hs[n] = ph + (float)DriveLine.Wrap((float)m.Heading - ph) * f;
+                        if (turning != null) turning[n] = !settled;
+                        n++;
+                    }
+                settled = Math.Abs(o.Lateral) < Feasibility.SettledOff && Math.Abs(m.Steer) < Feasibility.SettledWheel;
+                if (a >= end || (first + n) * SweepStep > end) break;
+                if (!braking && a >= near && settled) break;
+                prevAlong = a;
+                px = (float)m.X;
+                pz = (float)m.Z;
+                ph = (float)m.Heading;
+                if (braking) o.Desired = Math.Max(0f, (float)m.Speed - PursuitDriver.HardDecel * ForeseeStep);
+                if (pace == Pace.Keep) o.Desired = keep;
+                if (braking && m.Speed < 0.05) break;
+                if (!braking && m.Speed < 0.05 && o.Desired < 0.05f) break;
+                m.Step(o, ForeseeStep);
+            }
+            return n;
         }
 
         private void Sweep(in TrafficSnapshot s, float along, float end)
         {
             poses[0] = BodyAt(s.RearX, s.RearZ, s.Heading);
             headings[0] = s.Heading;
+            grow[0] = 0f;
+            altOn[0] = alt2On[0] = false;
             rearAt[0] = along;
             early[0] = late[0] = 0f;
             slowSpeed[0] = fastSpeed[0] = Math.Max(0f, s.Speed);
@@ -904,6 +1016,32 @@ namespace DrivenRides.Core.Drive
                 var f = span > 1e-4f ? Math.Max(0f, Math.Min(1f, (at - line.Along(Math.Max(0, k - 1))) / span)) : 1f;
                 float x = a.X + (b.X - a.X) * f, z = a.Z + (b.Z - a.Z) * f;
                 var heading = (float)Math.Atan2(b.X - a.X, b.Z - a.Z);
+                // Where the model foresees the body, in the near field; the planned line beyond.
+                var cell = (int)Math.Round(at / SweepStep);
+                grow[count] = 0f;
+                altOn[count] = alt2On[count] = false;
+                if (cell >= goCell && cell < goCell + goCount)
+                {
+                    var g = cell - goCell;
+                    x = goX[g];
+                    z = goZ[g];
+                    heading = goH[g];
+                    // While it turns, the margin round the body is at least the model's remaining error (StopUncertainty,
+                    // the worst measured against NWH); settled, the side margin alone. The full error on top of the
+                    // side margin reached into the next lane, and the ride car stood in junctions for oncoming cars
+                    // passing in theirs (T0 priority 393, lights 288 and 437, one of them hit while standing).
+                    grow[count] = goTurning[g] ? Math.Max(0f, StopUncertainty - SideMargin) : 0f;
+                    if (g < brakeCount)
+                    {
+                        alt[count] = BodyAt(brakeX[g], brakeZ[g], brakeH[g]);
+                        altOn[count] = true;
+                    }
+                    if (g < keepCount)
+                    {
+                        alt2[count] = BodyAt(keepX[g], keepZ[g], keepH[g]);
+                        alt2On[count] = true;
+                    }
+                }
                 headings[count] = heading;
                 poses[count] = BodyAt(x, z, heading);
                 mids[count] = BodyAt((px + x) / 2f, (pz + z) / 2f, (float)Math.Atan2(Math.Sin(ph) + Math.Sin(heading), Math.Cos(ph) + Math.Cos(heading)));
@@ -1018,6 +1156,7 @@ namespace DrivenRides.Core.Drive
             d.BackOffFrom = backingFrom;
         }
 
+
         // Standing with the body in the way of a car coming (with the margins round it), where standing isn't safe for
         // that car braking with its own brakes (TriggerBrake after TriggerReactCautious: before the point of no return
         // the quick stop isn't counted on), and it can back out of its way before the car is there: it backs out
@@ -1043,6 +1182,7 @@ namespace DrivenRides.Core.Drive
                     if (out_ < 0f) continue;
                     // Time to back out at BackOffMs, with a second to set off and stop, against the car's arrival.
                     if (out_ / BackOffMs + 1f >= corridor.Reach(ua)) continue;
+                    if (!PathBehindFree(s, out_ + BackOffClear)) continue;
                     laneBackFrom = c.Id;
                     laneBackX = s.RearX;
                     laneBackZ = s.RearZ;
@@ -1076,6 +1216,22 @@ namespace DrivenRides.Core.Drive
                 if (!corridor.Covers(b, out var ua, out _, out _, out _) || ua <= 0f) return back;
             }
             return -1f;
+        }
+
+        // The way back, `metres` from where the body stands, is free: nothing the adapter sees behind (parked cars,
+        // people) and no traffic car's body on it (review round 9).
+        private bool PathBehindFree(in TrafficSnapshot s, float metres)
+        {
+            if (s.GapBehind is float g && g < metres) return false;
+            var p = poses[0];
+            var heading = (float)Math.Atan2(p.Sin, p.Cos);
+            for (var i = 0; i < s.Cars.Count; i++)
+            {
+                var other = BodyOf(s.Cars[i]).Grown(GroundMargin, GroundMargin);
+                for (var back = SweepStep / 2f; back <= metres; back += SweepStep / 2f)
+                    if (new Box(p.X - p.Sin * back, p.Z - p.Cos * back, heading, p.HalfWidth, p.HalfLength).Overlaps(other)) return false;
+            }
+            return true;
         }
 
         private bool HasRoomBehindLane(in TrafficSnapshot s)
@@ -1181,6 +1337,14 @@ namespace DrivenRides.Core.Drive
             return ahead < -15f;
         }
 
+        private void Extend(in Box p)
+        {
+            sweepMinX = Math.Min(sweepMinX, p.X - p.ExtentX);
+            sweepMaxX = Math.Max(sweepMaxX, p.X + p.ExtentX);
+            sweepMinZ = Math.Min(sweepMinZ, p.Z - p.ExtentZ);
+            sweepMaxZ = Math.Max(sweepMaxZ, p.Z + p.ExtentZ);
+        }
+
         // The corridor built last covers a pose of the sweep at or ahead of the car's rear: it is still in the way.
         private bool StillInTheWay()
         {
@@ -1227,6 +1391,18 @@ namespace DrivenRides.Core.Drive
         // turned across its lane counted as ahead with its cab past the middle, and the ride car turned into its side
         // (T3 20261013-211205, ride 9).
         private bool AheadBy(float t, float ub) => corridor.Speed * t - corridor.Length >= ub;
+
+        // The body, in the corridor's way from pose k, is still in it on down the sweep once it heads its way (the
+        // corridor's own heading where it is, within the angle that counts as the same way).
+        private bool JoinsBehind(int k)
+        {
+            for (var j = k + 1; j < count; j++)
+            {
+                if (!CoversSwept(j, out _, out _, out var sin, out var cos)) return false;
+                if (sin * poses[j].Sin + cos * poses[j].Cos > 0.64f) return true;
+            }
+            return false;
+        }
 
         // Going on from a conflict the car can't stop short of: on the trajectory it can be counted on to keep under
         // every constraint (SafeTimes), is it out of the car's way (crossing) `margin` seconds before the car arrives,
@@ -1404,6 +1580,10 @@ namespace DrivenRides.Core.Drive
                         conflict = corridor.Far(late[k]) + braking + FollowGap >= ua;
                     }
                 }
+                // Coming into its way at an angle behind it, as it goes on ahead, and on along its way after it: joining
+                // its lane behind it, followed (Gap), not crossed (review round 9: swept where the car really goes, the
+                // body cuts into a lane at an angle that the planned line only reached straightened out).
+                else if (conflict && dot > 0f && AheadBy(early[k], ub) && JoinsBehind(k)) conflict = false;
                 // Against its way along a stretch that goes on past the sweep: the ride car can't be out of it
                 // before the car comes (head-on in one lane).
                 if (!conflict && dot < -0.64f && k == count - 1 && ua >= 0f && HeadOnGoesOn()) conflict = true;

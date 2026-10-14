@@ -86,8 +86,8 @@ namespace DrivenRides.Core.Drive
         // manoeuvre failed by it is checked again later, one failed by the built world is not (NwhPlanner.CauseOf).
         public const string Movable = "movable: ";
         // Settled in its lane: the rear axle this close to the line and the wheel this straight.
-        private const float SettledOff = 0.2f;
-        private const float SettledWheel = 5f;
+        public const float SettledOff = 0.2f;
+        public const float SettledWheel = 5f;
         private const float StepSeconds = 0.02f;
         // The world is checked every so many metres, from this far before the manoeuvre's entry on.
         private const float WorldEvery = 0.5f;

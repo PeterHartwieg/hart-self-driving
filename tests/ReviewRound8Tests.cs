@@ -37,8 +37,7 @@ public sealed class ReviewRound8Tests
     // trajectory with the other car's kept stop in place (CC1).
     // With car B listed first (and so the slower-reacting car 2 on lane A) 7 of the 1200 runs ended in a contact in
     // round 8: the ride car stopped for car B with its nose past car A's keep-clear point and stood across lane A. Now
-    // the keep-clear holds from the body's own pose too (a stop there is the emergency rule's), and a car standing in a
-    // crossing car's way backs out when it can (LaneBack).
+    // the keep-clear holds from the body's own pose too (a stop there is the emergency rule's).
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -47,9 +46,11 @@ public sealed class ReviewRound8Tests
         var runs = 0;
         var gave = 0;
         var bad = new List<string>();
+        // Every 0.4 s with DR_TRAFFIC_SEEDS=500 (before an install), every 1.2 s in a plain run.
+        var step = TrafficTests.Full ? 0.4f : 1.2f;
         foreach (var rideMs in new[] { 6f, 9f, 12f })
-            for (var aAt = 0f; aAt <= 8f; aAt += 0.4f)
-                for (var bAt = 0f; bAt <= 8f; bAt += 0.4f)
+            for (var aAt = 0f; aAt <= 8f; aAt += step)
+                for (var bAt = 0f; bAt <= 8f; bAt += step)
                 {
                     var r = TrafficTests.Run(Crossing(rideMs, aAt, bAt, bFirst: bFirst));
                     runs++;
@@ -93,9 +94,10 @@ public sealed class ReviewRound8Tests
     {
         int unsettled = 0, replaced = 0, runs = 0;
         var bad = new List<string>();
+        var step = TrafficTests.Full ? 0.8f : 1.6f;
         foreach (var rideMs in new[] { 6f, 9f, 12f })
-            for (var aAt = 0f; aAt <= 8f; aAt += 0.8f)
-                for (var bAt = 0f; bAt <= 8f; bAt += 0.8f)
+            for (var aAt = 0f; aAt <= 8f; aAt += step)
+                for (var bAt = 0f; bAt <= 8f; bAt += step)
                 {
                     var r = new TrafficSim(Crossing(rideMs, aAt, bAt), false, 0).Run();
                     runs++;
