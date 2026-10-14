@@ -26,10 +26,7 @@ public sealed class ReviewRound6Tests
     private sealed class Run
     {
         public readonly List<string> Bad = new List<string>();
-        public bool EverCommitted, CommittedWhileHeld, Marginal, Crossed;
-        public float FirstCommit = float.NaN, FrontAtCommit = float.NaN;
-        public bool CommittedAtRelease;
-        public float VAtRelease, FrontAtRelease;
+        public bool Crossed;
         public float CrossedAt = float.NaN, AWhenCrossed = float.NaN;
     }
 
@@ -68,17 +65,7 @@ public sealed class ReviewRound6Tests
             driver.StartAt(0f, z);
             traffic.Decide(new TrafficSnapshot { Time = t, RearX = 0f, RearZ = z, Heading = 0f, Speed = v, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags(), PlannerHoldAlong = hold }, d);
             var front = z + car.FrontAhead;
-            var committed = traffic.CommittedTo(1);
-            if (step % 10 == 0) output.WriteLine($"{t:0.00} front {front:0.00} v {v:0.0} A {ax:0.0} hold {hold:0.0} yield {d.YieldAlong - 40f:0.0} committed {committed} marginal {d.MarginalCommit} forced {d.ForcedCommit} {d.Why}");
-            // Committed while the front hasn't yet come into A's way is only right if the car clears through it.
-            if (committed && !run.EverCommitted) output.WriteLine($"{t:0.00}: committed to A, front {front:0.00} v {v:0.0}, A at {ax:0.0}");
-            if (committed && !run.EverCommitted) { run.FirstCommit = t; run.FrontAtCommit = front; }
-            run.EverCommitted |= committed;
-            if (Math.Abs(t - release) < dt / 2f) { run.CommittedAtRelease = committed; run.VAtRelease = v; run.FrontAtRelease = front; }
-            // Held short of A's way and not committed before the hold came: anything committed now came from staying
-            // outside.
-            if (committed && hold != null && !(run.FirstCommit < holdFrom)) run.CommittedWhileHeld = true;
-            run.Marginal |= d.MarginalCommit && d.MarginalFor == 1;
+            if (step % 10 == 0) output.WriteLine($"{t:0.00} front {front:0.00} v {v:0.0} A {ax:0.0} hold {hold:0.0} yield {d.YieldAlong - 40f:0.0} forced {d.ForcedCommit} {d.Why}");
             if (!run.Crossed && z - car.RearBehind > 13f) { run.Crossed = true; run.CrossedAt = t; run.AWhenCrossed = ax; }
             // In A's lane (z 11 to 13) with car A's front at the body: a contact.
             if (front > 11f && z - car.RearBehind < 13f && ax + 2.25f > -car.HalfWidth && ax - 2.25f < car.HalfWidth)
@@ -106,40 +93,8 @@ public sealed class ReviewRound6Tests
         // Held 2.5 m short of A's lane until 4 s; car A (10 m/s) reaches the ride car's path at about 5.7 s.
         var run = Drive(bFirst, holdZ: 8.5f, holdFrom: 0f, release: 4f, ax0: -57f, rideMs: 8f, rearZ0: -25f, steps: 300);
         Assert.Empty(run.Bad);
-        Assert.False(run.Marginal);
         // It went only after A had passed (A's rear past the ride car's side).
         Assert.True(run.Crossed);
         Assert.True(run.AWhenCrossed - 2.25f > RideCar.Dash.HalfWidth, $"crossed with A at {run.AWhenCrossed:0.0}");
-        // Never committed to A while held outside its way.
-        Assert.False(run.CommittedWhileHeld, $"committed to A at {run.FirstCommit:0.00} s, held outside its way");
-    }
-
-    // AA2: committed to crossing lane A (judged cautiously clear where the stopping option was about to go), then held
-    // back by the planner a moment later, and let go while the commitment is still remembered and the car can still
-    // stop short of A's way. Car A comes so that the headway fails there but the measured-error floor would pass: it
-    // must stop short, as with no commitment (before, the memory let it on with the floor). Both car orders, two
-    // release times. Car A's start is found by search, the first that gets a commitment (the judgement's geometry
-    // moves it: review round 7's sweep found car A a little earlier).
-    [Theory]
-    [InlineData(false, 1.08f)]
-    [InlineData(true, 1.08f)]
-    [InlineData(false, 1.48f)]
-    [InlineData(true, 1.48f)]
-    public void ARememberedCommitmentNeedsTheFullHeadwayWhileTheCarCanStillStop(bool bFirst, float releaseAfter)
-    {
-        var tried = 0;
-        for (var ax0 = -112f; ax0 <= -80f; ax0 += 2f)
-        {
-            var free = Drive(bFirst, holdZ: 6f, holdFrom: 1000f, release: 1000f, ax0: ax0, rideMs: 8f, rearZ0: -40f, steps: 150);
-            if (float.IsNaN(free.FirstCommit)) continue;
-            var holdFrom = (float)Math.Round((free.FirstCommit + 0.12f) / 0.04f) * 0.04f;
-            var run = Drive(bFirst, holdZ: 6f, holdFrom: holdFrom, release: holdFrom + releaseAfter, ax0: ax0, rideMs: 8f, rearZ0: -40f, steps: 300);
-            if (!(run.FirstCommit < holdFrom) || !run.CommittedAtRelease) continue;
-            tried++;
-            output.WriteLine($"car A from {ax0}: committed at {run.FirstCommit:0.00} s, held from {holdFrom:0.00} s, released at {holdFrom + releaseAfter:0.00} s (front {run.FrontAtRelease:0.0}, {run.VAtRelease:0.0} m/s)");
-            Assert.False(run.Marginal, $"car A from {ax0}: on with less than the headway");
-            Assert.Empty(run.Bad);
-        }
-        Assert.True(tried > 0, "no start for car A gave a commitment still remembered at the release");
     }
 }

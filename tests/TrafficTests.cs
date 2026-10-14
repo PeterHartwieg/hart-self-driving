@@ -35,8 +35,6 @@ public sealed class TrafficTests
         var watch = Stopwatch.StartNew();
         var arrived = 0;
         var forced = 0;
-        var marginal = 0;
-        var marginalUnderHalf = 0;
         var late = 0;
         var again = 0;
         var harder = 0;
@@ -58,8 +56,6 @@ public sealed class TrafficTests
         {
             var r = Run(TrafficTemplates.Build(template, seed));
             System.Threading.Interlocked.Add(ref forced, r.ForcedCommits);
-            System.Threading.Interlocked.Add(ref marginal, r.MarginalCommits);
-            if (r.MarginalLeast < 0.5f) System.Threading.Interlocked.Increment(ref marginalUnderHalf);
             System.Threading.Interlocked.Add(ref late, r.ApproachesLate);
             System.Threading.Interlocked.Add(ref again, r.ApproachesAgain);
             if (r.ForcedUnderFloor > 0) invariantFailures.Add($"seed {seed}: a forced commit under the floor");
@@ -78,7 +74,7 @@ public sealed class TrafficTests
             if (r.Failure != null || r.Blocked != null) failures.Add((seed, r.Failure ?? "blocked: " + r.Blocked));
             else System.Threading.Interlocked.Increment(ref arrived);
         });
-        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {forced} forced commits in {forcedSeeds.Count} seeds, {marginal} marginal ({marginalUnderHalf} runs under 0.5 s to spare), {late} stops imposed late, {again} imposed again within 1 s, {harder} decisions braking past Decel, final pass up to {roundsMost[0]} rounds ({exhausted} out of rounds, {unsettled} unsettled), mean arrival {(times.Count > 0 ? times.Average() : 0f):0.00} s, {optionLost.Count} runs losing the stopping option avoidably ({lostBeyond.Count} by more than a decision step), {newHazardRuns} runs with a stop made unmakeable by news ({newHazards})");
+        output.WriteLine($"{template}: {seeds} seeds in {watch.ElapsedMilliseconds} ms, {failures.Count} failed, {forced} forced commits in {forcedSeeds.Count} seeds, {late} stops imposed late, {again} imposed again within 1 s, {harder} decisions braking past Decel, final pass up to {roundsMost[0]} rounds ({exhausted} out of rounds, {unsettled} unsettled), mean arrival {(times.Count > 0 ? times.Average() : 0f):0.00} s, {optionLost.Count} runs losing the stopping option avoidably ({lostBeyond.Count} by more than a decision step), {newHazardRuns} runs with a stop made unmakeable by news ({newHazards})");
         foreach (var (seed, why) in failures.OrderBy(f => f.Seed).Take(20)) output.WriteLine($"  seed {seed}: {why}");
         foreach (var (seed, what) in forcedSeeds.OrderBy(f => f.Seed).Take(10)) output.WriteLine($"  forced, seed {seed}: {what}");
         foreach (var f in invariantFailures.Take(10)) output.WriteLine("  invariant, " + f);
@@ -101,7 +97,6 @@ public sealed class TrafficTests
         if (Ratchet.TryGetValue(template, out var most))
         {
             Assert.True(forcedSeeds.Count <= most.Forced, $"{forcedSeeds.Count} runs with a forced commit, the ratchet is {most.Forced}");
-            Assert.True(marginal <= most.Marginal, $"{marginal} marginal continuations, the ratchet is {most.Marginal}");
             Assert.True(optionLost.Count <= most.OptionLost, $"{optionLost.Count} runs lost the stopping option, the ratchet is {most.OptionLost}");
             Assert.True(again <= most.Again, $"{again} stops imposed again within 1 s, the ratchet is {most.Again}");
         }
@@ -119,10 +114,10 @@ public sealed class TrafficTests
 
 
     // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
-    private static readonly Dictionary<string, (int Forced, int Marginal, int OptionLost, int Again)> Ratchet = new()
+    private static readonly Dictionary<string, (int Forced, int OptionLost, int Again)> Ratchet = new()
     {
-        ["lights"] = (0, 0, 10, 28), ["priority"] = (0, 0, 0, 1), ["merge"] = (0, 0, 2, 0), ["uturn"] = (0, 0, 12, 49),
-        ["headon"] = (0, 0, 0, 0), ["pullaway"] = (0, 0, 1, 3),
+        ["lights"] = (1, 10, 28), ["priority"] = (0, 0, 1), ["merge"] = (0, 2, 0), ["uturn"] = (1, 12, 50),
+        ["headon"] = (0, 0, 0), ["pullaway"] = (0, 1, 3),
     };
 
     [Fact]

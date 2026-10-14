@@ -123,11 +123,6 @@ namespace DrivenRides.Core.Drive
         public int ForcedFor = -1;
         // The least time to spare that forced commit was judged with, seconds (review round 4, X4).
         public float ForcedMargin;
-        // Gone on past a car's way committed to a moment ago with less than the headway to spare (no headway at all),
-        // the car, and the time to spare (review round 5, Y1).
-        public bool MarginalCommit;
-        public int MarginalFor = -1;
-        public float MarginalMargin;
         // The car whose way the front is to keep the option to stop short of (TrafficDriver.Approaches), or -1, and
         // where the front is to be able to stop.
         public int ApproachFor = -1;
@@ -155,10 +150,10 @@ namespace DrivenRides.Core.Drive
             GapSpeed = 0f;
             StopPosition = YieldFor = GapFor = BackOffFrom = BlockedBy = -1;
             BlockedWhy = "";
-            StopIsRed = BackOff = NoseIn = ForcedCommit = MarginalCommit = Unsettled = false;
+            StopIsRed = BackOff = NoseIn = ForcedCommit = Unsettled = false;
             PassRounds = 0;
-            ForcedFor = ApproachFor = MarginalFor = -1;
-            ForcedMargin = MarginalMargin = 0f;
+            ForcedFor = ApproachFor = -1;
+            ForcedMargin = 0f;
             Events.Clear();
             EmergencyFor.Clear();
             Why = "";

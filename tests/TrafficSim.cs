@@ -25,10 +25,6 @@ internal sealed class SimResult
     // Each forced commit: when, for which car, its time to spare, the ride car's speed, and the reasons given before it
     // (review round 4, X4).
     public readonly List<string> Forced = new();
-    // Commitments remembered from a moment ago that went on with no headway to spare (TrafficDecision.MarginalCommit;
-    // review round 5, Y1).
-    public int MarginalCommits;
-    public float MarginalLeast = float.MaxValue;
     // The soak's invariants (review round 6, decision a; round 7, BB3): a forced commit with less than the floor to
     // spare, and the stopping option lost while a stop for a car was imposed (metres the car could no longer stop
     // short of its way by, at HardDecel; TrafficSim). HarderThanDecel: decisions where keeping it took more than Decel.
@@ -171,7 +167,6 @@ internal sealed class TrafficSim : ILiveFlags
         var sinceLeft = -1f;
         var lastKind = "";
         var wasFree = true;
-        var marginalBefore = false;
         var whys = new Queue<string>();
         var lastWhy = "";
         var result = new SimResult();
@@ -348,7 +343,7 @@ internal sealed class TrafficSim : ILiveFlags
                     if (short_ > 0f && !decision.EmergencyFor.Contains(x) && result.NotEmergency == null)
                         result.NotEmergency = $"{time:0.00} s, car {x}, {decision.Note.Kind}, short by {short_:0.00} m: {decision.Why}";
                     if (!e.Lost && short_ > 0f && result.LostKind == null)
-                        result.LostKind = $"{decision.Note.Kind}{(imposed ? " imposed" : " held")}{(decision.EmergencyFor.Contains(x) ? " em" : "")}{(traffic.CommittedTo(x) ? " latched" : "")}{(traffic.Rules.Inside.Count > 0 ? " in" : "")} pose{Math.Min(3, decision.Note.Pose)}{(sinceLeft >= 0f && time - sinceLeft < 3f ? " left" : "")} v{(v < 3f ? "<3" : v < 7f ? "<7" : ">7")} [{traffic.VerdictsOn(x)}]";
+                        result.LostKind = $"{decision.Note.Kind}{(imposed ? " imposed" : " held")}{(decision.EmergencyFor.Contains(x) ? " em" : "")}{(traffic.Rules.Inside.Count > 0 ? " in" : "")} pose{Math.Min(3, decision.Note.Pose)}{(sinceLeft >= 0f && time - sinceLeft < 3f ? " left" : "")} v{(v < 3f ? "<3" : v < 7f ? "<7" : ">7")} [{traffic.VerdictsOn(x)}]";
                     if (!e.Lost && short_ > result.OptionLost)
                     {
                         if (trace && short_ > 0f) result.Trace.Append($"OPTION {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} short by {short_:0.00} m, yield {decision.YieldAlong:0.0} {decision.Why}\n");
@@ -379,9 +374,6 @@ internal sealed class TrafficSim : ILiveFlags
                 result.Forced.Add($"{time:0.00} s, car {decision.ForcedFor}, {decision.ForcedMargin:0.00} s to spare at {ride.Speed:0.0} m/s; before: {string.Join(" | ", whys)}");
             }
             forcedBefore = decision.ForcedCommit;
-            if (decision.MarginalCommit && !marginalBefore) result.MarginalCommits++;
-            if (decision.MarginalCommit) result.MarginalLeast = Math.Min(result.MarginalLeast, decision.MarginalMargin);
-            marginalBefore = decision.MarginalCommit;
 
             // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);

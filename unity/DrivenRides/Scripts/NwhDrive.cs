@@ -77,10 +77,6 @@ namespace DrivenRides
         // TrafficDecision.ForcedCommit; review round 3, V2).
         public int ForcedCommits;
         private bool forcedBefore;
-        // Times it went on past a car's way committed to a moment ago with less than the headway to spare (review
-        // round 5, Y1).
-        public int MarginalCommits;
-        private bool marginalBefore;
         // Decisions whose final pass was still tightening the stops when it ran out of rounds (review round 7, BB4).
         public int UnsettledDecisions;
         // The last reasons given, for the forced-commit log line (review round 4, X4).
@@ -252,12 +248,6 @@ namespace DrivenRides
                 Log.Info($"NWH drive: going on past traffic car {decision.ForcedFor}'s way: standing there would be hit ({speed:0.0} m/s, {driver.Along:0} m, {decision.ForcedMargin:0.00} s to spare); before: {string.Join(" | ", recentWhys)}.");
             }
             forcedBefore = decision.ForcedCommit;
-            if (decision.MarginalCommit && !marginalBefore)
-            {
-                MarginalCommits++;
-                Log.Info($"NWH drive: going on past traffic car {decision.MarginalFor}'s way past the point it could stop short, with {decision.MarginalMargin:0.00} s to spare (under the headway; {speed:0.0} m/s, {driver.Along:0} m).");
-            }
-            marginalBefore = decision.MarginalCommit;
             if (decision.Unsettled)
             {
                 UnsettledDecisions++;
@@ -369,7 +359,7 @@ namespace DrivenRides
                 .Append(gear).Append(',').Append(decision.StopAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(gap?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.YieldAlong?.ToString("0.0", Inv) ?? "").Append(',').Append(decision.MaxSpeed?.ToString("0.0", Inv) ?? "").Append(',')
                 .Append(decision.Why.Replace(',', ';')).Append(',').Append(decision.ForcedCommit ? decision.ForcedFor.ToString(Inv) : "").Append(',')
-                .Append(decision.MarginalCommit ? decision.MarginalFor.ToString(Inv) : "").Append('\n');
+                .Append('\n');
             if (traceRing == null) return;
             traceRing[traceNext] = sb.ToString();
             traceNext = (traceNext + 1) % TraceLines;
