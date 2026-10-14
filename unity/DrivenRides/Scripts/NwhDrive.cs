@@ -749,18 +749,22 @@ namespace DrivenRides
         private static int obstacleMask = -1;
         private readonly RaycastHit[] hits = new RaycastHit[16];
 
+        private static int humanMask = -1;
+
+        // Not Gley's cars: they are the traffic decisions' (GleyTraffic). People only with the option "Stop for
+        // pedestrians" (Options.Pedestrians, off by default): the NWH car's layer doesn't collide with them (phase 1,
+        // 13 October 2026), so with it off the car drives through them as Gley's cars do, and nothing else sees them.
         private static int Mask()
         {
-            if (obstacleMask >= 0) return obstacleMask;
-            // Not Gley's cars: they are the traffic decisions' (GleyTraffic). People must stay here: the NWH car's
-            // layer doesn't collide with them (phase 1, 13 October 2026).
-            obstacleMask = (1 << LayerHelper.VehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
-            foreach (var name in new[] { "Human", "ParkedVehicles" })
+            if (obstacleMask < 0)
             {
-                var layer = LayerMask.NameToLayer(name);
-                if (layer >= 0) obstacleMask |= 1 << layer;
+                obstacleMask = (1 << LayerHelper.VehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
+                var parked = LayerMask.NameToLayer("ParkedVehicles");
+                if (parked >= 0) obstacleMask |= 1 << parked;
+                var human = LayerMask.NameToLayer("Human");
+                humanMask = human >= 0 ? 1 << human : 0;
             }
-            return obstacleMask;
+            return Options.Pedestrians ? obstacleMask | humanMask : obstacleMask;
         }
 
         // The nearest parked car, player's car or person in the car's way, metres from its front bumper: a box as
