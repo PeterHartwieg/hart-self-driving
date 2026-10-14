@@ -32,9 +32,11 @@ In the game's Mods options, under Driven Rides:
 | Ride speed: 1x, 2x or 3x | 1x |
 | Clock speed during rides, 0 to 100 % | 33 % |
 | Stop at red lights | On |
+| Stop for pedestrians | Off |
+| Ignore speed limits | Off |
 | L calls your private driver | On |
 
-The panel's speed buttons and clock slider change the same settings, so the next ride starts with your last choice. With "Real car physics" off, taxi and driver rides are the mod's first version: the car is a traffic car steered along the route. They look less real and are kept as a way back if the physics rides give you trouble. Your own car always drives with the physics.
+The panel's speed buttons and clock slider change the same settings, so the next ride starts with your last choice. With "Real car physics" off, taxi and driver rides are the mod's first version: the car is a traffic car steered along the route. They look less real and are kept as a way back if the physics rides give you trouble. Your own car always drives with the physics. "Stop for pedestrians" makes the car brake for people in its way; the game's traffic doesn't, and the car passes through people either way. "Ignore speed limits" lets the car reach its own top speed on straight roads, still slowing for corners, traffic and red lights. It applies from the next ride.
 
 ## Known limits
 

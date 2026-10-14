@@ -108,6 +108,18 @@ public sealed class ReviewRound2Tests
         Assert.DoesNotContain(blocked.Slow, s => s.SpeedKmh == Feasibility.SqueezeKmh);
     }
 
+    // 0.1.100: a taxi standing by a kerb corner piece got its first step blocked ("'Corner2' at 0 m"), and with it every
+    // route. What the car's body touches where it stands is no reason to refuse the way on; ahead of it, it is.
+    [Fact]
+    public void WhereTheCarStandsIsNoObstacle()
+    {
+        var (graph, lane) = North();
+        var plan = DrivePlan.Build(graph, lane, Small(), (e, x) => null);
+        var line = plan.Line(graph);
+        Assert.Null(new Feasibility(graph, Small(), Post(0.5f, 1f)).Sweep(plan, line, 0f, 20f));
+        Assert.StartsWith("post", new Feasibility(graph, Small(), Post(0.5f, 15f)).Sweep(plan, line, 0f, 20f));
+    }
+
     // Only corners a fillet rounds are swept: T3 on 0.1.80 swept each waypoint of a straight street as a "corner" (41 of
     // ride 5's 44) and blocked the street when one sweep failed.
     [Fact]

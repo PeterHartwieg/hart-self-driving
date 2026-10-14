@@ -17,6 +17,8 @@
     "drivenrides:options_clock_value": "{value}%",
     "drivenrides:options_shortcut": "L calls your private driver",
     "drivenrides:options_lights": "Stop at red lights",
+    "drivenrides:options_pedestrians": "Stop for pedestrians",
+    "drivenrides:options_nolimits": "Ignore speed limits",
     "drivenrides:panel_left": "{km} km to go",
     "drivenrides:panel_clock": "Clock {percent}%",
     "drivenrides:panel_speed_1": "1x",

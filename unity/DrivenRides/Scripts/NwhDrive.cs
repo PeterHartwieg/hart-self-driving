@@ -165,7 +165,7 @@ namespace DrivenRides
             var rearNow = car.RearAxle;
             driver.StartAt(rearNow.x, rearNow.z);
             lastProgressAlong = driver.Along;
-            prevFront = driver.Along + car.FrontAhead;
+            prevFront = driver.Along + car.Wheelbase;
             gley = new GleyTraffic(car.Root);
             startedAt = Time.time;
             lastProgressTime = Time.time;
@@ -227,7 +227,7 @@ namespace DrivenRides
             lastProgressAlong = driver.Along;
             lastProgressTime = Time.time;
             stillSeconds = standing = 0f;
-            prevFront = Car.FrontAhead;
+            prevFront = Car.Wheelbase;
             stoppable.Clear();
             castHold = null;
             castClearFor = 0f;
@@ -391,7 +391,7 @@ namespace DrivenRides
                 backing = true;
                 lastProgressTime = Time.time;
                 WaitingNow = true;
-                Tally(speed, front);
+                Tally(speed, front - (Car.FrontAhead - Car.Wheelbase));
                 return;
             }
             backing = false;
@@ -419,7 +419,7 @@ namespace DrivenRides
 
             if (Recording) TraceStep(o, speed, steerInput, transmission.Gear, gap);
 
-            Tally(speed, o.Along + Car.FrontAhead);
+            Tally(speed, o.Along + Car.Wheelbase);
             if (Ended) return;
             if (o.Along + Car.FrontAhead >= driver.Length - 1.5f && Mathf.Abs(speed) < 0.3f) { End("arrived", true); return; }
             if (BlockedRule(o, speed, gap)) return;
@@ -490,7 +490,8 @@ namespace DrivenRides
         }
 
         // T3's judging, as T0's invariants: contact (OnCollisionEnter), a standstill over 30 s away from a red, a red
-        // run (the front past a `stop` waypoint that was set while the car could still stop for it at HardDecel).
+        // run (the front wheels past a `stop` waypoint that was set while the car could still stop for it at HardDecel;
+        // as Gley judges its own cars, JunctionRules.Overhang).
         private void Tally(float speed, float front)
         {
             var all = GleyGraph.Waypoints;
@@ -749,18 +750,22 @@ namespace DrivenRides
         private static int obstacleMask = -1;
         private readonly RaycastHit[] hits = new RaycastHit[16];
 
+        private static int humanMask = -1;
+
+        // Not Gley's cars: they are the traffic decisions' (GleyTraffic). People only with the option "Stop for
+        // pedestrians" (Options.Pedestrians, off by default): the NWH car's layer doesn't collide with them (phase 1,
+        // 13 October 2026), so with it off the car drives through them as Gley's cars do, and nothing else sees them.
         private static int Mask()
         {
-            if (obstacleMask >= 0) return obstacleMask;
-            // Not Gley's cars: they are the traffic decisions' (GleyTraffic). People must stay here: the NWH car's
-            // layer doesn't collide with them (phase 1, 13 October 2026).
-            obstacleMask = (1 << LayerHelper.VehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
-            foreach (var name in new[] { "Human", "ParkedVehicles" })
+            if (obstacleMask < 0)
             {
-                var layer = LayerMask.NameToLayer(name);
-                if (layer >= 0) obstacleMask |= 1 << layer;
+                obstacleMask = (1 << LayerHelper.VehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
+                var parked = LayerMask.NameToLayer("ParkedVehicles");
+                if (parked >= 0) obstacleMask |= 1 << parked;
+                var human = LayerMask.NameToLayer("Human");
+                humanMask = human >= 0 ? 1 << human : 0;
             }
-            return obstacleMask;
+            return Options.Pedestrians ? obstacleMask | humanMask : obstacleMask;
         }
 
         // The nearest parked car, player's car or person in the car's way, metres from its front bumper: a box as

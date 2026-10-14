@@ -309,9 +309,9 @@ namespace DrivenRides.Core.Drive
             if (arcs.ContainsKey((entry, exit))) yield break;
             Verdict? verdict = null;
             var fixture = Catalogue.ForStep(graph, entry, exit, options);
-            var radii = TurnArc.Radii(graph, entry, exit, arcMinRadius);
+            var radii = TurnArc.Radii(graph, entry, exit, arcMinRadius, car.BodyHalf.X);
             var least = Math.Max(arcMinRadius * TurnArc.RadiusSlack, TurnArc.MinDriveRadius);
-            if (radii.Count == 0) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction" };
+            if (radii.Count == 0) verdict = new Verdict { Form = "arc", Reason = "no arc fits the junction and passes its middle on the near side" };
             else if (fixture == null) verdict = new Verdict { Form = "arc", Reason = NoCase };
             else
             {
@@ -415,6 +415,14 @@ namespace DrivenRides.Core.Drive
             var travelled = 0.0;
             var time = 0.0;
             var timedOut = true;
+            // A turn's body keeps to the junction and its own way's lanes (Pavement.OnAnotherWaysLane).
+            var ways = new List<(float X, float Z)>();
+            // Arcs only: through its vias the car follows the game's own lanes.
+            if (fixture.Manoeuvre == CaseKind.Turn && verdict.Form.Contains("arc"))
+            {
+                if (graph.PlainHeading(fixture.Route[fixture.EntryIndex], out var hx, out var hz)) ways.Add((hx, hz));
+                if (fixture.EntryIndex + 1 < fixture.Route.Count && graph.PlainHeading(fixture.Route[fixture.EntryIndex + 1], out var gx, out var gz)) ways.Add((gx, gz));
+            }
             for (var step = 1; time < limit; step++)
             {
                 var o = driver.Step(model.Input(StepSeconds));
@@ -456,6 +464,21 @@ namespace DrivenRides.Core.Drive
                     {
                         judge.Contact(step, hit);
                         verdict.Hit = hit + Measured(settled, o.Lateral, model.Steer, Margin);
+                    }
+                    if (ways.Count == 2 && !judge.Failed && driver.Along > entryAlong - WorldFrom && driver.Along < exitAlong)
+                    {
+                        var centre = Local(pose, car.BodyCentre);
+                        for (var c = 0; c < 4; c++)
+                        {
+                            var corner = footprint[c];
+                            float dx = centre.X - corner.X, dz = centre.Z - corner.Z, l = (float)Math.Sqrt(dx * dx + dz * dz);
+                            if (l > Judge.PavementInset) corner = new Vec3(corner.X + dx / l * Judge.PavementInset, corner.Y, corner.Z + dz / l * Judge.PavementInset);
+                            if (!Pavement.OnAnotherWaysLane(graph, corner, ways)) continue;
+                            var what = FormattableString.Invariant($"a corner over another way's lane outside the junction at ({corner.X:0.0}, {corner.Z:0.0})");
+                            judge.Reject(step, "other-way", what);
+                            verdict.Hit = what;
+                            break;
+                        }
                     }
                     if (GroundAt != null && !judge.Failed && WheelOnKerb(pose, ref kerbSamples, settled, Margin) is string wheel)
                     {
@@ -529,6 +552,11 @@ namespace DrivenRides.Core.Drive
             var model = car.Model(p0.X, p0.Z, Math.Atan2(p1.X - p0.X, p1.Z - p0.Z));
             driver.StartAt(p0.X, p0.Z);
             model.Speed = driver.PlannedSpeed(start, car.TopKmh / 3.6f);
+            // Where the plan starts the car stands already: what its body touches there is no reason to refuse the way
+            // on (0.1.100: a taxi standing by a kerb corner piece, 'Corner2' "at 0 m", got its first step blocked, and
+            // with it every route). Checked once the car has moved a body length on.
+            from = Math.Max(from, car.Length);
+            if (from >= to) return Array.Empty<object?>();
             return FollowWork(driver, model, line, from, to, result, margin);
         }
 
@@ -560,7 +588,8 @@ namespace DrivenRides.Core.Drive
             model.SetWheel(pose.Wheel);
             var from = driver.Along;
             var to = JoinEnd(line, from);
-            foreach (var y in FollowWork(driver, model, line, from, to, result, Margin)) yield return y;
+            // Not where it stands now (SweepWork): from a body length on.
+            foreach (var y in FollowWork(driver, model, line, Math.Min(from + car.Length, to), to, result, Margin)) yield return y;
             if (result.What != null) result.What = "joining the new line: " + result.What;
             else if (Math.Abs(result.Lateral) > JoinSettled)
                 result.What = FormattableString.Invariant($"joining the new line: still {result.Lateral:+0.00;-0.00} m off it after {to - from:0} m");

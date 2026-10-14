@@ -102,6 +102,35 @@ namespace DrivenRides.Core.Testing
         // beside a lane by the pier).
         public static bool OnALane(LaneGraph graph, Vec3 p) => graph.Junctions.Contains(p) || LaneDistance(graph, p) <= LaneHalf;
 
+        // Whether a point outside every junction's box lies on a lane going another way than any of `ways` (unit
+        // headings, x and z): within half a lane of a lane step, and none of the lane steps it is that near to
+        // within 45 degrees of one of them. A turn's body may sweep its own direction's lanes and the junction, never
+        // the oncoming lanes before or after it (0.1.100: a left turn's arc cut across the oncoming lanes' mouth).
+        public static bool OnAnotherWaysLane(LaneGraph graph, Vec3 p, IReadOnlyList<(float X, float Z)> ways)
+        {
+            if (graph.Junctions.Contains(p)) return false;
+            var other = false;
+            foreach (var w in graph.Near(p, 30f))
+            {
+                var a = graph.Position(w);
+                if (Math.Abs(a.Y - p.Y) > 2f) continue;
+                foreach (var n in graph.Successors(w))
+                {
+                    var b = graph.Position(n);
+                    float dx = b.X - a.X, dz = b.Z - a.Z, span = dx * dx + dz * dz;
+                    if (span < 1e-4f) continue;
+                    var f = Math.Max(0f, Math.Min(1f, ((p.X - a.X) * dx + (p.Z - a.Z) * dz) / span));
+                    float qx = a.X + dx * f - p.X, qz = a.Z + dz * f - p.Z;
+                    if (qx * qx + qz * qz > LaneHalf * LaneHalf) continue;
+                    var length = (float)Math.Sqrt(span);
+                    foreach (var (wx, wz) in ways)
+                        if ((dx * wx + dz * wz) / length > 0.707f) return false;
+                    other = true;
+                }
+            }
+            return other;
+        }
+
         // How far a point is from the nearest lane step of the graph level with it (within 30 m; infinity if none).
         public static float LaneDistance(LaneGraph graph, Vec3 p)
         {

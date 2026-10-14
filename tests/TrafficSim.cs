@@ -28,6 +28,8 @@ internal sealed class SimResult
     public float OptionLost = float.MinValue;
     // How long each decision took, microseconds (DecideCostTests).
     public readonly List<float> DecideMicros = new();
+    public readonly List<float> QueueStarts = new();
+    public readonly List<(float Delay, string Why)> QueueWhy = new();
     // Every slowdown (BrakeEvents), for the slowdown dumps' closed-loop check.
     public readonly List<(float Time, float Peak, float Low, float Seconds, string Reason, int Car)> Slowdowns = new();
     // The most the ride car's rear axle was off its line while turning (the wheel past 6 degrees), metres.
@@ -84,6 +86,31 @@ internal sealed class TrafficSim : ILiveFlags
         if (!e.Back || e.Seconds > TurnDipSeconds || e.Red || e.Wheel < TurnWheel) return;
         var kind = e.Reason.Length == 0 ? "plan" : e.Reason.StartsWith("behind") ? "behind" : e.Reason.StartsWith("stop line") || e.Reason.StartsWith("give-way line") ? "line" : e.Reason.StartsWith("creeping") ? "creeping" : e.Kind.ToString();
         result.TurnDips.Add((time, e.Car, e.Peak - e.Low, e.Seconds, kind));
+    }
+
+    // Pulling away in a queue (Peter, 14 October: "it waits for the car in front to get to a safe distance instead of
+    // accelerating with them"): standing within 6 m behind a car, the time from that car setting off (0.3 m/s) to the
+    // ride car doing so (0.5 m/s).
+    private int queueLeader = -1;
+    private float leaderOff = -1f;
+    private string? queueWhy;
+    private void QueueStart(SimResult result)
+    {
+        if (queueLeader < 0)
+        {
+            if (Math.Abs(ride.Speed) < 0.3 && decision.GapFor >= 0 && decision.GapAhead < 6f) { queueLeader = decision.GapFor; leaderOff = -1f; }
+            return;
+        }
+        var leader = cars.FirstOrDefault(c => c.Spec.Id == queueLeader && c.Active);
+        if (leader == null) { queueLeader = -1; return; }
+        if (leaderOff < 0f && leader.V > 0.3f) leaderOff = time;
+        if (leaderOff >= 0f && queueWhy == null && time - leaderOff >= 1f) queueWhy = $"{decision.Why} (gap {decision.GapAhead:0.0} at {decision.GapSpeed:0.0} m/s, cap {decision.MaxSpeed:0.0})";
+        if (ride.Speed > 0.5)
+        {
+            if (leaderOff >= 0f) { result.QueueStarts.Add(time - leaderOff); result.QueueWhy.Add((time - leaderOff, queueWhy ?? "")); }
+            queueWhy = null;
+            queueLeader = -1;
+        }
     }
 
     public const float StallLimit = 30f;
@@ -185,7 +212,8 @@ internal sealed class TrafficSim : ILiveFlags
         var stoppable = new Dictionary<int, bool>();
         float stall = 0f, nextTrace = 0f;
         var backing = false;
-        var prevFront = driver.Along + body.FrontAhead;
+        // The red-run judge: the front wheels past a set stop (as Gley judges its own cars; JunctionRules.Overhang).
+        var prevFront = driver.Along + body.Wheelbase;
         for (var step = 0; time < seconds; step++)
         {
             time = step * Dt;
@@ -382,13 +410,14 @@ internal sealed class TrafficSim : ILiveFlags
             // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);
             TurnDip(result);
+            QueueStart(result);
             foreach (var c in cars)
             {
                 if (!c.Active || !c.Body.Overlaps(rideBox)) continue;
                 result.Failure = $"overlap with car {c.Spec.Id} at {time:0.00} s (ride {ride.Speed:0.0} m/s, car {c.V:0.0} m/s, {decision.Why})";
                 return Finish(result);
             }
-            front = driver.Along + body.FrontAhead;
+            front = driver.Along + body.Wheelbase;
             for (var k = 0; k < path.Length; k++)
             {
                 var along = pathAlong[k];

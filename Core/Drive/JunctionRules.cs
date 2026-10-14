@@ -17,8 +17,11 @@ namespace DrivenRides.Core.Drive
     {
         public const float InsideLimit = 20f;
         public const float AskMetres = 6f;
-        // The front stops this far short of a stop line's waypoint: the pedals don't stop it to the centimetre.
-        public const float ShortOfLine = 1f;
+        // The front stops this far short of a stop line's waypoint: the pedals don't stop it to the centimetre (in the
+        // T3 traces of 14 October the front stood 0 to 0.5 m past where it was told to stop, 146 of 164 reds). Gley's
+        // own cars stand with their front at the waypoint (399 stops in the dumps, within 2 cm); at 1 m the ride car
+        // stood 1 to 1.5 m behind them (Peter: "not at the stop line but half a car in front").
+        public const float ShortOfLine = 0.6f;
 
         private readonly HashSet<int> drivenThrough = new HashSet<int>();
         // A red's decision, taken once when the car first sees it set: stop (false) or drive through as on amber
@@ -40,6 +43,12 @@ namespace DrivenRides.Core.Drive
 
         // The road this car holds at a junction, or -1. Other roads' cars stop at their give-way line meanwhile.
         public int RoadHeld(int junction) => roadHeld.TryGetValue(junction, out var road) ? road : -1;
+
+        // How far the front bumper is ahead of the front wheels (TrafficDriver sets it). Gley's cars stop with their front
+        // trigger, at the front wheels (VehicleComponent.GetFrontAxle), on a stop line's waypoint; the ride car stops
+        // its front wheels there too, level with them (Peter, 14 October: "the car stops not at the stop line but half
+        // a car in front").
+        public float Overhang { get; set; }
 
         public void Step(IReadOnlyList<PathMark> marks, float front, float rear, float speed, float time, TrafficDecision d)
         {
@@ -64,7 +73,7 @@ namespace DrivenRides.Core.Drive
             {
                 var m = marks[k];
                 if (!m.Stop) redDecision.Remove(m.Position);
-                var room = m.Along - front;
+                var room = m.Along - (front - Overhang);
                 if (room < -0.3f || drivenThrough.Contains(m.Position)) continue;
                 var tooLate = room > 0f && speed * speed / (2f * room) > PursuitDriver.HardDecel;
                 if (m.Stop)
@@ -76,7 +85,7 @@ namespace DrivenRides.Core.Drive
                     if (through && room > 0f && (speed < 1f || speed * speed / (2f * room) <= PursuitDriver.Decel))
                         redDecision[m.Position] = through = false;
                     if (through) continue;
-                    d.StopAlong = m.Along - ShortOfLine;
+                    d.StopAlong = m.Along - ShortOfLine + Overhang;
                     d.StopPosition = m.Position;
                     d.StopIsRed = true;
                     return;
@@ -93,7 +102,7 @@ namespace DrivenRides.Core.Drive
                         if (!inside.ContainsKey(m.Junction)) roadHeld.Remove(m.Junction);
                         if (tooLate) { drivenThrough.Add(m.Position); continue; }
                     }
-                    d.StopAlong = m.Along - ShortOfLine;
+                    d.StopAlong = m.Along - ShortOfLine + Overhang;
                     d.StopPosition = m.Position;
                     return;
                 }

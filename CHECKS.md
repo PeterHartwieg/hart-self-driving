@@ -5,7 +5,7 @@ The first run as a player would meet the mod: from the package, with no test fla
 1. **A game without the mod.** No `DrivenRides` folder in `ModsLocal` and no Workshop subscription to it (a parked copy outside `ModsLocal` is fine). Park Food Trucks and switch off other gameplay mods. Delete or rename `<LocalLow>/Hovgaard Games/Big Ambitions/DrivenRides/` (the test sessions' traces and dumps) so you can see whether a normal game writes there.
 2. **No test flag.** Steam's launch options for Big Ambitions have neither `-drivenrides-test` nor `-foodtrucks-test` (the test PC's sessions add the second; start the game from Steam, not `run-remote.sh`).
 3. **Install.** Copy the package folder into `ModsLocal` as `DrivenRides`. Start the game. The Mods menu lists it and it loads with no error. `Player.log`: `Version 0.2.0-rc1 loading.`, `Harmony 2.4.2...`, one `Patch ...: Active` line per hook and no `Not active`, the `Options: ...` line. No `Test mode` line, no `Debug keys ready`, no `Traffic warm-up`, no `City ready`, no `Lane graph:` lines.
-4. **Options page.** Mods options, Driven Rides: nine settings with the texts from `Locales/en.json`, none showing a raw `drivenrides:` key. Note any text that is cut off or reads oddly.
+4. **Options page.** Mods options, Driven Rides: eleven settings with the texts from `Locales/en.json`, none showing a raw `drivenrides:` key. Note any text that is cut off or reads oddly.
 5. **New save.** A new character. Hail a taxi and pick a place 1 to 2 km away: the taxi drives, the panel card shows, you get out at the door. The log has one `Ride accepted: ...` line, one `Ride ending: Complete (arrived) ...` line and nothing per step (no `NWH drive:`, `NWH planner:`, `Departed`, `Light:` or `Watchdog` lines).
 6. **The rest of the rides.** A taxi stand ride, Skip mid-ride (fade, door), 2x and 3x on the panel, the clock slider. With money for a private driver: L calls it, L again walks you to it, the ride drives. With a car: L in the driver's seat, a trip, autopark. Each ride adds a start and an end line, no more.
 7. **Notices.** Each in plain English, no raw key: L with no private driver ("You have no private driver."), L in a moving car ("Stop the car first."), a book or other activity during a ride ("Not during a ride."). If a ride falls back to the vanilla ride: "No driving route for this ride. You get there the usual way."
@@ -15,6 +15,14 @@ The first run as a player would meet the mod: from the package, with no test fla
 11. **Reinstall.** Copy the package back, start the game, load the save: rides drive again, and the options kept their values.
 
 Results and the log go to the README's evidence table (rows "A normal game ..." and "A save made with the mod loads without it").
+
+# In-game checks: ignore speed limits (nwh-rides4, 0.1.106-rides1)
+
+Options, Driven Rides, "Rides ignore speed limits", off by default. Off: as before, the car keeps to 1.2 times the lane limit. On: on straight avenues it speeds up to the car's own top speed (for example the limo's or the taxi's, see `Departed (NWH): ... top N km/h`), and still slows for corners, follows cars ahead and stops at reds. The option applies from the next ride on, not the one under way.
+
+# In-game checks: stop for pedestrians (nwh-rides3, 0.1.104-rides1)
+
+Options, Driven Rides, "Rides stop for pedestrians", off by default. Off: a ride car neither brakes nor stops for people crossing in front of it and drives through them, as the traffic cars do; the log has no `held by ... (Human)` lines. On: it stops for them as before. Switching it during a ride takes effect at once. Backing off ignores people too when it is off.
 
 # In-game checks: the ride panel as a card (ride-panel, 0.1.97-panel1)
 

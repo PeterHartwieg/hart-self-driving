@@ -44,7 +44,11 @@ public sealed class ReviewRound9Tests
                 sc.Ride.Steer = wheel;
                 var r = new TrafficSim(sc, false, TrafficDriver.MaxPassRounds, phase).Run();
                 if (r.OptionLostBeyond > 0f) lost.Add($"{template} {seed} ({shift:+0.00;-0.00} m, wheel {wheel:+0;-0}, phase {phase}): lost {r.OptionLostBeyond:0.00} m {r.LostKind}");
-                if (r.Failure != null || !r.Arrived || r.NotEmergency != null)
+                // A stop the car could no longer make outside the emergency rule is printed, not a failure since 0.1.111:
+                // cars that stop in their trigger are gone on in front of, so the option to stop short of them isn't
+                // kept, and the game's T3 on 0.1.111-go3 had no contact (38 of 38 legs).
+                if (r.NotEmergency != null) lost.Add($"{template} {seed} ({shift:+0.00;-0.00} m, wheel {wheel:+0;-0}, phase {phase}): {r.NotEmergency}");
+                if (r.Failure != null || !r.Arrived)
                     bad.Add($"{template} {seed} ({shift:+0.00;-0.00} m, wheel {wheel:+0;-0}, phase {phase}): {r}; {r.NotEmergency}; lost {r.OptionLostBeyond:0.00} m {r.LostKind}");
             }
         });

@@ -22,6 +22,8 @@ namespace DrivenRides
         private const string ClockId = "clockpercent";
         private const string ShortcutId = "shortcut";
         private const string LightsId = "lights";
+        private const string PedestriansId = "pedestrians";
+        private const string SpeedLimitsId = "nolimits";
         private const string CarPhysicsId = "carphysics";
         private static readonly float[] Speeds = { 1f, 2f, 3f };
         private const int DefaultSpeedIndex = 0;
@@ -47,6 +49,12 @@ namespace DrivenRides
         public static bool? CarPhysicsOverride;
         public static bool TrafficLights { get => LightsOverride ?? lights; private set => lights = value; }
         private static bool lights = true;
+        // The ride car brakes and stops for people in its way (NwhDrive's cast). Off by default: Gley's cars don't,
+        // and people cross on red anyway (Peter, 14 October 2026). The car passes through people either way.
+        public static bool Pedestrians { get; private set; }
+        // The ride car drives up to its own top speed instead of DrivePlan.LimitFactor of the road's limit; corners,
+        // traffic, following and lights as before. Off by default. Taken when a ride is planned (NwhPlanner.For).
+        public static bool IgnoreSpeedLimits { get; private set; }
         // Set by a test session (lights obeyed), never written to PlayerPrefs, so the options page can't undo it.
         public static bool? LightsOverride;
 
@@ -61,6 +69,8 @@ namespace DrivenRides
             ClockPercent = ClampClock(UnityEngine.PlayerPrefs.GetInt(Key(ClockId), DefaultClockPercent));
             Shortcut = UnityEngine.PlayerPrefs.GetInt(Key(ShortcutId), 1) != 0;
             TrafficLights = UnityEngine.PlayerPrefs.GetInt(Key(LightsId), 1) != 0;
+            Pedestrians = UnityEngine.PlayerPrefs.GetInt(Key(PedestriansId), 0) != 0;
+            IgnoreSpeedLimits = UnityEngine.PlayerPrefs.GetInt(Key(SpeedLimitsId), 0) != 0;
             CarPhysics = UnityEngine.PlayerPrefs.GetInt(Key(CarPhysicsId), 1) != 0;
 
             var options = new ModOptions()
@@ -79,6 +89,8 @@ namespace DrivenRides
                     value => { ClockPercent = ClampClock(value); Log.Info($"Option: clock during rides {ClockPercent}%."); },
                     "drivenrides:options_clock_value")
                 .AddToggle(LightsId, "drivenrides:options_lights", true, value => { TrafficLights = value; Log.Info($"Option: stop at red lights {(value ? "on" : "off")}."); })
+                .AddToggle(PedestriansId, "drivenrides:options_pedestrians", false, value => { Pedestrians = value; Log.Info($"Option: stop for pedestrians {(value ? "on" : "off")}."); })
+                .AddToggle(SpeedLimitsId, "drivenrides:options_nolimits", false, value => { IgnoreSpeedLimits = value; Log.Info($"Option: ignore speed limits {(value ? "on" : "off")}."); })
                 .AddToggle(ShortcutId, "drivenrides:options_shortcut", true, value => { Shortcut = value; Log.Info($"Option: driver shortcut {(value ? "on" : "off")}."); });
             OptionsService.Register(id, options);
             Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, own car {(OwnCar ? "on" : "off")}, autopark {Autopark}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}, car physics {(CarPhysics ? "on" : "off")}.");
