@@ -40,8 +40,8 @@ namespace DrivenRides.Core.Drive
         private const float MaxHorizon = 12f;
         // How far along an oncoming car's way the keep-clear looks: as far as a corridor goes (Corridor's own limit).
         private const float KeepClearReach = 160f;
-        // The final pass's rounds at most (Decide).
-        public const int MaxPassRounds = 8;
+        // The final pass's rounds at most (Decide): two settle every T0 run (round 9; eight before).
+        public const int MaxPassRounds = 2;
         // As used: MaxPassRounds, lower only in tests that make the pass run out (CC2).
         public int PassRoundsLimit { get; set; } = MaxPassRounds;
 
