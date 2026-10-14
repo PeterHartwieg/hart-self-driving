@@ -101,6 +101,12 @@ namespace DrivenRides
         // TraceLines steps, the traffic recorder behind the scenario dumps, and the traffic cost. Off on a ride: nothing
         // kept, and none of their buffers made (review round 2, U5).
         public bool Recording;
+        // On every ride: the traffic recorder, so a slowdown to a near stop for traffic writes a scenario dump the
+        // simulation replays (Peter's own-car trips, 14 October: "it stopped for no obvious reason"), SlowdownDumpEvery
+        // apart at most, to <persistentDataPath>/DrivenRides/tests/slowdown-*.json.
+        public bool SlowdownDumps = true;
+        private const float SlowdownDumpEvery = 10f;
+        private float slowdownDumpAt = float.MinValue;
         // A ride's cost records without the rig's trace (phase 5: decision cost per frame at 2x and 3x).
         public bool MeasureCost;
         // Per frame: the traffic decision's microseconds summed over the frame's physics steps, and how many steps
@@ -282,7 +288,7 @@ namespace DrivenRides
             ReadCost?.Add((float)((read - ticks) * MicrosPerTick));
             CarsRead?.Add(cars.Count);
             TriggerStopsStep();
-            if (Recording) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, driver.Integral, cars, gley.Components);
+            if (Recording || SlowdownDumps) recorder.Record(Time.time, rear, heading, speed, driver.Along, vehicle.steering.angle, driver.Integral, cars, gley.Components);
             // What the cast sees ahead (parked cars, people): the traffic rules count on it before committing past a
             // traffic car's way (review round 2, U1), and the driver stops for it.
             var castGap = HoldForCast(GapAhead(speed));
@@ -328,7 +334,11 @@ namespace DrivenRides
                 lastWhy = decision.Why;
             }
             var slowdown = slowdowns.Step(Time.time, driver.Along, speed, vehicle.steering.angle, decision.Why, decision.Note, decision.StopIsRed);
-            if (slowdown != null) Log.Info("NWH drive: " + slowdown);
+            if (slowdown != null)
+            {
+                Log.Info("NWH drive: " + slowdown);
+                SlowdownDump();
+            }
 
             var input = vehicle.input;
             var transmission = vehicle.powertrain.transmission;
@@ -560,6 +570,27 @@ namespace DrivenRides
                 }
                 else if (c.StoppedForUs && c.Speed >= 0.5f) triggerStarts[c.Id] = (at, c.Speed, Time.time);
             }
+        }
+
+        // A slowdown for traffic (not a stop line, not the plan's own speed) to under 1 m/s.
+        private void SlowdownDump()
+        {
+            var e = slowdowns.Last;
+            if (!SlowdownDumps || e.Low > 1f || e.Reason.Length == 0 || e.Red || e.Reason.StartsWith("stop line") || e.Reason.StartsWith("give-way line")) return;
+            if (Time.time - slowdownDumpAt < SlowdownDumpEvery) return;
+            slowdownDumpAt = Time.time;
+            try
+            {
+                var name = $"slowdown-{DateTime.Now:yyyyMMdd-HHmmss}-{driver!.Along:0}m.json";
+                var what = $"slowdown {e.Peak:0.0} to {e.Low:0.0} m/s for {e.Seconds:0.0} s, wheel up to {e.Wheel:0} degrees, for: {e.Reason}";
+                var s = recorder.Build(name, $"{what}; {Car!.TypeName}, version {DrivenRidesMod.Version}", Car, topMs, TrackWidth, path, line!, arcs, slowStretches, gley);
+                if (s == null) return;
+                var folder = System.IO.Path.Combine(GleyGraph.DataFolder, "tests");
+                System.IO.Directory.CreateDirectory(folder);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(folder, name), s.ToJson());
+                Log.Info($"NWH drive: slowdown dump {name}.");
+            }
+            catch (Exception ex) { Log.Error("Slowdown dump: " + ex); }
         }
 
         private void Dump(string kind, string what)

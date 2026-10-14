@@ -1477,6 +1477,13 @@ namespace DrivenRides.Core.Drive
             return runFrom > 0f && then <= NoseInMs && stopping + 1f < c.TriggerLength && runFrom - corridor.Far(t) >= stopping + 1f;
         }
 
+        // Lined up with a car's lane: within about 15 degrees of it.
+        public const float LinedUp = 0.966f;
+
+        // A car whose front trigger will see the body and stop it short (Gley stops for anything in it within about a
+        // metre: "stopped for this car in its trigger: 0.97 m and 0.40 s from 13.6 m/s"), ua metres ahead of its front.
+        private static bool TriggerStops(in OtherCar c, float ua) => ua >= c.Speed * TriggerReact + TriggerStopMetres + 1f;
+
         // Gaining speed at more than half a metre a second each second.
         private bool SpeedingUp(int id) => pace.TryGetValue(id, out var p) && p.Gain > 0.5f;
 
@@ -1658,8 +1665,11 @@ namespace DrivenRides.Core.Drive
                 // it joins in front of must (FollowBrake, FollowGap): standing with its nose just in the lane's margin, it
                 // counted as ahead of a car coming at 12 m/s 23 m back, and pulled out in front of it (T0 merge 229,
                 // review round 7).
+                // Standing in its lane already, lined up with it (not nosing in at an angle), going on only takes the
+                // ride car further ahead of it: never a reason to stay (Peter's own-car trip, 14 October: stopped in its
+                // lane after a corner for cars coming up behind at 12 to 14 m/s).
                 if (k == 0 && ua > 0f && dot > -0.64f && (same || AheadAlong(ua)) && (!c.MayChangeLane || BehindRear(c))
-                    && (slowSpeed[0] >= MovingMs || !BehindRear(c) || Math.Max(0f, corridor.Speed * corridor.Speed - slowSpeed[0] * slowSpeed[0]) / (2f * FollowBrake) + FollowGap < ua)) return null;
+                    && (slowSpeed[0] >= MovingMs || !BehindRear(c) || dot > LinedUp || Math.Max(0f, corridor.Speed * corridor.Speed - slowSpeed[0] * slowSpeed[0]) / (2f * FollowBrake) + FollowGap < ua)) return null;
                 // Ground ahead of the car that it is coming into: the ride car must not come to a stop there.
                 var comingUpBehind = same && followed.Contains(c.Id);
                 if (ua > 0f && !(same && (AheadBy(early[k], ub) || comingUpBehind)) && entry < 0) entry = runStart;
