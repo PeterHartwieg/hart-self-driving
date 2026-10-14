@@ -291,11 +291,14 @@ namespace DrivenRides.Core.Drive
             var reachV = Math.Max(0f, speed) + FastAccel;
             var stopping = reachV * BrakeLatency + reachV * reachV / (2f * PursuitDriver.Decel) + body.Length + EndMargin + StopUncertainty;
             var sweepLength = Math.Min((MaxPoses - 2) * SweepStep, Math.Max(SweepMetres, stopping));
-            var end = Math.Min(along + sweepLength, line.Line.Length - body.FrontAhead);
+            // Past the end of the line it drives, straight on along its last stretch: the way goes on there (the next
+            // step, the next leg) and what stands just past the end must be seen in time (review round 9: T3 ride 17,
+            // twice at 11 to 12 m/s into a car standing 2 m past the end of the leg's line, seen 0.2 s before).
+            var end = along + sweepLength;
             if (d.StopAlong is float stop) end = Math.Min(end, stop - body.FrontAhead + 1f);
             creeps.Clear();
             // The near field (that stopping distance) where the model foresees the body (review round 9, DD1).
-            Foresee(s, along, end, stopping);
+            Foresee(s, along, Math.Min(end, line.Line.Length - body.FrontAhead), stopping);
             Sweep(s, along, end);
 
             // Layer 3 first: cars standing for the ride car, ground, backing off.
@@ -1014,7 +1017,7 @@ namespace DrivenRides.Core.Drive
             // along with the car (T0 priority 41: giving way to an oncoming car every third decision; review round 7,
             // BB1).
             var first = (float)Math.Floor(along / SweepStep) * SweepStep + SweepStep;
-            var k = line.FirstPointFrom(first);
+            var k = Math.Min(line.FirstPointFrom(first), pts.Count - 1);
             var prevAt = along;
             float px = s.RearX, pz = s.RearZ, ph = s.Heading;
             for (var at = first; at <= end && count < MaxPoses; prevAt = at, at += SweepStep)
@@ -1025,7 +1028,8 @@ namespace DrivenRides.Core.Drive
                 var b = pts[Math.Max(1, k)];
                 var a = pts[Math.Max(0, k - 1)];
                 var span = line.Along(Math.Max(1, k)) - line.Along(Math.Max(0, k - 1));
-                var f = span > 1e-4f ? Math.Max(0f, Math.Min(1f, (at - line.Along(Math.Max(0, k - 1))) / span)) : 1f;
+                var f = span > 1e-4f ? Math.Max(0f, (at - line.Along(Math.Max(0, k - 1))) / span) : 1f;
+                if (k < pts.Count - 1) f = Math.Min(1f, f);
                 float x = a.X + (b.X - a.X) * f, z = a.Z + (b.Z - a.Z) * f;
                 var heading = (float)Math.Atan2(b.X - a.X, b.Z - a.Z);
                 // Where the model foresees the body, in the near field; the planned line beyond.
