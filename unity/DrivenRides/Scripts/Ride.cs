@@ -514,6 +514,7 @@ namespace DrivenRides
                     spawnedNwh = NwhRides.Spawn(driverType, prefab.gameObject, middle, facing, out var nwhWhy);
                     if (spawnedNwh == null) throw new InvalidOperationException("no NWH car: " + nwhWhy);
                     NwhRides.PlaceBody(spawnedNwh, middle, ground, facing);
+                    if (spawnedNwh.Look == null) KeepColour(car.gameObject, spawnedNwh.Root, keep: true);
                     Log.Trace($"NWH ride: {NwhCar.Id(spawnedNwh.TypeName)}{(spawnedNwh.Look != null ? " dressed as " + spawnedNwh.Look : "")} where the traffic car {car.name} stands.");
                 }
                 if (TestMode.On) GleyGraph.DumpRide(start, goals, route.Waypoints, destination);
@@ -1172,7 +1173,21 @@ namespace DrivenRides
             var position = new Vector3(middle.x, loaded.transform.position.y, middle.z) - facing * new Vector3(centre.x, 0f, centre.z);
             if (loaded.rb != null) { loaded.rb.position = position; loaded.rb.rotation = facing; }
             loaded.transform.SetPositionAndRotation(position, facing);
+            if (nwh.Car.Look == null) KeepColour(body.gameObject, loaded.gameObject, keep: false);
             Log.Trace($"NWH ride: traffic car {loaded.GetIndex()} takes the ride car's place, heading for waypoint {leave.listIndex}.");
+        }
+
+        // Each car the game spawns gets a random paint (RandomVehicleColor), so the ride's swaps (traffic car to NWH
+        // car at boarding, NWH car to traffic car at the end) would change the car's colour twice (Peter, 14 October
+        // 2026: the private driver's car came in three colours). The new car takes the old one's paint. With `keep`
+        // the new car is the mod's own, and its random paint is switched off so a re-enable can't repaint it.
+        private static void KeepColour(GameObject from, GameObject to, bool keep)
+        {
+            var source = from.GetComponentInChildren<CarFeatures>();
+            var target = to.GetComponentInChildren<CarFeatures>();
+            if (source == null || target == null || source.VehicleColor == null) return;
+            if (keep) foreach (var random in to.GetComponentsInChildren<RandomVehicleColor>()) Object.Destroy(random);
+            target.SetColor(source.VehicleColor);
         }
 
         // How the last ride ended, and the last NWH ride's tally (the rig's ride command records them).

@@ -2,7 +2,7 @@
 
 A mod for Big Ambitions. Taxi rides, taxi stands, your private driver and your own car drive you through the city instead of fading to black. The car is a real car with the game's own driving physics, the same your car has when you drive it. It finds its way through traffic, stops at red lights, gives way and turns at junctions. You ride along, the camera follows the car, and you get out at the door.
 
-Version 0.2.0-rc1, a release candidate. Built for Big Ambitions 1.0 (Steam build 25482473).
+Version 0.2.0-rc2, a release candidate. Built for Big Ambitions 1.0 (Steam build 25482473).
 
 ## What it does
 
