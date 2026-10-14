@@ -33,6 +33,7 @@ namespace DrivenRides
             runtimeObject = new GameObject("DrivenRides.Runtime");
             Object.DontDestroyOnLoad(runtimeObject);
             runtimeObject.AddComponent<RideHost>();
+            runtimeObject.AddComponent<RidePanel>();
             runtimeObject.AddComponent<DriverShortcut>();
             runtimeObject.AddComponent<DebugKeys>();
             runtimeObject.AddComponent<TurnTests>();
@@ -68,12 +69,10 @@ namespace DrivenRides
         }
     }
 
-    // Drives the active ride each frame and shows its panel.
+    // Drives the active ride each frame; RidePanel shows its panel.
     internal sealed class RideHost : MonoBehaviour
     {
         private static RideHost? instance;
-        private GUIStyle? boxStyle;
-        private bool clockDragged;
 
         // Runs a game coroutine (an unfade after a cancel) on the mod's own object.
         public static void Run(System.Collections.IEnumerator routine)
@@ -96,30 +95,6 @@ namespace DrivenRides
                 Log.Error("Ride frame update: " + ex);
                 Ride.CancelActive("an exception in the ride's frame update");
             }
-        }
-
-        private void OnGUI()
-        {
-            var ride = Ride.Active;
-            if (ride == null || !ride.ShowPanel) return;
-            boxStyle ??= new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 8, 8) };
-            var width = 600f;
-            var rect = new Rect((Screen.width - width) / 2f, 24f, width, 44f);
-            GUI.Box(rect, ride.PanelText, boxStyle);
-            // The clock slider: 0 % stops the clock, 100 % is normal. Remembered for the next ride once let go.
-            var x = rect.xMax - 8f - 4 * 56f - 176f;
-            GUI.Label(new Rect(x, rect.y + 12f, 76f, 24f), $"Clock {Options.ClockPercent}%");
-            var percent = Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(x + 78f, rect.y + 16f, 90f, 20f), Options.ClockPercent, 0f, 100f));
-            if (percent != Options.ClockPercent) { Options.SetClock(percent); clockDragged = true; }
-            if (clockDragged && Event.current.rawType == EventType.MouseUp) { Options.FlushClock(); clockDragged = false; }
-            x += 176f;
-            foreach (var speed in new[] { 1f, 2f, 3f })
-            {
-                var label = Mathf.Approximately(ride.RideSpeed, speed) ? $"[{speed:0}x]" : $"{speed:0}x";
-                if (GUI.Button(new Rect(x, rect.y + 8f, 50f, 28f), label)) ride.SetSpeed(speed);
-                x += 56f;
-            }
-            if (GUI.Button(new Rect(x, rect.y + 8f, 50f, 28f), "Skip")) ride.RequestSkip();
         }
     }
 }

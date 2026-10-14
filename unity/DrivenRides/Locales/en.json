@@ -16,5 +16,11 @@
     "drivenrides:options_clock": "Clock speed during rides: 0 % stops it, 100 % is normal (the ride panel's slider changes it too)",
     "drivenrides:options_clock_value": "{value} %",
     "drivenrides:options_shortcut": "L calls the private driver",
-    "drivenrides:options_lights": "Rides stop at red lights"
+    "drivenrides:options_lights": "Rides stop at red lights",
+    "drivenrides:panel_left": "{km} km to go",
+    "drivenrides:panel_clock": "Clock {percent}%",
+    "drivenrides:panel_speed_1": "1x",
+    "drivenrides:panel_speed_2": "2x",
+    "drivenrides:panel_speed_3": "3x",
+    "drivenrides:panel_skip": "Skip"
 }

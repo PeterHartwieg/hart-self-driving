@@ -1,3 +1,16 @@
+# In-game checks: the ride panel as a card (ride-panel, 0.1.97-panel1)
+
+Disposable save, Food Trucks parked, other gameplay mods off. The IMGUI box at the top centre is gone; the panel is now a uGUI card under the Objectives panel (design Option B). It works the same as before; only the look changed. Compare it against the design canvas, "Option B: small card".
+
+1. **Startup.** At the first ride the log has one line `Ride panel built on canvas '<name>' (2 units per design pixel, sibling N), font <name> from <where>, bold <name or "by style">`. Please copy it. "from the Objectives panel" or "loaded fonts" is what I expect; "GlobalReferences (sign font)" or "(not Rubik)" means the font search missed and the text may look wrong. No `Ride panel:` error lines.
+2. **Place and size.** A taxi ride: the card sits at the left edge under the Objectives panel and is as wide as it, with about 16 px of gap at 1920x1080. With a long objectives list, check whether the list runs under the card (the card's position is fixed at y 324; it doesn't follow the list's height). Change UI zoom in the game's options: the card grows and shrinks with the Objectives panel.
+3. **Look.** Light grey header with "2.4 KM TO GO" in dark bold capitals, ticking down by 0.1 km. Dark translucent body, rounded corners, a soft shadow. Clock row: "Clock 33%" and a slider filled blue up to the handle. Buttons 1X 2X 3X, the current one light with dark text, and a blue SKIP on the right. Texts in Rubik, the HUD's font, sharp at 1080p and 4K.
+4. **Buttons.** Hovering a button brightens it (Skip turns lighter blue) and plays the game's hover sound; pressing plays the click sound. 1x/2x/3x change the ride speed and the light button follows (`Ride speed Nx.` in the log). The choice is the options page's start speed for the next ride, as before.
+5. **Clock slider.** Drag it: the label follows each percent and the digits don't shift sideways. Let go: one `Clock during rides N%.` line. Clicking on the track jumps the handle there. Change the slider on the options page between rides: the next ride's panel shows that value. After a click, WASD and the arrow keys don't move the slider or the buttons.
+6. **When it shows.** Only while the car drives or stops at the end. Gone during boarding, the bridge fade, after Skip (the fade), and after arrival. Skip works as before. The phone and the pause menu draw over the card, not under it. Hide UI (screenshot mode) hides it.
+7. **Clicks don't go through.** Clicking a panel button doesn't also act on the world behind it.
+8. **Own car and private driver.** The same card on an own-car trip and a private driver ride. A second ride after a city reload shows the card again (it is rebuilt per city).
+
 # In-game checks: real rides on NWH (nwh-rides, 0.1.90-rides5)
 
 Disposable save, Food Trucks parked, other gameplay mods off, some money for fares. Taxi, stand and private driver rides now drive with the car's own physics, the same planner and driver as `run driver=nwh traffic=on`: the taxi dressed on the drivable car closest in size, the driver in the drivable version of its vehicle.
