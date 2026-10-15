@@ -61,25 +61,6 @@ HART. Self Driving adds nothing to your save. A save made during a ride stores t
 
 The options stay in the game's settings (Unity's PlayerPrefs, keys starting with `m:`). They do nothing without the mod.
 
-## Evidence
-
-What has been seen in the game, and what is still waiting for a check. "Checked" means seen in a running game. Reading code doesn't count.
-
-| Question | Status |
-|---|---|
-| A hailed taxi drives with the game's car physics and arrives at the door | Checked: six rides on 0.1.91, at 1x, 2x and 3x |
-| A ride over the bridge to the Hamptons crosses with the game's skip and drives on | Checked: one ride on 0.1.91 |
-| The private driver drives with the game's car physics | Checked: one ride on 0.1.94, three on 0.2.0-rc1, one on 0.2.0-rc2 |
-| The private driver's car keeps its colour from pickup to drop-off | Checked: one ride on 0.2.0-rc2 |
-| A taxi stand ride drives | Pending |
-| Your own car drives itself, arrives, autoparks and Skip works | Checked: on 0.1.92 and 0.1.93, 10 of 10 autoparks |
-| Getting out of your own car mid-trip ends the trip cleanly | Checked on 0.1.92 |
-| Hospital and a save and load during your own car's trip | Pending |
-| The ride panel card looks right and its buttons work | Checked: clean install on 0.2.0-rc1 (Skip, 1x to 3x, clock slider) |
-| The option "Real car physics" off brings back the older rides | Pending |
-| A normal game (no test flag) has no debug keys, no files in `DrivenRides/` and a short log | Checked: clean install on 0.2.0-rc1, 14 October 2026 (one start and one end line per ride, no data folder) |
-| A save made with the mod loads without it | Checked: clean install on 0.2.0-rc1, a normal and a mid-ride save; options kept after reinstalling (0.2.0-rc2) |
-
 ## Building
 
 For developers. Needs Unity 2022.3.62f2 with Windows Build Support (Mono), the official [Big Ambitions modding SDK](https://github.com/hovgaardgames/bigambitions) with the game's DLLs, and the .NET SDK.
