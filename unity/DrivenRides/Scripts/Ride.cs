@@ -391,12 +391,15 @@ namespace DrivenRides
                 // Goals in steps, each wider than the last, until one gives a route: the kerb on the destination's side
                 // of the street (a driver lets you out on your side), any kerb, any lane, then lanes of any type
                 // further out (Hamptons houses stand back on private roads; spike 15 found nothing within 60 m).
+                // Within a wider search, try the closest stops before adding farther ones: otherwise driving plus
+                // walking time can favour the road's entrance over driving round to the building (Ocean Crest Road).
                 var destinationPoint = GleyGraph.ToVec(destination);
                 var steps = new[]
                 {
                     ("the destination's side", new GoalOptions { KerbLane = true, TargetOnRight = true }),
                     ("the other side", new GoalOptions { KerbLane = true }),
                     ("any lane", new GoalOptions { MinStraightMetres = 0f }),
+                    ("any nearby lane type", new GoalOptions { MinStraightMetres = 0f, AnyVehicleType = true }),
                     ("within 150 m", new GoalOptions { Radius = 150f, MinStraightMetres = 0f, MaxHeightDiff = 6f, AnyVehicleType = true }),
                     ("within 300 m", new GoalOptions { Radius = 300f, MinStraightMetres = 0f, MaxHeightDiff = 10f, AnyVehicleType = true }),
                 };
@@ -404,28 +407,33 @@ namespace DrivenRides
                 var why = "no goal";
                 Route? route = null;
                 List<Goal> goals = new List<Goal>();
+                var origin = car != null ? car.transform : ownCar != null ? ownCar.transform : null;
                 foreach (var (label, options) in steps)
                 {
-                    goals = GoalPicker.Pick(graph, destinationPoint, vehicleType, options);
-                    if (goals.Count == 0) continue;
-                    route = Plan(graph, start, goals, vehicleType, out var ms, out why);
-                    planMs += ms;
-                    if (route != null)
+                    var batches = options.Radius > 60f
+                        ? GoalPicker.PickNearbyFirst(graph, destinationPoint, vehicleType, options)
+                        : new[] { GoalPicker.Pick(graph, destinationPoint, vehicleType, options) };
+                    foreach (var batch in batches)
                     {
-                        if (label != "the destination's side") Log.Trace($"Goal: {label} ({goals.Count} goals).");
-                        break;
+                        goals = batch;
+                        if (goals.Count == 0) continue;
+                        route = Plan(graph, start, goals, vehicleType, out var ms, out why);
+                        planMs += ms;
+                        // The driver's waypoint can lead only into a traffic pocket. Try the driving lane beside it
+                        // for these same close goals before widening the destination search: a wider search can
+                        // otherwise accept the pocket itself as a drop-off and never try the road out.
+                        if (route == null && origin != null)
+                            route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
+                        if (route != null) break;
                     }
+                    if (route == null) continue;
+                    if (label != "the destination's side") Log.Trace($"Goal: {label} ({goals.Count} goals).");
+                    break;
                 }
                 if (goals.Count == 0) return Vanilla($"no lane waypoint within 300 m of the destination at {destination}");
-                var origin = car != null ? car.transform : ownCar != null ? ownCar.transform : null;
-                if (route == null && origin != null)
+                if (route != null && origin != null && route.Waypoints[0] != start)
                 {
-                    // The summoned driver stops at the waypoint nearest the player, whatever kind of lane it is; some are
-                    // pockets with no lane out. Then the route starts from a proper traffic lane nearby, and Gley steers
-                    // the car straight to it.
-                    Log.Trace("No route from the car's waypoint: " + GleyGraph.Diagnose(graph, start, goals, vehicleType));
-                    route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
-                    if (route != null) Log.Trace($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(origin.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
+                    Log.Trace($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(origin.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
                 }
                 // An NWH ride is planned as the rig plans its rides (NwhPlanner.PlanRoute): from the start the search
                 // found, to the same goals, each added step checked for this car, the first lanes swept, the line
@@ -535,7 +543,10 @@ namespace DrivenRides
                 ownNwh = null;
                 loaded = null;
                 spawnedNwh = null;
-                Log.Info($"Ride accepted: {kind}, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, drive {route.DriveSeconds:0} s, walk {route.WalkSeconds:0} s, planned in {planMs} ms, budget {minutes:0.0} game minutes.");
+                var address = target is CityBuildingController building && building.building != null
+                    ? $"{building.building.StreetNumber} {building.building.StreetName}" : target.name;
+                var dropOff = route.Waypoints[route.Waypoints.Count - 1];
+                Log.Info($"Ride accepted: {kind}, {route.Waypoints.Count} waypoints, {route.LengthMetres:0} m, drive {route.DriveSeconds:0} s, walk {route.WalkSeconds:0} s, planned in {planMs} ms, budget {minutes:0.0} game minutes. Destination {address} at {destination}, drop-off {dropOff} at {GleyGraph.Waypoints![dropOff].position}.");
                 Active = ride;
                 return ride.Run();
             }
@@ -605,7 +616,7 @@ namespace DrivenRides
 
 
 
-        private static Route? Plan(LaneGraph graph, int start, List<Goal> goals, int vehicleType, out long ms, out string why)
+        private static Route? Plan(LaneGraph graph, int start, List<Goal> goals, int vehicleType, out long ms, out string why, long budgetMs = PlanBudgetMs)
         {
             var watch = Stopwatch.StartNew();
             var job = RoutePlanner.Begin(graph, new RouteRequest
@@ -617,17 +628,18 @@ namespace DrivenRides
                 IsBlockedStep = (a, b) => GleyGraph.IsBlockedStep(a, b) || (planNwh != null ? planNwh.IsBlocked(a, b) : TestedSteps.Blocks(a, b, planLength)),
                 WideUTurns = planNwh != null,
             });
-            while (job.Status == PlanStatus.Running && watch.ElapsedMilliseconds < PlanBudgetMs)
-                job.Step(PlanStep, () => watch.ElapsedMilliseconds >= PlanBudgetMs);
+            while (job.Status == PlanStatus.Running && watch.ElapsedMilliseconds < budgetMs)
+                job.Step(PlanStep, () => watch.ElapsedMilliseconds >= budgetMs);
             ms = watch.ElapsedMilliseconds;
             why = job.Status == PlanStatus.Running ? "over the time budget" : job.Status.ToString();
             // Small steps keep the overshoot small; a route found after the budget counts as none.
-            if (job.Status == PlanStatus.Found && ms > PlanBudgetMs) { why = "found after the time budget"; return null; }
+            if (job.Status == PlanStatus.Found && ms > budgetMs) { why = "found after the time budget"; return null; }
             return job.Status == PlanStatus.Found ? job.Result : null;
         }
 
-        // Up to six proper traffic lanes within 50 m of the car, in front of it first and nearest first, with nothing
-        // built in between; the first that reaches a goal wins.
+        // Proper traffic lanes within 50 m of the car, in front of it first and nearest first, with nothing built
+        // in between; the first that reaches a goal wins, within one shared planning budget. Six nearby waypoints
+        // can all belong to the same dead-end pocket, so do not cap the number of candidates.
         private static Route? PlanFromNearby(LaneGraph graph, Transform car, int pocketStart, List<Goal> goals, int vehicleType, ref long planMs)
         {
             var here = car.position;
@@ -643,9 +655,10 @@ namespace DrivenRides
                 candidates.Add((i, to.magnitude + (ahead ? 0f : 25f)));
             }
             candidates.Sort((a, b) => a.Score.CompareTo(b.Score));
-            for (var k = 0; k < candidates.Count && k < 6; k++)
+            var watch = Stopwatch.StartNew();
+            for (var k = 0; k < candidates.Count && watch.ElapsedMilliseconds < PlanBudgetMs; k++)
             {
-                var route = Plan(graph, candidates[k].Index, goals, vehicleType, out var ms, out _);
+                var route = Plan(graph, candidates[k].Index, goals, vehicleType, out var ms, out _, PlanBudgetMs - watch.ElapsedMilliseconds);
                 planMs += ms;
                 if (route != null) return route;
             }
@@ -1183,10 +1196,11 @@ namespace DrivenRides
         // the new car is the mod's own, and its random paint is switched off so a re-enable can't repaint it.
         private static void KeepColour(GameObject from, GameObject to, bool keep)
         {
-            var source = from.GetComponentInChildren<CarFeatures>();
-            var target = to.GetComponentInChildren<CarFeatures>();
-            if (source == null || target == null || source.VehicleColor == null) return;
-            if (keep) foreach (var random in to.GetComponentsInChildren<RandomVehicleColor>()) Object.Destroy(random);
+            var source = from.GetComponentInChildren<CarFeatures>(true);
+            var target = to.GetComponentInChildren<CarFeatures>(true);
+            if (source == null || target == null || source.VehicleColor == null)
+                throw new InvalidOperationException($"Cannot keep the car's colour: source paint {(source != null && source.VehicleColor != null ? "present" : "missing")}, target CarFeatures {(target != null ? "present" : "missing")}.");
+            if (keep) foreach (var random in to.GetComponentsInChildren<RandomVehicleColor>(true)) Object.Destroy(random);
             target.SetColor(source.VehicleColor);
         }
 
@@ -1639,18 +1653,31 @@ namespace DrivenRides
                     if (angle < bestAngle) { bestAngle = angle; best = t; }
                 }
                 if (best == null) { Event("Bridge: no skip target ahead."); return false; }
-                var all = GleyGraph.Waypoints!;
-                var at = -1;
-                var nearest = 40f;
-                for (var k = progress!.NextIndex; k + 1 < path.Count; k++)
-                {
-                    var d = Vector3.Distance(all[path[k]].position, best.position);
-                    if (d < nearest) { nearest = d; at = k; }
-                }
-                if (at < 0) { Event("Bridge: the route doesn't pass the far side; driving on."); return false; }
+                // The landing is the first route waypoint within Bridges.LandWithin of any target ahead facing the car's
+                // way, as the planner's skip (Bridges.Follow) has it; not the waypoint nearest the best target, which
+                // tips between targets on a degree of heading: the rightmost lane comes down its own ramp straight
+                // into a right turn, and a late landing left the car too close to that turn to make it, so it backed
+                // off and the ride ended the vanilla way (0.2.0-rc5).
                 // Only a real crossing: the far end's own trigger, met just after landing, is no bridge to skip (spike
                 // 16 skipped twice, the second time 41 m).
-                if (Vector3.Distance(here, all[path[at]].position) < MinBridgeSkipMetres) return false;
+                var ahead = new List<Transform>();
+                foreach (var t in targets)
+                    if (t != null && Vector3.Dot(t.position - here, Body.forward) >= 0f && Vector3.Dot(t.forward, Body.forward) > 0f) ahead.Add(t);
+                var all = GleyGraph.Waypoints!;
+                var at = -1;
+                var passes = false;
+                for (var k = progress!.NextIndex; k + 1 < path.Count && at < 0; k++)
+                {
+                    var p = all[path[k]].position;
+                    var near = false;
+                    foreach (var t in ahead) if (Vector3.Distance(p, t.position) < Bridges.LandWithin) { near = true; break; }
+                    if (!near) continue;
+                    passes = true;
+                    if (Vector3.Distance(here, p) >= MinBridgeSkipMetres) at = k;
+                }
+                if (!passes) { Event("Bridge: the route doesn't pass the far side; driving on."); return false; }
+                if (at < 0) return false;
+                Event("Bridge: targets ahead " + string.Join(", ", System.Linq.Enumerable.Select(ahead, t => $"({t.position.x:0.0}, {t.position.y:0.0}, {t.position.z:0.0})")) + ".");
                 bridgeSkip = (best, at);
                 phase = Phase.Bridging;
                 return true;
@@ -1677,9 +1704,20 @@ namespace DrivenRides
             var plan = nwhPlanner.Plan(graph, rest, out var failed);
             if (plan == null) { why = failed.Count > 0 ? $"step {failed[0].From} -> {failed[0].To} fails as driven" : "no plan"; return false; }
             var all = GleyGraph.Waypoints!;
+            // On the road under the waypoints, not on the lane: on a bridge's ramp the lane runs below the deck
+            // (NwhPlanner.RoadAt).
+            var ignore = nwh!.Car.Root.transform;
             var land = all[rest[0]].position;
-            var heading = graph.PlainHeading(rest[0], out var hx, out var hz) ? new Vector3(hx, 0f, hz) : all[rest[1]].position - land;
+            var ahead = all[rest[1]].position;
+            land.y = NwhPlanner.RoadAt(land, ignore) ?? land.y;
+            ahead.y = NwhPlanner.RoadAt(ahead, ignore) ?? ahead.y;
+            var heading = graph.PlainHeading(rest[0], out var hx, out var hz) ? new Vector3(hx, 0f, hz) : ahead - land;
             heading.y = 0f;
+            // Pitched to the road's slope: the landing can be on a bridge's ramp (OnBridge), and a level car there
+            // would put its front into the road.
+            var next = ahead - land;
+            var run = new Vector2(next.x, next.z).magnitude;
+            if (heading.sqrMagnitude > 0.01f && run > 0.5f) heading = heading.normalized + Vector3.up * (next.y / run);
             var rotation = heading.sqrMagnitude > 0.01f ? Quaternion.LookRotation(heading) : Body.rotation;
             NwhRides.PlaceRearAxle(nwh!.Car, land, rotation);
             landedAt = land;
@@ -1738,7 +1776,7 @@ namespace DrivenRides
             {
                 // The car onto the far side, facing along the route; the path from there on.
                 var ahead = all[path[at + 1]].position - to;
-                var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(new Vector3(ahead.x, 0f, ahead.z)) : target.rotation;
+                var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(ahead) : target.rotation;
                 if (car.rb != null)
                 {
                     car.rb.velocity = Vector3.zero;

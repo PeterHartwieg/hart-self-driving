@@ -14,7 +14,7 @@ namespace DrivenRides
 {
     // A drivable car (the prefab the player drives, Vehicles/PlayerVehicles/<id>) with only its physics: the game's
     // own scripts (CarController and the rest, which expect a saved VehicleInstance and a player) are taken off before
-    // it wakes, so what is left is NWH Vehicle Physics 2 and the car's colliders. The NWH drive spike
+    // it wakes, keeping CarFeatures for paint, NWH Vehicle Physics 2 and the car's colliders. The NWH drive spike
     // (docs/nwh-drive-spike.md) drives it with NwhDrive.
     internal sealed class NwhCar
     {
@@ -129,17 +129,28 @@ namespace DrivenRides
             finally { Object.Destroy(holder); }
         }
 
-        // Takes off every script from the game's own assemblies, children included. Some require others, so a few
-        // passes; whatever can't go is reported.
+        // The CarFeatures Strip kept, for paint only. A bridge the car drives onto hides every car it holds while
+        // the bridge is hidden from the camera (CarFeatures.UpdateBridgeHiddenState); the ride car landing on the
+        // Hamptons ramp vanished until it left the bridge (0.2.0-rc5). Patches skips that for these.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CarFeatures, object> Stripped =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<CarFeatures, object>();
+
+        public static bool IsStripped(CarFeatures paint) => Stripped.TryGetValue(paint, out _);
+
+        // Takes off the game's scripts, children included, except CarFeatures: it applies the body's paint and
+        // doesn't drive the car or need a VehicleInstance. Removing it made KeepColour silently do nothing.
+        // RandomVehicleColor still goes before the car wakes. Some scripts require others, so a few passes;
+        // whatever can't go is reported.
         private static string Strip(GameObject root, out string kept)
         {
+            foreach (var paint in root.GetComponentsInChildren<CarFeatures>(true)) Stripped.Add(paint, Stripped);
             var gone = new SortedDictionary<string, int>();
             for (var pass = 0; pass < 4; pass++)
             {
                 var any = false;
                 foreach (var b in root.GetComponentsInChildren<MonoBehaviour>(true))
                 {
-                    if (b == null || !IsGameScript(b)) continue;
+                    if (b == null || b is CarFeatures || !IsGameScript(b)) continue;
                     var name = b.GetType().Name;
                     Object.DestroyImmediate(b);
                     if (b != null) continue;
@@ -148,7 +159,7 @@ namespace DrivenRides
                 }
                 if (!any) break;
             }
-            var left = root.GetComponentsInChildren<MonoBehaviour>(true).Where(b => b != null).GroupBy(b => (IsGameScript(b) ? "LEFT " : "") + b.GetType().Name)
+            var left = root.GetComponentsInChildren<MonoBehaviour>(true).Where(b => b != null).GroupBy(b => (IsGameScript(b) && !(b is CarFeatures) ? "LEFT " : "") + b.GetType().Name)
                 .Select(g => g.Count() > 1 ? $"{g.Key} x{g.Count()}" : g.Key);
             kept = string.Join(", ", left);
             return string.Join(", ", gone.Select(p => p.Value > 1 ? $"{p.Key} x{p.Value}" : p.Key));

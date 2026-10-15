@@ -155,6 +155,24 @@ public sealed class PursuitDriverTests
         }, new TrafficDecision());
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void ZeroDistanceDropOffHoldsWithoutSweepingANonexistentSegment(int points)
+    {
+        // rc4 in game: a ride accepted a singleton route and every FixedUpdate threw from TrafficDriver.Sweep.
+        // Coincident waypoints also become a singleton when DriveLine removes their zero-length segment.
+        var line = DriveLine.Build(Enumerable.Repeat(new Vec3(0, 0, 0), points).ToArray(), Array.Empty<(int, Polyline)>());
+        Assert.Single(line.Line.Points);
+        var decision = Decide(line, 0f, 0f);
+        Assert.Equal(0f, decision.MaxSpeed);
+        Assert.Equal(0f, decision.StopAlong);
+        var driver = new PursuitDriver(line, 3f, 4f, 14f);
+        var input = driver.Step(new DriveInput { Dt = 0.02f, MaxSpeed = decision.MaxSpeed, StopAlong = decision.StopAlong });
+        Assert.Equal(0f, input.Throttle);
+        Assert.Equal(1f, input.Handbrake);
+    }
+
     [Fact]
     public void GivesWayToACrossingCarOnly()
     {

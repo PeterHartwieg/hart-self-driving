@@ -61,6 +61,8 @@ namespace DrivenRides
             // ... and the game's own autopark and bridge skip don't teleport it out from under the drive.
             Patch(typeof(UI.ItemPanel.ItemPanelUI), "ClickAutoPark", Type.EmptyTypes, nameof(TeleportPrefix), prefix: true);
             Patch(typeof(Vehicles.SkipBridgeHelper), "SkipBridge", Type.EmptyTypes, nameof(TeleportPrefix), prefix: true);
+            // A bridge doesn't hide the mod's own ride cars (NwhCar.IsStripped).
+            Patch(typeof(CarFeatures), "UpdateBridgeHiddenState", Type.EmptyTypes, nameof(BridgeHiddenPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
@@ -157,6 +159,24 @@ namespace DrivenRides
             if (!(InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi)) return true;
             __result = 0f;
             return false;
+        }
+
+        private static readonly System.Reflection.FieldInfo? BridgesContaining = AccessTools.Field(typeof(CarFeatures), "_bridgesContaining");
+        private static readonly System.Collections.Generic.HashSet<int> KeptVisible = new System.Collections.Generic.HashSet<int>();
+
+        private static bool BridgeHiddenPrefix(CarFeatures __instance)
+        {
+            try
+            {
+                if (!NwhCar.IsStripped(__instance)) return true;
+                // Once per car, the bridge the game would have hidden it with (the test log only).
+                if (BridgesContaining?.GetValue(__instance) is System.Collections.Generic.List<Streets.BridgeController> bridges)
+                    foreach (var bridge in bridges)
+                        if (bridge != null && bridge.IsInCameraBlockMode && KeptVisible.Add(__instance.GetInstanceID()))
+                            Log.Trace($"Bridge: kept the ride car visible on '{bridge.name}', hidden from the camera.");
+                return false;
+            }
+            catch { return true; }
         }
 
         private static bool TeleportPrefix()

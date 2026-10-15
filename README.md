@@ -2,7 +2,7 @@
 
 A mod for Big Ambitions. Taxi rides, taxi stands, your private driver and your own car drive you through the city instead of fading to black. The car is a real car with the game's own driving physics, the same your car has when you drive it. It finds its way through traffic, stops at red lights, gives way and turns at junctions. You ride along, the camera follows the car, and you get out at the door.
 
-Version 0.2.0-rc2, a release candidate. Built for Big Ambitions 1.0 (Steam build 25482473).
+Version 0.2.0-rc5, a release candidate. Built for Big Ambitions 1.0 (Steam build 25482473).
 
 ## What it does
 
@@ -69,8 +69,10 @@ What has been seen in the game, and what is still waiting for a check. "Checked"
 |---|---|
 | A hailed taxi drives with the game's car physics and arrives at the door | Checked: six rides on 0.1.91, at 1x, 2x and 3x |
 | A ride over the bridge to the Hamptons crosses with the game's skip and drives on | Checked: one ride on 0.1.91 |
+| A ride in the bridge's rightmost lane lands on the ramp, stays visible and makes the right turn at its foot | Checked: four taxi rides on 0.2.0-rc5 (15 October 2026); the left lane and the own car pending |
+| Ocean Crest Road retail destinations get a nearby drop-off instead of the road's entrance | Pending on rc5: rc4 accepted a singleton route and froze; recorded pocket and zero-distance regressions pass offline |
 | The private driver drives with the game's car physics | Checked: one ride on 0.1.94, three on 0.2.0-rc1, one on 0.2.0-rc2 |
-| The private driver's car keeps its colour from pickup to drop-off | Checked: one ride on 0.2.0-rc2 |
+| The private driver's car keeps its colour from pickup to drop-off | Pending: 0.2.0-rc3 retains the paint component; 0.2.0-rc2's earlier check was contradicted by a car changing colour at boarding |
 | A taxi stand ride drives | Pending |
 | Your own car drives itself, arrives, autoparks and Skip works | Checked: on 0.1.92 and 0.1.93, 10 of 10 autoparks |
 | Getting out of your own car mid-trip ends the trip cleanly | Checked on 0.1.92 |

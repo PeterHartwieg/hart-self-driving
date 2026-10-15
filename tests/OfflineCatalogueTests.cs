@@ -31,8 +31,7 @@ public sealed class OfflineCatalogueTests
         return null;
     }
 
-    [OfflineGraphFact]
-    public void RealGraphBuildsAllManoeuvresAndFourControls()
+    internal static LaneGraph LoadGraph()
     {
         using var document = JsonDocument.Parse(File.ReadAllText(GraphFile()!));
         var graphJson = document.RootElement;
@@ -47,7 +46,40 @@ public sealed class OfflineCatalogueTests
             foreach (var a in w.GetProperty("a").EnumerateArray()) mask[i] |= 1 << a.GetInt32();
             inter[i] = w.GetProperty("x").GetInt32() == 1; spd[i] = w.GetProperty("s").GetSingle(); i++;
         }
-        var graph = new LaneGraph(pos, nb, mask, inter, spd, otherLanes: ol, inferLanes: true, inferTurns: true);
+        return new LaneGraph(pos, nb, mask, inter, spd, otherLanes: ol, inferLanes: true, inferTurns: true);
+    }
+
+    [OfflineGraphFact]
+    public void OceanCrestPocketNeedsANearbyStartBeforeWideningTheDestination()
+    {
+        var graph = LoadGraph();
+        // Coordinates and start from the rc4 failure log, 15 October 2026, at 6 Ocean Crest Road.
+        var target = new Vec3(-3021.61f, 1.02f, -1049.14f);
+        const int pocket = 9314;
+        var close = GoalPicker.Pick(graph, target, 0);
+        Assert.NotEmpty(close);
+        var direct = RoutePlanner.Plan(graph, new RouteRequest { Start = pocket, Goals = close, WideUTurns = true }, int.MaxValue);
+        Assert.Equal(PlanStatus.NoPath, direct.Status);
+
+        var wide = GoalPicker.Pick(graph, target, 0, new GoalOptions { Radius = 150, MinStraightMetres = 0, MaxHeightDiff = 6, AnyVehicleType = true });
+        var early = RoutePlanner.Plan(graph, new RouteRequest { Start = pocket, Goals = wide, WideUTurns = true }, int.MaxValue);
+        Assert.Equal(PlanStatus.Found, early.Status);
+        Assert.Single(early.Result!.Waypoints);
+        Assert.True(early.Result.WalkSeconds > 80f);
+
+        // The real connected lane is only five metres from the pocket. It reaches the original nearby goals.
+        const int lane = 15533;
+        Assert.InRange(Vec3.HorizontalDistance(graph.Position(pocket), graph.Position(lane)), 0f, 6f);
+        var fromLane = RoutePlanner.Plan(graph, new RouteRequest { Start = lane, Goals = close, WideUTurns = true }, int.MaxValue);
+        Assert.Equal(PlanStatus.Found, fromLane.Status);
+        Assert.True(fromLane.Result!.Waypoints.Count > 1);
+        Assert.InRange(fromLane.Result.WalkSeconds, 0f, 15f);
+    }
+
+    [OfflineGraphFact]
+    public void RealGraphBuildsAllManoeuvresAndFourControls()
+    {
+        var graph = LoadGraph();
         var catalogue = Catalogue.Build(graph);
         foreach (CaseKind kind in Enum.GetValues<CaseKind>()) output.WriteLine($"{kind}: {catalogue.Count(f => f.Kind == kind)}");
         Assert.Contains(catalogue, f => f.Kind == CaseKind.Turn);

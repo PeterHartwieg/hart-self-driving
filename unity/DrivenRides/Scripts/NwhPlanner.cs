@@ -271,6 +271,23 @@ namespace DrivenRides
             return highest;
         }
 
+        // The road a car is set down on at a waypoint (the bridge landing): the surface nearest the waypoint's height
+        // within 1.5 m, above or below. Lanes on a bridge's ramp run up to 0.6 m under the deck (waypoint 17753: lane
+        // 5.86, road 6.44), which GroundBelow leaves out as a deck over the lane; a car set on the lane there started
+        // inside the road and was not drawn until physics pushed it out.
+        internal static float? RoadAt(Vector3 p, Transform? ignore)
+        {
+            var n = Physics.RaycastNonAlloc(p + Vector3.up * 1.5f, Vector3.down, groundHits, 3f, GroundMask, QueryTriggerInteraction.Ignore);
+            float? best = null;
+            for (var h = 0; h < n; h++)
+            {
+                if (ignore != null && groundHits[h].transform.IsChildOf(ignore)) continue;
+                var y = groundHits[h].point.y;
+                if (best == null || Mathf.Abs(y - p.y) < Mathf.Abs(best.Value - p.y)) best = y;
+            }
+            return best;
+        }
+
         // A box against the given layers, leaving out the ride car itself.
         private string? Overlap(Vector3 centre, Vector3 half, Quaternion rotation, int mask)
         {

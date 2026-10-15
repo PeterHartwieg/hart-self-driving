@@ -239,6 +239,14 @@ namespace DrivenRides.Core.Drive
         public TrafficDecision Decide(in TrafficSnapshot s, TrafficDecision d)
         {
             d.Clear();
+            // A valid zero-distance route can contain just its drop-off waypoint (or coincident points that Build
+            // coalesces). There is no segment to sweep or drive; hold the car so the adapter can finish the ride.
+            if (line.Line.Points.Count < 2)
+            {
+                d.StopAlong = 0f;
+                d.MaxSpeed = 0f;
+                return d;
+            }
             standingGap = null;
             var along = line.Locate(s.RearX, s.RearZ, Math.Max(0f, driver.Along - 1f), 12f).Along;
             var front = along + body.FrontAhead;

@@ -23,6 +23,23 @@ namespace DrivenRides.Core.Routing
 
     public static class GoalPicker
     {
+        // A wide destination search must not turn into permission to leave the passenger at the road's entrance.
+        // Try stops nearest the door first, then retain those while adding farther stops if none is reachable.
+        // Each batch owns its list: a route or a later replan may keep it after enumeration moves on.
+        public static IEnumerable<List<Goal>> PickNearbyFirst(LaneGraph g, Vec3 target, int vehicleType,
+            GoalOptions options, float bandMetres = 20f)
+        {
+            if (!Nonnegative(bandMetres) || bandMetres == 0) throw new ArgumentException("Invalid goal band.", nameof(bandMetres));
+            var goals = Pick(g, target, vehicleType, options);
+            int count = 0;
+            while (count < goals.Count)
+            {
+                float limit = goals[count].WalkSeconds + bandMetres / options.WalkSpeedMs;
+                do { count++; } while (count < goals.Count && goals[count].WalkSeconds <= limit);
+                yield return goals.GetRange(0, count);
+            }
+        }
+
         public static List<Goal> Pick(LaneGraph g, Vec3 target, int vehicleType, GoalOptions? options = null)
         {
             if (g == null) throw new ArgumentNullException(nameof(g));

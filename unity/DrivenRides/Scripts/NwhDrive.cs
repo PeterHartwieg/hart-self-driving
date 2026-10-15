@@ -263,6 +263,18 @@ namespace DrivenRides
         private void FixedUpdate()
         {
             if (Ended || driver == null || Car?.Vehicle == null) return;
+            try { DriveStep(); }
+            catch (Exception ex)
+            {
+                // Unity abandons a failed FixedUpdate and calls it again next step. End the drive once instead,
+                // so Ride takes its vanilla completion path and the passenger is not left in a stationary car.
+                Log.Error("NWH drive failed: " + ex);
+                End("drive failed: " + ex.GetType().Name, false);
+            }
+        }
+
+        private void DriveStep()
+        {
             var vehicle = Car.Vehicle;
             if (!started)
             {
@@ -704,8 +716,8 @@ namespace DrivenRides
             Ended = true;
             Arrived = arrived;
             EndReason = reason;
-            gley?.LeaveAll();
             if (Car?.Vehicle != null) { Car.Vehicle.input.Throttle = 0f; Car.Vehicle.input.Handbrake = 1f; }
+            gley?.LeaveAll();
         }
 
         // This step's share of the frame's planning time (WayOnFrameMs).
