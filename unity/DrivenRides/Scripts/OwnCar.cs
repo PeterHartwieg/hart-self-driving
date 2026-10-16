@@ -175,7 +175,12 @@ namespace DrivenRides
         // The own car starts where it stands: the planned line must start under it, and the car must be able to drive
         // onto it from its pose (the planner's join check, Feasibility.Join), or the trip is refused. A car at the kerb
         // is the player's to pull out (Peter, 14 October 2026).
-        public static string? StartRefusal(CarController car, NwhPlanner planner, DrivenRides.Core.Drive.DrivePlan plan, DrivenRides.Core.Routing.LaneGraph graph)
+        // The refusal for a car the line doesn't run under; the reason after it is for the log.
+        public const string NotInLane = "pull out into the lane first";
+
+        // `sideways`: the rear axle's offset from the lane step the route starts on (StartUnder), MaxValue when no
+        // step runs under the car; for the log.
+        public static string? StartRefusal(CarController car, NwhPlanner planner, DrivenRides.Core.Drive.DrivePlan plan, DrivenRides.Core.Routing.LaneGraph graph, float sideways)
         {
             var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out var why);
             if (wrapped == null) return why;
@@ -186,7 +191,13 @@ namespace DrivenRides
             var rear = wrapped.RearAxle;
             var pose = new DrivenRides.Core.Drive.CarPose(rear.x, rear.z, Mathf.Atan2(forward.x, forward.z), speed, car.vehicleController.steering.angle);
             var line = plan.Line(graph);
-            if (!line.Joins(pose.X, pose.Z, pose.Heading, out _)) return "pull out into the lane first";
+            var miss = line.JoinMiss(pose.X, pose.Z, pose.Heading, out _);
+            if (miss != null)
+            {
+                var first = plan.Path.Count > 0 ? plan.Path[0].ToString() : "none";
+                var step = sideways < float.MaxValue ? $"the lane step under the car, {sideways:+0.0;-0.0} m to its side" : "no lane step runs under the car its way";
+                return FormattableString.Invariant($"{NotInLane}: {miss}; route starts at waypoint {first}, {step}");
+            }
             var result = new DrivenRides.Core.Drive.Feasibility.SweepResult();
             foreach (var _ in planner.Check.JoinWork(plan, line, pose, result)) { }
             return result.What != null ? "it can't drive off from here (" + result.What + ")" : null;

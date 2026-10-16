@@ -37,6 +37,8 @@
     "drivenrides:notice_owncar_out_of_fuel": "The car is out of fuel.",
     "drivenrides:notice_owncar_no_fuel": "Not enough fuel for the trip.",
     "drivenrides:notice_owncar_cannot": "Your car can't drive itself there.",
+    "drivenrides:notice_owncar_lane": "Pull into the driving lane, facing the way the traffic goes, first.",
+    "drivenrides:notice_owncar_no_route": "Your car can't find a way there from this lane.",
     "drivenrides:notice_owncar_no_spot": "No free parking spot within {metres} m. Park the car yourself.",
     "drivenrides:notice_owncar_busy": "Not while the car drives itself.",
     "drivenrides:notice_bridge_fuel": "Not enough fuel to cross the bridge."

@@ -248,7 +248,10 @@ namespace DrivenRides
             if (ride != null || !own) return ride;
             // Vanilla's ride would take the player to the door and leave the car behind; instead nothing happens.
             if (TestMode.On) Notice.Show("Your car can't drive itself there: " + lastVanillaReason + ".");
-            else Notice.Text(lastVanillaReason == NoFuel ? "drivenrides:notice_owncar_no_fuel" : "drivenrides:notice_owncar_cannot");
+            else Notice.Text(lastVanillaReason == NoFuel ? "drivenrides:notice_owncar_no_fuel"
+                : lastVanillaReason.StartsWith(OwnCarTaxi.NotInLane, StringComparison.Ordinal) ? "drivenrides:notice_owncar_lane"
+                : lastVanillaReason.StartsWith(OwnNoRoute, StringComparison.Ordinal) ? "drivenrides:notice_owncar_no_route"
+                : "drivenrides:notice_owncar_cannot");
             return NoRide(taxiSystem);
         }
 
@@ -422,7 +425,9 @@ namespace DrivenRides
                         // The driver's waypoint can lead only into a traffic pocket. Try the driving lane beside it
                         // for these same close goals before widening the destination search: a wider search can
                         // otherwise accept the pocket itself as a drop-off and never try the road out.
-                        if (route == null && origin != null)
+                        // Not for the own car: it starts where it stands, so a route from another lane is one the start
+                        // check refuses (StartRefusal). It tries the wider goals from its own lane instead.
+                        if (route == null && origin != null && ownCar == null)
                             route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
                         if (route != null) break;
                     }
@@ -465,11 +470,13 @@ namespace DrivenRides
                     route = Plan(graph, route.Waypoints[0], goals, vehicleType, out var ms, out why);
                     planMs += ms;
                 }
+                if (route == null && ownCar != null)
+                    return Vanilla(ownSideways < float.MaxValue ? $"{OwnNoRoute}, waypoint {start} ({why}, {planMs} ms)" : $"{OwnCarTaxi.NotInLane}: no lane step runs under the car its way, nearest waypoint {start}");
                 if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
                 if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla(NoFuel);
                 if (ownCar != null && planNwh != null && planNwhPlan != null)
                 {
-                    var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph);
+                    var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph, ownSideways);
                     if (refusal != null) return Vanilla(refusal);
                 }
 
@@ -567,6 +574,7 @@ namespace DrivenRides
 
         private const string SwitchedOff = "switched off in the options";
         private const string NoFuel = "the tank is empty";
+        private const string OwnNoRoute = "no route there from the lane the car stands in";
 
         private static string lastVanillaReason = "";
 

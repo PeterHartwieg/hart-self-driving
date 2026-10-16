@@ -218,16 +218,25 @@ namespace DrivenRides.Core.Drive
         // round 1: a replanned route was installed from a waypoint behind the car, whatever the car's pose). The
         // distance is to the nearest point of the line, not the sideways part of it: a line that starts 20 m ahead of
         // the car or ends behind it is that far off (review round 2: a start beyond the blocked step passed).
-        public bool Joins(float x, float z, double heading, out float along)
+        public bool Joins(float x, float z, double heading, out float along) => JoinMiss(x, z, heading, out along) == null;
+
+        // Which of Joins' conditions a car at a pose misses, in words for the log, or null when it joins the line.
+        public string? JoinMiss(float x, float z, double heading, out float along)
         {
             var (at, _) = Locate(x, z, 0f, Line.Length);
             along = at;
             var nearest = Line.At(at);
             var distance = (float)Math.Sqrt((x - nearest.X) * (x - nearest.X) + (z - nearest.Z) * (z - nearest.Z));
-            if (distance > JoinLateral || at > Line.Length - 15f) return false;
+            if (distance > JoinLateral)
+                return FormattableString.Invariant($"{distance:0.0} m from the line, {at:0} m along it (at most {JoinLateral} m)");
+            if (at > Line.Length - 15f)
+                return FormattableString.Invariant($"{Line.Length - at:0} m of line left past the car (at least 15 m)");
             Vec3 a = Line.At(at), b = Line.At(at + 1f);
             var lineHeading = Math.Atan2(b.X - a.X, b.Z - a.Z);
-            return Math.Abs(Wrap(lineHeading - heading)) <= JoinHeading * Math.PI / 180;
+            var off = Math.Abs(Wrap(lineHeading - heading)) * 180 / Math.PI;
+            if (off > JoinHeading)
+                return FormattableString.Invariant($"facing {off:0} degrees off the line, {at:0} m along it (at most {JoinHeading} degrees)");
+            return null;
         }
 
         public const float JoinLateral = 1.5f;

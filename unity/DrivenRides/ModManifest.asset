@@ -15,7 +15,7 @@ MonoBehaviour:
   ModId: DrivenRides
   DisplayName: HART. Self Driving
   Author: Peter Hartwieg
-  Version: 0.2.0-rc5
+  Version: 0.2.0-rc6
   AssetBundleName: drivenrides.unity3d
   ModAssembly: {fileID: 5897886265953266890, guid: 836e19523881454681fabf923180b944,
     type: 3}
