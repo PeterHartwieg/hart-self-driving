@@ -47,8 +47,22 @@ namespace DrivenRides
                 instance = host.AddComponent<OwnCarTaxi>();
             }
             instance.Car = car;
-            Log.Trace($"Own car: choosing a destination for {car.vehicleType.vehicleTypeName}.");
+            var drivable = DrivableType(car);
+            Log.Trace($"Own car: choosing a destination for {car.vehicleType.vehicleTypeName}" +
+                      (drivable != car.vehicleType.vehicleTypeName ? $" (drives as {drivable ?? "nothing: no drivable prefab"})." : "."));
             InstanceBehavior<CityManager>.Instance.cityMap.SetTaxiMode(instance);
+        }
+
+        // The vehicle type whose drivable prefab this car is, or null. Another mod may give a car a type of its own:
+        // Be A Taxi's shift taxi is a Vord Tiara Vic whose type is named "beataxi_vehicle_name" (a user's Player.log,
+        // 16 October 2026). So after the type, the car's vehicle instance (the type the save keeps) and its object's
+        // name are tried; each counts only if a drivable prefab goes by it.
+        public static string? DrivableType(CarController car)
+        {
+            var candidates = new[] { car.vehicleType?.vehicleTypeName, car.vehicleInstance?.vehicleTypeName, car.name.Replace("(Clone)", "").Trim() };
+            foreach (var name in candidates)
+                if (!string.IsNullOrEmpty(name) && NwhCar.HasPrefab(name!)) return name;
+            return null;
         }
 
         public static void Drop()
@@ -75,7 +89,7 @@ namespace DrivenRides
         public static VehicleComponent? PlanPrefab(CarController car, out string why)
         {
             why = "";
-            var twin = PrefabHelper.LoadPrefabAssetByName("Vehicles/" + NwhCar.Id(car.vehicleType?.vehicleTypeName ?? car.name));
+            var twin = PrefabHelper.LoadPrefabAssetByName("Vehicles/" + NwhCar.Id(DrivableType(car) ?? car.vehicleType?.vehicleTypeName ?? car.name));
             var twinCar = twin != null ? twin.GetComponent<VehicleComponent>() : null;
             if (twinCar != null) return twinCar;
             var length = car.vehicleController != null ? NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _)?.Length ?? 4.5f : 4.5f;
@@ -482,7 +496,7 @@ namespace DrivenRides
             if (active != null) { why = "the car is already driving itself"; return null; }
             var vehicle = car.vehicleController;
             if (vehicle == null || vehicle.input == null) { why = "the car has no NWH controller"; return null; }
-            var wrapped = NwhCar.Wrap(vehicle, car.gameObject, car.vehicleType != null ? car.vehicleType.vehicleTypeName : car.name, out why);
+            var wrapped = NwhCar.Wrap(vehicle, car.gameObject, OwnCarTaxi.DrivableType(car) ?? (car.vehicleType != null ? car.vehicleType.vehicleTypeName : car.name), out why);
             if (wrapped == null) return null;
             vehicle.input.autoSetInput = false;
             Zero(vehicle);

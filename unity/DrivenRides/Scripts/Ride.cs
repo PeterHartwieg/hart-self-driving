@@ -337,8 +337,9 @@ namespace DrivenRides
                 {
                     // The own car always drives with its own physics: there is no traffic car to fall back on.
                     var ownTop = ownCar.vehicleType != null && ownCar.vehicleType.maxSpeed > 0 ? ownCar.vehicleType.maxSpeed : prefab.maxPossibleSpeed;
-                    planNwh = ownCar.vehicleType != null ? NwhPlanner.For(ownCar.vehicleType.vehicleTypeName, ownTop) : null;
-                    if (planNwh == null) return Vanilla("this car has no drivable shape to plan with");
+                    var ownType = OwnCarTaxi.DrivableType(ownCar);
+                    planNwh = ownType != null ? NwhPlanner.For(ownType, ownTop) : null;
+                    if (planNwh == null) return Vanilla($"this car has no drivable shape to plan with ({ownCar.vehicleType?.vehicleTypeName ?? ownCar.name})");
                     planNwh.BeginRide();
                     // The car the player sits in is no obstacle to its own trip: not in the first lanes' sweep, not in
                     // the start check, not in the replans on the way. Planners are cached per car type, so it is set
