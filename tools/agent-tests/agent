@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Manage the dedicated Windows agent player without addressing the normal game."""
+import argparse
+import base64
+import json
+import os
+import pathlib
+import subprocess
+import sys
+
+HOST = os.environ.get('BA_GAME_HOST', 'homepc')
+ROOT = r'C:\BigAmbitions-AgentTests'
+PRODUCT = 'Big Ambitions Agent Tests'
+BRIDGE_TOOLS = pathlib.Path(os.environ.get('BA_BRIDGE_TOOLS', pathlib.Path(__file__).resolve().parents[3]/'big-ambitions-food-trucks/tools'))
+sys.path.insert(0, str(BRIDGE_TOOLS))
+from ftlib import locks
+
+def remote(script, timeout=40, payload=None):
+    encoded = base64.b64encode(script.encode('utf-16le')).decode()
+    run = subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', HOST,
+                          'powershell -NoProfile -NonInteractive -EncodedCommand ' + encoded],
+                         capture_output=True, text=True, timeout=timeout, input=None if payload is None else json.dumps(payload))
+    if run.returncode:
+        raise RuntimeError(run.stderr.strip() or run.stdout.strip())
+    return run.stdout.strip().lstrip('\ufeff')
+
+def literal(value):
+    return "'" + value.replace("'", "''") + "'"
+
+def require_identity(health):
+    identity = health.get('agent_instance') or {}
+    expected = ROOT + '\\' + PRODUCT + '.exe'
+    if identity.get('id') != 'agent1' or identity.get('test_only') is not True or identity.get('executable', '').lower() != expected.lower():
+        raise RuntimeError('Refusing a bridge without the expected dedicated agent identity')
+    if identity.get('port') != 18330 or identity.get('product') != PRODUCT:
+        raise RuntimeError('Unexpected agent bridge configuration')
+
+def call(cmd, args):
+    # Read identity and bind the command to this bridge generation in one remote transaction.
+    payload = {'cmd': cmd, 'args': args, 'lock_token': locks.token('agent1')}
+    script = r'''
+$ErrorActionPreference='Stop'
+$health=(Invoke-WebRequest -UseBasicParsing -TimeoutSec 4 'http://127.0.0.1:18330/health').Content | ConvertFrom-Json
+if ($health.agent_instance.id -ne 'agent1' -or !$health.agent_instance.test_only -or $health.agent_instance.port -ne 18330 -or $health.agent_instance.product -ne 'Big Ambitions Agent Tests' -or $health.agent_instance.executable -ne 'C:\BigAmbitions-AgentTests\Big Ambitions Agent Tests.exe') { throw 'Agent identity mismatch' }
+$body=[Console]::In.ReadToEnd() | ConvertFrom-Json
+$body | Add-Member -NotePropertyName expect_session -NotePropertyValue $health.session
+try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 25 -Method Post -ContentType 'application/json' -Body ($body | ConvertTo-Json -Depth 30 -Compress) 'http://127.0.0.1:18330/call').Content } catch { if ($_.ErrorDetails.Message) { $_.ErrorDetails.Message } else { throw } }
+'''
+    return json.loads(remote(script, payload=payload))
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['status', 'start', 'stop', 'health', 'call', 'log', 'tunnel', 'lock'])
+    parser.add_argument('command', nargs='?')
+    parser.add_argument('arguments', nargs='?', default='{}')
+    parser.add_argument('--mode', choices=['background', 'headless', 'windowed'], default='background')
+    parser.add_argument('--force', action='store_true')
+    parser.add_argument('--owner')
+    parser.add_argument('--purpose', default='')
+    a = parser.parse_args()
+    if a.owner: os.environ['BA_LOCK_OWNER'] = a.owner
+    if a.action == 'lock':
+        operation = a.command or 'status'
+        if operation not in ('status','acquire','release'): parser.error('lock requires status, acquire or release')
+        if operation == 'acquire': locks.provision()
+        print(locks.lock_action('agent1', operation, a.owner, a.purpose)); return 0
+    if a.action == 'tunnel':
+        os.execvp('ssh', ['ssh', '-N', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=30', '-L', '127.0.0.1:18330:127.0.0.1:18330', HOST])
+    if a.action == 'call':
+        if not a.command: parser.error('call requires a command')
+        reply = call(a.command, json.loads(a.arguments))
+        print(json.dumps(reply, indent=2))
+        return 0 if reply.get('ok') else 1
+    action = 'status' if a.action == 'health' else a.action
+    script = '& ' + literal(ROOT + '\\Agent-Windows.ps1') + ' -Action ' + action
+    if action == 'start': script += ' -Mode ' + a.mode
+    if a.force and action == 'stop': script += ' -Force'
+    if action in ('start','stop'):
+        params = {'Action':action}
+        if action == 'start': params['Mode'] = a.mode
+        if a.force and action == 'stop': params['Force'] = True
+        result = locks.invoke(ROOT+'\\Agent-Windows.ps1', params, 'agent1')
+    else: result = remote(script)
+    if a.action == 'health':
+        health = json.loads(result).get('health')
+        if not health: raise RuntimeError('Agent bridge is not ready')
+        require_identity(health)
+        print(json.dumps(health, indent=2))
+    else: print(result)
+    return 0
+
+if __name__ == '__main__':
+    try: sys.exit(main())
+    except (RuntimeError, subprocess.TimeoutExpired, ValueError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)
