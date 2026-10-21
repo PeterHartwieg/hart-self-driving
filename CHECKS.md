@@ -6,11 +6,12 @@ Pending in game. `docs/rlo-compat.md` has what each line is for. Use a disposabl
 - R2. With RLO on, startup or first city: `Real Life Overhaul ... loaded.`, `Patch RealLifeOverhaul.CarTuning.OnUpdate: Active.`, `...PlayerOffences.OnFoot: Active.`, `...ThirdPersonCamera.IsUiOpen: Active.`, and `police found, driving test found, prison found, photo mode found, breakdowns found`.
 - R3. Own-car trip with RLO's handling on Full: `Own car: Real Life Overhaul's car tuning taken off for the trip.` at the start. The trip drives, stops and autoparks as in rc7. At the end, `...handed back.` and RLO's own `Car tuning: ...` line again. Drive a little: the car feels like RLO's again.
 - R4. A pull-out from a parallel space and an autopark with RLO on, as R3.
-- R5. Police: switch "stop at red lights" off and take own-car trips until RLO's police signal you. The trip ends with "The police are pulling you over. You have the wheel." and the car stops; RLO's stop then goes its usual way, with no fleeing.
+- R5. Police: switch "stop at red lights" off and take own-car trips until RLO's police signal you. Press no key. The trip ends with "The police are pulling you over. You have the wheel.", the car brakes to a stop by itself (`Own car: braking to a stop after handing back.`), and RLO's stop goes its usual way, with no fleeing. Once more pressing the throttle right after the notice: the car is yours at once.
 - R6. Breakdown: with a broken-down car (RLO's test tools), L says "The car has broken down."
 - R7. A taxi ride and a private-driver ride: no jaywalking warning or fine, and with RLO's mouse look on, the ride panel's buttons can be clicked.
 - R8. Photo mode: L rolls the camera and calls nobody. During a driving test, L says "Not now."
-- R9. City Cabs: call a cab, get in, pick a place. The log says `Taxi held by another mod: starts at waypoint ...`. The cab drives you there, and RLO charges only its call-out and the fare.
+- R9. City Cabs: call a cab, let it pull in to the kerb, get in, pick a place. The log says `Taxi held by another mod: the ride car starts at waypoint ...`. The car drives you there from the lane, and RLO charges only its call-out and the fare.
+- R10. Night taxi rides with RLO's life events and street crime on: no event, pickpocket or mugging during a ride. Right after a pickpocket starts approaching, L and a hailed taxi go the base game's way (or "Not now.").
 
 ## Own car: a car another mod gave a type of its own (0.2.0-rc7)
 

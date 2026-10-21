@@ -16,10 +16,12 @@ namespace DrivenRides
     //   game made it, so RLO's tuning comes off for the trip (its own Restore) and its OnUpdate is skipped; at the end RLO
     //   is told it hasn't seen the car and puts the tuning back on the next frame.
     // - The police: a trip ends when RLO's police pull the player over or chase them, so the car stops instead of
-    //   fleeing; no trip starts while the police, a driving test or prison hold the player.
+    //   fleeing; no ride starts while the police, a driving test, prison or a street crime hold the player.
     // - A broken-down car (RLO cuts its throttle through the keys, which a car driving itself doesn't use) doesn't drive
     //   itself.
-    // - A passenger riding down the road isn't booked for walking in it (PlayerOffences.OnFoot).
+    // - A passenger riding down the road isn't booked for walking in it (PlayerOffences.OnFoot), and RLO's events and
+    //   scenes (life events, street crime, accidents) wait while a ride carries the player, as they do during the base
+    //   game's taxi fade (LifeEvents.IsSafeForEvent).
     // - RLO's mouse look leaves the cursor free while the ride panel shows (ThirdPersonCamera.IsUiOpen).
     // - L does nothing in RLO's photo mode, which rolls the camera on it.
     // - A taxi RLO holds out of traffic (City Cabs) starts its ride from the lane beside it (Ride.TryCreate).
@@ -41,6 +43,7 @@ namespace DrivenRides
         private static PropertyInfo? policeBusy;
         private static PropertyInfo? licenceActive;
         private static PropertyInfo? inPrison;
+        private static PropertyInfo? streetCrime;
         private static PropertyInfo? photoMode;
         private static PropertyInfo? ownershipInstance;
         private static FieldInfo? ownershipCar;
@@ -77,16 +80,18 @@ namespace DrivenRides
 
             Patch(harmony, assembly.GetType("RealLifeOverhaul.PlayerOffences", false), "OnFoot", new[] { typeof(UnityEngine.Vector3), typeof(float) }, prefix: nameof(OnFootPrefix));
             Patch(harmony, assembly.GetType("RealLifeOverhaul.ThirdPersonCamera", false), "IsUiOpen", Type.EmptyTypes, postfix: nameof(UiOpenPostfix));
+            Patch(harmony, assembly.GetType("RealLifeOverhaul.LifeEvents", false), "IsSafeForEvent", new[] { typeof(bool) }, postfix: nameof(SafeForEventPostfix));
 
             policeBusy = Static(assembly, "RealLifeOverhaul.PoliceAttention", "IsBusy");
             licenceActive = Static(assembly, "RealLifeOverhaul.LicenceDirector", "IsActive");
             inPrison = Static(assembly, "RealLifeOverhaul.Justice", "InPrison");
+            streetCrime = Static(assembly, "RealLifeOverhaul.CrimeDirector", "IsActive");
             photoMode = Static(assembly, "RealLifeOverhaul.Leisure.PhotoMode", "Active");
             var ownership = assembly.GetType("RealLifeOverhaul.CarOwnership", false);
             ownershipInstance = Static(assembly, "RealLifeOverhaul.CarOwnership", "Instance");
             ownershipCar = ownership != null ? AccessTools.Field(ownership, "_car") : null;
             ownershipCutting = ownership != null ? AccessTools.Field(ownership, "_cutting") : null;
-            Log.Info($"Real Life Overhaul: police {Found(policeBusy)}, driving test {Found(licenceActive)}, prison {Found(inPrison)}, photo mode {Found(photoMode)}, breakdowns {Found(ownershipInstance != null && ownershipCar != null && ownershipCutting != null)}.");
+            Log.Info($"Real Life Overhaul: police {Found(policeBusy)}, driving test {Found(licenceActive)}, prison {Found(inPrison)}, street crime {Found(streetCrime)}, photo mode {Found(photoMode)}, breakdowns {Found(ownershipInstance != null && ownershipCar != null && ownershipCutting != null)}.");
         }
 
         // Patches.Remove unpatches everything; a later Apply starts again.
@@ -98,7 +103,7 @@ namespace DrivenRides
             tuningInstance = null;
             tuningRestore = null;
             tuningSeen = null;
-            policeBusy = licenceActive = inPrison = photoMode = ownershipInstance = null;
+            policeBusy = licenceActive = inPrison = streetCrime = photoMode = ownershipInstance = null;
             ownershipCar = ownershipCutting = null;
         }
 
@@ -147,8 +152,8 @@ namespace DrivenRides
         public static bool PoliceBusy => Is(policeBusy);
 
         // A scene of RLO's holds the player: the police, a driving test, prison (RLO's own test for its taxis,
-        // Wiring/TaxiLinks).
-        public static bool PlayerHeld => Is(policeBusy) || Is(licenceActive) || Is(inPrison);
+        // Wiring/TaxiLinks), or a street crime aimed at them.
+        public static bool PlayerHeld => Is(policeBusy) || Is(licenceActive) || Is(inPrison) || Is(streetCrime);
 
         public static bool PhotoMode => Is(photoMode);
 
@@ -169,6 +174,13 @@ namespace DrivenRides
         private static void OnFootPrefix(ref float now)
         {
             if (Ride.OwnsPlayer) now = float.NegativeInfinity;
+        }
+
+        // LifeEvents.IsSafeForEvent, RLO's gate for its events and scenes: not while a ride carries the player, who is
+        // hidden on the ride car (the own car's driver isn't carried, and RLO treats them as any driver).
+        private static void SafeForEventPostfix(ref bool __result)
+        {
+            if (__result && Ride.OwnsPlayer) __result = false;
         }
 
         // ThirdPersonCamera.IsUiOpen: the ride panel needs the cursor, as RLO's own screens do.

@@ -498,9 +498,12 @@ namespace DrivenRides
             if (active != null) { why = "the car is already driving itself"; return null; }
             var vehicle = car.vehicleController;
             if (vehicle == null || vehicle.input == null) { why = "the car has no NWH controller"; return null; }
+            StopBraking();
             // Real Life Overhaul's tuning off first, so the car is measured as the game made it (RloCompat).
             RloCompat.Hold(vehicle);
-            var wrapped = NwhCar.Wrap(vehicle, car.gameObject, OwnCarTaxi.DrivableType(car) ?? (car.vehicleType != null ? car.vehicleType.vehicleTypeName : car.name), out why);
+            NwhCar? wrapped;
+            try { wrapped = NwhCar.Wrap(vehicle, car.gameObject, OwnCarTaxi.DrivableType(car) ?? (car.vehicleType != null ? car.vehicleType.vehicleTypeName : car.name), out why); }
+            catch { RloCompat.Release(); throw; }
             if (wrapped == null) { RloCompat.Release(); return null; }
             vehicle.input.autoSetInput = false;
             Zero(vehicle);
@@ -521,11 +524,56 @@ namespace DrivenRides
                 {
                     Zero(car.vehicleController);
                     car.vehicleController.input.autoSetInput = true;
+                    if (BrakeOnHandBack) StartBraking(car.vehicleController);
                 }
             }
             catch (Exception ex) { Log.Error("Own car: handing the keys back: " + ex.Message); }
+            BrakeOnHandBack = false;
             RloCompat.Release();
             Log.Trace("Own car: the keys are the player's again (" + reason + ").");
+        }
+
+        // Set by the ride just before it ends a trip the car may still be rolling on (Real Life Overhaul's police or a
+        // breakdown, RloCompat): End then keeps the brakes on after handing the keys back, since the player may have no
+        // key pressed and the car would coast on. Ends when the car has stood for a second or the player touches a
+        // key. Never set without RLO.
+        public static bool BrakeOnHandBack;
+        private static NWH.VehiclePhysics2.VehicleController? braking;
+        private static float stoodSince;
+        private static readonly UnityEngine.Events.UnityAction BrakeListener = BrakeUntilStopped;
+
+        private static void StartBraking(NWH.VehiclePhysics2.VehicleController vehicle)
+        {
+            StopBraking();
+            braking = vehicle;
+            stoodSince = -1f;
+            vehicle.input.inputModifyCallback.AddListener(BrakeListener);
+            Log.Trace("Own car: braking to a stop after handing back.");
+        }
+
+        private static void StopBraking()
+        {
+            var vehicle = braking;
+            braking = null;
+            try { if (vehicle != null) vehicle.input.inputModifyCallback.RemoveListener(BrakeListener); }
+            catch (Exception ex) { Log.Error("Own car: braking after handing back: " + ex.Message); }
+        }
+
+        // The car's input handler, each frame after it has read the player's keys.
+        private static void BrakeUntilStopped()
+        {
+            var vehicle = braking;
+            if (vehicle == null) { braking = null; return; }
+            var input = vehicle.input;
+            if (Mathf.Abs(input.Throttle) > 0.05f || Mathf.Abs(input.Brakes) > 0.05f || Mathf.Abs(input.Steering) > 0.05f) { StopBraking(); return; }
+            var speed = vehicle.vehicleRigidbody != null ? vehicle.vehicleRigidbody.velocity.magnitude : 0f;
+            if (speed > 0.3f) stoodSince = -1f;
+            else if (stoodSince < 0f) stoodSince = Time.time;
+            else if (Time.time - stoodSince > 1f) { StopBraking(); return; }
+            // NWH swaps the pedals in reverse (swapInputInReverse): the brake is then the throttle axis.
+            if (input.IsInputSwapped) { input.Throttle = 1f; input.Brakes = 0f; }
+            else { input.Brakes = 1f; input.Throttle = 0f; }
+            if (speed < 1f) input.Handbrake = 1f;
         }
 
         private static void Zero(NWH.VehiclePhysics2.VehicleController vehicle)
@@ -591,6 +639,9 @@ namespace DrivenRides
         private const string PulledOver = "The police are pulling the car over";
         private const string BrokenDown = "The car has broken down";
 
+        // A trouble that can come with the car still rolling (Real Life Overhaul's): it is braked to a stop.
+        public static bool StillRolling(string trouble) => trouble == PulledOver || trouble == BrokenDown;
+
         // The notice for a Trouble text.
         public static string TroubleKey(string trouble) =>
             trouble == OutOfFuel ? "drivenrides:notice_owncar_out_of_fuel"
@@ -602,6 +653,8 @@ namespace DrivenRides
         {
             active = null;
             ending = false;
+            BrakeOnHandBack = false;
+            braking = null;
             RloCompat.Drop();
         }
     }

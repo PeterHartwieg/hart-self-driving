@@ -276,6 +276,8 @@ namespace DrivenRides
             try
             {
                 if (Active != null) return Vanilla("a ride is still active");
+                // Real Life Overhaul's police, a driving test, prison or a street crime hold the player (RloCompat).
+                if (RloCompat.PlayerHeld) return Vanilla("Real Life Overhaul holds the player");
                 var taxi = InstanceBehavior<CityManager>.Instance.cityMap.Taxi;
                 if (!(taxi is MonoBehaviour taxiObject) || taxiObject == null) return Vanilla("no taxi");
                 if (PlayerActivityUI.IsPanelOpen) return Vanilla("an activity panel is open");
@@ -360,6 +362,7 @@ namespace DrivenRides
                 var vehicleType = (int)(car != null ? car.vehicleType : prefab.vehicleType);
 
                 Waypoint? spawn = null;
+                Waypoint? heldStart = null;
                 int start;
                 if (kind == Kind.Stand)
                 {
@@ -387,19 +390,20 @@ namespace DrivenRides
                 else if (RloCompat.HoldsTaxi(manager, car!))
                 {
                     // Real Life Overhaul's City Cabs drive the cab to the caller outside Gley, whose target waypoint for
-                    // it is still the one it was loaded at, out of sight (RloCompat). The line starts at the lane
-                    // waypoint just ahead of the cab instead. Only a ride with the car's own physics takes it over: a
+                    // it is still the one it was loaded at, out of sight (RloCompat), and often pull it in to the kerb.
+                    // The ride car starts on a free lane waypoint just ahead of the cab instead, as a parked driver's
+                    // does, while the map covers the screen. Only a ride with the car's own physics takes it over: a
                     // Gley ride would need Gley to drive the cab again.
                     if (planNwh == null) return Vanilla("the taxi is driven by another mod, and a Gley ride can't take it over");
                     var cab = car!.transform;
                     var cabY = cab.position.y;
                     var forward = cab.forward;
-                    var ahead = WithCollidersOff(cab, () => manager.GetClosestWaypoint(cab.position + forward * 4f, 30f, w =>
+                    heldStart = WithCollidersOff(cab, () => manager.GetClosestWaypoint(cab.position + forward * 4f, 30f, w =>
                         IsGoodStart(w, cabY) && Vector3.Dot(w.position - cab.position, forward) > 0f
-                        && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f));
-                    if (ahead == null) return Vanilla("no lane waypoint ahead of the taxi another mod drove here");
-                    start = ahead.listIndex;
-                    Log.Trace($"Taxi held by another mod: starts at waypoint {start}, {Vector3.Distance(ahead.position, cab.position):0.0} m from the cab.");
+                        && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f, prefab));
+                    if (heldStart == null) return Vanilla("no free lane waypoint ahead of the taxi another mod drove here");
+                    start = heldStart.listIndex;
+                    Log.Trace($"Taxi held by another mod: the ride car starts at waypoint {start}, {Vector3.Distance(heldStart.position, cab.position):0.0} m from the cab.");
                 }
                 else
                 {
@@ -544,6 +548,15 @@ namespace DrivenRides
                     var middle = gleyT.TransformPoint(gleyCentre);
                     var ground = NwhPlanner.GroundBelow(GleyGraph.ToVec(middle), gleyT) ?? gleyT.position.y;
                     var facing = Quaternion.Euler(0f, gleyT.eulerAngles.y, 0f);
+                    if (heldStart != null)
+                    {
+                        // A taxi another mod held: on its lane waypoint, facing the route's way.
+                        middle = heldStart.position;
+                        ground = NwhPlanner.GroundBelow(GleyGraph.ToVec(middle), gleyT) ?? heldStart.position.y;
+                        var way = route.Waypoints.Count > 1 ? GleyGraph.Waypoints![route.Waypoints[1]].position - heldStart.position : gleyT.forward;
+                        way.y = 0f;
+                        if (way.sqrMagnitude > 0.01f) facing = Quaternion.LookRotation(way);
+                    }
                     spawnedNwh = NwhRides.Spawn(driverType, prefab.gameObject, middle, facing, out var nwhWhy);
                     if (spawnedNwh == null) throw new InvalidOperationException("no NWH car: " + nwhWhy);
                     NwhRides.PlaceBody(spawnedNwh, middle, ground, facing);
@@ -1130,7 +1143,13 @@ namespace DrivenRides
         private void TickNwh()
         {
             // The own car out of fuel or wrecked mid-trip: the trip ends where the car stopped.
-            if (kind == Kind.OwnCar && OwnCarDrive.Trouble() is string trouble) { Notice.Text(OwnCarDrive.TroubleKey(trouble)); Cancel(trouble.ToLowerInvariant()); return; }
+            if (kind == Kind.OwnCar && OwnCarDrive.Trouble() is string trouble)
+            {
+                Notice.Text(OwnCarDrive.TroubleKey(trouble));
+                OwnCarDrive.BrakeOnHandBack = OwnCarDrive.StillRolling(trouble);
+                Cancel(trouble.ToLowerInvariant());
+                return;
+            }
             var drive = nwhDrive!;
             var body = Body;
             progress!.Update(GleyGraph.ToVec(body.position));

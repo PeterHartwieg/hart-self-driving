@@ -29,7 +29,8 @@ namespace DrivenRides
         private static void OnCityReady()
         {
             if (LoadScene.isLoading || SaveGameManager.Current == null) return;
-            Patches.ApplyLate();
+            try { Patches.ApplyLate(); }
+            catch (Exception ex) { Log.Error("Late patches: " + ex); }
             if (runtimeObject != null) Object.Destroy(runtimeObject);
             runtimeObject = new GameObject("DrivenRides.Runtime");
             Object.DontDestroyOnLoad(runtimeObject);
