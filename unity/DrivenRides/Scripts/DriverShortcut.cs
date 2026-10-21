@@ -25,6 +25,8 @@ namespace DrivenRides
             if (keyboard == null || !keyboard.lKey.wasPressedThisFrame) return;
             if (keyboard.ctrlKey.isPressed || keyboard.altKey.isPressed || keyboard.shiftKey.isPressed) return;
             if (SaveGameManager.Current == null || GameManager.ShouldBlockKeyboardShortcuts()) return;
+            // Real Life Overhaul's photo mode rolls the camera on L.
+            if (RloCompat.PhotoMode) return;
             // In the car, L is the own car's own switch; elsewhere the shortcut option's.
             if (!(VehicleHelper.IsInsideVehicle() ? Options.OwnCar : Options.Shortcut)) return;
             try { Press(); }
@@ -34,6 +36,8 @@ namespace DrivenRides
         private static void Press()
         {
             if (TurnTests.Running || TaxiSystem.IsTraveling || Ride.Active != null || CityMap.IsOpen || PlayerActivityUI.IsPanelOpen) return;
+            // Real Life Overhaul's police, a driving test or prison hold the player: no driver, no trip.
+            if (RloCompat.PlayerHeld) { Notice.Text("drivenrides:notice_held"); return; }
             if (VehicleHelper.IsInsideVehicle()) { OwnCarTaxi.Open(); return; }
             var waiting = SmartphonePrivateDriverUI.CurrentVehicle;
             if (waiting != null)

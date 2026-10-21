@@ -65,6 +65,15 @@ namespace DrivenRides
             Patch(typeof(CarFeatures), "UpdateBridgeHiddenState", Type.EmptyTypes, nameof(BridgeHiddenPrefix), prefix: true);
             // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
+            // Real Life Overhaul's car tuning stays off the own car while it drives itself; tried again at each city,
+            // since RLO may load after this mod.
+            RloCompat.TryPatch(harmony, final: false);
+        }
+
+        // When a city is ready: the patches of other mods that may have loaded after this one.
+        public static void ApplyLate()
+        {
+            if (harmony != null) RloCompat.TryPatch(harmony, final: true);
         }
 
         private static void TrafficFixedPrefix()
@@ -83,6 +92,7 @@ namespace DrivenRides
         {
             harmony?.UnpatchAll(HarmonyId);
             harmony = null;
+            RloCompat.Forget();
         }
 
         private static void Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false, string? finalizer = null)

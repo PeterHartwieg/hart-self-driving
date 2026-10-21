@@ -2,7 +2,7 @@
 
 A mod for Big Ambitions. Taxi rides, taxi stands, your private driver and your own car drive you through the city instead of fading to black. The car is a real car with the game's own driving physics, the same your car has when you drive it. It finds its way through traffic, stops at red lights, gives way and turns at junctions. You ride along, the camera follows the car, and you get out at the door.
 
-Version 0.2.0-rc7, a release candidate. Built for Big Ambitions 1.0 (Steam build 25482473).
+Version 0.2.0-rc8, a release candidate. Built for Big Ambitions 1.0 (Steam build 25482473).
 
 ## What it does
 
@@ -53,6 +53,7 @@ The panel's speed buttons and clock slider change the same settings, so the next
 
 - Big Ambitions 1.0, Windows. A game update can change what the mod hooks into. Each hook logs `Patch <method>: Active` or `Not active` in `Player.log` at startup. A hook that is not active leaves that part to the base game.
 - Mods that also change taxi rides, the private driver or the game's taxi system may clash with this one.
+- **Real Life Overhaul.** Works alongside it, pending a check in game. While your own car drives itself, RLO's car handling and performance are off, and they come back when the trip ends. RLO's police pulling you over, or a breakdown, ends the trip where the car stands, and you have the wheel. No ride starts while RLO's police, a driving test or prison hold you. A City Cabs taxi drives you there like any other taxi. RLO's red-light and other driving offences still count during a trip in your own car, so keep "stop at red lights" on. Details in `docs/rlo-compat.md`.
 - Fares, achievements, events and the limo's energy and food bonus stay as in the base game.
 
 ## Removing the mod

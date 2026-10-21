@@ -40,6 +40,8 @@ namespace DrivenRides
             if (body != null ? body.velocity.magnitude > 0.3f : car.CurrentSpeed > 1f) { Notice.Text("drivenrides:notice_owncar_stop"); return; }
             // The game's own test (VehicleParkingHelper.ParkInClosestSpot): a condition of 1 is a wreck.
             if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) { Notice.Text("drivenrides:notice_owncar_damaged"); return; }
+            // Real Life Overhaul's breakdowns cut the throttle of the player's keys, which a car driving itself doesn't use.
+            if (RloCompat.BrokenDown(car)) { Notice.Text("drivenrides:notice_owncar_broken_down"); return; }
             if (instance == null)
             {
                 var host = new GameObject("DrivenRides.OwnCarTaxi");
@@ -496,8 +498,10 @@ namespace DrivenRides
             if (active != null) { why = "the car is already driving itself"; return null; }
             var vehicle = car.vehicleController;
             if (vehicle == null || vehicle.input == null) { why = "the car has no NWH controller"; return null; }
+            // Real Life Overhaul's tuning off first, so the car is measured as the game made it (RloCompat).
+            RloCompat.Hold(vehicle);
             var wrapped = NwhCar.Wrap(vehicle, car.gameObject, OwnCarTaxi.DrivableType(car) ?? (car.vehicleType != null ? car.vehicleType.vehicleTypeName : car.name), out why);
-            if (wrapped == null) return null;
+            if (wrapped == null) { RloCompat.Release(); return null; }
             vehicle.input.autoSetInput = false;
             Zero(vehicle);
             active = car;
@@ -520,6 +524,7 @@ namespace DrivenRides
                 }
             }
             catch (Exception ex) { Log.Error("Own car: handing the keys back: " + ex.Message); }
+            RloCompat.Release();
             Log.Trace("Own car: the keys are the player's again (" + reason + ").");
         }
 
@@ -575,20 +580,29 @@ namespace DrivenRides
             if (car == null) return null;
             if (car.fuelModule != null && car.fuelModule.useFuel && car.GetCurrentFuel() <= 0f) return OutOfFuel;
             if (Mathf.Abs(car.GetCurrentCondition() - 1f) < Mathf.Epsilon) return TooDamaged;
+            // Real Life Overhaul: the police signal the car to stop or chase it (it would flee them), or it breaks down.
+            if (RloCompat.PoliceBusy) return PulledOver;
+            if (RloCompat.BrokenDown(car)) return BrokenDown;
             return null;
         }
 
         private const string OutOfFuel = "The car is out of fuel";
         private const string TooDamaged = "The car is too damaged to drive";
+        private const string PulledOver = "The police are pulling the car over";
+        private const string BrokenDown = "The car has broken down";
 
         // The notice for a Trouble text.
         public static string TroubleKey(string trouble) =>
-            trouble == OutOfFuel ? "drivenrides:notice_owncar_out_of_fuel" : "drivenrides:notice_owncar_damaged";
+            trouble == OutOfFuel ? "drivenrides:notice_owncar_out_of_fuel"
+            : trouble == PulledOver ? "drivenrides:notice_owncar_police"
+            : trouble == BrokenDown ? "drivenrides:notice_owncar_broken_down"
+            : "drivenrides:notice_owncar_damaged";
 
         public static void Drop()
         {
             active = null;
             ending = false;
+            RloCompat.Drop();
         }
     }
 

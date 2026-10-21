@@ -41,5 +41,8 @@
     "drivenrides:notice_owncar_no_route": "Your car can't find a way there from this lane.",
     "drivenrides:notice_owncar_no_spot": "No free parking spot within {metres} m. Park the car yourself.",
     "drivenrides:notice_owncar_busy": "Not while the car drives itself.",
+    "drivenrides:notice_owncar_police": "The police are pulling you over. You have the wheel.",
+    "drivenrides:notice_owncar_broken_down": "The car has broken down.",
+    "drivenrides:notice_held": "Not now.",
     "drivenrides:notice_bridge_fuel": "Not enough fuel to cross the bridge."
 }

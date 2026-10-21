@@ -1,3 +1,17 @@
+## Real Life Overhaul alongside (0.2.0-rc8)
+
+Pending in game. `docs/rlo-compat.md` has what each line is for. Use a disposable save with RLO 0.41.1 (or newer) on, and once with RLO off.
+
+- R1. With RLO off: the log has `Real Life Overhaul: not loaded; its patches are not active.` and no other new line. One taxi ride and one own-car trip behave as in rc7.
+- R2. With RLO on, startup or first city: `Real Life Overhaul ... loaded.`, `Patch RealLifeOverhaul.CarTuning.OnUpdate: Active.`, `...PlayerOffences.OnFoot: Active.`, `...ThirdPersonCamera.IsUiOpen: Active.`, and `police found, driving test found, prison found, photo mode found, breakdowns found`.
+- R3. Own-car trip with RLO's handling on Full: `Own car: Real Life Overhaul's car tuning taken off for the trip.` at the start. The trip drives, stops and autoparks as in rc7. At the end, `...handed back.` and RLO's own `Car tuning: ...` line again. Drive a little: the car feels like RLO's again.
+- R4. A pull-out from a parallel space and an autopark with RLO on, as R3.
+- R5. Police: switch "stop at red lights" off and take own-car trips until RLO's police signal you. The trip ends with "The police are pulling you over. You have the wheel." and the car stops; RLO's stop then goes its usual way, with no fleeing.
+- R6. Breakdown: with a broken-down car (RLO's test tools), L says "The car has broken down."
+- R7. A taxi ride and a private-driver ride: no jaywalking warning or fine, and with RLO's mouse look on, the ride panel's buttons can be clicked.
+- R8. Photo mode: L rolls the camera and calls nobody. During a driving test, L says "Not now."
+- R9. City Cabs: call a cab, get in, pick a place. The log says `Taxi held by another mod: starts at waypoint ...`. The cab drives you there, and RLO charges only its call-out and the fare.
+
 ## Own car: a car another mod gave a type of its own (0.2.0-rc7)
 
 Pending in game. Every own-car trip in Be A Taxi Reworked's shift taxi said "Your car can't drive itself there" (a user's Player.log, 16 October 2026: `Own car: choosing a destination for beataxi_vehicle_name.`, `NWH shape for beataxi_vehicle_name: no drivable prefab.`). The mod gives the Vord Tiara Vic a type named `beataxi_vehicle_name`, and the shape was looked up by that name. Now the own car's drivable type is the first of the type name, the car's vehicle instance and its object's name that has a drivable prefab. With Be A Taxi Reworked on, start a shift, stop the taxi in a driving lane and press L: the trip should drive, with `choosing a destination for beataxi_vehicle_name (drives as ba:vehicletype_vordtiaravic)` in the test log. Check that the fare still counts on arrival.

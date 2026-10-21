@@ -384,6 +384,23 @@ namespace DrivenRides
                     start = OwnCarTaxi.StartUnder(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out ownSideways);
                     Log.Trace(ownSideways < float.MaxValue ? $"Own car: starts on the step from waypoint {start}, {ownSideways:+0.0;-0.0} m to the side of it." : $"Own car: no lane step runs under the car; nearest waypoint {start}.");
                 }
+                else if (RloCompat.HoldsTaxi(manager, car!))
+                {
+                    // Real Life Overhaul's City Cabs drive the cab to the caller outside Gley, whose target waypoint for
+                    // it is still the one it was loaded at, out of sight (RloCompat). The line starts at the lane
+                    // waypoint just ahead of the cab instead. Only a ride with the car's own physics takes it over: a
+                    // Gley ride would need Gley to drive the cab again.
+                    if (planNwh == null) return Vanilla("the taxi is driven by another mod, and a Gley ride can't take it over");
+                    var cab = car!.transform;
+                    var cabY = cab.position.y;
+                    var forward = cab.forward;
+                    var ahead = WithCollidersOff(cab, () => manager.GetClosestWaypoint(cab.position + forward * 4f, 30f, w =>
+                        IsGoodStart(w, cabY) && Vector3.Dot(w.position - cab.position, forward) > 0f
+                        && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f));
+                    if (ahead == null) return Vanilla("no lane waypoint ahead of the taxi another mod drove here");
+                    start = ahead.listIndex;
+                    Log.Trace($"Taxi held by another mod: starts at waypoint {start}, {Vector3.Distance(ahead.position, cab.position):0.0} m from the cab.");
+                }
                 else
                 {
                     var next = manager.GetTargetWaypoint(car!.GetIndex());
