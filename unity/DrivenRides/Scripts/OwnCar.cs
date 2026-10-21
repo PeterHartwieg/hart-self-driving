@@ -499,6 +499,7 @@ namespace DrivenRides
             var vehicle = car.vehicleController;
             if (vehicle == null || vehicle.input == null) { why = "the car has no NWH controller"; return null; }
             StopBraking();
+            BrakeOnHandBack = false;
             // Real Life Overhaul's tuning off first, so the car is measured as the game made it (RloCompat).
             RloCompat.Hold(vehicle);
             NwhCar? wrapped;
@@ -534,9 +535,10 @@ namespace DrivenRides
         }
 
         // Set by the ride just before it ends a trip the car may still be rolling on (Real Life Overhaul's police or a
-        // breakdown, RloCompat): End then keeps the brakes on after handing the keys back, since the player may have no
-        // key pressed and the car would coast on. Ends when the car has stood for a second or the player touches a
-        // key. Never set without RLO.
+        // breakdown, RloCompat): End then keeps the brakes on and the wheel straight after handing the keys back, since
+        // the player may have no key pressed and the car would coast on. Ends when the car has stood for a second or the
+        // player presses the throttle or the brake (not steering: with mouse steering the cursor's place steers without a
+        // touch). Never set without RLO.
         public static bool BrakeOnHandBack;
         private static NWH.VehiclePhysics2.VehicleController? braking;
         private static float stoodSince;
@@ -565,7 +567,7 @@ namespace DrivenRides
             var vehicle = braking;
             if (vehicle == null) { braking = null; return; }
             var input = vehicle.input;
-            if (Mathf.Abs(input.Throttle) > 0.05f || Mathf.Abs(input.Brakes) > 0.05f || Mathf.Abs(input.Steering) > 0.05f) { StopBraking(); return; }
+            if (Mathf.Abs(input.Throttle) > 0.05f || Mathf.Abs(input.Brakes) > 0.05f) { StopBraking(); return; }
             var speed = vehicle.vehicleRigidbody != null ? vehicle.vehicleRigidbody.velocity.magnitude : 0f;
             if (speed > 0.3f) stoodSince = -1f;
             else if (stoodSince < 0f) stoodSince = Time.time;
@@ -573,6 +575,7 @@ namespace DrivenRides
             // NWH swaps the pedals in reverse (swapInputInReverse): the brake is then the throttle axis.
             if (input.IsInputSwapped) { input.Throttle = 1f; input.Brakes = 0f; }
             else { input.Brakes = 1f; input.Throttle = 0f; }
+            input.Steering = 0f;
             if (speed < 1f) input.Handbrake = 1f;
         }
 

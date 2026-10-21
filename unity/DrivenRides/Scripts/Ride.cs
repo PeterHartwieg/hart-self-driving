@@ -448,8 +448,9 @@ namespace DrivenRides
                         // for these same close goals before widening the destination search: a wider search can
                         // otherwise accept the pocket itself as a drop-off and never try the road out.
                         // Not for the own car: it starts where it stands, so a route from another lane is one the start
-                        // check refuses (StartRefusal). It tries the wider goals from its own lane instead.
-                        if (route == null && origin != null && ownCar == null)
+                        // check refuses (StartRefusal). It tries the wider goals from its own lane instead. Nor for a taxi
+                        // another mod held: its ride car is placed on its start waypoint, so the route must leave from there.
+                        if (route == null && origin != null && ownCar == null && heldStart == null)
                             route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
                         if (route != null) break;
                     }
