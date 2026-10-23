@@ -1,6 +1,6 @@
 # HART. Self Driving
 
-A mod for Big Ambitions. Taxi rides, taxi stands, your private driver and your own car drive you through the city instead of fading to black. The car is a real car with the game's own driving physics, the same your car has when you drive it. It finds its way through traffic, stops at red lights, gives way and turns at junctions. You ride along, the camera follows the car, and you get out at the door.
+A mod for Big Ambitions. Taxi rides, taxi stands, your private driver and your own car drive you through the city instead of fading to black. The car is a real car with the game's own driving physics, the same your car has when you drive it. It finds its way through traffic, stops at red lights, gives way and turns at junctions. You ride along and the camera follows the car. Passenger rides normally leave you beside the car near the destination; Skip and vanilla fallback place you at the destination. In your own car, you stay in the driver's seat.
 
 Version 0.4.1. Built for Big Ambitions 1.0 (game build 3682; Steam build 25482473).
 
@@ -84,10 +84,30 @@ The options stay in the game's settings (Unity's PlayerPrefs, keys starting with
 For developers. Needs Unity 2022.3.62f2 with Windows Build Support (Mono), the official [Big Ambitions modding SDK](https://github.com/hovgaardgames/bigambitions) with the game's DLLs, and the .NET SDK.
 
 ```bash
-dotnet test tests
+DR_TRAFFIC_SEEDS=500 dotnet test tests -c Release
 tools/build-mod.sh        # build/DrivenRides/, the folder for ModsLocal
+tools/check-drive.sh      # packaged physics-failure regression, in the Unity editor
+tools/check-paint.sh      # packaged paint-transfer regression, in the Unity editor
 tools/package-mod.sh      # build/package/DrivenRides/, the Workshop folder, checked
 ```
+
+Run these sequentially: the test suite includes a wall-clock performance check, and the Unity commands
+share one SDK project. The build script runs on macOS and targets Win64 through the official SDK; it does
+not install a mod or start a game. `tools/package-mod.sh --no-build` packages the preceding build without
+rebuilding. Neither packaging command uploads to the Workshop.
+
+The Core suite includes adapter tests, traffic simulations and geometry replays. `DR_TRAFFIC_SEEDS=500`
+runs 3,000 traffic scenarios across six templates, enables the full regression budgets and expands related
+sweeps. Without it, the suite uses 100 seeds per template and coarser sweeps. Two optional graph checks
+need an existing local dump at `build/sol-tests/lane-graph.json`; without it they report skipped. The pending
+traffic-scenario test is explicitly skipped. The separate offline agent-client tests are run with
+`BA_BRIDGE_TOOLS=/path/to/bridge/tools python3 -m unittest discover -s tools/agent-tests -p 'test_*.py'`.
+They require the shared `ftlib` package; see [tools/agent-tests/README.md](tools/agent-tests/README.md).
+Do not run them against a dependency checkout that is off-limits for your session.
+
+See [docs/code-layout.md](docs/code-layout.md) for current source responsibilities. The implementation
+plan and own-car notes retain dated designs as history; [CHECKS.md](CHECKS.md) records what was actually
+checked in game and what remains pending.
 
 `tools/mod.conf` holds the mod's name in one place; `tools/rename-mod.sh "<new name>"` writes it everywhere it appears.
 

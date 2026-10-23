@@ -35,11 +35,11 @@ namespace DrivenRides
             {
                 var asset = PrefabHelper.LoadPrefabAssetByName("Vehicles/PlayerVehicles/" + NwhCar.Id(vehicleTypeName));
                 var vehicle = asset != null ? asset.GetComponentInChildren<NWH.VehiclePhysics2.VehicleController>(true) : null;
-                if (asset == null || vehicle == null) { Log.Info($"NWH shape for {vehicleTypeName}: no drivable prefab."); return null; }
+                if (asset == null || vehicle == null) { Log.Trace($"NWH shape for {vehicleTypeName}: no drivable prefab."); return null; }
                 var root = asset.transform;
                 var wheels = new List<Vector3>();
                 foreach (var wheel in asset.GetComponentsInChildren<NWH.Common.Vehicles.WheelUAPI>(true)) wheels.Add(root.InverseTransformPoint(wheel.transform.position));
-                if (wheels.Count < 2) { Log.Info($"NWH shape for {vehicleTypeName}: {wheels.Count} wheels."); return null; }
+                if (wheels.Count < 2) { Log.Trace($"NWH shape for {vehicleTypeName}: {wheels.Count} wheels."); return null; }
                 float rear = float.MaxValue, front = float.MinValue;
                 foreach (var w in wheels) { rear = Mathf.Min(rear, w.z); front = Mathf.Max(front, w.z); }
                 // The front track, as WheelGroup.FindBelongingWheels measures it: the two front wheels apart. NWH's
@@ -59,7 +59,7 @@ namespace DrivenRides
                 var spec = new CarSpec(NwhCar.Id(vehicleTypeName), front - rear, lockAt, centre, half, topKmh, track, vehicle.steering.degreesPerSecondLimit);
                 var inv = CultureInfo.InvariantCulture;
                 // One line in CarSpec.Parse's form, for tools/rejudge and tools/calibrate.
-                Log.Info($"NWH shape for {vehicleTypeName}: {spec}; steer rate {vehicle.steering.degreesPerSecondLimit:0}°/s, front group coefficient {coefficient:0.00}. As text: " +
+                Log.Trace($"NWH shape for {vehicleTypeName}: {spec}; steer rate {vehicle.steering.degreesPerSecondLimit:0}°/s, front group coefficient {coefficient:0.00}. As text: " +
                          string.Format(inv, "{0};{1:0.###};{2:0};{3:0.###},{4:0.###},{5:0.###};{6:0.###},{7:0.###},{8:0.###};0={9:0.##},10={10:0.##},25={11:0.##},50={12:0.##};{13:0.###};{14:0}",
                              spec.Name, spec.Wheelbase, topKmh, centre.X, centre.Y, centre.Z, half.X, half.Y, half.Z,
                              lockAt(0f), lockAt(10f / 3.6f), lockAt(25f / 3.6f), lockAt(50f / 3.6f), track, spec.WheelRate));
@@ -501,7 +501,7 @@ namespace DrivenRides
             var rear = Car.BodyHalf.Z - Car.BodyCentre.Z;
             var move = (first.Value - Car.FrontAhead - 1f, last!.Value + rear + 1f, offset);
             shifts[(from, to)] = move;
-            Log.Info($"NWH planner: step {from} -> {to} passed {offset:+0.00;-0.00} m sideways ({what}).");
+            Log.Trace($"NWH planner: step {from} -> {to} passed {offset:+0.00;-0.00} m sideways ({what}).");
             return null;
         }
 
@@ -588,7 +588,7 @@ namespace DrivenRides
                     yield return null;
                     var notes = new List<string>();
                     foreach (var y in Check.Validate(built, found, notes)) yield return y;
-                    foreach (var note in notes) Log.Info("NWH planner: " + note + ".");
+                    foreach (var note in notes) Log.Trace("NWH planner: " + note + ".");
                     if (found.Count == 0) { plan = built; break; }
                 }
                 foreach (var (from, to, what) in found)
@@ -597,7 +597,7 @@ namespace DrivenRides
                     shifts.Remove((from, to));
                     Block(from, to, CauseOf(graph, from, to, what));
                     // One line per rejection, in full: the summary has room for four, cut at 60 characters.
-                    Log.Info($"NWH planner: blocked {StepKind(graph, from, to)} {from} -> {to} for {Car.Name}: {what}.");
+                    Log.Trace($"NWH planner: blocked {StepKind(graph, from, to)} {from} -> {to} for {Car.Name}: {what}.");
                     blockedNotes.Add($"{StepKind(graph, from, to)} {from}->{to} ({(what.Length > 60 ? what.Substring(0, 60) + "..." : what)})");
                 }
                 route = null;
@@ -618,7 +618,7 @@ namespace DrivenRides
             }
             // Steps blocked for want of a case to check them on (Feasibility.NoCase) are counted, so a gap in the
             // catalogue shows in the log (review round 2).
-            if (noCase > 0) Log.Info($"NWH planner: {noCase} steps blocked with no case to check them on.");
+            if (noCase > 0) Log.Trace($"NWH planner: {noCase} steps blocked with no case to check them on.");
             into.Route = route;
             into.Plan = route != null ? plan : null;
             // With no route, how many steps blocked earlier in the session (manoeuvres this car can't make) the search
@@ -650,7 +650,7 @@ namespace DrivenRides
                         if (!(Gates.On(w[k], w[k + 1]) is Gates.Found gate) || !gate.Gate.Locked) continue;
                         var stopAt = GateCrossing.DropOff(graph, w, k, gate.Gate, GateClear);
                         if (stopAt <= 0) break;
-                        Log.Info($"NWH planner: the way to the goal goes through the gate '{gate.Gate.Name}', shut for the player; the ride ends at waypoint {w[stopAt]} before it.");
+                        Log.Trace($"NWH planner: the way to the goal goes through the gate '{gate.Gate.Name}', shut for the player; the ride ends at waypoint {w[stopAt]} before it.");
                         var atTheGate = new Planned();
                         foreach (var y in PlanRouteWork(graph, start, new[] { new Goal(w[stopAt], 0f) }, vehicleType, rounds, job, atTheGate, true)) yield return y;
                         into.Route = atTheGate.Route;
@@ -710,11 +710,11 @@ namespace DrivenRides
             OffBridges(plan);
             var notes = new List<string>();
             failed = Check.ValidateNow(plan, notes);
-            foreach (var note in notes) Log.Info("NWH planner: " + note + ".");
+            foreach (var note in notes) Log.Trace("NWH planner: " + note + ".");
             foreach (var (from, to, what) in failed)
             {
                 shifts.Remove((from, to));
-                Log.Info($"NWH planner: step {from} -> {to} fails as driven ({what}).");
+                Log.Trace($"NWH planner: step {from} -> {to} fails as driven ({what}).");
             }
             return failed.Count == 0 ? plan : null;
         }
@@ -748,7 +748,7 @@ namespace DrivenRides
 
         bool IWayOnWorld.IsBlocked(int from, int to) => GleyGraph.IsBlockedStep(from, to) || IsBlocked(from, to);
 
-        void IWayOnWorld.Note(string text) => Log.Info("NWH planner: " + text + ".");
+        void IWayOnWorld.Note(string text) => Log.Trace("NWH planner: " + text + ".");
 
         private static bool Contains(IReadOnlyList<int> list, int value)
         {

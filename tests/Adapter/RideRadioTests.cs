@@ -19,7 +19,7 @@ public sealed class RideRadioTests : IDisposable
         SaveGameManager.Current = save;
         PlayerHelper.Headset = false;
         VehicleHelper.Current = null;
-        Log.Errors.Clear();
+        UnityEngine.Debug.Errors.Clear();
     }
 
     private RideRadio Start() => session = RideRadio.Begin(manager, save)!;
@@ -122,7 +122,7 @@ public sealed class RideRadioTests : IDisposable
         ui.smartphoneUI.radioControls.ThrowOnEnable = true;
         var ride = Start();
         Assert.False(manager.radioPlayer.IsMuted);
-        Assert.Single(Log.Errors);
+        Assert.Single(UnityEngine.Debug.Errors);
         ride.End();
         Assert.True(manager.radioPlayer.IsMuted);
         Assert.False(RideRadio.Owns(manager.radioPlayer));

@@ -70,7 +70,7 @@ namespace DrivenRides
         // The way on (Core WayOnControl): the planner's jobs (its Replan, LookAhead and Take, set before Begin), stepped
         // a time budget each physics step, and its hold short of a step the car must not enter. Without a Replan, a
         // blocked drive ends "blocked".
-        public readonly WayOnControl WayOn = new WayOnControl { Log = text => Log.Info("NWH drive: " + text) };
+        public readonly WayOnControl WayOn = new WayOnControl { Log = text => Log.Trace("NWH drive: " + text) };
         private int blockedPosition;
 
         // T3's tally: contacts with traffic cars (all, and those this car caused), standstills over 30 s away from a
@@ -231,7 +231,7 @@ namespace DrivenRides
             stoppable.Clear();
             castHold = null;
             castClearFor = 0f;
-            Log.Info($"NWH drive: driving on along a new path of {plan.Path.Count} waypoints, {line.Line.Length:0} m.");
+            Log.Trace($"NWH drive: driving on along a new path of {plan.Path.Count} waypoints, {line.Line.Length:0} m.");
         }
 
         private void UsePath(List<int> path, IReadOnlyList<(int Entry, Polyline Arc)> arcs, IEnumerable<(int Position, float SpeedKmh)> slow)
@@ -333,22 +333,22 @@ namespace DrivenRides
             foreach (var e in decision.Events)
             {
                 gley.Apply(e);
-                Log.Info($"NWH drive: {(e.Kind == JunctionEventKind.Enter ? "in" : "out of")} intersection {e.Junction} at {driver.Along:0} m.");
+                Log.Trace($"NWH drive: {(e.Kind == JunctionEventKind.Enter ? "in" : "out of")} intersection {e.Junction} at {driver.Along:0} m.");
             }
             if (decision.Unsettled)
             {
                 UnsettledDecisions++;
-                Log.Info($"NWH drive: the final pass still tightened the stops after {decision.PassRounds} rounds; a stop now, the emergency rule's ({driver.Along:0} m, {speed:0.0} m/s).");
+                Log.Trace($"NWH drive: the final pass still tightened the stops after {decision.PassRounds} rounds; a stop now, the emergency rule's ({driver.Along:0} m, {speed:0.0} m/s).");
             }
             if (decision.Why != lastWhy)
             {
-                if (decision.Why.Length > 0) Log.Info($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");
+                if (decision.Why.Length > 0) Log.Trace($"NWH drive: {decision.Why} at {driver.Along:0} m, {speed:0.0} m/s{(decision.YieldNote.Length > 0 ? " (" + decision.YieldNote + ")" : "")}.");
                 lastWhy = decision.Why;
             }
             var slowdown = slowdowns.Step(Time.time, driver.Along, speed, vehicle.steering.angle, decision.Why, decision.Note, decision.StopIsRed);
             if (slowdown != null)
             {
-                Log.Info("NWH drive: " + slowdown);
+                Log.Trace("NWH drive: " + slowdown);
                 SlowdownDump();
             }
 
@@ -369,7 +369,7 @@ namespace DrivenRides
                     input.Handbrake = 1f;
                     if (Mathf.Abs(speed) > 0.2f) return;
                     // The way on is planned over the next physics steps while the car stands.
-                    if (WayOn.Job == null) Log.Info($"NWH drive: {recovery.Ended} ({recovery.Backed:0.0} m); asking for another way.");
+                    if (WayOn.Job == null) Log.Trace($"NWH drive: {recovery.Ended} ({recovery.Backed:0.0} m); asking for another way.");
                     var planTicks = Stopwatch.GetTimestamp();
                     WayOn.BudgetMs = StepBudget();
                     var way = WayOn.Blocked(blockedPosition, blockedWhat, PoseNow);
@@ -399,7 +399,7 @@ namespace DrivenRides
                 input.Handbrake = 0f;
                 input.Brakes = 0.35f;
                 driver.BackTo(rear.x, rear.z);
-                if (!backing) Log.Info($"NWH drive: backing off from traffic car {decision.BackOffFrom}.");
+                if (!backing) Log.Trace($"NWH drive: backing off from traffic car {decision.BackOffFrom}.");
                 backing = true;
                 lastProgressTime = Time.time;
                 WaitingNow = true;
@@ -446,7 +446,7 @@ namespace DrivenRides
                 return;
             }
             stillSeconds = Mathf.Abs(speed) < 0.2f && !WaitingNow && o.Desired > 1f ? stillSeconds + Time.fixedDeltaTime : 0f;
-            if (stillSeconds > 1f && stillSeconds < 1.03f) Log.Info($"NWH drive: standing with throttle {o.Throttle:0.00}, gear {transmission.Gear}, engine {(vehicle.powertrain.engine.IsRunning ? "running" : "off")}, rpm {vehicle.powertrain.engine.OutputRPM:0}.");
+            if (stillSeconds > 1f && stillSeconds < 1.03f) Log.Trace($"NWH drive: standing with throttle {o.Throttle:0.00}, gear {transmission.Gear}, engine {(vehicle.powertrain.engine.IsRunning ? "running" : "off")}, rpm {vehicle.powertrain.engine.OutputRPM:0}.");
         }
 
         private void TraceStep(DriveOutput o, float speed, float steerInput, int gear, float? gap)
@@ -521,7 +521,7 @@ namespace DrivenRides
                     if (prevFront < along && front >= along && stoppable.TryGetValue(k, out var could) && could)
                     {
                         RedRuns++;
-                        Log.Info($"NWH drive: ran the red at path position {k} ({along:0} m).");
+                        Log.Trace($"NWH drive: ran the red at path position {k} ({along:0} m).");
                         Dump("red-run", $"front past the set stop at path position {k}");
                     }
                 }
@@ -532,7 +532,7 @@ namespace DrivenRides
             if (before <= 30f && standing > 30f)
             {
                 Stalls++;
-                Log.Info($"NWH drive: standing 30 s at {driver.Along:0} m ({decision.Why}).");
+                Log.Trace($"NWH drive: standing 30 s at {driver.Along:0} m ({decision.Why}).");
                 Dump("stall", $"standing 30 s ({decision.Why})");
             }
         }
@@ -562,7 +562,7 @@ namespace DrivenRides
             var theirs = new Vector2(theirV.x, theirV.z).magnitude;
             var towards = normal.sqrMagnitude > 0f ? Mathf.Abs(Vector3.Dot(preVelocity, Vector3.ProjectOnPlane(normal, Vector3.up).normalized)) : 0f;
             if (caused) ContactsCaused++;
-            Log.Info($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s before it ({towards:0.0} along the contact normal), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
+            Log.Trace($"NWH drive: contact with traffic car {other.GetIndex()} at {driver.Along:0} m, this car {ours:0.0} m/s before it ({towards:0.0} along the contact normal), it {theirs:0.0} m/s, {(caused ? "caused by this car" : "caused by the other car")} ({decision.Why}).");
             Dump("contact", $"contact with traffic car {other.GetIndex()}: this car {ours:0.0} m/s, it {theirs:0.0} m/s");
         }
 
@@ -578,7 +578,7 @@ namespace DrivenRides
                     if (c.Speed >= 0.1f) continue;
                     var metres = Vector3.Distance(start.At, at);
                     TriggerStops.Add((start.Ms, metres, Time.time - start.Time));
-                    Log.Info($"NWH drive: traffic car {c.Id} stopped for this car in its trigger: {metres:0.00} m and {Time.time - start.Time:0.00} s from {start.Ms:0.0} m/s.");
+                    Log.Trace($"NWH drive: traffic car {c.Id} stopped for this car in its trigger: {metres:0.00} m and {Time.time - start.Time:0.00} s from {start.Ms:0.0} m/s.");
                     triggerStarts.Remove(c.Id);
                 }
                 else if (c.StoppedForUs && c.Speed >= 0.5f) triggerStarts[c.Id] = (at, c.Speed, Time.time);
@@ -601,7 +601,7 @@ namespace DrivenRides
                 var folder = System.IO.Path.Combine(GleyGraph.DataFolder, "tests");
                 System.IO.Directory.CreateDirectory(folder);
                 System.IO.File.WriteAllText(System.IO.Path.Combine(folder, name), s.ToJson());
-                Log.Info($"NWH drive: slowdown dump {name}.");
+                Log.Trace($"NWH drive: slowdown dump {name}.");
             }
             catch (Exception ex) { Log.Error("Slowdown dump: " + ex); }
         }
@@ -679,7 +679,7 @@ namespace DrivenRides
         // The step at a path position given up: the car backs off and the planner goes round it.
         private bool Block(int position, float front, string what)
         {
-            Log.Info($"NWH drive: blocked ({what}) at path position {position}, {front:0} m along; backing off.");
+            Log.Trace($"NWH drive: blocked ({what}) at path position {position}, {front:0} m along; backing off.");
             blockedWhat = what;
             blockedPosition = position;
             recovery = null;
