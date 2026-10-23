@@ -75,11 +75,11 @@ namespace DrivenRides
 
         private void Refresh(Ride ride)
         {
-            var left = (ride.PanelLeftMetres / 1000.0).ToString("0.0", CultureInfo.CurrentCulture);
+            var left = ride.PanelStatus ?? (ride.PanelLeftMetres / 1000.0).ToString("0.0", CultureInfo.CurrentCulture);
             if (left != shownLeft)
             {
                 shownLeft = left;
-                header!.text = Loc.Format("drivenrides:panel_left", ("km", left));
+                header!.text = ride.PanelStatus != null ? Loc.Text(ride.PanelStatus) : Loc.Format("drivenrides:panel_left", ("km", left));
             }
             // The options page can change the clock too; the slider follows it unless it is being dragged.
             if (!clockDragged && slider != null && Mathf.RoundToInt(slider.value) != Options.ClockPercent)

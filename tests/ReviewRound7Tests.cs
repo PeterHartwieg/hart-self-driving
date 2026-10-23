@@ -64,18 +64,23 @@ public sealed class ReviewRound7Tests
     // the stop short of B's way stays, whichever order the cars come in. Round 9: with the narrower gaps
     // (TrafficMargins) the lenient and cautious judgements meet for car B, so the stop may be either's. Since 0.1.110 a
     // car whose trigger stops it short is gone on in front of (TrafficDriver.StopsForUs): car B's trigger here is too
-    // short to stop it (1 m), so it is still given way to.
+    // short to stop it (1 m). With the faster passing pace and shorter headway, B at 40 m can now be cleared;
+    // at 35 m it must still be given way to, independently of the decision to nose in in front of A.
     [Theory]
-    [InlineData(false, 35f)]
-    [InlineData(true, 35f)]
-    [InlineData(false, 40f)]
-    [InlineData(true, 40f)]
-    public void NosingInLetsOnlyTheCrawlingCarsOff(bool bFirst, float bx)
+    [InlineData(false, 35f, true)]
+    [InlineData(true, 35f, true)]
+    [InlineData(false, 40f, false)]
+    [InlineData(true, 40f, false)]
+    public void NosingInStillJudgesTheSecondLane(bool bFirst, float bx, bool mustWait)
     {
         var d = Decide(bFirst, 8f, 0f, -11f, bx, 6f, 18f, out _, bTrigger: 1f);
         Assert.True(d.NoseIn, "not nosing in in front of car A");
-        Assert.Equal(2, d.YieldFor);
-        Assert.True(d.YieldAlong <= 18f - 0.95f + 40f, $"the stop for car B at {d.YieldAlong - 40f:0.0} is past its way");
+        if (mustWait)
+        {
+            Assert.Equal(2, d.YieldFor);
+            Assert.True(d.YieldAlong <= 18f - 0.95f + 40f, $"the stop for car B at {d.YieldAlong - 40f:0.0} is past its way");
+        }
+        else Assert.NotEqual(2, d.YieldFor);
     }
 
     // The same with car B's trigger as Gley's (3.6 m past its bumper): it stops for the ride car, so the ride car noses

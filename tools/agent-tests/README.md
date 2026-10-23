@@ -4,6 +4,10 @@ For the **local Mac fallback**, see [MAC.md](MAC.md). It is manually launched by
 
 A private Windows copy of the installed, licensed Big Ambitions player, used only for agent tests. It runs beside the normal game. This directory contains the build/management tools, not the game. Do not redistribute the resulting game copy, patched assemblies, or local build output.
 
+For seeded parking-departure coverage, use `parking-cases.py` with an owned disposable FT checkpoint and the
+verified local build manifest. It samples free legal bays/parallel spots, runs the real ride through the exit,
+and records the exact starting pose and cleanup result. See [the parking fixture](../../docs/turn-tests.md#seeded-legal-parking-departures).
+
 ## Separation
 
 | Resource | Agent instance |

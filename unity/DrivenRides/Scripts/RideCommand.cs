@@ -26,10 +26,10 @@ namespace DrivenRides
     // map's "Go" button does: the fare, the mod's TravelCoroutine prefix and the whole ride are the real ones. One
     // line per ride goes to ride-results.jsonl beside the rig's results.
     //
-    //   ride [kind=taxi|stand|driver|own] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]
+    //   ride [kind=taxi|stand|driver|own] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [address=street_key#number] [seed=N] [speed=1|2|3] [hamptons=on]
     //        [autopark=off|cars|every] [skip=N] [exit=N] [kerb=M] (own: the player's own car drives itself; it is put on a
-    //        lane by the player first, or M metres to the right of it with kerb=M, which the start check refuses past
-    //        1.5 m; kerb=0.01 re-seats a car that is in a spot; skip presses Skip N seconds in, exit gets the player out
+    //        lane by the player first, or M metres to the right of it with kerb=M to test pulling out from the kerb;
+    //        kerb=0.01 re-seats a car that is in a spot; skip presses Skip N seconds in, exit gets the player out
     //        N seconds in)
     // `ridemode nwh|gley|options` picks car physics or the Gley rides for the rides after it (TurnTests).
     internal static class RideCommand
@@ -65,6 +65,7 @@ namespace DrivenRides
             }
             finally
             {
+                Options.AutoparkOverride = null;
                 Busy = false;
                 result["ended"] = DateTime.Now.ToString("s", CultureInfo.InvariantCulture);
                 try { File.AppendAllText(Path.Combine(folder, "ride-results.jsonl"), result.ToString(Newtonsoft.Json.Formatting.None) + "\n"); }
@@ -87,6 +88,7 @@ namespace DrivenRides
             if (refuse != null) { result["refused"] = refuse; yield break; }
 
             var player = InstanceBehavior<GameManager>.Instance.playerController.transform;
+            result["radioBefore"] = RadioSnapshot();
             var target = Destination(args, player.position, result);
             if (target == null) { result["refused"] = "no destination building found"; yield break; }
 
@@ -159,20 +161,35 @@ namespace DrivenRides
 
             // The map in taxi mode, as the taxi's click opens it (for the own car, as L in the driver's seat does);
             // then the map's Go.
-            if (ownCar != null)
+            var shortcutKey = args.TryGetValue("shortcut", out var requestedKey) ? requestedKey : null;
+            if (args.TryGetValue("pin", out var pin) && pin == "on" && target is CityBuildingController pinTarget)
+                UI.Guiders.GuidersManager.SetGuiderTarget(pinTarget.building.Address, UI.Guiders.DirectionGuiderType.Destination);
+            if (ownCar != null && shortcutKey == null)
             {
                 OwnCarTaxi.Open();
                 if (!CityMap.IsOpen) { result["refused"] = "L in the car didn't open the map (see the notice in the log)"; Options.AutoparkOverride = null; yield break; }
             }
-            else InstanceBehavior<CityManager>.Instance.cityMap.SetTaxiMode(taxi);
+            else if (ownCar == null) InstanceBehavior<CityManager>.Instance.cityMap.SetTaxiMode(taxi);
             var until = Time.unscaledTime + 0.5f;
             while (Time.unscaledTime < until) yield return null;
             Ride.LastEnd = "";
             Ride.LastTally = default;
             var started = Time.unscaledTime;
-            InstanceBehavior<TaxiSystem>.Instance.TravelTo(target);
+            if (shortcutKey == null) InstanceBehavior<TaxiSystem>.Instance.TravelTo(target);
+            else
+            {
+                result["shortcut"] = shortcutKey;
+                var keyPress = DestinationTests.Press(shortcutKey);
+                while (keyPress.MoveNext()) yield return keyPress.Current;
+            }
             yield return null;
             result["driven"] = Ride.Active != null;
+            if (shortcutKey != null && Ride.Active != null)
+            {
+                var actualTarget = AccessTools.Field(typeof(Ride), "target")?.GetValue(Ride.Active) as CityBuildingController;
+                result["shortcutTarget"] = actualTarget != null ? actualTarget.building.StreetName + "#" + actualTarget.building.StreetNumber : null;
+                result["shortcutTargetMatches"] = ReferenceEquals(actualTarget, target);
+            }
             if (Ride.Active != null && args.TryGetValue("speed", out var sp) && float.TryParse(sp, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed))
                 Ride.Active.SetTestSpeed(Mathf.Clamp(speed, 1f, 3f));
             if (!TaxiSystem.IsTraveling && Ride.Active == null) { result["refused"] = "TravelTo started no ride (fare refused, or the map closed)"; yield break; }
@@ -181,13 +198,48 @@ namespace DrivenRides
             float After(string name) => args.TryGetValue(name, out var v) && float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : -1f;
             var skipAt = After("skip");
             var exitAt = After("exit");
+            var cancelAt = After("cancel");
+            float? radioDrivingSince = null;
+            Vector3? previousRoadPosition = null;
+            var roadTravelled = 0f;
+            var roadJumps = 0;
             while ((Ride.Active != null || TaxiSystem.IsTraveling) && Time.unscaledTime - started < 1200f)
             {
                 var elapsed = Time.unscaledTime - started;
+                if (Ride.IsDriving)
+                {
+                    if (radioDrivingSince == null) radioDrivingSince = Time.time;
+                    // Wait for actual simulation time after the map's pause/unpause transition.
+                    if (Time.time - radioDrivingSince.Value >= 1f && result["radioDuring"] == null)
+                        result["radioDuring"] = RadioSnapshot();
+                }
+                if (ownCar != null && args.TryGetValue("departonly", out var departOnly) && departOnly == "on" && Ride.IsDriving)
+                {
+                    var position = ownCar.transform.position;
+                    if (previousRoadPosition is Vector3 previous)
+                    {
+                        var step = Vector3.Distance(previous, position);
+                        // Vanilla bridge skips can happen immediately after the handoff. A large position jump
+                        // is not evidence that the road controller drove the car, so resume measuring after it.
+                        if (step <= Mathf.Max(3,40*Mathf.Min(Time.deltaTime,.5f))) roadTravelled += step;
+                        else roadJumps++;
+                    }
+                    else result["departureRoadStart"] = new JArray(position.x,position.y,position.z,ownCar.transform.eulerAngles.y);
+                    previousRoadPosition = position;
+                    result["roadMetres"] = roadTravelled;
+                    result["roadJumps"] = roadJumps;
+                    if (roadTravelled >= 20f)
+                    {
+                        result["departurePassed"] = true;
+                        Ride.CancelActive("parking test: departed and drove 20 m on the road");
+                    }
+                }
                 if (skipAt >= 0f && elapsed >= skipAt && Ride.Active != null) { Ride.Active.RequestSkip(); result["skipped"] = Math.Round(elapsed, 1); skipAt = -1f; }
                 if (exitAt >= 0f && elapsed >= exitAt && ownCar != null) { ownCar.ExitVehicle(); result["gotOut"] = Math.Round(elapsed, 1); exitAt = -1f; }
+                if (cancelAt >= 0f && elapsed >= cancelAt && Ride.Active != null) { Ride.CancelActive("ride test cancellation"); result["cancelled"] = Math.Round(elapsed, 1); cancelAt = -1f; }
                 yield return null;
             }
+            result["radioAfter"] = RadioSnapshot();
             result["seconds"] = Math.Round(Time.unscaledTime - started, 1);
             result["end"] = Ride.LastEnd.Length > 0 ? Ride.LastEnd : "vanilla ride";
             if (Ride.Active != null || TaxiSystem.IsTraveling) result["end"] = "still under way after 20 minutes";
@@ -205,11 +257,31 @@ namespace DrivenRides
                 result["inCar"] = SaveGameManager.Current?.ActiveVehicleId == ownCar.vehicleInstance.id;
                 result["keysBack"] = ownCar.vehicleController.input.autoSetInput;
                 result["driveLeft"] = ownCar.GetComponent<NwhDrive>() != null;
+                result["manoeuvreLeft"] = ownCar.GetComponent<NwhManoeuvre>() != null;
+                result["parkingReservationsLeft"] = ParkingTraffic.ActiveCount;
                 result["parkingState"] = ownCar.vehicleInstance.parkingState.ToString();
                 result["fuelAfter"] = Math.Round(ownCar.GetCurrentFuel(), 3);
                 result["carMetres"] = Math.Round(Vector3.Distance(ownCar.transform.position, target.GetNavMeshTargetPosition()), 1);
+                result["carEnd"] = new JArray(ownCar.transform.position.x, ownCar.transform.position.y, ownCar.transform.position.z, ownCar.transform.eulerAngles.y);
                 Options.AutoparkOverride = null;
             }
+        }
+
+        private static JObject RadioSnapshot()
+        {
+            var radio = InstanceBehavior<GameManager>.Instance.radioPlayer;
+            var source = radio != null ? AccessTools.Field(typeof(MusicPlayer), "audioSource")?.GetValue(radio) as AudioSource : null;
+            var controls = InstanceBehavior<UIs>.Instance?.smartphoneUI?.radioControls;
+            return new JObject
+            {
+                ["muted"] = radio == null || radio.IsMuted,
+                ["playing"] = source != null && source.isPlaying,
+                ["station"] = radio != null ? radio.GetCurrentStation().ToString() : "missing",
+                ["clip"] = source?.clip != null ? source.clip.name : "",
+                ["controls"] = controls != null && controls.radioPlaying,
+                ["headset"] = PlayerHelper.IsWearingHeadset(),
+                ["rideOwnsRadio"] = radio != null && RideRadio.Owns(radio)
+            };
         }
 
         // The player's own car (vehicle=..: by type name), put on the nearest free driving lane by the player, facing
@@ -223,6 +295,16 @@ namespace DrivenRides
             result["car"] = car.vehicleType.vehicleTypeName;
             result["autoparkSupported"] = car.vehicleType.autoParkSupported;
             var player = InstanceBehavior<GameManager>.Instance.playerController;
+            if (args.ContainsKey("parkseed"))
+            {
+                var park = ParkingTests.Seat(car, args, result);
+                while (park.MoveNext()) yield return park.Current;
+                if (result["refused"] != null) yield break;
+                // A failed fixture must never fall through to the lane-seating fixture and claim a parking pass.
+                if (!ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
+                { result["refused"] = "could not enter the car in its legal parking space"; yield break; }
+                found(car); yield break;
+            }
             // kerb=M: seated M metres to the right of the lane, as a car parked at the kerb.
             var kerb = args.TryGetValue("kerb", out var kv) && float.TryParse(kv, NumberStyles.Float, CultureInfo.InvariantCulture, out var km) ? km : 0f;
             if (kerb != 0f && ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
@@ -269,7 +351,9 @@ namespace DrivenRides
             // owns a building inside (TaxiSystem.CanEnterPrivateFence).
             var all = Object.FindObjectsOfType<CityBuildingController>(true).Where(b => b != null && b.building != null && b.building.locatedInsidePrivateFenceIndex < 0).ToList();
             CityBuildingController? pick;
-            if (args.ContainsKey("x") && args.ContainsKey("z"))
+            if (args.TryGetValue("address", out var address))
+                pick = all.FirstOrDefault(b => b.building.StreetName + "#" + b.building.StreetNumber == address);
+            else if (args.ContainsKey("x") && args.ContainsKey("z"))
             {
                 var at = new Vector3(Arg("x", 0f), 0f, Arg("z", 0f));
                 pick = all.OrderBy(b => Flat(b.transform.position - at)).FirstOrDefault();

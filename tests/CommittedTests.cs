@@ -100,10 +100,21 @@ public sealed class CommittedTests
     [InlineData(1f)]
     public void TooLateAndNotClearIsAStopNow(float trigger)
     {
-        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: trigger);
+        // 12 m away is still an immediate conflict with the shorter gameplay headway.
+        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -12f, crossMs: 10f, standingAtZ: null, trigger: trigger);
         output.WriteLine($"{d.Why} yield {d.YieldAlong}");
         Assert.True(d.YieldAlong <= 30.5f);
         Assert.Contains(1, d.EmergencyFor);
+    }
+
+    [Fact]
+    public void ClearsAShortGapInsteadOfStoppingForThePreviousExtraHeadway()
+    {
+        // The old 0.8 s buffer stopped here. With the 0.6 s policy the car can clear this crossing, even without
+        // relying on the other car's trigger to stop it. The nearer car above must still produce an emergency stop.
+        var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: 1f);
+        Assert.Null(d.YieldAlong);
+        Assert.DoesNotContain(1, d.EmergencyFor);
     }
 
     // Peter, 14 October: Gley's cars stop for anything in their trigger, so with a 5 m one (about Gley's) the car 18 m

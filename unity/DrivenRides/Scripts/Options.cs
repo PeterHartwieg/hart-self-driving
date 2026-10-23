@@ -21,6 +21,8 @@ namespace DrivenRides
         // A new id: the first settings build stored a dropdown index under "clock".
         private const string ClockId = "clockpercent";
         private const string ShortcutId = "shortcut";
+        private const string PinnedKeyId = "pinnedkey";
+        private const string HomeKeyId = "homekey";
         private const string LightsId = "lights";
         private const string PedestriansId = "pedestrians";
         private const string SpeedLimitsId = "nolimits";
@@ -42,6 +44,8 @@ namespace DrivenRides
         public static int ClockPercent { get; private set; } = DefaultClockPercent;
         public static float ClockFactor => ClockPercent / 100f;
         public static bool Shortcut { get; private set; } = true;
+        public static int PinnedKey { get; private set; } = DestinationShortcut.DefaultPinnedKey;
+        public static int HomeKey { get; private set; } = DestinationShortcut.DefaultHomeKey;
         // Taxi and private driver rides drive with the car's own physics (NWH, phase 5); off, they are the Gley rides
         // as before. The rig's `ridemode` command overrides it for a session without touching PlayerPrefs.
         public static bool CarPhysics { get => CarPhysicsOverride ?? carPhysics; private set => carPhysics = value; }
@@ -68,6 +72,8 @@ namespace DrivenRides
             RideSpeed = SpeedAt(UnityEngine.PlayerPrefs.GetInt(Key(SpeedId), DefaultSpeedIndex));
             ClockPercent = ClampClock(UnityEngine.PlayerPrefs.GetInt(Key(ClockId), DefaultClockPercent));
             Shortcut = UnityEngine.PlayerPrefs.GetInt(Key(ShortcutId), 1) != 0;
+            PinnedKey = DestinationShortcut.ValidKey(UnityEngine.PlayerPrefs.GetInt(Key(PinnedKeyId), DestinationShortcut.DefaultPinnedKey), DestinationShortcut.DefaultPinnedKey);
+            HomeKey = DestinationShortcut.ValidKey(UnityEngine.PlayerPrefs.GetInt(Key(HomeKeyId), DestinationShortcut.DefaultHomeKey), DestinationShortcut.DefaultHomeKey);
             TrafficLights = UnityEngine.PlayerPrefs.GetInt(Key(LightsId), 1) != 0;
             Pedestrians = UnityEngine.PlayerPrefs.GetInt(Key(PedestriansId), 0) != 0;
             IgnoreSpeedLimits = UnityEngine.PlayerPrefs.GetInt(Key(SpeedLimitsId), 0) != 0;
@@ -91,7 +97,11 @@ namespace DrivenRides
                 .AddToggle(LightsId, "drivenrides:options_lights", true, value => { TrafficLights = value; Log.Info($"Option: stop at red lights {(value ? "on" : "off")}."); })
                 .AddToggle(PedestriansId, "drivenrides:options_pedestrians", false, value => { Pedestrians = value; Log.Info($"Option: stop for pedestrians {(value ? "on" : "off")}."); })
                 .AddToggle(SpeedLimitsId, "drivenrides:options_nolimits", false, value => { IgnoreSpeedLimits = value; Log.Info($"Option: ignore speed limits {(value ? "on" : "off")}."); })
-                .AddToggle(ShortcutId, "drivenrides:options_shortcut", true, value => { Shortcut = value; Log.Info($"Option: driver shortcut {(value ? "on" : "off")}."); });
+                .AddToggle(ShortcutId, "drivenrides:options_shortcut", true, value => { Shortcut = value; Log.Info($"Option: driver shortcut {(value ? "on" : "off")}."); })
+                .AddDropdown(PinnedKeyId, "drivenrides:options_pinned_key", DestinationShortcut.Labels, DestinationShortcut.DefaultPinnedKey,
+                    index => PinnedKey = DestinationShortcut.ValidKey(index, DestinationShortcut.DefaultPinnedKey))
+                .AddDropdown(HomeKeyId, "drivenrides:options_home_key", DestinationShortcut.Labels, DestinationShortcut.DefaultHomeKey,
+                    index => HomeKey = DestinationShortcut.ValidKey(index, DestinationShortcut.DefaultHomeKey));
             OptionsService.Register(id, options);
             Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, own car {(OwnCar ? "on" : "off")}, autopark {Autopark}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}, car physics {(CarPhysics ? "on" : "off")}.");
         }

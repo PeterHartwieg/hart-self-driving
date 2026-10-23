@@ -72,6 +72,7 @@ name, folder, game_build = cfg["MOD_NAME"], cfg["MOD_FOLDER"], cfg["GAME_BUILD"]
 manifest_asset = (MOD / "ModManifest.asset").read_text(encoding="utf-8")
 mod_cs = (MOD / "Scripts" / "DrivenRidesMod.cs").read_text(encoding="utf-8")
 readme = (REPO / "README.md").read_text(encoding="utf-8")
+changelog = (REPO / "CHANGELOG.md").read_text(encoding="utf-8")
 locale_path = MOD / "Locales" / "en.json"
 try:
     locale = json.loads(locale_path.read_text(encoding="utf-8"))
@@ -92,6 +93,8 @@ if manifest_version != version:
     fail(f"ModManifest.asset Version {manifest_version} differs from DrivenRidesMod.Version {version}.")
 if f"Version {version}" not in readme:
     fail(f"The README doesn't say 'Version {version}'.")
+if not re.search(r"^## " + re.escape(version) + r"(?:\s|$)", changelog, re.M):
+    fail(f"The changelog has no entry for {version}.")
 if f"build {game_build}" not in readme:
     fail(f"The README doesn't name the target game build {game_build}.")
 
@@ -133,7 +136,7 @@ if preview.stat().st_size > PREVIEW_LIMIT:
 
 expected = {
     "DrivenRides.dll", "Dependencies/DrivenRides.Core.dll", "Dependencies/0Harmony.dll",
-    "Dependencies/Harmony-LICENSE.txt", "Locales/en.json", "README.md", "LICENSE.txt", preview.name,
+    "Dependencies/Harmony-LICENSE.txt", "Locales/en.json", "README.md", "CHANGELOG.md", "LICENSE.txt", preview.name,
 }
 files = {p.relative_to(out).as_posix(): p for p in sorted(out.rglob("*")) if p.is_file()}
 for missing in sorted(expected - files.keys()):
@@ -167,7 +170,8 @@ for rel, path in files.items():
         continue
     if recorded.get(rel) != sha256(path):
         fail(f"{rel} doesn't match build/DrivenRides.sha256.")
-for rel, source in (("Locales/en.json", locale_path), ("README.md", REPO / "README.md"), ("LICENSE.txt", REPO / "LICENSE.txt")):
+for rel, source in (("Locales/en.json", locale_path), ("README.md", REPO / "README.md"),
+                    ("CHANGELOG.md", REPO / "CHANGELOG.md"), ("LICENSE.txt", REPO / "LICENSE.txt")):
     if rel in files and sha256(files[rel]) != sha256(source):
         fail(f"{rel} differs from the repo's copy; rebuild with tools/build-mod.sh.")
 

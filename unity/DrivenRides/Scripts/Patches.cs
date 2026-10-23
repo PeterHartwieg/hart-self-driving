@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Linq;
 using BigAmbitions.DayNightCycle;
+using BigAmbitions.Items;
 using GleyTrafficSystem;
 using Helpers;
 using HarmonyLib;
@@ -47,12 +48,21 @@ namespace DrivenRides
             Patch(typeof(GameSpeedController), "SetPause", new[] { typeof(bool), typeof(bool) }, nameof(SetPausePrefix), prefix: true);
             // ... and the street stays audible: the phone's UI-only sound mix is normally undone by the unpause.
             Patch(typeof(SfxManager), "SetSoundSnapshotCityMap", new[] { typeof(bool), typeof(float) }, nameof(PhoneSoundPrefix), prefix: true);
+            // Passenger rides have a car radio even though vanilla's vehicle state still says "on foot".
+            Patch(typeof(RadioPlayer), "OnAccessoryEquipped", new[] { typeof(CargoInstance) }, nameof(RadioAccessoryPrefix), prefix: true);
+            Patch(typeof(RadioPlayer), "OnAccessoryUnEquipped", new[] { typeof(CargoInstance) }, nameof(RadioAccessoryPrefix), prefix: true);
             // No taxi or driver ride while turn tests run, before the fare is taken.
             Patch(typeof(TaxiSystem), "TravelTo", new[] { typeof(EntityController) }, nameof(TravelToPrefix), prefix: true);
             // The ride steers an arc turn by moving Gley's target for its car each physics step, before the drive job.
             Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPrefix), prefix: true);
             // ... and after Gley has turned it, the ride car turns about its middle, not its origin.
             Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPostfix));
+            // Local parking reserves its swept area. Scope Gley's ignored flag to this call, even on exceptions.
+            var parkingMovement = Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes,
+                nameof(ParkingTrafficPrefix), prefix: true, finalizer: nameof(ParkingTrafficFinalizer));
+            var parkingSpawn = Patch(typeof(PositionValidator), "IsValid", new[] { typeof(UnityEngine.Vector3), typeof(float),
+                typeof(float), typeof(float), typeof(bool), typeof(float), typeof(UnityEngine.Quaternion) }, nameof(ParkingSpawnPrefix), prefix: true);
+            ParkingTraffic.HooksReady = parkingMovement && parkingSpawn;
             // An own-car ride costs no fare.
             Patch(typeof(TaxiSystem), "GetPrice", new[] { typeof(float) }, nameof(PricePrefix), prefix: true);
             // The own car driving itself: the steering assist held off, and getting out ends the ride first.
@@ -67,6 +77,8 @@ namespace DrivenRides
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
 
+        private static bool RadioAccessoryPrefix(RadioPlayer __instance) => !RideRadio.Owns(__instance);
+
         private static void TrafficFixedPrefix()
         {
             try { Ride.SteerArcs(); }
@@ -79,20 +91,44 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Turning about the middle: " + ex.Message); }
         }
 
+        private static void ParkingTrafficPrefix(TrafficManager __instance, out ParkingTraffic.Frame? __state)
+        {
+            __state = null;
+            if (ParkingTraffic.ActiveCount == 0) return;
+            __state = new ParkingTraffic.Frame(__instance);
+            ParkingTraffic.BeforeTraffic(__state);
+        }
+
+        private static Exception? ParkingTrafficFinalizer(Exception? __exception, ParkingTraffic.Frame? __state)
+        {
+            __state?.Dispose();
+            return __exception;
+        }
+
+        private static bool ParkingSpawnPrefix(UnityEngine.Vector3 position, float halfVehicleLength,
+            float halfVehicleWidth, float frontWheelOffset, UnityEngine.Quaternion rotation, ref bool __result)
+        {
+            if (ParkingTraffic.AllowsSpawn(position, halfVehicleLength, halfVehicleWidth, frontWheelOffset, rotation)) return true;
+            __result = false;
+            return false;
+        }
+
         public static void Remove()
         {
+            ParkingTraffic.ReleaseActive();
+            ParkingTraffic.HooksReady = false;
             harmony?.UnpatchAll(HarmonyId);
             harmony = null;
         }
 
-        private static void Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false, string? finalizer = null)
+        private static bool Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false, string? finalizer = null)
         {
             // Overloads need their arguments in the log line to tell them apart.
             var name = $"{type?.Name ?? "(type not found)"}.{method}{(args != null && args.Length > 0 ? "(" + string.Join(", ", args.Select(a => a.Name)) + ")" : "")}";
             if (type == null)
             {
                 Log.Error($"Patch {name}: Not active, type not found.");
-                return;
+                return false;
             }
             try
             {
@@ -100,16 +136,18 @@ namespace DrivenRides
                 if (original == null)
                 {
                     Log.Error($"Patch {name}: Not active, method not found.");
-                    return;
+                    return false;
                 }
                 var patch = new HarmonyMethod(typeof(Patches), handler);
                 harmony!.Patch(original, prefix: prefix ? patch : null, postfix: prefix ? null : patch,
                     finalizer: finalizer != null ? new HarmonyMethod(typeof(Patches), finalizer) : null);
                 Log.Info($"Patch {name}: Active.");
+                return true;
             }
             catch (Exception ex)
             {
                 Log.Error($"Patch {name}: Not active, {ex.Message}");
+                return false;
             }
         }
 

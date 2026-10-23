@@ -9,6 +9,10 @@ param(
     [string]$ModsLocal = (Join-Path $env:USERPROFILE 'AppData\LocalLow\Hovgaard Games\Big Ambitions\ModsLocal')
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $env:USERPROFILE '.big-ambitions-bridge\Control.ps1')
+$controlLease=[BridgeControl.LeaseStore]::ForInstance('normal')
+$controlPermit=$controlLease.Begin($env:BA_LOCK_TOKEN,'lifecycle')
+try {
 $Source = (Resolve-Path $Source).Path
 $Manifest = (Resolve-Path $Manifest).Path
 if (Get-Process 'Big Ambitions' -ErrorAction SilentlyContinue) { throw 'Big Ambitions is running. Close the game before installing.' }
@@ -51,3 +55,5 @@ try {
 Remove-Item $Source -Recurse -Force
 Remove-Item $Manifest -Force
 "Installed and verified $($expected.Count) files in $target"
+
+} finally { $controlLease.End($controlPermit) }

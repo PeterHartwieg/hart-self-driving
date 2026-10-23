@@ -4,6 +4,16 @@ The mod drives the manoeuvres it adds (and the ramps) by itself, with the car mo
 
 The design went through six review rounds (Fable 5.1, GPT 6 Astra; `build/review-tests/`, not committed) and was then cut back to this lean version on purpose: it is a test rig. Left out for now: a kerb check, crests, a traffic-on pass, from-stop variants, Hamptons house-loading checks.
 
+## Isolated agent player
+
+For unattended parking tests use the separate PC player documented in `tools/agent-tests/README.md`. Its bridge
+is port 18330, its lock is `agent1`, and its test directory is under `Big Ambitions Agent Tests/DrivenRides/tests`.
+The normal `tools/turn-tests.sh` still targets the ordinary game's profile; do not use it for this instance.
+Acquire the agent lease, deploy only into its stopped profile, and submit command files under that lease while
+paused before resuming via its bridge. Keep the normal game untouched. Stop the agent and wait for its process to
+exit before releasing the lease between fixes. Headless results establish simulation behaviour, not appearance.
+A failed local search records replay geometry in `manoeuvre-worlds.jsonl` when test mode is enabled.
+
 ## Session
 
 `TurnTests` (game side) owns the session.
@@ -60,6 +70,47 @@ Commands: `cars`; `catalogue`; `run tier=quick|full`; `run [kinds=turn,uturn,lan
 
 Real rides from the Mac: `ride [kind=taxi|stand|driver] [vehicle=<part of the type name>] [min=500] [max=1500] [x=.. z=..] [seed=N] [speed=1|2|3] [hamptons=on]` hails the nearest taxi (within 200 m), uses the nearest stand (400 m) or calls the private driver and waits for it, picks a destination building (random between `min` and `max` metres, or the one nearest `x`, `z`) and calls `TaxiSystem.TravelTo` as the map's Go button does, fare included (`RideCommand`). It needs no session; it refuses while one runs. One line per ride in `ride-results.jsonl`: `driven`, `carPhysics`, `end`, `seconds`, the NWH tally (`contacts`, `contactsCaused`, `redRuns`, `stalls`) and `arrivedMetres`. `ridemode nwh|gley|options` drives the rides after it with car physics, as Gley rides, or as the options page says, until the game quits.
 
+For a repeatable exact destination, add `address=ba:street_firstavenue#31` (street locale key, `#`, number); it takes
+precedence over `x`/`z`, which match building controller positions rather than door positions. `kind=own` uses the
+player's car with `autopark=off|cars|every`. `kerb=M` places it M metres right of a lane to test departure;
+`kerb=0.01` re-seats it in the lane, while omitting `kerb` preserves a parked car's pose. `skip=N`, `exit=N`
+(own car) and `cancel=N` interrupt N seconds into the ride. Results include `radioBefore`, `radioDuring` (once
+road driving begins) and `radioAfter`: mute/playback state, station/clip, controls, headset and radio ownership.
+The background rig mutes its audio listener, so these observations do not establish speaker-level audibility.
+Own-car results also record `keysBack`, `inCar`, `driveLeft`, `manoeuvreLeft`
+`parkingReservationsLeft` (must be zero) and `parkingState`. The contact/red/stall tally covers the road drive; manoeuvre outcomes are in the game log.
+
+## Seeded legal-parking departures
+
+`ride kind=own parkseed=N parking=bays|parallel|all departonly=on autopark=off` places the owned test car in an
+actual free legal parking spot, enters it, and invokes the normal self-driving ride. The fixture saves/restores
+Unity's random state, checks occupancy (cars, buildings and props), and requires all wheels to be legally parked.
+It never removes neighbouring cars. `parknear=x,z` restricts selection to the four nearest parking areas;
+`parkreverse=on` reverses the parked orientation before checking legality. Without `parkseed`, the parked pose is
+preserved. Use a disposable FT checkpoint containing the selected car.
+
+`departonly=on` stops after the local exit and 20 m of road driving. Results include `parkingSeed`, `parkingSite`,
+`parkingStart` (x,y,z,yaw), `parkingLegal`, `departurePassed`, `departureRoadStart`, `roadMetres`, `roadJumps` and
+final control/reservation state. Large position jumps (including vanilla bridge skips) do not count toward the
+20 m of physical road driving; measurement resumes after the jump.
+Population can change after reload, so the exact selected pose is recorded in addition to the seed.
+A refusal or safe cancellation is recorded as a failed departure, never a successful fixture.
+
+The Windows runner verifies every installed package hash, reloads the checkpoint per seed, and leaves the world
+paused. Acquire `agent1` ownership and start its background player first, following `tools/agent-tests/README.md`:
+
+```sh
+python3 tools/agent-tests/parking-cases.py --checkpoint 'FT Parking checkpoint' \
+  --seeds 1,2,3,4,5 --parking bays --near=-270,-341 \
+  --output build/parking-cases.jsonl
+```
+
+Repeat with `--reverse`, `--parking parallel`, and without `--near` for wider coverage. A pass requires a legal
+start, 20 m of road driving, no contacts/red runs, returned controls and no remaining controllers or reservation.
+Keep blocked cases in the results. The runner does not install a mod, create a production save, acquire another
+owner's lock or touch the normal game. Stop/release the isolated rig after the sweep. `parking-sites` surveys legal
+parking areas; `parking-ground` exports nearby render geometry for diagnosis into the ignored rig-data folder.
+
 ## Tiers and the avoid list
 
 - **Quick** (`run tier=quick`, about 10 minutes, after any update): the controls, every manoeuvre on the avoid list, and a fixed sample of 30 cases per kind, with the car with the largest turning circle.
@@ -86,3 +137,23 @@ Cases are short (50 m run-up, 40 m run-out: the car reaches its top speed in abo
 An added turn is driven along a driver's arc where one fits (Core `TurnArc`): on along the entry lane, one circular arc, out in line with the exit lane. The arc should start no earlier than 3.5 m before the first lane crossing the entry lane (half a lane to the kerb line, and 1.5 m more for a wider curve at a large junction) and end by the far side of the junction; where that is tighter than the car can follow (its turning circle plus 15%, and never under 6.5 m, so a nimble car doesn't pivot round the corner), it starts a little earlier. The ride steers it by moving Gley's target for the car to 1.1 m past its front axle along the arc each physics step, from 12 m before the entry waypoint (Gley lets go of the entry 5 m before it). The world check drives the same pursuit in Core's `TurnDrive` (Gley's steering: front-axle target, 5 m centre-of-mass reach, quickened wheel) and tests the car's body box, 0.2 m larger, against street props, buildings and, from 0.35 m up, the road's own colliders. A turn with no clear arc falls back to its vias and an aim down the exit lane.
 
 A U-turn is checked the same way: `TurnDrive` drives it through its vias at the ride's U-turn speed and 20 m on down the lane (a long car came out at an angle and swung onto the pavement past a shorter check), and the body box must stay clear. A car that can't make one cleanly goes round the block (Peter: few drivers would U-turn a car that size). The model tracks recorded U-turns to about 0.05 m and errs wide, so it blocks the odd U-turn a long car could just make.
+
+
+## Quick destination key probes
+
+With test mode enabled, `destinations op=status` records the current home/pin, binding indices, travel state,
+nearby residences and taxi stands in `destination-results.jsonl`. The command refuses non-FT saves.
+`destinations op=key key=J` queues actual Unity Input System keyboard events for the regular shortcut Update;
+`modifier=LeftCtrl` checks modifier suppression. It does not directly invoke the shortcut or travel handler.
+
+Fixture operations: `pin address=<street_key>#<number>`, `clear-pin`, `enter address=...`, `exit`, `map`,
+and `bind which=pinned|home index=0..6` (Disabled/G/J/K/U/V/X). Enter runs the real building-entry flow;
+bind uses the registered option callback and its normal PlayerPrefs key. Use only an owned disposable test
+world and restore preferences after the run. `driver-fixture vehicle=<type>` can register a test-only private
+vehicle when the fixture has none; the normal phone still summons it.
+
+`ride ... shortcut=J pin=on` prepares the ordinary ride fixture, pins its selected target and injects J instead
+of calling TravelTo. For own-car rides it leaves the map closed so the shortcut opens it. For taxi, stand and
+driver rides it opens the normal destination map first. `shortcut=K address=...` tests the previously visited
+home; it does not seed home memory. Results include the actual ride target and whether it matches the expected
+fixture target. Retain refusals and vanilla fallbacks separately from successful driven trips.

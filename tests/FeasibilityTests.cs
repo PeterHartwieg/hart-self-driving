@@ -135,8 +135,9 @@ public sealed class FeasibilityTests
         var (graph, entry, exit) = TurnTestGraph.Turn();
         var flat = new Feasibility(graph, Small(), _ => null) { GroundAt = _ => 0f };
         Assert.True(flat.Step(entry, exit).Feasible);
-        // A pavement 0.15 m up, starting just left of the approach lane: the left wheels (with the margin) are on it.
-        var kerb = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -1f ? 0.15f : 0f };
+        // A pavement 0.15 m up under the left tyre (track / 2 = 0.75 m). Put it under the tyre itself, so this
+        // fixture tests a kerb strike without depending on the old slower tune's drift toward x = -1.
+        var kerb = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -0.65f ? 0.15f : 0f };
         var verdict = kerb.Step(entry, exit);
         output.WriteLine(verdict.ToString());
         Assert.False(verdict.Feasible);
@@ -183,6 +184,27 @@ public sealed class FeasibilityTests
     }
 
     [Fact]
+    public void ALongCarKeepsATightArcByTakingItBelowThePreferredCornerSpeed()
+    {
+        // The measured Dash: using the faster corner target to size candidate arcs rejected this 12 m bend.
+        // Keep the arc available, then let the existing speed-sensitive lock cap set its actual pace.
+        var car = CarSpec.Parse("dash;4.02;65;-0.005,1.436,1.624;1.128,1.164,3.404;0=35,10=33.28,25=26.39,50=14.73;1.7;140");
+        var b = new TurnTestGraph();
+        int start = b.Add(0, -40), entry = b.Add(0, 20), j1 = b.Add(0, 25, true), j2 = b.Add(0, 35, true), north = b.Add(0, 45);
+        b.Link(start, entry, j1, j2, north);
+        int west = b.Add(-20, 32), before = b.Add(-10, 32), c1 = b.Add(-5, 32, true), c2 = b.Add(5, 32, true), exit = b.Add(12, 32), end = b.Add(80, 32);
+        b.Link(west, before, c1, c2, exit, end);
+        var graph = b.Build(true);
+        var arc = TurnArc.Fit(graph.Position(entry), 0, 1, graph.Position(exit), 1, 0, car.ArcMinRadius(), 12f);
+        Assert.NotNull(arc);
+        var plan = DrivePlan.Build(graph, new[] { start, entry, exit, end }, car, (e, x) => e == entry && x == exit ? arc : null);
+        Assert.Single(plan.Arcs);
+        var cap = Assert.Single(plan.Slow).SpeedKmh / 3.6f;
+        Assert.InRange(cap, PursuitDriver.MinCornerMs, (float)Math.Sqrt(PursuitDriver.Lateral * arc.Radius) - 0.1f);
+        Assert.True(car.RadiusAt(cap) * TurnArc.RadiusSlack <= arc.Radius);
+    }
+
+    [Fact]
     public void TheDriverFollowsAnArcWithNwhsAckermann()
     {
         // As PursuitDriverTests' corner, with the limo's track: steering for the car's real curvature keeps it on the
@@ -208,7 +230,8 @@ public sealed class FeasibilityTests
         var aware = Widest(1.42f);
         var bicycle = Widest(0f);
         output.WriteLine($"widest off the line: steering for NWH's Ackermann {aware:0.00} m, for a bicycle {bicycle:0.00} m");
-        Assert.True(aware < 0.6f, $"{aware} m");
+        // At the faster 6 m/s² tune this is 0.71 m (0.6 m bound at 4); Ackermann must still improve tracking.
+        Assert.True(aware < 0.75f, $"{aware} m");
         Assert.True(aware < bicycle);
     }
 }

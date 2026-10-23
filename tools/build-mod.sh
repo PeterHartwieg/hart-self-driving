@@ -80,7 +80,7 @@ OUT="$REPO/build/DrivenRides"
 rm -rf "$OUT"
 cp -R "$SDK/Output/DrivenRides" "$OUT"
 cp "$REPO/build/Harmony-LICENSE.txt" "$OUT/Dependencies/Harmony-LICENSE.txt" 2>/dev/null || true
-cp "$REPO/README.md" "$REPO/LICENSE.txt" "$OUT/"
+cp "$REPO/README.md" "$REPO/CHANGELOG.md" "$REPO/LICENSE.txt" "$OUT/"
 ( cd "$OUT" && find . -type f | sort | xargs shasum -a 256 ) > "$REPO/build/DrivenRides.sha256"
 echo "Built $OUT"
 cat "$REPO/build/DrivenRides.sha256"

@@ -50,11 +50,11 @@ namespace DrivenRides.Core.Drive
         public const float Decel = TrafficMargins.Decel;
         public const float HardDecel = 5f;
         public const float StopGap = TrafficMargins.StopGap;
-        // Sideways acceleration in a corner: 4 m/s² takes a 6.5 m arc at 18 km/h and a 20 m one at 32 (Peter, NWH
-        // spike: larger turns faster; at 2.5 every corner felt slow; 14 October: faster turns, as a confident player
-        // drives). The rig's traces hold the line to 0.3 m at the median and 0.9 m at the 95th percentile up to 4 m/s²;
-        // past it the error grows (3.6 m at the 95th percentile at 4 to 4.5).
-        public const float Lateral = 4f;
+        // Sideways acceleration in a corner: 6 m/s² takes a 6.5 m arc at 22 km/h and a 20 m one at 39. The former
+        // 4 m/s² limit favoured tracking precision; Peter prefers quicker game trips and accepts some extra drift
+        // (21 October). The planner still checks the driven body/tyres at this speed, and DrivePlan keeps enough
+        // steering lock in reserve. The measured speed/error tradeoff and rig limitations are recorded in CHECKS.md.
+        public const float Lateral = 6f;
         public const float MinCornerMs = 12f / 3.6f;
         public const float LagSeconds = 0.25f;
 
@@ -141,6 +141,9 @@ namespace DrivenRides.Core.Drive
             {
                 desired = Math.Min(desired, Follow(gap, i.GapSpeed));
                 holding |= gap < StopGap + 3f && i.GapSpeed < LeaderOffMs;
+                // A stationary queue needs the same distance-based braking as a stop line. Speed feedback alone
+                // can keep coasting above the shrinking target speed, then reach the bumper before stopping.
+                if (i.GapSpeed < LeaderOffMs) need = Math.Max(need, Need(i.SpeedMs, gap - StopGap));
             }
             if (i.MaxSpeed is float cap) desired = Math.Min(desired, cap);
             if (along + frontAhead >= Length - 1f) desired = 0f;
@@ -275,7 +278,7 @@ namespace DrivenRides.Core.Drive
         // at LeaderBrake, stops StopGap behind where that car stops, braking at FollowBrake. A car that stands is
         // the plain stop at Decel as before. Treating every car ahead as standing kept the ride car 2.3 to 2.6 s
         // behind normal traffic and crawling (T3 20261013-191420: "very slow, even on straights"); this settles at
-        // about 1.3 s behind a car at 10 m/s.
+        // the shorter moving gap chosen in TrafficMargins.
         public const float FollowReaction = TrafficMargins.FollowReaction;
         public const float FollowBrake = TrafficMargins.FollowBrake;
         public const float LeaderBrake = TrafficMargins.LeaderBrake;

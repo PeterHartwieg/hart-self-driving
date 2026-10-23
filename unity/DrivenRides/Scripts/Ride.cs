@@ -29,7 +29,7 @@ namespace DrivenRides
     internal sealed class Ride
     {
         private enum Kind { Taxi, Stand, PrivateDriver, OwnCar, Test }
-        private enum Phase { Boarding, Driving, Bridging, Stopping, Finishing, Done }
+        private enum Phase { Boarding, Unparking, Driving, Bridging, Stopping, Parking, Finishing, Done }
         private enum Outcome { None, Complete, Vanilla }
 
         private const long PlanBudgetMs = 100;
@@ -75,6 +75,13 @@ namespace DrivenRides
         private NwhRideCar? nwh;
         private NwhDrive? nwhDrive;
         private bool nwhReleased;
+        private bool needsUnpark, skipParking;
+        private List<DepartureEntry>? departureEntries;
+        public bool VisibleParking => outcome == Outcome.Complete && !skipParking;
+        public bool ParkingSkipped => skipParking;
+        internal bool ParkingApproach { get; set; }
+        public string? PanelStatus => phase == Phase.Unparking ? "drivenrides:panel_unparking"
+            : phase == Phase.Parking ? "drivenrides:panel_parking" : null;
         // The car the player sees and rides in.
         private Transform Body => nwh != null && nwh.Car.Root != null ? nwh.Car.Root.transform : car.transform;
         private bool PlayerInside => nwh != null && nwh.PlayerInside;
@@ -103,6 +110,7 @@ namespace DrivenRides
         private readonly RideTrace trace = new RideTrace();
         private CollisionProbe? probe;
         private readonly List<AudioSource> muted = new List<AudioSource>();
+        private RideRadio? radio;
         // Where each waypoint sits in the current route, for the HasReachedOrPassedWaypoint prefix.
         private readonly Dictionary<int, int> routeIndex = new Dictionary<int, int>();
         private RideWatch? watch;
@@ -139,7 +147,7 @@ namespace DrivenRides
         private Outcome outcome = Outcome.None;
         private string outcomeReason = "";
 
-        public bool ShowPanel => phase == Phase.Driving || phase == Phase.Stopping;
+        public bool ShowPanel => phase == Phase.Driving || phase == Phase.Stopping || phase == Phase.Unparking || phase == Phase.Parking;
         // What the ride panel shows as the distance left, updated while the ride drives or stops.
         public double PanelLeftMetres { get; private set; }
 
@@ -273,6 +281,8 @@ namespace DrivenRides
             CarController? ownCar = null;
             NwhCar? ownNwh = null;
             var ownSideways = float.MaxValue;
+            var unpark = false;
+            List<DepartureEntry>? ownEntries = null;
             try
             {
                 if (Active != null) return Vanilla("a ride is still active");
@@ -377,12 +387,28 @@ namespace DrivenRides
                 }
                 else if (ownCar != null)
                 {
-                    spawn = SpawnBeside(manager, ownCar.transform, prefab);
-                    if (spawn == null) return Vanilla("no free lane beside the car");
-                    // The line must start under the car: from the lane waypoint behind its rear axle, not one ahead.
                     var ownY = ownCar.transform.position.y;
-                    start = OwnCarTaxi.StartUnder(graph, ownCar, spawn.listIndex, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out ownSideways);
-                    Log.Trace(ownSideways < float.MaxValue ? $"Own car: starts on the step from waypoint {start}, {ownSideways:+0.0;-0.0} m to the side of it." : $"Own car: no lane step runs under the car; nearest waypoint {start}.");
+                    start = OwnCarTaxi.StartUnder(graph, ownCar, -1, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out ownSideways);
+                    // Keep the established curbside pull-out for nearby parallel strips. Bays and remote
+                    // parking areas need the new aisle/driveway connection, independent of the parked heading.
+                    var roadsideParallel = start >= 0 && Mathf.Abs(ownSideways) <= 6f
+                        && OwnCarParking.IsLegal(ownCar, parallelOnly: true);
+                    if (OwnCarParking.IsLegal(ownCar) && !roadsideParallel)
+                    {
+                        // A parking bay's heading says nothing about the direction of the road outside it.
+                        // Candidates are provisional until the local exit and the road route both pass.
+                        ownEntries = DepartureEntryPicker.Pick(graph, GleyGraph.ToVec(ownCar.transform.position), planNwh!.Car,
+                            vehicleType, GleyGraph.IsDisabled, (a, b) => Gates.LockedStep(a, b) || GleyGraph.IsBlockedStep(a, b));
+                        if (ownEntries.Count == 0) return Vanilla("no road entry near the parking area");
+                        start = ownEntries[0].From;
+                        unpark = true;
+                        Log.Trace($"Own car: parked departure, {ownEntries.Count} possible road entries.");
+                    }
+                    else
+                    {
+                        if (start < 0) return Vanilla(OwnCarTaxi.NotInLane + ": no lane step runs under the car its way");
+                        Log.Trace($"Own car: starts on the step from waypoint {start}, {ownSideways:+0.0;-0.0} m to the side of it.");
+                    }
                 }
                 else
                 {
@@ -412,8 +438,45 @@ namespace DrivenRides
                 Route? route = null;
                 List<Goal> goals = new List<Goal>();
                 var origin = car != null ? car.transform : ownCar != null ? ownCar.transform : null;
+                Route? PlanStart(List<Goal> wanted, out long elapsed, out string reason)
+                {
+                    if (ownEntries == null) return Plan(graph, start, wanted, vehicleType, out elapsed, out reason);
+                    var clock = Stopwatch.StartNew(); var tried = new HashSet<int>(); reason = "no route from a parking exit";
+                    foreach (var entry in ownEntries)
+                    {
+                        if (!tried.Add(entry.From)) continue;
+                        if (tried.Count > 12) break;
+                        var candidate = planNwh!.PlanRoute(graph, entry.From, wanted, vehicleType);
+                        if (candidate.Route == null || candidate.Plan == null) continue;
+                        if (candidate.Plan.Line(graph).JoinMiss(entry.Position.X, entry.Position.Z, entry.Heading, out _) != null) continue;
+                        planNwhPlan = candidate.Plan; elapsed = clock.ElapsedMilliseconds; return candidate.Route;
+                    }
+                    elapsed = clock.ElapsedMilliseconds; return null;
+                }
+                // Finish beside a parallel parking strip, facing its way. Occupancy is resolved on arrival when
+                // the game has populated the destination; the road route never contains a parking manoeuvre.
+                if (ownCar != null && planNwh != null && OwnCarTaxi.WantsAutopark(ownCar))
+                {
+                    goals = ParkingNavigation.Goals(destination, planNwh.Car, vehicleType);
+                    if (goals.Count > 0)
+                    {
+                        route = PlanStart(goals, out var ms, out why);
+                        planMs += ms;
+                        if (route != null && planNwhPlan == null)
+                        {
+                            var clock = Stopwatch.StartNew();
+                            var checkedRoute = planNwh.PlanRoute(graph, start, goals, vehicleType);
+                            planMs += clock.ElapsedMilliseconds;
+                            route = checkedRoute.Item1; planNwhPlan = checkedRoute.Item2;
+                            if (route == null || planNwhPlan == null) { route = null; planNwhPlan = null; }
+                            else Log.Trace($"Goal: parallel parking strips ({goals.Count} approaches, {checkedRoute.Item3}).");
+                        }
+                    }
+                    if (route == null) Log.Trace("Goal: no reachable parallel parking strip; using the ordinary drop-off search.");
+                }
                 foreach (var (label, options) in steps)
                 {
+                    if (route != null) break;
                     var batches = options.Radius > 60f
                         ? GoalPicker.PickNearbyFirst(graph, destinationPoint, vehicleType, options)
                         : new[] { GoalPicker.Pick(graph, destinationPoint, vehicleType, options) };
@@ -421,7 +484,7 @@ namespace DrivenRides
                     {
                         goals = batch;
                         if (goals.Count == 0) continue;
-                        route = Plan(graph, start, goals, vehicleType, out var ms, out why);
+                        route = PlanStart(goals, out var ms, out why);
                         planMs += ms;
                         // The driver's waypoint can lead only into a traffic pocket. Try the driving lane beside it
                         // for these same close goals before widening the destination search: a wider search can
@@ -444,7 +507,7 @@ namespace DrivenRides
                 // An NWH ride is planned as the rig plans its rides (NwhPlanner.PlanRoute): from the start the search
                 // found, to the same goals, each added step checked for this car, the first lanes swept, the line
                 // checked as driven, a failed step blocked and the route planned again.
-                if (route != null && planNwh != null)
+                if (route != null && planNwh != null && planNwhPlan == null)
                 {
                     var nwhClock = Stopwatch.StartNew();
                     var (nwhRoute, nwhPlan, summary) = planNwh.PlanRoute(graph, route.Waypoints[0], goals, vehicleType);
@@ -475,10 +538,17 @@ namespace DrivenRides
                     return Vanilla(ownSideways < float.MaxValue ? $"{OwnNoRoute}, waypoint {start} ({why}, {planMs} ms)" : $"{OwnCarTaxi.NotInLane}: no lane step runs under the car its way, nearest waypoint {start}");
                 if (route == null) return Vanilla($"no route ({why}, {planMs} ms)");
                 if (ownCar != null && !OwnCarTaxi.HasFuelFor(ownCar, (float)route.LengthMetres)) return Vanilla(NoFuel);
-                if (ownCar != null && planNwh != null && planNwhPlan != null)
+                if (ownCar != null && ownEntries == null && planNwh != null && planNwhPlan != null)
                 {
                     var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph, ownSideways);
-                    if (refusal != null) return Vanilla(refusal);
+                    if (refusal != null)
+                    {
+                        // A nearby parallel parked car gets a separate local manoeuvre after the map closes. The
+                        // road plan remains untouched. Wrong-way, moving and remote starts still refuse normally.
+                        if (!refusal.StartsWith(OwnCarTaxi.NotInLane, StringComparison.Ordinal) || Mathf.Abs(ownSideways) > 6f)
+                            return Vanilla(refusal);
+                        unpark = true;
+                    }
                 }
 
                 if (kind == Kind.Stand)
@@ -545,6 +615,8 @@ namespace DrivenRides
                 var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car ?? prefab, prefab, vehicleType, goals, route, spawn != null)
                 {
                     nwh = spawnedNwh != null ? new NwhRideCar { Car = spawnedNwh, Spec = planNwh!.Car } : null,
+                    needsUnpark = unpark,
+                    departureEntries = ownEntries,
                 };
                 // The own car's arrival stops if the ride is cancelled or the save changes meanwhile.
                 if (ownNwh != null) ride.nwh = OwnCarTaxi.RideCar(ownCar!, ownNwh, planNwh!.Car, target, prefab, () => ride.cancelled || ride.SaveChanged);
@@ -955,6 +1027,29 @@ namespace DrivenRides
                     yield return null;
                 }
                 if (cancelled) yield break;
+                if (outcome == Outcome.None && needsUnpark && nwh != null && nwhPlan != null)
+                {
+                    phase = Phase.Unparking;
+                    var result = new ManoeuvreResult();
+                    var unpark = Flatten(departureEntries != null && nwhPlanner != null
+                        ? OwnCarParking.Depart(nwh.Car, nwhPlanner, departureEntries, goals, vehicleType,
+                            () => cancelled || SaveChanged || outcome != Outcome.None, result, (newRoute, newPlan) =>
+                            { route = newRoute; nwhTaken = newPlan; path = Expand(route); })
+                        : OwnCarParking.Unpark(nwh.Car, nwh.Spec, nwhPlan, () => cancelled || SaveChanged || outcome != Outcome.None, result));
+                    while (unpark.MoveNext()) { yield return unpark.Current; if (cancelled) yield break; }
+                    if (cancelled) yield break;
+                    if (outcome == Outcome.None)
+                    {
+                        var owner = OwnCarDrive.Car;
+                        var refusal = owner != null && nwhPlanner != null
+                            ? OwnCarTaxi.StartRefusal(owner, nwhPlanner, nwhPlan, GleyGraph.Graph!, 0f) : "the car is gone";
+                        if (!result.Success || refusal != null)
+                        {
+                            Notice.Text("drivenrides:notice_unpark_failed");
+                            Cancel("unparking: " + (result.Success ? refusal : result.Reason)); yield break;
+                        }
+                    }
+                }
                 if (outcome == Outcome.None) Depart();
                 while (outcome == Outcome.None)
                 {
@@ -1055,6 +1150,8 @@ namespace DrivenRides
                 catch (Exception ex) { Log.Error("Guider: " + ex.Message); }
             }
             InstanceBehavior<CityManager>.Instance.cityMap.Close();
+            if (kind == Kind.Taxi || kind == Kind.Stand || kind == Kind.PrivateDriver)
+                radio = RideRadio.Begin(manager, save);
             Log.Trace($"Boarded at {pickupPosition}.");
         }
 
@@ -1319,6 +1416,14 @@ namespace DrivenRides
             if (SaveChanged) { if (kind == Kind.Test) { EndWith(Outcome.Vanilla, "the save changed"); return; } Dispose(); return; }
             var paused = InstanceBehavior<UIs>.Instance.gameSpeed.Paused;
             if (!paused) unpausedSeconds += Time.unscaledDeltaTime;
+            if (phase == Phase.Unparking || phase == Phase.Parking)
+            {
+                // Precision manoeuvres run at normal world speed. A road approach to a space uses the ride speed.
+                ApplyScale(phase == Phase.Parking && ParkingApproach);
+                if (!OwnsCar) { Cancel("the manoeuvring car is gone"); return; }
+                if (OwnCarDrive.Trouble() is string trouble) { Notice.Text(OwnCarDrive.TroubleKey(trouble)); Cancel(trouble); }
+                return;
+            }
             if (phase != Phase.Driving && phase != Phase.Stopping) return;
             RefreshPhoneClock();
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car is no longer the ride's"); return; }
@@ -2066,7 +2171,8 @@ namespace DrivenRides
 
         public void RequestSkip()
         {
-            if (phase == Phase.Boarding || phase == Phase.Driving || phase == Phase.Stopping)
+            if (phase == Phase.Parking) { skipParking = true; return; }
+            if (phase == Phase.Boarding || phase == Phase.Unparking || phase == Phase.Driving || phase == Phase.Stopping)
                 EndWith(Outcome.Vanilla, "skipped");
         }
 
@@ -2112,8 +2218,10 @@ namespace DrivenRides
                     // The arrival may fade (the own car's autopark): a cancel meanwhile must unfade (Cancel, `faded`).
                     var wasFaded = faded;
                     faded = true;
+                    phase = Phase.Parking;
                     var arriving = Flatten(nwh.Arrive());
                     while (arriving.MoveNext()) { yield return arriving.Current; if (cancelled) yield break; }
+                    phase = Phase.Finishing;
                     faded = wasFaded;
                 }
                 yield break;
@@ -2313,6 +2421,8 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
+            radio?.End();
+            radio = null;
             if (kind == Kind.OwnCar && nwhPlanner != null) nwhPlanner.Ignore = null;
             if (arcAlong >= 0f && TrafficManager.HasInstance && GleyDriven) EndArc();
             // Whatever way the ride ended, its NWH car never outlives it.
@@ -2405,6 +2515,8 @@ namespace DrivenRides
             if (player != null && manager != null && InstanceBehavior<GameManager>.Instance == manager) { Cancel("the save changed"); return; }
             cancelled = true;
             finished = true;
+            radio?.End();
+            radio = null;
             Log.Info("Ride disposed: the save changed and its owners are gone or replaced.");
             try { ReleaseNwh("disposed", swap: false); } catch (Exception ex) { Log.Error("NWH release: " + ex.Message); }
             if (anchor != null)

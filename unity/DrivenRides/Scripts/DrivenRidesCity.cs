@@ -19,6 +19,8 @@ namespace DrivenRides
 
         public Task OnLoadAsync(ModContext context)
         {
+            DestinationTargets.Reset();
+            GlobalEvents.onEnterBuilding += OnEnteredBuilding;
             GlobalEvents.RegisterOnGameLoadedLateCallback(OnCityReady);
             GlobalEvents.onGameUnloaded += OnGameUnloaded;
             GlobalEvents.onHospitalRespawnStarts += OnHospital;
@@ -35,6 +37,10 @@ namespace DrivenRides
             runtimeObject.AddComponent<RideHost>();
             runtimeObject.AddComponent<RidePanel>();
             runtimeObject.AddComponent<DriverShortcut>();
+            runtimeObject.AddComponent<DestinationShortcut>();
+            // Loading inside a residence counts as a visit, even if its enter event preceded city readiness.
+            if (BuildingManager.IsInsideBuilding && InstanceBehavior<BuildingManager>.Instance.building != null)
+                OnEnteredBuilding(InstanceBehavior<BuildingManager>.Instance.building.Address);
             // Testing only: the debug keys and the turn-test rig, which polls its command files.
             if (TestMode.On)
             {
@@ -50,6 +56,7 @@ namespace DrivenRides
         // Fires before the city scene goes, so the ride's player and managers still exist (LoadScene.cs:27-31).
         private static void OnGameUnloaded()
         {
+            DestinationTargets.Reset();
             TurnTests.Abort("game unloaded");
             Ride.CancelActive("game unloaded", handedOver: true);
             OwnCarTaxi.Drop();
@@ -64,8 +71,16 @@ namespace DrivenRides
             Ride.CancelActive("hospital", handedOver: true);
         }
 
+        private static void OnEnteredBuilding(Address address)
+        {
+            try { DestinationTargets.Entered(address); }
+            catch (Exception ex) { Log.Error("Remembering home: " + ex.Message); }
+        }
+
         public Task OnUnloadAsync()
         {
+            GlobalEvents.onEnterBuilding -= OnEnteredBuilding;
+            DestinationTargets.Reset();
             GlobalEvents.onGameUnloaded -= OnGameUnloaded;
             GlobalEvents.onHospitalRespawnStarts -= OnHospital;
             GlobalEvents.onCityMapClosed -= Ride.OnCityMapClosed;

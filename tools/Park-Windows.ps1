@@ -2,6 +2,10 @@
 # Local mods cannot be switched off in the game's Mods menu, so removing the folder is the only way.
 param([Parameter(Mandatory = $true)][ValidateSet('park', 'restore')][string]$Action)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $env:USERPROFILE '.big-ambitions-bridge\Control.ps1')
+$controlLease=[BridgeControl.LeaseStore]::ForInstance('normal')
+$controlPermit=$controlLease.Begin($env:BA_LOCK_TOKEN,'lifecycle')
+try {
 if (Get-Process 'Big Ambitions' -ErrorAction SilentlyContinue) { throw 'Big Ambitions is running. Close the game first.' }
 $root = Join-Path $env:USERPROFILE 'AppData\LocalLow\Hovgaard Games\Big Ambitions'
 $installed = Join-Path $root 'ModsLocal\DrivenRides'
@@ -18,3 +22,5 @@ if ($Action -eq 'park') {
     Move-Item $parked $installed
     'Driven Rides restored to ModsLocal.'
 }
+
+} finally { $controlLease.End($controlPermit) }

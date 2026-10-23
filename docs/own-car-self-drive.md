@@ -31,6 +31,96 @@ Taxis, the private driver and the own car are switched on and off separately on 
 
 ## On NWH driving (from 14 October 2026)
 
+### Unparking and visible parallel parking (17 October 2026)
+
+Peter requested implementation of both, superseding the earlier decision to leave kerb departures manual.
+`Core/Parking` owns a bounded pose-space search using `CarModel` and a forward/reverse controller. It has no dependency
+on lane graphs, `DrivePlan` or lane shifts. Static obstacles and runtime traffic checks use the full vehicle body.
+The Unity adapters (`NwhManoeuvre`, `OwnCarParking`) read the world and apply the resulting inputs to the real car.
+
+Parking9 adds Peter's requirement that navigation account for the parking strips themselves. With autopark enabled,
+`ParkingNavigation` reads ordinary parallel strip geometry, including inactive street sections, without generating
+remote parking spaces. `Core/Routing/ParkingGoalPicker` selects road endpoints beside those strips, aligned with
+their direction, on the closest adjacent lane and the same level, with room for the car and a straight handoff
+outside junctions. The normal road planner chooses a directed route to those goals; it can go around the block
+before arrival. If none is reachable, the ordinary drop-off search remains available.
+
+On arrival the free-space search uses current occupancy, prefers a compatible space beside the current lane, and
+otherwise compares directed road travel plus walking distance. The separate manoeuvre planner still owns only
+the final local movement. This strip-aware routing is covered offline and is pending in game.
+
+An own-car ride from a parallel space first manoeuvres to a point on its unchanged road route, before a junction,
+then repeats the ordinary join check. Failure returns control in place. Parking retains the existing space search
+and options, routes legally to an approach using the road planner when needed, then uses the local planner to enter
+the space. The target pose is copied because the game's generated spot objects can disappear during the approach.
+The final wheel positions must be legal before completion. The prior checked teleport remains the parking fallback.
+
+Parking10 adds a temporary traffic reservation at Peter's request. `Core/Parking/TrafficReservation` encloses the
+whole body sweep, including forward staging, and decides which approaching bodies must brake. A preliminary
+reservation begins before the incremental search and is replaced by the planned envelope before movement. The
+manoeuvre waits for traffic already inside to clear; newly approaching Gley cars brake outside. Adjacent lanes
+that do not intersect the envelope and traffic at other heights remain free. Live collision/pedestrian checks
+and the existing bounded timeout remain in force; an occupant unable to leave still causes a safe fallback.
+
+`ParkingTraffic` applies the hold through Gley's public `SetVehicleIgnored` API only during its physics call,
+braking horizontal velocity while retaining suspension. A Harmony finalizer releases these temporary flags on
+success or exception. Previously ignored cars are left to their owner. No Gley drive action, traffic-light state,
+waypoint flag, stored velocity or path is restored on release. Each frame reads the current pool, so a reused slot
+has no old hold attached. `PositionValidator.IsValid` rejects spawns whose body overlaps the reserved area. Both
+hooks must be installed before a manoeuvre can start. The lease ends on completion, cancellation, Skip, timeout,
+controller disable or mod teardown, including cancellation during search. Road planning remains separate.
+
+Unparking and parking are explicit ride phases, with the panel and Skip active. Manoeuvres use 1x world speed while
+retaining the road-speed preference and ride clock setting. Input ownership, cancellation and cleanup cover both
+controllers. Plans are transient; vehicle position, fuel and parking state use vanilla fields and methods.
+
+Parking12 addresses a headless-test departure failure: a gap can permit a short forward/reverse shunt while
+rejecting every full 0.96 m search primitive. The search now retains the checked prefix (at least two samples)
+before a collision; clearance and controller safety checks are unchanged. Four captured goals that previously
+exhausted the root now solve offline, with mirrored tracking regressions. In test mode, failed searches write
+`manoeuvre-worlds.jsonl` beside the rig logs so geometry can be replayed without saves or game types.
+
+Status: Vord unparking checked in game on parking3, including waiting for traffic and continuing the road route.
+Parking6 held for a following car, paused/resumed without movement, then fell back to legal parking and returned the
+controls with neither drive component left. Parking8 stages farther ahead before reversing and accepts a target
+reached within a search rollout; its measured following-car regression passes offline. Parking10 completed a physical parallel park in the isolated headless rig while holding one approaching Gley
+car, ending legal with controls restored and no reservation left. Parking12 completed departure after reloading
+the tight-gap checkpoint and handed over to road driving. The trip was stopped for the night at Peter’s request;
+agent1 was closed and unlocked. Headless checks establish simulation behavior, not rendered appearance. Broader
+traffic, strip-routing and interruption tests remain pending. See the current checklist.
+
+### Parking-lot departures (parking13, 21 October 2026)
+
+Nearby legal parallel strips retain the established curbside pull-out. Bays and parking areas without a
+same-direction lane within 6 m use the new lot departure. `DepartureEntryPicker` projects
+onto directed road segments within 90 m, independent of the parked heading. The local planner connects the car
+to a reachable entry, then the normal road join check validates the measured pose before driving begins.
+A disconnected exit, exhausted search, obstruction or failed handoff returns control in place.
+
+The local surface snapshot covers a bounded 192 m square. It combines legal parking/aisle regions, ground height,
+rendered asphalt and pavement triangles, junction exclusions and physical obstacles. The pedestrian NavMesh alone
+cannot distinguish parking aisles from sidewalks. Static city meshes have no readable CPU copy, so the adapter
+reads their vertex/index buffers without modifying the scene. Missing geometry retains the pedestrian restriction;
+headless mode cannot establish the same aisle access. Curbs constrain both the tyre rectangle and the full body, with only the original legal parking footprint
+permitted to overhang. Planning keeps a 20 cm surface buffer; execution checks the actual body so tracking
+error can use that buffer without licensing a curb crossing. Body checks also clear vehicles, walls and props
+throughout the manoeuvre.
+
+A coarse surface distance field filters and orders lane entries before the bounded pose search. The same snapshot
+is reused until the car moves. The departure search runs on a worker using only Core data and a steering limit
+sampled on the main thread; cancellation never requires a Unity call from that worker. A second bounded search
+can defer the final road heading until near the entry, letting a nose-in car reverse into the aisle first. Every
+candidate must also pass a closed-loop Core tracking simulation before movement; a failed candidate leaves the
+car stationary while another entry is considered. Obstacle cells accelerate full-body checks; live collision
+checks, traffic reservation and the final road join remain separate checks. There is no relocation during departure
+and no new save data. Both curbside and lot exits stop inside the road-handoff tolerance, followed by the
+measured road join check; arrival parking keeps its precise stopping rule and existing parallel implementation.
+
+The seeded legal-space fixture and coverage runner are described in `turn-tests.md`. Current in-game evidence and
+remaining cases are recorded in `CHECKS.md`; passing a geometry replay is not an in-game pass.
+
+### Earlier implementation notes
+
 Every ride now drives with the game's own car physics (`docs/implementation-plan.md`, "NWH driving"), so the own car drives itself. The stand-in, its dress, hiding the car and the exit and re-entry are gone (removed after the NWH rides branch, 0.1.90); the sections below "What the game does" are kept for the facts about the game they record, not as the design. What stays: L in the driver's seat, the map, no fare, the autopark setting, the clock slider, Skip and the cancel paths.
 
 - **The ride car** is the player's car as it stands, wrapped for `NwhDrive` (`NwhCar.Wrap`); nothing is spawned or stripped, so the car's own fuel use, damage and parking state carry on.

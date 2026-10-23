@@ -87,11 +87,11 @@ namespace DrivenRides.Core.Drive
         public const float FollowBrake = TrafficMargins.JoinBrake;
         public const float FollowGap = TrafficMargins.JoinGap;
         // Past a car that waits for the ride car (in or beside its trigger), and squeezing past a standing car with
-        // only the margin touching. 2 m/s past a waiting car looked like a crawl (T3 20261013-185723, ride 8).
-        public const float CreepMs = 3.5f;
+        // only the margin touching. The speeds are gameplay choices alongside the gap margins.
+        public const float CreepMs = TrafficMargins.CreepMs;
         // A traffic car moving at most this fast stops for the ride car in its trigger: the ride car noses in.
         public const float NoseInMs = 5f;
-        public const float SqueezeMs = 2f;
+        public const float SqueezeMs = TrafficMargins.SqueezeMs;
         // Within this of a waiting car's body or trigger, the ride car is passing it.
         public const float PassingNear = 0.5f;
         // The ride car speeding up from now, at most (CarModel.Accel) and at least, m/s².

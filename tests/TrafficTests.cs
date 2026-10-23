@@ -108,13 +108,16 @@ public sealed class TrafficTests
         Assert.Empty(notEmergency.Where(f => !(System.Text.RegularExpressions.Regex.Match(f, @"short by ([0-9]+[.,][0-9]+) m") is var m && m.Success
             && float.Parse(m.Groups[1].Value.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture) <= DecisionStepMetres)));
         // A ratchet from 0.1.82-traffic21: runs that lost the stopping option for a car with no news of it (round 8), and
-        // stops imposed again within a second (flicker, round 7, BB1). Per template, only ever lowered; with
-        // DR_TRAFFIC_SEEDS=500 only (a plain run checks the hard invariants above).
+        // stops imposed again within a second (flicker, round 7, BB1). Rebased for the 21 October gameplay policy:
+        // smaller gaps may require more emergency braking, but must also stay within the previous arrival times.
+        // Contacts, red runs and stalls above retain their checks. DR_TRAFFIC_SEEDS=500 enables these budgets.
         if (!full) return;
         if (Ratchet.TryGetValue(template, out var most))
         {
             Assert.True(optionLost.Count <= most.OptionLost, $"{optionLost.Count} runs lost the stopping option, the ratchet is {most.OptionLost}");
             Assert.True(again <= most.Again, $"{again} stops imposed again within 1 s, the ratchet is {most.Again}");
+            Assert.True(times.Count > 0 && times.Average() <= most.ArrivalSeconds,
+                $"mean arrival {(times.Count > 0 ? times.Average() : float.PositiveInfinity):0.00} s exceeds the previous policy's {most.ArrivalSeconds:0.00} s budget");
         }
     }
 
@@ -126,13 +129,15 @@ public sealed class TrafficTests
     internal static bool Full => Seeds >= FullSeeds;
 
 
-    // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
-    private static readonly Dictionary<string, (int OptionLost, int Again)> Ratchet = new()
+    // 500 fixed seeds, 21 October: braking/flicker counts for the new policy; arrival ceilings rounded up from the
+    // previous policy's measured means. CHECKS.md records both policies, including simulation-only failures.
+    private static readonly Dictionary<string, (int OptionLost, int Again, float ArrivalSeconds)> Ratchet = new()
     {
-        ["lights"] = (37, 47), ["priority"] = (8, 114), ["merge"] = (5, 1), ["uturn"] = (1, 17),
-        ["headon"] = (0, 0), ["pullaway"] = (31, 45),
+        ["lights"] = (40, 64, 28.70f), ["priority"] = (9, 136, 15.86f), ["merge"] = (1, 1, 13.27f),
+        ["uturn"] = (0, 8, 17.18f), ["headon"] = (0, 0, 14.70f), ["pullaway"] = (32, 1, 13.92f),
     };
 
+    // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
     [Fact]
     public void TraceOneSeed()
     {

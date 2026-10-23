@@ -46,15 +46,35 @@ public sealed class PursuitDriverTests
         var entry = points.FindIndex(p => p.Z == 20 && p.X == 0);
         var line = DriveLine.Build(points, new[] { (entry, arc) });
         var track = Drive(line, 3.75f, 35f, 0, -40, 0);
-        // On the arc and after it, with NWH's steering lag, the rear axle stays within 0.6 m of the line; it ends on
-        // the exit lane.
-        Assert.All(track.Skip(100), t => Assert.InRange(t.Lateral, -0.6f, 0.6f));
+        // Faster cornering trades some precision for time: the old 4 m/s² tune stayed within 0.6 m here; at 6 it
+        // stays within 0.8 m. The exit-lane and corner-speed checks below retain their tighter bounds.
+        Assert.All(track.Skip(100), t => Assert.InRange(t.Lateral, -0.8f, 0.8f));
         var end = track[^1];
         Assert.InRange(end.Z, 29.6f, 30.4f);
         Assert.True(end.X > 60f);
         // It slows for the corner: no faster than the arc's corner speed plus a little.
         var cornerSpeed = Math.Sqrt(PursuitDriver.Lateral * arc.Radius);
         Assert.All(track.Where(t => t.X > 1f && t.Z < 29f), t => Assert.True(t.Speed <= cornerSpeed + 0.5, $"{t.Speed} m/s at ({t.X}, {t.Z})"));
+    }
+
+    [Theory]
+    [InlineData(6.5f, 11.14f)]
+    [InlineData(12f, 11.46f)]
+    [InlineData(20f, 11.88f)]
+    public void FasterCornersSaveTimeAndSettleOnTheExitLane(float radius, float previousSeconds)
+    {
+        // Matched 4 m/s² baseline: start 60 m before the arc, finish 20 m beyond it. Include braking and
+        // acceleration, rather than testing only the requested speed. Steering lag and lock remain active.
+        var exitZ = 20f + radius;
+        var arc = TurnArc.Fit(new Vec3(0, 0, 20), 0, 1, new Vec3(radius, 0, exitZ), 1, 0, 3f, radius)!;
+        var points = Enumerable.Range(0, 9).Select(k => new Vec3(0, 0, -40 + k * 7.5f))
+            .Concat(Enumerable.Range(0, 11).Select(k => new Vec3(radius + k * 7, 0, exitZ))).ToList();
+        var track = Drive(DriveLine.Build(points, new[] { (8, arc) }), 3.75f, 35f, 0, -40, 0);
+        var arrival = track.FindIndex(t => t.X >= radius + 20f);
+        Assert.True(arrival >= 0, "The car did not clear the corner.");
+        Assert.True((arrival + 1) * 0.02f <= previousSeconds * 0.95f, "The complete corner approach must save at least 5%.");
+        Assert.All(track.Take(arrival + 1), t => Assert.InRange(t.Lateral, -0.9f, 0.9f));
+        Assert.InRange(track[arrival].Z, exitZ - 0.15f, exitZ + 0.15f);
     }
 
     [Fact]

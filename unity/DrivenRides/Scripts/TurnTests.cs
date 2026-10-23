@@ -186,6 +186,8 @@ namespace DrivenRides
             {
                 case "cars": WriteCars(); break;
                 case "catalogue": WriteCatalogue(); break;
+                case "parking-sites": ParkingTests.Survey(Folder); break;
+                case "parking-ground": ParkingTests.GroundSurvey(Folder); break;
                 case "run": StartRun(args, null); break;
                 case "rerun": if (rest.Count > 0) StartRun(args, rest[0]); break;
                 case "stop": if (session != null) session.StopRequested = true; break;
@@ -203,6 +205,7 @@ namespace DrivenRides
                     break;
                 // ride [kind=taxi|stand|driver] ...: a real ride through the game's taxi flow (RideCommand).
                 case "ride": StartCoroutine(RideCommand.Run(args, Folder)); break;
+                case "destinations": StartCoroutine(DestinationTests.Run(args, Folder)); break;
                 // ridemode nwh|gley|options: rides with car physics, the Gley rides, or the options page's choice, until
                 // the game quits (Options.CarPhysicsOverride; PlayerPrefs untouched).
                 case "ridemode":

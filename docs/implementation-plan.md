@@ -6,7 +6,43 @@ A separate Workshop mod for Big Ambitions, in its own repo (`~/Coding_Projects/b
 
 **Peter's decision, 13 October 2026:** every ride is driven with the player car's physics (NWH) instead of as a Gley traffic car. The plan for that is [NWH driving](#nwh-driving-from-13-october-2026); the sections before it still describe the Gley ride, whose lifecycle carries over.
 
+**Peter's decision, 21 October 2026:** prioritise shorter trips and assertive driving. This is a game; an occasional
+crash is an acceptable trade for reduced travel time. Judge tuning by completion, journey time and unnecessary
+waiting, and record contacts and recovery costs alongside them. The historical zero-contact milestones below
+describe earlier acceptance targets. The first tuning pass shortens moving following gaps and junction headways,
+permits firmer braking by traffic we merge ahead of, and raises the pace past waiting cars. Measured physical
+limits and ride cleanup remain part of the implementation; evidence and the before/after comparison are in `CHECKS.md`.
+
+**Corner-speed follow-up, 21 October 2026:** raise the preferred sideways acceleration from 4 to 6 m/s²,
+about 22% more speed on an otherwise identical curve. Keep candidate arc sizing at its established 4 m/s²
+reference pace: the car can take a tight turn slower instead of rejecting it because its steering lock narrows
+at the new preferred speed. The existing per-arc lock reserve sets that slower speed; feasibility still drives
+the actual speed plan and checks body/tyre clearance. Tracking precision is a measured tradeoff, with regression
+bounds and in-game limitations recorded in `CHECKS.md`.
+
 ## Goal and scope
+
+22 October 2026 addition: taxi, taxi-stand and private-driver passengers use the existing `RadioPlayer` and
+phone radio controls. Boarding unmutes the current station without restarting it or changing volume. Every
+ride exit releases that session; headphones or a subsequently entered real car retain their radio. Captured
+save/manager/radio identity prevents old cleanup from affecting a replacement world. Only the radio's two
+headphone-change handlers are skipped while this passenger session owns it, since vanilla otherwise treats
+the passenger as being on foot. Own-car rides retain vanilla radio behavior. No vehicle-entry events are faked.
+
+17 October 2026 addition: implement unparking, followed by visible parallel parking for the own car. The local
+manoeuvre planner stays separate from the road planner. See `docs/own-car-self-drive.md` and `CHECKS.md` for the design
+and current validation status. The historical version-1 scope below is retained for context.
+
+21 October 2026 addition: legal bays and dedicated lots need a separate local departure, independent of the
+parked heading and nearest road waypoint. Use the parking aisle and driveway to reach a directed road entry,
+then validate the measured pose before handing over to the existing road driver. Add seeded free legal-space
+fixtures and record actual departures, failed exits and cleanup. See `docs/turn-tests.md` for the runner.
+
+Navigation must account for the street's parking strips before arrival: choose a compatible adjacent lane and
+approach direction as road goals, then select a currently free space and hand off to the separate manoeuvre planner.
+Parking/unparking temporarily reserves its local swept area: existing traffic clears it, approaching Gley cars
+wait outside, and overlapping spawns are refused until the manoeuvre ends. This is local manoeuvre policy, not
+a road-planner closure or a change to traffic-light state.
 
 Version 1:
 
@@ -168,6 +204,16 @@ The ModAPI has an options page per mod (`BigAmbitions.Mods.OptionsService.Regist
 - **Driver shortcut** (toggle, `shortcut`, default on).
 
 ## Driver shortcut
+
+22 October 2026 addition: configurable quick destinations, default **J** for vanilla's
+`GameInstance.customDestination` (the pinned building) and **K** for the last residential building entered.
+Both act in a stopped own car or an already-open taxi/private-driver destination map, through `TaxiSystem.TravelTo`.
+They do not summon a driver. Options offer Disabled / G / J / K / U / V / X; duplicate assignments refuse with a notice.
+Home is observed through the city-scoped `onEnterBuilding` event, seeded from an indoor load, and belongs only
+to the current save object. Businesses do not replace it. Loading or unloading clears it; no custom save data is
+written. Missing destinations leave the current map/car alone. Input is blocked during typing, modifiers,
+menus, activities, loading, hospital, other travel and active rides. Automated/API verification and the pending
+in-game matrix are recorded in `CHECKS.md`.
 
 Vanilla calls the private driver through the phone: open it, open the driver app, pick a vehicle. The mod adds one key, **L**:
 

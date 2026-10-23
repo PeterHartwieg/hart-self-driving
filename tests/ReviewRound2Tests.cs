@@ -81,8 +81,9 @@ public sealed class ReviewRound2Tests
         Assert.Contains(3, plan.Fillets);
         Assert.Empty(clean.ValidateNow(plan));
         Assert.Contains(3, plan.Fillets);
-        // A post at the corner: the rounded line passes within a metre of it, the sharp one over it.
-        var posted = new Feasibility(graph, Small(), Post(0f, 30f));
+        // A post inside the corner, in both driven body sweeps. At the quicker corner speed the rounded car
+        // clears the old point at (0, 30); placing it half a metre into the turn still blocks both alternatives.
+        var posted = new Feasibility(graph, Small(), Post(0.5f, 30f));
         var blocked = DrivePlan.Build(graph, lane, Small(), posted.Arc, posted.Clear);
         var failed = posted.ValidateNow(blocked);
         Assert.DoesNotContain(3, blocked.Fillets);

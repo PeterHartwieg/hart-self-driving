@@ -17,3 +17,26 @@ CLAUDE.local.md
 # Fetched or built at build time; the folder itself is recreated by tools/build-mod.sh.
 unity/DrivenRides/Dependencies/
 unity/DrivenRides/Dependencies.meta
+
+# --- repo cleanup 2026-10-23 ---
+.DS_Store
+node_modules/
+.wrangler/
+.scratch/
+e2e-failures/
+.recorder/
+.claude/worktrees/
+CLAUDE.local.md
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.hsg
+Library/
+Temp/
+Logs/
+UserSettings/
+*.dll
+*.pdb
+*.exe

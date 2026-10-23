@@ -12,11 +12,13 @@ Design canvas with every card: https://claude.ai/artifact/98zz4yeE3u5CBE9L5oJhvK
 
 **Workshop item:** https://steamcommunity.com/sharedfiles/filedetails/?id=3819853552 (uploaded 14 October 2026; gallery images added the same evening).
 
-**Target build:** the number in `Player.log` after `Loaded Big Ambitions (Build NNNN)` on the game the release was tested on. The Mod Creator refuses a number higher than the running game's.
+**Target build:** `3682`, verified from the Windows game’s `Player.log` on 22 October 2026. Use this internal game build in the Mod Creator; `25482473` is the separate Steam build ID.
 
-**Version:** 0.2.0 (the package says 0.2.0-rc1 until the clean-install check passes).
+**Version:** `0.4.1`. Prepared package: `build/package/DrivenRides/`; archive: `build/package/DrivenRides-0.4.1.zip`. Update the existing Workshop item above. Publication is a separate step.
 
-**Thumbnail:** the Mod Creator takes the first `.png`, `.jpg` or `.jpeg` in the root of the mod folder, up to 1 MB. Export the canvas's "Workshop thumbnail" board as JPG at 1024 x 1024 and save it as `preview.jpg` in place of the placeholder `preview.png`.
+**PC installation:** 0.4.1 installed in the normal game's `ModsLocal/DrivenRides` on 22 October 2026 at 18:40 CEST, with all nine files verified against the release manifest. The previous 0.4.0 package with passenger radio is backed up in `DrivenRidesPackageBackups/DrivenRides-20261022-184033`. The normal game was closed and was not launched. Shortcut gameplay was checked in the isolated Mac rig; Windows-specific behavior, rendered UI appearance and listening through speakers remain manual checks.
+
+**Thumbnail:** the package includes the existing `preview.jpg` (947,401 bytes, below the 1 MB limit). The Mod Creator takes the first image in the mod folder’s root.
 
 **Bug reports:** `#self-driving-bugs` in the Peter Hartwieg Discord (created by Peter on 14 October 2026). The invite https://discord.gg/jhdYKgkyPn opens that channel.
 
@@ -33,7 +35,10 @@ The car uses the game's own driving physics, the same your car has when you driv
 [list]
 [*][b]Taxis and taxi stands.[/b] Hail a taxi or walk up to a stand and pick a place on the map as usual. The fare is the game's. Instead of the fade, the taxi drives you there.
 [*][b]Your private driver.[/b] Press [b]L[/b] to call your driver. Once it waits, press [b]L[/b] again: you walk to the car and the map opens.
-[*][b]Your own car.[/b] Stop in a driving lane, press [b]L[/b] in the driver's seat and pick a place on the map. The car drives itself there and, if it has autopark, parks when you arrive. The trip costs fuel, no fare.
+[*][b]Your own car.[/b] Stop in a driving lane or a legal parking space, press [b]L[/b] in the driver's seat and pick a place on the map. The car can pull out through a parking aisle or driveway, drive there and, with autopark enabled, park in a parallel space. If a departure is too tight or obstructed, it returns control where it stands. The trip costs fuel, no fare.
+[*][b]Quick destinations.[/b] Press J for your pinned building or K for the last residence visited. Use them in a stopped own car or on the taxi/private-driver destination map. Both keys are configurable.
+[*][b]Quicker driving.[/b] Closer following, smaller junction gaps and faster corners. Tight turns still slow down when the car needs more steering room.
+[*][b]Radio during rides.[/b] Taxis and private-driver rides play the normal car radio with your selected station, volume and phone controls. Headphones can keep playing when you get out.
 [*][b]The ride panel.[/b] A small card shows the distance left, 1x, 2x and 3x speed, a slider for the clock and [b]Skip[/b]. Skip ends the ride the base game's way.
 [/list]
 
@@ -47,9 +52,11 @@ Under Settings > Mods > HART. Self Driving you can switch taxis, the driver and 
 [list]
 [*]If there is no route the car can drive, or it gets stuck for good, the ride ends the base game's way: a fade and you are at the door.
 [*]Now and then the car slows down for a car that isn't really in its way, then drives on.
+[*]One larger-car test overran a stop line at 3x speed; this remains under investigation. Quicker corners do not guarantee shorter trips through traffic and lights.
+[*]Visible arrival parking is limited to parallel spaces. Larger cars, tight spaces and interruption cases still need broader testing; garages are not supported.
 [*]The bridge to the Hamptons keeps the game's own fade, then the car drives on from the far side.
 [*]Gated communities open only when you own a building behind the gate.
-[*]L is the mod's only key. If another mod uses plain L, turn off "L calls your private driver".
+[*]L calls your driver or opens your own car's map. J drives to the pinned building; K drives to the last residence visited in the loaded game. Change or disable J/K in the mod options. Home resets on load; loading inside a residence sets it as home.
 [*]The mod adds nothing to your save. Unsubscribe and your saves load without it.
 [/list]
 
@@ -62,10 +69,34 @@ The mod is free and stays free. If you'd like to say thanks, you can [url=https:
 Made for the HART. Group series. The full README ships with the mod. MIT licence for the code; the HART name and artwork are not included in that licence.
 ```
 
-**Change log** (first entry):
+**Change log** (0.4.1 update):
 
 ```
-0.2.0: first Workshop release. Taxis, taxi stands, the private driver and your own car drive with the game's car physics; the ride panel with 1x, 2x, 3x, a clock slider and Skip; options for red lights, pedestrians and speed limits.
+0.4.1 — quick destinations
+
+- Press J to drive to your pinned building, or K to drive to the last residence you visited.
+- Use either shortcut in your stopped own car or on a taxi/private-driver destination map.
+- Change or disable each key in the mod options.
+- Home resets when loading a save; loading inside a residence sets that as home.
+
+Restart the game after updating. No save migration is needed.
+```
+
+**Previous change log** (0.4.0):
+
+```
+0.4.0 — parking and more assertive driving
+
+- Start self-driven trips from legal parking bays and parallel spaces, including forward or reverse exits through an aisle or driveway.
+- Visible parallel parking, with traffic held outside the manoeuvre area and the existing fade-and-park fallback.
+- Closer following, smaller junction gaps and quicker passing of waiting cars.
+- Firmer braking for stationary cars and queues.
+- Faster corners while retaining slower, tighter turns where the car needs steering room.
+- Normal car radio in taxis and private-driver rides, with your current station, volume and phone controls.
+
+Known issues: one larger-car test overran a stop line at 3x speed; wider traffic, vehicle and tight-parking coverage remains pending. Corner timing improved in the sampled tests, but a general full-trip speedup is unverified.
+
+Restart the game after updating. No save migration is needed.
 ```
 
 ## Images

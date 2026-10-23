@@ -16,8 +16,7 @@ using Object = UnityEngine.Object;
 namespace DrivenRides
 {
     // The player's own car driving itself (docs/own-car-self-drive.md). L in the driver's seat opens the city map in
-    // taxi mode with this as the taxi; the TravelCoroutine prefix then runs an own-car ride: the car is hidden where it
-    // stands, a stand-in drives, and at the end the car is put where the stand-in stopped with the player in it.
+    // taxi mode with this as the taxi; the TravelCoroutine prefix then drives the real car with the player inside.
     // The fare is nothing (GetPrice prefix), and nothing taxi-like is counted.
     internal sealed class OwnCarTaxi : MonoBehaviour, ITaxi
     {
@@ -187,8 +186,8 @@ namespace DrivenRides
         }
 
         // The own car starts where it stands: the planned line must start under it, and the car must be able to drive
-        // onto it from its pose (the planner's join check, Feasibility.Join), or the trip is refused. A car at the kerb
-        // is the player's to pull out (Peter, 14 October 2026).
+        // onto it from its pose (the planner's join check, Feasibility.Join). A parallel kerb start first uses the
+        // separate manoeuvre planner; this check runs again before handing the car to the road driver.
         // The refusal for a car the line doesn't run under; the reason after it is for the log.
         public const string NotInLane = "pull out into the lane first";
 
@@ -289,6 +288,9 @@ namespace DrivenRides
         // teleport into the nearest free spot (VehicleParkingHelper.ParkInClosestSpot), and it doesn't check the car.
         private static readonly FieldInfo? ParkingHelperField = AccessTools.Field(typeof(CarController), "vehicleParkingHelper");
 
+        internal static bool WantsAutopark(CarController car) => Options.Autopark == AutoparkMode.Every
+            || (Options.Autopark == AutoparkMode.CarsWithIt && car.vehicleType != null && car.vehicleType.autoParkSupported);
+
         // Stepped by the ride, which stops stepping when it is cancelled; stop says so between steps too.
         public static IEnumerator Autopark(CarController car, Func<bool> stop, Vector3? door = null)
         {
@@ -311,7 +313,8 @@ namespace DrivenRides
                 Log.Error("Own car autopark: the car has no parking helper.");
                 yield break;
             }
-            // The closest free spot, hunted for further out until one is found (Peter, 14 October 2026).
+            // Use the currently free gaps: a visible arrival prefers its adjacent strip or a directed road
+            // approach. The old nearest-space hunt remains the fade-and-park fallback.
             var hunt = new SpotHunt();
             var hunting = Hunt(car, helper, hunt, door);
             while (hunting.MoveNext()) { yield return hunting.Current; if (stop()) yield break; }
@@ -323,15 +326,47 @@ namespace DrivenRides
                 yield break;
             }
             Log.Trace($"Own car: autoparking {Vector3.Distance(car.transform.position, spot.transform.position):0.0} m away{(supported ? "" : " (the car has no autopark of its own)")}.");
+            // Copy the pose: the game's parking lane generator destroys and recreates spot objects as the car moves.
+            var position = spot.transform.position;
+            var rotation = spot.transform.parent.rotation;
+            if (spot.visuals == null) yield break;
+            var spotWidth = spot.visuals.size.y;
+            if (spot.visuals != null) spot.visuals.enabled = false;
+            if (Ride.Active?.VisibleParking == true)
+            {
+                var type = DrivableType(car);
+                var planner = type != null ? NwhPlanner.For(type, car.vehicleType.maxSpeed) : null;
+                var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, type ?? "", out _);
+                if (planner != null && wrapped != null)
+                {
+                    var result = new ManoeuvreResult();
+                    var visible = OwnCarParking.Park(car, wrapped, planner, position, rotation,
+                        () => stop() || car == null || !car.controlledByPlayer || Ride.Active?.ParkingSkipped == true, result);
+                    while (visible.MoveNext()) { yield return visible.Current; if (stop()) yield break; }
+                    if (stop() || car == null || !car.controlledByPlayer) yield break;
+                    if (result.Success)
+                    {
+                        // Legal only when all wheels are actually inside an ordinary parking area.
+                        car.UpdateParkingZone();
+                        if (OwnCarParking.IsLegal(car))
+                        {
+                            car.vehicleInstance.parkingState = ParkingState.Legal;
+                            car.SavePosition(); LastParkField?.SetValue(helper, car.transform.position);
+                            if (car.poi != null) car.poi.SetBackground(InstanceBehavior<GlobalReferences>.Instance.vehiclePOIBackgroundColor);
+                            ParkingLaneGenerator.RegenerateAutoParkSpotsNear(car.transform.position);
+                            Log.Info("Own car: visibly parked."); yield break;
+                        }
+                        Log.Info("Own car: manoeuvre finished outside a legal parking area.");
+                    }
+                    else Log.Info("Own car: visible parking fell back (" + result.Reason + ").");
+                }
+            }
             // The steps of the game's ParkInClosestSpot, done here so each stage is known: the fade, a last check (the
             // player still in the car, the spot still free), the teleport and the legal parking state, and the
             // unfade, which always runs once the fade has.
-            var position = spot.transform.position;
-            var rotation = spot.transform.parent.rotation;
-            if (spot.visuals != null) spot.visuals.enabled = false;
             yield return UiFader.Fade();
             var parked = false;
-            if (!stop() && car != null && car.controlledByPlayer && !IsOccupied(helper, spot))
+            if (!stop() && car != null && car.controlledByPlayer && !IsOccupiedAt(helper, position, rotation, spotWidth))
             {
                 Teleport(car, position, rotation);
                 car.vehicleInstance.parkingState = ParkingState.Legal;
@@ -376,10 +411,8 @@ namespace DrivenRides
         // The game makes autopark spots only in the gaps of the parking lanes within 6 m of a car the player gets into,
         // out of or teleports (ParkingLaneGenerator.RegenerateAutoParkSpotsNear), and its search only looks around the
         // car (VehicleParkingHelper.FindNearestFreeSpot). The hunt makes the spots on every parking lane within each
-        // radius in turn and takes the nearest free one long enough for the car, by the game's own measures (the car's
-        // length plus the padding, VehicleParkingHelper.IsSpotOccupied).
-        // Nearest counts the walk to the door too (`door`, the destination), so a spot down the same street beats one as
-        // near through the block on the street behind.
+        // radius in turn, using the game's length, padding and occupancy checks. Visible parking chooses among
+        // those gaps by adjacent-lane access or directed road travel; the nearest score is kept for the fallback.
         private static IEnumerator Hunt(CarController car, VehicleParkingHelper helper, SpotHunt hunt, Vector3? door)
         {
             var padding = InstanceBehavior<GlobalReferences>.Instance.autoParkSettings.VehiclePadding * 2f;
@@ -387,6 +420,8 @@ namespace DrivenRides
             var needs = length + padding;
             var made = new HashSet<ParkingLaneGenerator>();
             var reach = Reachable(car.transform.position);
+            var visible = Ride.Active?.VisibleParking == true;
+            var candidates = new List<AutoParkSpot>();
             AutoParkSpot? best = null;
             var bestScore = float.MaxValue;
             foreach (var radius in HuntRadii)
@@ -398,7 +433,7 @@ namespace DrivenRides
                 for (var k = 0; k < n; k++)
                 {
                     var lane = HuntHits[k] != null ? HuntHits[k].GetComponentInParent<ParkingLaneGenerator>() : null;
-                    if (lane == null || !made.Add(lane)) continue;
+                    if (lane == null || !ParkingNavigation.OrdinaryParallel(lane) || !made.Add(lane)) continue;
                     // As vanilla's RegenerateAutoParkSpotsNear: only lanes with their collider.
                     if (LaneColliderField != null && LaneColliderField.GetValue(lane) as Object == null) continue;
                     try { GenerateSpotsMethod?.Invoke(lane, null); any = true; }
@@ -413,20 +448,30 @@ namespace DrivenRides
                 for (var k = 0; k < n; k++)
                 {
                     if (HuntHits[k] == null || !HuntHits[k].TryGetComponent<AutoParkSpot>(out var spot) || spot.maxVehicleLength < needs) continue;
-                    hunt.SeenSpots.Add(spot);
                     var p = spot.transform.position;
                     var away = Vector3.Distance(at, p);
+                    // The collider can reach into an earlier ring while its centre is still outside it.
+                    if (away > radius || !hunt.SeenSpots.Add(spot)) continue;
+                    var parkingLane = spot.GetComponentInParent<ParkingLaneGenerator>();
+                    if (parkingLane == null || !ParkingNavigation.OrdinaryParallel(parkingLane)) continue;
                     var score = away + (door is Vector3 dd ? 0.5f * Vector3.Distance(dd, p) : 0f);
                     // As vanilla: not a spot the car already stands in. The sphere catches a spot whose collider reaches
                     // into it, and a spot's collider spans its whole gap: only one whose middle (where the car goes) is
                     // inside this radius counts. Not on another level, and on a road the car can reach without a
                     // locked gate.
-                    if (away < 1.5f || away > radius || score >= bestScore || Mathf.Abs(p.y - at.y) > HuntHeight || !reach(p) || IsOccupied(helper, spot)) continue;
-                    best = spot;
-                    bestScore = score;
+                    if (away < 1.5f || Mathf.Abs(p.y - at.y) > HuntHeight || IsOccupied(helper, spot)) continue;
+                    candidates.Add(spot);
+                    if (score < bestScore && reach(p)) { best = spot; bestScore = score; }
                 }
                 // A spot further out is more than `radius` away, so it can't score lower than that.
-                if (best != null && bestScore <= radius) break;
+                if (!visible && best != null && bestScore <= radius) break;
+            }
+            if (visible && car != null)
+            {
+                var choice = new ParkingNavigation.Choice();
+                var choose = ParkingNavigation.ChooseSpace(car, candidates, door, choice);
+                while (choose.MoveNext()) yield return choose.Current;
+                if (choice.Spot != null) best = choice.Spot;
             }
             hunt.Found = best;
         }
@@ -468,6 +513,13 @@ namespace DrivenRides
 
         private static readonly FieldInfo? LastParkField = AccessTools.Field(typeof(VehicleParkingHelper), "_lastAutoParkPosition");
         private static readonly MethodInfo? OccupiedMethod = AccessTools.Method(typeof(VehicleParkingHelper), "IsSpotOccupied", new[] { typeof(AutoParkSpot) });
+        private static readonly MethodInfo? OccupiedAtMethod = AccessTools.Method(typeof(VehicleParkingHelper), "IsSpotOccupied", new[] { typeof(Vector3), typeof(Quaternion), typeof(float) });
+
+        private static bool IsOccupiedAt(VehicleParkingHelper helper, Vector3 position, Quaternion rotation, float width)
+        {
+            try { return !(OccupiedAtMethod?.Invoke(helper, new object[] { position, rotation, width }) is bool taken) || taken; }
+            catch (Exception ex) { Log.Error("Own car autopark, position check: " + ex.Message); return true; }
+        }
 
         private static bool IsOccupied(VehicleParkingHelper helper, AutoParkSpot spot)
         {
@@ -513,6 +565,8 @@ namespace DrivenRides
             active = null;
             try
             {
+                foreach (var drive in car.GetComponents<NwhDrive>()) { drive.Stop(reason); Object.Destroy(drive); }
+                foreach (var move in car.GetComponents<NwhManoeuvre>()) { move.Stop(reason); Object.Destroy(move); }
                 if (car != null && car.vehicleController?.input != null)
                 {
                     Zero(car.vehicleController);

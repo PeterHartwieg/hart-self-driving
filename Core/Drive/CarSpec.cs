@@ -59,10 +59,12 @@ namespace DrivenRides.Core.Drive
         // The model of this car at a pose.
         public CarModel Model(double x, double z, double heading, double speed = 0) => new CarModel(Wheelbase, LockAt, x, z, heading, speed) { TrackWidth = TrackWidth, Rate = WheelRate, YawFactor = YawFactor };
 
-        // The car's circle at the speed it takes the tightest arc a junction may get for it: TurnArc.Fit makes an arc
-        // RadiusSlack wider than this (and never under MinDriveRadius), and the driver takes an arc at its corner speed
-        // (PursuitDriver.Lateral), where NWH has already narrowed the lock. The spike's rig used the lock at 10 km/h,
-        // and the limo met a 6.5 m arc near full lock at 17 km/h (turn-4644-8640).
+        // Keep the smallest candidate arc at the established 4 m/s² reference pace. Raising the driver's preferred
+        // corner speed must not make a previously drivable turn disappear: NWH narrows its steering lock at speed.
+        // DrivePlan caps each selected arc at the speed that leaves RadiusSlack in reserve, so tight arcs can still
+        // be taken slower while larger ones use PursuitDriver.Lateral. The 6 m/s² experiment otherwise changed the
+        // Dash's minimum circle from 9.48 to 11.95 m and replaced an accepted arc with slower vias.
+        private const float ArcReferenceLateral = 4f;
         public float ArcMinRadius()
         {
             var r = TurnArc.MinDriveRadius;
@@ -76,7 +78,7 @@ namespace DrivenRides.Core.Drive
         }
 
         private float CornerSpeed(float radius) =>
-            Math.Min(TopKmh / 3.6f, Math.Max(PursuitDriver.MinCornerMs, (float)Math.Sqrt(PursuitDriver.Lateral * radius)));
+            Math.Min(TopKmh / 3.6f, Math.Max(PursuitDriver.MinCornerMs, (float)Math.Sqrt(ArcReferenceLateral * radius)));
 
         // A lock curve through measured points (km/h, degrees), straight between them and flat past the ends.
         public static Func<float, float> LockCurve(IReadOnlyList<(float Kmh, float Degrees)> points) => speedMs =>
