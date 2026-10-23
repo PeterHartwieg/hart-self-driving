@@ -231,6 +231,47 @@ namespace DrivenRides
         public bool WaitingNow => departed && OwnsCar && IsWaiting();
         public IReadOnlyList<int> DrivenPath => path;
 
+        private List<int>? displayPath;
+        private DriveLine? displayLine;
+        private float displayAlong;
+
+        // A read-only view for the city-owned overlay. It must not plan, steer or extend the route across the
+        // pavement to the building door. The final point is the driver's selected road destination.
+        internal bool TryRouteLine(out Polyline line, out float along, out Transform vehicle)
+        {
+            line = null!; along = 0f; vehicle = null!;
+            if (finished || cancelled || SaveChanged || outcome != Outcome.None ||
+                (phase != Phase.Driving && phase != Phase.Stopping) || !OwnsCar) return false;
+            if (nwhDrive != null && nwh != null)
+            {
+                if (nwhDrive.Ended || nwh.Car.Root == null) return false;
+                line = nwhDrive.PlannedLine;
+                along = nwhDrive.Along;
+                vehicle = nwh.Car.Root.transform;
+                return true;
+            }
+            if (car == null || progress == null) return false;
+            vehicle = car.transform;
+            if (!ReferenceEquals(displayPath, path))
+            {
+                var turns = new List<(int Entry, Polyline Arc)>();
+                foreach (var arc in arcs)
+                {
+                    var entry = IndexOf(path, arc.Entry);
+                    if (entry >= 0) turns.Add((entry, arc.Line));
+                }
+                displayLine = DriveLine.Build(Points(path), turns);
+                displayPath = path;
+                displayAlong = 0f;
+            }
+            line = displayLine!.Line;
+            var position = vehicle.position;
+            displayAlong = line.Project(position.x, position.z, displayAlong);
+            along = displayAlong;
+            return true;
+        }
+
+
         // Ends a test ride: the car goes, the anchor stays where it is, nothing touches the player.
         public void EndTest()
         {
@@ -2179,6 +2220,7 @@ namespace DrivenRides
         private void EndWith(Outcome result, string reason)
         {
             if (outcome != Outcome.None) return;
+            RouteLineView.HideActive();
             outcome = result;
             outcomeReason = reason;
             LastEnd = $"{result}: {reason}";
@@ -2421,6 +2463,7 @@ namespace DrivenRides
         // Clears the mod's own objects and static state; TaxiSystem's field only while this ride owns it.
         private void DropState()
         {
+            RouteLineView.HideActive();
             radio?.End();
             radio = null;
             if (kind == Kind.OwnCar && nwhPlanner != null) nwhPlanner.Ignore = null;
@@ -2466,6 +2509,7 @@ namespace DrivenRides
         public void Cancel(string reason, bool handedOver = false)
         {
             if (finished || cancelled) return;
+            RouteLineView.HideActive();
             cancelled = true;
             LastEnd = "Cancelled: " + reason;
             Log.Info("Ride cancelled: " + reason + ".");
@@ -2513,6 +2557,7 @@ namespace DrivenRides
             if (finished || cancelled) return;
             // The game helpers Cancel uses reach the current GameManager; only safe while it is still the ride's.
             if (player != null && manager != null && InstanceBehavior<GameManager>.Instance == manager) { Cancel("the save changed"); return; }
+            RouteLineView.HideActive();
             cancelled = true;
             finished = true;
             radio?.End();

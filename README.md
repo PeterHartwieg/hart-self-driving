@@ -28,6 +28,8 @@ This update adds configurable shortcuts for the pinned building and the last res
 
 **Faster corners: partly checked in the isolated Mac rig.** The preferred corner speed rises by about 22%, while tight turns retain a lower speed when the car needs steering room. The sampled ordinary turns took about 12% less time between their entry and exit gates, with slightly more tracking error and no recorded contact. One larger-car run overran a stop line, and traffic-light waits made the complete test routes slower overall; a reliable full-trip speedup and Windows driving feel remain unverified. See the source repository’s `CHECKS.md` for all outcomes and the rig's control-case limitations.
 
+**Route line — pending in-game verification.** A blue line on the road shows the remaining driving route, including its turns and planned obstacle offsets. It shortens as the car advances and changes when the driver accepts a new route. “Show the planned route on the road” is on by default and can be changed during a ride. The line ends at the selected road arrival point near the destination; it hides during boarding, local parking manoeuvres and bridge fades, and on arrival, Skip or cancellation. Very long routes can take a few frames to appear while their road heights are sampled.
+
 **The ride panel.** While the car drives, a small card under the objectives shows the distance left, buttons for 1x, 2x and 3x, a slider for the clock and a **Skip** button. 2x and 3x run the world faster. The car drives the same way, it just gets there sooner. Skip ends the ride the base game's way: a fade, the time for the rest of the way, and you are at the door.
 
 **The clock.** During a ride the clock runs at a third of its speed by default. A drive takes longer than the base game's instant ride, so the clock is slowed to keep rides from eating your day. The slider on the panel and the options set anything from a stopped clock to normal speed.
@@ -40,6 +42,7 @@ In the game's Mods options, under HART. Self Driving:
 
 | Option | Default |
 |---|---|
+| Show the planned route on the road | On |
 | Taxis drive you there | On |
 | Your private driver drives you there | On |
 | Real car physics (off: the older, simpler rides) | On |

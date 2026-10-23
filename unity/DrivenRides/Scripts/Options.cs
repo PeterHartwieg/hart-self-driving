@@ -11,6 +11,7 @@ namespace DrivenRides
     // write the same keys, so the page shows the panel's last choice (Peter, 12 October 2026).
     internal static class Options
     {
+        private const string RouteLineId = "routeline";
         private const string TaxisId = "taxis";
         private const string DriverId = "driver";
         private const string OwnCarId = "owncar";
@@ -33,6 +34,7 @@ namespace DrivenRides
         private const int DefaultClockPercent = 33;
         private static string? modId;
 
+        public static bool RouteLine { get; private set; } = true;
         public static bool Taxis { get; private set; } = true;
         public static bool PrivateDriver { get; private set; } = true;
         public static bool OwnCar { get; private set; } = true;
@@ -65,6 +67,7 @@ namespace DrivenRides
         public static void Register(string id)
         {
             modId = id;
+            RouteLine = UnityEngine.PlayerPrefs.GetInt(Key(RouteLineId), 1) != 0;
             Taxis = UnityEngine.PlayerPrefs.GetInt(Key(TaxisId), 1) != 0;
             PrivateDriver = UnityEngine.PlayerPrefs.GetInt(Key(DriverId), 1) != 0;
             OwnCar = UnityEngine.PlayerPrefs.GetInt(Key(OwnCarId), 1) != 0;
@@ -81,6 +84,11 @@ namespace DrivenRides
 
             var options = new ModOptions()
                 .AddHeader("drivenrides:options_header")
+                .AddToggle(RouteLineId, "drivenrides:options_route_line", true, value =>
+                {
+                    RouteLine = value;
+                    if (!value) RouteLineView.HideActive();
+                })
                 .AddToggle(TaxisId, "drivenrides:options_taxis", true, value => { Taxis = value; Log.Info($"Option: driven taxis {(value ? "on" : "off")}."); })
                 .AddToggle(DriverId, "drivenrides:options_driver", true, value => { PrivateDriver = value; Log.Info($"Option: driven private driver {(value ? "on" : "off")}."); })
                 .AddToggle(CarPhysicsId, "drivenrides:options_carphysics", true, value => { CarPhysics = value; Log.Info($"Option: rides with car physics {(value ? "on" : "off")}."); })

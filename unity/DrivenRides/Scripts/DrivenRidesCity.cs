@@ -35,6 +35,7 @@ namespace DrivenRides
             runtimeObject = new GameObject("DrivenRides.Runtime");
             Object.DontDestroyOnLoad(runtimeObject);
             runtimeObject.AddComponent<RideHost>();
+            runtimeObject.AddComponent<RouteLineView>();
             runtimeObject.AddComponent<RidePanel>();
             runtimeObject.AddComponent<DriverShortcut>();
             runtimeObject.AddComponent<DestinationShortcut>();
@@ -79,6 +80,7 @@ namespace DrivenRides
 
         public Task OnUnloadAsync()
         {
+            RouteLineView.DisableActive();
             GlobalEvents.onEnterBuilding -= OnEnteredBuilding;
             DestinationTargets.Reset();
             GlobalEvents.onGameUnloaded -= OnGameUnloaded;
