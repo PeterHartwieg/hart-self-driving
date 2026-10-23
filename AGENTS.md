@@ -1,11 +1,11 @@
-# Driven Rides mod for Big Ambitions
+# HART. Self Driving mod for Big Ambitions
 
-A Workshop mod that makes taxi and private-driver rides drive through the city instead of fading to black, and adds a one-key shortcut for calling the private driver. Read `docs/implementation-plan.md` first. `CLAUDE.local.md`, if present, has the machine setup and is never committed.
+A Workshop mod that makes taxi, private-driver and own-car rides drive through the city instead of fading to black. Read `docs/implementation-plan.md` first, then `docs/code-layout.md` for current source responsibilities. `CLAUDE.local.md`, if present, has the machine setup and is never committed. The assembly, namespace and mod ID remain `DrivenRides`.
 
 ## Layout
 
 - `Core/`: pure C#, netstandard2.1. No Unity and no game types. Builds and tests on any machine with `dotnet test`.
-- `tests/`: xUnit tests for Core.
+- `tests/`: xUnit tests for Core and selected game adapters with narrow API doubles. Run `dotnet test tests -c Release`; the timing benchmark should run without concurrent builds.
 - `unity/DrivenRides/`: the mod folder for the official SDK (`Assets/Mods/DrivenRides` once linked). Game adapters, Harmony patches and the runtime live here, because the SDK compiles this folder against the game DLLs.
 - `unity/BuildEditor/`: the batch-mode build entry point, linked into the SDK's `Assets/Editor`.
 - `tools/`: build, install, park and log scripts.

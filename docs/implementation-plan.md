@@ -1,5 +1,11 @@
 # Driven rides: implementation plan
 
+This is the dated design history, including the original Gley implementation and later NWH changes.
+The current repository is `hart-self-driving`; its player-facing name is **HART. Self Driving** and its
+mod ID remains `DrivenRides`. Use [code-layout.md](code-layout.md) for current source locations,
+[../README.md](../README.md) for supported behavior and [../CHECKS.md](../CHECKS.md) for evidence.
+Statements below about planned work or an untested spike apply to their recorded date.
+
 A separate Workshop mod for Big Ambitions, in its own repo (`~/Coding_Projects/big-ambitions-driven-rides`). Taxi and private-driver rides drive through the city instead of fading to black. You sit in the car, the camera follows it, and you get out at the destination. Written 11 October 2026, revised the same day over five rounds of reviews (Fable 5.1, GPT 6 Astra) until both said "ready to build the spike". The reviews are in the Food Trucks checkout's `build/review-rides/` (not committed). Name: **Driven Rides** (Peter, 11 October 2026).
 
 **Peter's decisions, 11 October 2026:** own repo; normal world speed by default with the clock at a third of its speed during a ride, and buttons on the ride panel for 2×, 3× and Skip (this replaced the first choice, 3× by default with the clock held to vanilla's cost, after the first test rides); the private driver is dismissed after a ride as in vanilla, so it has to be called again, and the mod adds a shortcut for calling it (see [Driver shortcut](#driver-shortcut)).
@@ -44,7 +50,7 @@ Parking/unparking temporarily reserves its local swept area: existing traffic cl
 wait outside, and overlapping spawns are refused until the manoeuvre ends. This is local manoeuvre policy, not
 a road-planner closure or a change to traffic-light state.
 
-Version 1:
+Original version-1 scope (superseded by the dated additions above):
 
 - Rides with the **private driver** and the **taxis** (a taxi hailed from traffic and a taxi stand) drive the real route when both ends are in Manhattan.
 - During a ride the clock runs at a third of its speed. Skip charges vanilla's time for the rest of the way.
@@ -53,7 +59,10 @@ Version 1:
 - Prices, achievements, events, happiness modifiers and the limo's energy and food bonus stay as in vanilla.
 - A **driver shortcut**: one key calls the private driver, and once it waits, the same key walks you to it and opens the destination map. Vanilla needs the phone, the driver app and a vehicle each time.
 
-Not in version 1: the Hamptons, a passenger-seat camera, getting out at the curb and walking to the door (version 1 places you at the door like vanilla), the player's own car driven by AI, Food Trucks crews driving (a later reuse of the route planner).
+The first draft excluded the Hamptons and own-car driving; both were subsequently implemented.
+A passenger-seat camera and crew driving remain future work. The original door-placement design also
+changed: current passenger arrivals can place the player beside the car; vanilla fallback places them
+at the destination. See `Ride.PlacePlayer`.
 
 ## What the game does (code facts)
 
@@ -231,9 +240,9 @@ Rides are never saved. Nothing is added to the save file, so there's no schema.
 - A save during a ride (the Esc menu stays open to the player) writes the **pickup position**: where the player stood when they got in, a known NavMesh point. It is captured at boarding, with the player's rotation, and the `SaveCurrentPosition` postfix writes both while a ride runs. Loading that save puts the player back on foot where they got in, with the fare spent and the game time so far passed. This is an interrupted ride, not a finished one.
 - On unload, `Cancel` runs inside the `onGameUnloaded` handler and does the whole cleanup itself, because Unity drops the iterator without running its finally block. The game resets `Time.timeScale` on load (`LoadingScreen.cs:118`). If the save changes without that event, `Dispose` drops only the mod's own state and never touches the new game.
 
-## Layout
+## Original layout proposal
 
-The Food Trucks layout and tools, copied:
+Historical proposal; the current layout is in [code-layout.md](code-layout.md):
 
 ```
 big-ambitions-driven-rides/
