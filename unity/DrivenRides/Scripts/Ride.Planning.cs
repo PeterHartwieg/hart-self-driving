@@ -597,7 +597,7 @@ namespace DrivenRides
             var points = new List<Vector3>();
             for (var k = 0; k + 1 < w.Count; k++)
             {
-                if (Contains(graph.Successors(w[k]), w[k + 1]) || expanded.Arcs.Contains((w[k], w[k + 1]))) continue;
+                if (IndexOf(graph.Successors(w[k]), w[k + 1]) >= 0 || expanded.Arcs.Contains((w[k], w[k + 1]))) continue;
                 points.Clear();
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
@@ -617,7 +617,7 @@ namespace DrivenRides
                 points.Add(all[w[k + 1]].position);
                 // A turn with guide waypoints is checked along them, 1.5 m wide; a short one without, along its chord
                 // back as well, since the car cuts that corner.
-                var turn = Contains(graph.MissingTurns(w[k]), w[k + 1]);
+                var turn = IndexOf(graph.MissingTurns(w[k]), w[k + 1]) >= 0;
                 // A lane change's sweep is as wide as the car: 0.8 m let a 2.3 m car change lanes into a lamp post by
                 // the kerb (turn test 0.1.33).
                 var radius = turn ? 1.5f : Mathf.Max(0.8f, halfWidth + 0.1f);

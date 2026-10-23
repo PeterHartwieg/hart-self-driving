@@ -68,7 +68,6 @@ namespace DrivenRides
         private readonly int carIndex;
         // A car the mod loaded onto the route's first waypoint (a stand's, or a parked driver's replacement).
         private readonly bool onFirstWaypoint;
-        // An own-car ride: the player's car, hidden where it stands, and the stand-in's dress (docs/own-car-self-drive.md).
         // An NWH ride (docs/implementation-plan.md, phase 5): the car driven by its own physics (NwhRideCar, the seam
         // for every kind of ride car) and its driver, the same NwhDrive the rig drives with. `car` is then only the
         // traffic car the ride was called with, taken away at boarding. Null: a Gley ride.
@@ -123,8 +122,6 @@ namespace DrivenRides
         private GameObject? anchor;
         private RideAnchor? anchorComponent;
         private bool attached;
-        // The player has been attached once (and so hidden); a cancel after the detach shows them again.
-        private bool boarded;
         private bool departed;
         private bool cameraSet;
         private bool scaleSet;
@@ -331,6 +328,12 @@ namespace DrivenRides
 
         private static readonly FieldInfo? PhoneDriverField = AccessTools.Field(typeof(SmartphonePrivateDriverUI), "_privateDriverVehicle");
 
+        private static int IndexOf(IReadOnlyList<int> list, int value)
+        {
+            for (var k = 0; k < list.Count; k++) if (list[k] == value) return k;
+            return -1;
+        }
+
         private static double NowMinutes()
         {
             var game = SaveGameManager.Current;
@@ -479,7 +482,6 @@ namespace DrivenRides
             anchorComponent.Valid = () => OwnsCar;
             // Set first, so cleanup also undoes a partly finished attachment.
             attached = true;
-            boarded = true;
             // Also sets NavigationBlocker.Taxi, disables the capsule and the agent, and tells Gley the collider is gone.
             player.AttachToObject(anchor.transform, NavigationBlocker.Taxi);
             player.Character.ToggleVisibility(false);
@@ -1043,9 +1045,6 @@ namespace DrivenRides
         private static readonly FieldInfo? VehicleCameraField = AccessTools.Field(typeof(GameManager), "vehicleCamera");
         private static readonly FieldInfo? PedestrianCameraField = AccessTools.Field(typeof(GameManager), "pedestrianCamera");
         private static readonly MethodInfo? SetCameraMethod = AccessTools.Method(typeof(CameraHelper), "SetCamera");
-
-        private static Transform? CameraTarget(object? camera, string property) =>
-            camera == null ? null : AccessTools.Property(camera.GetType(), property)?.GetValue(camera) as Transform;
 
         private void SetGameCamera(object? camera)
         {

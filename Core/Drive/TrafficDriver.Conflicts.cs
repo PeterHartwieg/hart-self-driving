@@ -302,9 +302,6 @@ namespace DrivenRides.Core.Drive
         // metre: "stopped for this car in its trigger: 0.97 m and 0.40 s from 13.6 m/s"), ua metres ahead of its front.
         private static bool TriggerStops(in OtherCar c, float ua) => ua >= c.Speed * TriggerReact + TriggerStopMetres + 1f;
 
-        // Where the car stops from v at Decel after the brakes' latency, with the uncertainty to spare.
-        private static float StoppingRoom(float v) => v * BrakeLatency + v * v / (2f * PursuitDriver.Decel) + StopUncertainty;
-
         // Gaining speed at more than half a metre a second each second.
         private bool SpeedingUp(int id) => pace.TryGetValue(id, out var p) && p.Gain > 0.5f;
 

@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Exercise adapters with narrow game API doubles; the SDK build checks real API types. -->
+    <Compile Include="../unity/DrivenRides/Scripts/Log.cs" Link="Adapter/Log.cs" />
     <Compile Include="../unity/DrivenRides/Scripts/RideRadio.cs" Link="Adapter/RideRadio.cs" />
     <Compile Include="../unity/DrivenRides/Scripts/DestinationTargets.cs" Link="Adapter/DestinationTargets.cs" />
     <Compile Include="../unity/DrivenRides/Scripts/DestinationShortcut.cs" Link="Adapter/DestinationShortcut.cs" />

@@ -111,12 +111,6 @@ namespace DrivenRides
             return expanded.Path;
         }
 
-        private static bool Contains(IReadOnlyList<int> list, int value)
-        {
-            for (var k = 0; k < list.Count; k++) if (list[k] == value) return true;
-            return false;
-        }
-
         // Takes one action off the car and reapplies the AI's top action to the driving state.
         private void ClearAction(SpecialDriveActionTypes action)
         {
@@ -341,7 +335,7 @@ namespace DrivenRides
             var w = route.Waypoints;
             for (var k = 0; k + 1 < w.Count; k++)
             {
-                if (Contains(graph.Successors(w[k]), w[k + 1]) || checkedNear.Contains((w[k], w[k + 1]))) continue;
+                if (IndexOf(graph.Successors(w[k]), w[k + 1]) >= 0 || checkedNear.Contains((w[k], w[k + 1]))) continue;
                 if (!routeIndex.TryGetValue(w[k], out var at) || at < progress!.NextIndex - 1) continue;
                 if (Vector3.Distance(here, all[w[k]].position) > 80f) continue;
                 checkedNear.Add((w[k], w[k + 1]));

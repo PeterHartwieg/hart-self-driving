@@ -7,6 +7,12 @@ namespace DrivenRides.Core.Drive
     // Recovery operations. Fields remain in TrafficDriver.cs to preserve initialization order.
     public sealed partial class TrafficDriver
     {
+        // Keep the first matching observation, as the recovery paths did before sharing this lookup.
+        private static OtherCar? FindCar(IReadOnlyList<OtherCar> cars, int id)
+        {
+            for (var i = 0; i < cars.Count; i++) if (cars[i].Id == id) return cars[i];
+            return null;
+        }
 
         // Layer 3's back-off: start it for a car nose to nose with this one, keep it up until the ride car's body is
         // clear of that car's trigger, the car moves, MaxBackOff is used up or there is no room behind.
@@ -19,8 +25,7 @@ namespace DrivenRides.Core.Drive
                 backStartZ = s.RearZ;
             }
             if (backingFrom < 0) return;
-            OtherCar? from = null;
-            for (var i = 0; i < s.Cars.Count; i++) if (s.Cars[i].Id == backingFrom) { from = s.Cars[i]; break; }
+            var from = FindCar(s.Cars, backingFrom);
             var backed = (float)Math.Sqrt((s.RearX - backStartX) * (s.RearX - backStartX) + (s.RearZ - backStartZ) * (s.RearZ - backStartZ));
             var keep = from is OtherCar && !moving.Contains(backingFrom) && backed < MaxBackOff && HasRoomBehind(s);
             if (keep)
@@ -57,19 +62,18 @@ namespace DrivenRides.Core.Drive
                     // head-on (the stand-off is backing off from a car standing for it, and the planner's).
                     if (Math.Abs(sin * poses[0].Sin + cos * poses[0].Cos) > 0.64f) continue;
                     if (StaysBehind(c, 0f, ua, null, null, 0, false)) continue;
-                    var out_ = BackOutDistance();
-                    if (out_ < 0f) continue;
+                    var backOutMetres = BackOutDistance();
+                    if (backOutMetres < 0f) continue;
                     // Time to back out at BackOffMs, with a second to set off and stop, against the car's arrival.
-                    if (out_ / BackOffMs + 1f >= corridor.Reach(ua)) continue;
-                    if (!PathBehindFree(s, out_ + BackOffClear)) continue;
+                    if (backOutMetres / BackOffMs + 1f >= corridor.Reach(ua)) continue;
+                    if (!PathBehindFree(s, backOutMetres + BackOffClear)) continue;
                     laneBackFrom = c.Id;
                     laneBackX = s.RearX;
                     laneBackZ = s.RearZ;
                 }
                 if (laneBackFrom < 0) return;
             }
-            OtherCar? from = null;
-            for (var i = 0; i < s.Cars.Count; i++) if (s.Cars[i].Id == laneBackFrom) { from = s.Cars[i]; break; }
+            var from = FindCar(s.Cars, laneBackFrom);
             var backed = (float)Math.Sqrt((s.RearX - laneBackX) * (s.RearX - laneBackX) + (s.RearZ - laneBackZ) * (s.RearZ - laneBackZ));
             var keep = from is OtherCar && backed < MaxBackOff && HasRoomBehindLane(s);
             if (keep)
@@ -120,8 +124,7 @@ namespace DrivenRides.Core.Drive
                 }
                 if (standOffFrom < 0) return;
             }
-            OtherCar? from = null;
-            for (var i = 0; i < s.Cars.Count; i++) if (s.Cars[i].Id == standOffFrom) { from = s.Cars[i]; break; }
+            var from = FindCar(s.Cars, standOffFrom);
             if (!(from is OtherCar o) || now - standOffSince > StandOffHold) { standOffFrom = -1; return; }
             if (o.StoppedForUs) standOffWaited = now;
             var waits = now - standOffWaited < StandOffClear;

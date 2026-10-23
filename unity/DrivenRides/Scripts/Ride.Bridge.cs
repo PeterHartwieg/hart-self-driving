@@ -133,12 +133,6 @@ namespace DrivenRides
             return true;
         }
 
-        private static int IndexOf(IReadOnlyList<int> list, int value)
-        {
-            for (var k = 0; k < list.Count; k++) if (list[k] == value) return k;
-            return -1;
-        }
-
         private IEnumerator SkipBridge()
         {
             var (target, at) = bridgeSkip!.Value;
