@@ -65,7 +65,7 @@ with a diagnostic prefix. `tests/Adapter/LogTests.cs` checks both test-mode stat
 Run the complete Release test suite, then the Mac SDK build, then both editor checks sequentially:
 
 ```sh
-dotnet test tests -c Release
+DR_TRAFFIC_SEEDS=500 dotnet test tests -c Release
 tools/build-mod.sh
 tools/check-drive.sh
 tools/check-paint.sh
@@ -79,7 +79,9 @@ rig or a save. Packaging checks names, versions, locales, file inventory and has
 
 The optional lane-graph tests use `build/sol-tests/lane-graph.json`. Reuse an allowed local fixture when
 available; do not collect it from an unavailable or off-limits rig. `TrafficTests.PendingScenarios` is
-an existing explicit skip. The suite's wall-clock performance assertion is unchanged; record timing
+an existing explicit skip. The full command above runs 500 seeds per traffic template (3,000 scenarios),
+enables the regression budgets and expands the related test sweeps; the default command uses 100 seeds
+per template and coarser sweeps. The suite's wall-clock performance assertion is unchanged; record timing
 failures and rerun without overlapping your own build/test jobs before attributing them to code.
 
 The separate Python suite checks the rig clients offline:

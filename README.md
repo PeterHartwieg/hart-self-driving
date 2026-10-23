@@ -84,7 +84,7 @@ The options stay in the game's settings (Unity's PlayerPrefs, keys starting with
 For developers. Needs Unity 2022.3.62f2 with Windows Build Support (Mono), the official [Big Ambitions modding SDK](https://github.com/hovgaardgames/bigambitions) with the game's DLLs, and the .NET SDK.
 
 ```bash
-dotnet test tests -c Release
+DR_TRAFFIC_SEEDS=500 dotnet test tests -c Release
 tools/build-mod.sh        # build/DrivenRides/, the folder for ModsLocal
 tools/check-drive.sh      # packaged physics-failure regression, in the Unity editor
 tools/check-paint.sh      # packaged paint-transfer regression, in the Unity editor
@@ -96,7 +96,9 @@ share one SDK project. The build script runs on macOS and targets Win64 through 
 not install a mod or start a game. `tools/package-mod.sh --no-build` packages the preceding build without
 rebuilding. Neither packaging command uploads to the Workshop.
 
-The Core suite includes adapter tests, traffic simulations and geometry replays. Two optional graph checks
+The Core suite includes adapter tests, traffic simulations and geometry replays. `DR_TRAFFIC_SEEDS=500`
+runs 3,000 traffic scenarios across six templates, enables the full regression budgets and expands related
+sweeps. Without it, the suite uses 100 seeds per template and coarser sweeps. Two optional graph checks
 need an existing local dump at `build/sol-tests/lane-graph.json`; without it they report skipped. The pending
 traffic-scenario test is explicitly skipped. The separate offline agent-client tests are run with
 `BA_BRIDGE_TOOLS=/path/to/bridge/tools python3 -m unittest discover -s tools/agent-tests -p 'test_*.py'`.
