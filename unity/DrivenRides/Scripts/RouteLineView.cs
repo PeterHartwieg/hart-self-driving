@@ -8,7 +8,7 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // One reusable renderer per loaded city, independent of pooled cars and ride coroutines.
+    // One reusable lineRenderer per loaded city, independent of pooled cars and ride coroutines.
     // Only a larger/replaced plan grows buffers. Normal frames update one vertex; crossing a sample uploads
     // the remaining cached suffix. Road probes are bounded, and never repeated for the full route per frame.
     internal sealed class RouteLineView : MonoBehaviour
@@ -21,7 +21,7 @@ namespace DrivenRides
         private Vector3[] grounded = Array.Empty<Vector3>();
         private Vector3[] upload = Array.Empty<Vector3>();
         private int probed, first = -1;
-        private LineRenderer? renderer;
+        private LineRenderer? lineRenderer;
         private Material? material;
         private GameObject? lineObject;
         private bool failed;
@@ -105,7 +105,7 @@ namespace DrivenRides
                 }
             }
             EnsureRenderer();
-            var r = renderer!;
+            var r = lineRenderer!;
             var head = vehicle.position;
             // Use the sampled road height as the ray's reference, not the vehicle's body pivot height.
             var previous = Math.Max(0, next - 1);
@@ -128,7 +128,7 @@ namespace DrivenRides
 
         private void EnsureRenderer()
         {
-            if (renderer != null) return;
+            if (lineRenderer != null) return;
             var shader = Shader.Find("HDRP/Unlit");
             if (shader == null) throw new InvalidOperationException("HDRP/Unlit shader unavailable");
             material = new Material(shader) { name = "DrivenRides.RouteBlue", hideFlags = HideFlags.DontSave };
@@ -144,24 +144,24 @@ namespace DrivenRides
             lineObject.transform.SetParent(transform, false);
             // TransformZ makes a road-facing ribbon, independent of camera pitch.
             lineObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            renderer = lineObject.AddComponent<LineRenderer>();
-            renderer.enabled = false;
-            renderer.sharedMaterial = material;
-            renderer.useWorldSpace = true;
-            renderer.alignment = LineAlignment.TransformZ;
-            renderer.widthMultiplier = 0.4f;
-            renderer.startColor = renderer.endColor = new Color32(0x2F, 0x80, 0xFF, 210);
-            renderer.numCornerVertices = 2;
-            renderer.numCapVertices = 2;
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            renderer.lightProbeUsage = LightProbeUsage.Off;
-            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            lineRenderer = lineObject.AddComponent<LineRenderer>();
+            lineRenderer.enabled = false;
+            lineRenderer.sharedMaterial = material;
+            lineRenderer.useWorldSpace = true;
+            lineRenderer.alignment = LineAlignment.TransformZ;
+            lineRenderer.widthMultiplier = 0.4f;
+            lineRenderer.startColor = lineRenderer.endColor = new Color32(0x2F, 0x80, 0xFF, 210);
+            lineRenderer.numCornerVertices = 2;
+            lineRenderer.numCapVertices = 2;
+            lineRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            lineRenderer.receiveShadows = false;
+            lineRenderer.lightProbeUsage = LightProbeUsage.Off;
+            lineRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
         }
 
         private void Hide()
         {
-            if (renderer != null) renderer.enabled = false;
+            if (lineRenderer != null) lineRenderer.enabled = false;
             first = -1;
         }
 

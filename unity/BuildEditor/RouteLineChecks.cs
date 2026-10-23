@@ -44,8 +44,8 @@ namespace DrivenRides.BuildEditor
                 Physics.SyncTransforms();
                 var line = new Polyline(new List<Vec3> { new Vec3(0, 0.2f, 0), new Vec3(6, 0.2f, 0), new Vec3(6, 0.2f, 6) });
                 show(line, 0, vehicle.transform);
-                var r = root.GetComponentInChildren<LineRenderer>(true);
-                Require(r != null && r.enabled, "No visible route");
+                var r = root.GetComponentInChildren<LineRenderer>(true) ?? throw new InvalidOperationException("No route renderer");
+                Require(r.enabled, "No visible route");
                 material = r.sharedMaterial;
                 Require(r.positionCount == 7, "Incorrect initial sample count");
                 Require(r.alignment == LineAlignment.TransformZ && Mathf.Abs(r.transform.forward.y) > 0.99f, "Ribbon is not road-facing");

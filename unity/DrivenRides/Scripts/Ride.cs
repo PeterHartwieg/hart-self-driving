@@ -271,7 +271,6 @@ namespace DrivenRides
             return true;
         }
 
-
         // Ends a test ride: the car goes, the anchor stays where it is, nothing touches the player.
         public void EndTest()
         {

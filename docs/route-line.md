@@ -48,3 +48,17 @@ exercises the production component's road projection, orientation/material state
 replacement plan, bounded preparation, renderer reuse, disabling and warm managed allocations. Batch editor
 objects do not receive the normal player-loop lifecycle, so the disable callback is explicitly invoked.
 It is not a rendered game screenshot or native ride acceptance. See `CHECKS.md` for Peter's in-game matrix.
+
+## Candidate evidence, 23 October 2026
+
+The full Release suite passed 406 tests (including 12 new sampling/trim cases), with one existing pending
+traffic-scenario skip. `DR_TRAFFIC_SEEDS=500` exercised all six 500-seed templates; the cached offline graph
+fixtures also ran. All nine Python rig-client tests passed with read-only bridge tools and bytecode writing
+disabled. The official SDK build and all three Unity checks passed, including zero managed bytes allocated
+by 1,000 warmed route updates covering both head movement and suffix uploads. No game was launched.
+
+The first route editor check incorrectly expected automatic `OnDisable` dispatch in non-playing editor mode;
+it now checks hierarchy invisibility and explicitly exercises that callback. Initial and final logs are retained
+under ignored `build/route-line/`. The first package wrapper invocation lacked `BA_GAME_DLLS`; it stopped
+before building or fetching anything. The final validation exports the local cache path for every build step.
+No traffic budget or performance threshold was relaxed. Existing unrelated SDK/analyzer warnings remain.
