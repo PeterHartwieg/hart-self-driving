@@ -242,9 +242,10 @@ namespace DrivenRides
             line = null!; along = 0f; vehicle = null!;
             if (finished || cancelled || SaveChanged || outcome != Outcome.None ||
                 (phase != Phase.Driving && phase != Phase.Stopping) || !OwnsCar) return false;
-            if (nwhDrive != null && nwh != null)
+            if (nwh != null)
             {
-                if (nwhDrive.Ended || nwh.Car.Root == null) return false;
+                // A physics ride never takes the Gley branch: its `car` is the traffic car it handed back.
+                if (nwhDrive == null || nwhDrive.Ended || nwh.Car.Root == null) return false;
                 line = nwhDrive.PlannedLine;
                 along = nwhDrive.Along;
                 vehicle = nwh.Car.Root.transform;
@@ -266,7 +267,9 @@ namespace DrivenRides
             }
             line = displayLine!.Line;
             var position = vehicle.position;
-            displayAlong = line.Project(position.x, position.z, displayAlong);
+            // Seated by the ride's own waypoint progress, which runs every frame, so turning the option on after
+            // a block or a loop starts at the car and not at the value from when it was last shown.
+            displayAlong = displayLine.Follow(position.x, position.z, displayAlong, progress.NextIndex);
             along = displayAlong;
             return true;
         }

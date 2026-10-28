@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using DrivenRides.Core.Drive;
 using DrivenRides.Core.Ride;
 using DrivenRides.Core.Routing;
 using Xunit;
@@ -82,5 +83,51 @@ public class RouteLinePathTests
         for (int i = 0; i < 10000; i++) path.FirstAfter(i % 5000);
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.Equal(0, allocated);
+    }
+}
+
+public class RouteLineFollowTests
+{
+    // Round a 100 x 70 m block back to the start, then on down the street: the car is 345 m along, 5 m past the
+    // point where the line began.
+    private static readonly Vec3[] Loop =
+    {
+        new Vec3(0, 0, 0), new Vec3(100, 0, 0), new Vec3(100, 0, 70), new Vec3(0, 0, 70), new Vec3(0, 0, 0), new Vec3(0, 0, -50),
+    };
+
+    [Fact]
+    public void EnablingAfterDrivingRoundABlockStartsAtTheCar()
+    {
+        var line = DriveLine.Build(Loop, Array.Empty<(int, Polyline)>());
+        var progress = new RouteProgress(Loop);
+        var car = new Vec3(0, 0, 0);
+        // The ride's progress runs every frame; the display's value stays at 0 while the option is off.
+        for (var along = 1f; along <= 345f; along += 1f)
+        {
+            car = line.Line.At(along);
+            progress.Update(car);
+        }
+        Assert.Equal(345.0, progress.AlongMetres, 1);
+        // The old local projection, from the stale value, never leaves the first pass.
+        var stale = 0f;
+        for (var i = 0; i < 1000; i++) stale = line.Line.Project(car.X, car.Z, stale);
+        Assert.True(stale < 10f, $"projection unexpectedly recovered to {stale}");
+        // Switched on: the first update already starts at the car.
+        Assert.Equal(345f, line.Follow(car.X, car.Z, 0f, progress.NextIndex), 2);
+        // And it keeps up once tracked.
+        var shown = line.Follow(car.X, car.Z, 0f, progress.NextIndex);
+        car = line.Line.At(350f);
+        progress.Update(car);
+        Assert.Equal(350f, line.Follow(car.X, car.Z, shown, progress.NextIndex), 2);
+    }
+
+    [Fact]
+    public void ANewPlanFollowsFromItsStart()
+    {
+        var line = DriveLine.Build(Loop, Array.Empty<(int, Polyline)>());
+        var progress = new RouteProgress(Loop);
+        var car = new Vec3(3, 0, 0.5f);
+        progress.Update(car);
+        Assert.Equal(3f, line.Follow(car.X, car.Z, 0f, progress.NextIndex), 2);
     }
 }
