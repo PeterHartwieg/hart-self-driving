@@ -4,7 +4,10 @@ The city owns one reusable `RouteLineView` and one HDRP unlit `LineRenderer`. `R
 only an active road-driving phase. Physics rides expose `NwhDrive.PlannedLine`, the actual current
 `DriveLine` after arcs, fillets and obstacle shifts, plus its existing progress. Every accepted reroute
 replaces that line reference, including the bridge landing. Legacy Gley rides cache a display curve from
-their expanded path and steering arcs; projection advances locally so a nearby future loop is not consumed.
+their expanded path and steering arcs; projection advances locally so a nearby future loop is not consumed,
+and is never more than a waypoint behind the ride's own progress, so switching the option on after a block or
+a loop starts at the car. Every line starts at the plan's point for the driver's progress (the rear axle on
+physics rides), not at the body's pivot.
 No steering, routing, speed, destination selection or save data is changed.
 
 `RouteLinePath` retains the steering vertices and subdivides spans to at most 2 m. Its horizontal distances
@@ -22,12 +25,16 @@ the car. Where no collider is available within 1.5 m of the planned height, the 
 The Hamptons slopes/bridge and streamed geometry need rendered acceptance; this is not a guarantee that
 every collider matches the visible asphalt.
 
-One renderer/material and capacity-grown arrays are reused between rides. During ordinary frames only the
-head vertex moves; when a sample is consumed, the cached suffix is uploaded in one call. Geometry buffers
-may grow on a larger plan, never per ordinary frame. Display errors hide the overlay and log once for that
-city, leaving the ride running. Cancel, completion and Skip hide synchronously; phase checks hide it during
-boarding, manoeuvres and bridge fades. City destruction releases its objects/material, and mod unload disables
-the component. Option `routeline` uses the existing ModOptions/PlayerPrefs mechanism, default on.
+One renderer/material and capacity-grown arrays are reused between rides. During ordinary frames the managed
+side moves only the head vertex; when a sample is consumed, the cached suffix is uploaded in one call. Unity
+still rebuilds the line mesh for the whole remaining route on any position change, so the native cost per
+frame grows with the route's remaining length. Geometry buffers may grow on a larger plan, never per ordinary
+frame. A plan with a non-finite point hides the overlay for that plan only; other display errors hide it and
+log once for that city, leaving the ride running. The first show in a city logs the shader and render queue
+the material ended up with. Cancel, completion and Skip hide synchronously; phase checks hide it during
+boarding, manoeuvres and bridge fades. City destruction and mod unload destroy the component, which releases
+its objects/material. Option `routeline` uses the existing ModOptions/PlayerPrefs mechanism, default on, and
+logs its changes like the other options.
 
 ## Offline validation
 

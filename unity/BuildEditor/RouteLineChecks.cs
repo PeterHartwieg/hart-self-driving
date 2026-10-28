@@ -62,6 +62,11 @@ namespace DrivenRides.BuildEditor
                 hide(); Require(!r.enabled, "Hide did not disable renderer");
                 show(line, 3, vehicle.transform);
                 Require(r.enabled && root.GetComponentsInChildren<LineRenderer>(true).Length == 1 && r.sharedMaterial == material, "Renderer/material not reused");
+                // A non-finite plan hides only that plan; the next one is shown again.
+                show(new Polyline(new List<Vec3> { new Vec3(0, 0, 0), new Vec3(float.NaN, 0, 0) }), 0, vehicle.transform);
+                Require(!r.enabled, "Non-finite plan shown");
+                show(line, 3, vehicle.transform);
+                Require(r.enabled && r.positionCount == 6, "Non-finite plan hid the following plan");
                 // Profile normal frames and sample-boundary uploads through a typed delegate (reflection itself allocates).
                 for (int i = 0; i < 100; i++) show(line, i % 5, vehicle.transform);
                 var before = GC.GetAllocatedBytesForCurrentThread();
@@ -81,7 +86,7 @@ namespace DrivenRides.BuildEditor
                 // Batch editor objects do not receive player-loop callbacks; exercise the callback explicitly.
                 type.GetMethod("OnDisable", flags)!.Invoke(view, null);
                 Require(!r.enabled, "Disable callback left renderer enabled");
-                Debug.Log("[DrivenRidesRouteLineChecks] PASS: road height/lift, ribbon orientation, HDRP colour/depth, trim, reroute, completion, bounded probes, reuse, disable; zero bytes in 1,000 warm updates.");
+                Debug.Log("[DrivenRidesRouteLineChecks] PASS: road height/lift, ribbon orientation, HDRP colour/depth, trim, reroute, completion, bounded probes, reuse, non-finite plan, disable; zero bytes in 1,000 warm updates.");
             }
             catch (Exception ex) { code = 1; Debug.LogError("[DrivenRidesRouteLineChecks] FAIL: " + ex); }
             finally

@@ -88,6 +88,7 @@ namespace DrivenRides
                 {
                     RouteLine = value;
                     if (!value) RouteLineView.HideActive();
+                    Log.Info($"Option: route line {(value ? "on" : "off")}.");
                 })
                 .AddToggle(TaxisId, "drivenrides:options_taxis", true, value => { Taxis = value; Log.Info($"Option: driven taxis {(value ? "on" : "off")}."); })
                 .AddToggle(DriverId, "drivenrides:options_driver", true, value => { PrivateDriver = value; Log.Info($"Option: driven private driver {(value ? "on" : "off")}."); })
@@ -111,7 +112,7 @@ namespace DrivenRides
                 .AddDropdown(HomeKeyId, "drivenrides:options_home_key", DestinationShortcut.Labels, DestinationShortcut.DefaultHomeKey,
                     index => HomeKey = DestinationShortcut.ValidKey(index, DestinationShortcut.DefaultHomeKey));
             OptionsService.Register(id, options);
-            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, own car {(OwnCar ? "on" : "off")}, autopark {Autopark}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}, car physics {(CarPhysics ? "on" : "off")}.");
+            Log.Info($"Options: driven taxis {(Taxis ? "on" : "off")}, private driver {(PrivateDriver ? "on" : "off")}, own car {(OwnCar ? "on" : "off")}, autopark {Autopark}, ride speed {RideSpeed}x, clock during rides {ClockPercent}%, driver shortcut {(Shortcut ? "on" : "off")}, stop at red lights {(TrafficLights ? "on" : "off")}, car physics {(CarPhysics ? "on" : "off")}, route line {(RouteLine ? "on" : "off")}.");
         }
 
         public static void Unregister()

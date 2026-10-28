@@ -80,7 +80,7 @@ namespace DrivenRides
 
         public Task OnUnloadAsync()
         {
-            RouteLineView.DisableActive();
+            RouteLineView.DestroyActive();
             GlobalEvents.onEnterBuilding -= OnEnteredBuilding;
             DestinationTargets.Reset();
             GlobalEvents.onGameUnloaded -= OnGameUnloaded;

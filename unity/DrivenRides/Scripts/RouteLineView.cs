@@ -25,15 +25,19 @@ namespace DrivenRides
         private Material? material;
         private GameObject? lineObject;
         private bool failed;
+        // The current plan has a non-finite point: hidden until the next plan, which is tried again.
+        private bool rejected;
         private float nearRefreshAt;
 
         private void OnEnable() => instance = this;
         internal static void HideActive() { if (instance != null) instance.Hide(); }
-        internal static void DisableActive()
+        // Mod unload: destroyed, so OnDestroy releases the line object and material, and the buffers go with it.
+        internal static void DestroyActive()
         {
             if (instance == null) return;
             instance.Hide();
-            instance.enabled = false;
+            Object.Destroy(instance);
+            instance = null;
         }
 
         private void LateUpdate()
@@ -64,17 +68,25 @@ namespace DrivenRides
             if (!ReferenceEquals(source, line))
             {
                 Hide();
-                samples.Reset(line);
+                source = line;
+                try { samples.Reset(line); }
+                catch (ArgumentException ex)
+                {
+                    rejected = true;
+                    Log.Info("Route line hidden for this plan: " + ex.Message);
+                    return;
+                }
+                rejected = false;
                 if (grounded.Length < samples.Count)
                 {
                     var capacity = Math.Max(samples.Count, Math.Max(256, grounded.Length * 2));
                     grounded = new Vector3[capacity];
                     upload = new Vector3[capacity + 1];
                 }
-                source = line;
                 probed = 0;
                 nearRefreshAt = 0f;
             }
+            if (rejected) return;
             var end = Math.Min(samples.Count, probed + ProbesPerFrame);
             for (; probed < end; probed++)
             {
@@ -106,7 +118,10 @@ namespace DrivenRides
             }
             EnsureRenderer();
             var r = lineRenderer!;
-            var head = vehicle.position;
+            // The line starts where `along` is on the plan. On a physics ride that is the rear axle, not the body's
+            // pivot about 1.3 m ahead of it, which folded the ribbon back on itself under the car (review round 1).
+            var at = line.At(Mathf.Max(0f, along));
+            var head = new Vector3(at.X, 0f, at.Z);
             // Use the sampled road height as the ray's reference, not the vehicle's body pivot height.
             var previous = Math.Max(0, next - 1);
             var span = samples.Distance(next) - samples.Distance(previous);
@@ -140,6 +155,8 @@ namespace DrivenRides
             material.SetFloat("_TransparentZWrite", 0f);
             material.SetFloat("_ZTestTransparent", (float)CompareFunction.LessEqual);
             if (!HDMaterial.ValidateMaterial(material)) throw new InvalidOperationException("HDRP route material validation failed");
+            // Once per city, on the first show: the rig log shows which shader and queue the player really used.
+            Log.Info($"Route line material: shader {material.shader.name}, render queue {material.renderQueue}.");
             lineObject = new GameObject("DrivenRides.RouteLine") { hideFlags = HideFlags.DontSave };
             lineObject.transform.SetParent(transform, false);
             // TransformZ makes a road-facing ribbon, independent of camera pitch.

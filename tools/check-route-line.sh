@@ -9,4 +9,4 @@ LOG="$REPO/build/logs/check-route-line.log"
 "$UNITY" -batchmode -nographics -projectPath "$SDK" -buildTarget Win64 \
     -executeMethod DrivenRides.BuildEditor.RouteLineChecks.Run -routeAssembly "$ASSEMBLY" -logFile "$LOG" \
     || { tail -60 "$LOG" >&2; exit 1; }
-rg 'DrivenRidesRouteLineChecks' "$LOG"
+grep 'DrivenRidesRouteLineChecks' "$LOG"
