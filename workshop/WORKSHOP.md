@@ -14,7 +14,7 @@ Design canvas with every card: https://claude.ai/artifact/98zz4yeE3u5CBE9L5oJhvK
 
 **Target build:** `3682`, verified from the Windows game’s `Player.log` on 22 October 2026. Use this internal game build in the Mod Creator; `25482473` is the separate Steam build ID.
 
-**Version:** `0.4.1`. Prepared package: `build/package/DrivenRides/`; archive: `build/package/DrivenRides-0.4.1.zip`. Update the existing Workshop item above. Publication is a separate step.
+**Version:** `0.4.2`. Prepared package: `build/package/DrivenRides/`; archive: `build/package/DrivenRides-0.4.2.zip`. Update the existing Workshop item above. Publication is a separate step.
 
 **PC installation:** 0.4.1 installed in the normal game's `ModsLocal/DrivenRides` on 22 October 2026 at 18:40 CEST, with all nine files verified against the release manifest. The previous 0.4.0 package with passenger radio is backed up in `DrivenRidesPackageBackups/DrivenRides-20261022-184033`. The normal game was closed and was not launched. Shortcut gameplay was checked in the isolated Mac rig; Windows-specific behavior, rendered UI appearance and listening through speakers remain manual checks.
 
