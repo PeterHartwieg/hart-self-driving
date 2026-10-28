@@ -268,6 +268,19 @@ namespace DrivenRides.Core.Drive
             return best;
         }
 
+        // Metres along the line of a car at (x, z) for a display that is not asked every frame (the route line
+        // switched off for a while; review round 1 of the route line): searched on from `previous`, but never from
+        // further back than one waypoint before the last one RouteProgress says the car has passed (`next` is its
+        // NextIndex), and only up to its next waypoint, so a stale value cannot hold onto an earlier pass round a block.
+        public float Follow(float x, float z, float previous, int next)
+        {
+            if (AlongOf.Length == 0) return previous;
+            var last = AlongOf.Length - 1;
+            var from = Math.Max(previous, AlongOf[Math.Max(0, Math.Min(next - 2, last))]);
+            var to = AlongOf[Math.Max(0, Math.Min(next, last))] + 10f;
+            return Math.Max(from, Locate(x, z, from, Math.Max(10f, to - from)).Along);
+        }
+
         private static float NearestAlong(Polyline line, Vec3 p, float from)
         {
             var best = from;

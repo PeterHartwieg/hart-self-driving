@@ -15,7 +15,7 @@ namespace DrivenRides
     [ModEntryOnInitializationLoad]
     public sealed class DrivenRidesMod : IModBigAmbitions
     {
-        public const string Version = "0.4.1";
+        public const string Version = "0.4.2";
         // The name players see; tools/rename-mod.sh changes it here and in the manifest, locales and README.
         public const string DisplayName = "HART. Self Driving";
 

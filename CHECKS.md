@@ -1,3 +1,29 @@
+## Route line candidate, 23 October 2026
+
+**In-game acceptance pending.** This branch adds the default-on “Show the planned route on the road” option.
+Offline results and implementation constraints are in `docs/route-line.md`. No normal installation,
+Windows/Home PC access or native game run is part of this change.
+
+Peter's checks on a disposable save, with only the reviewed candidate enabled:
+
+1. Start an own-car, hailed-taxi, taxi-stand and private-driver ride. Check blue/transparent/readable colour,
+   sensible width, no pink/missing shader, and a road-facing line from the vehicle to the road arrival point.
+2. Drive ordinary bends, a U-turn, lane changes and an obstacle-offset route. Check the curve stays on the
+   road, shortens continuously at 1x/2x/3x, and does not jump to a later crossing/loop or leave a trail behind.
+3. Trigger an accepted obstruction reroute. The old route must disappear immediately and the replacement
+   must appear after its bounded height preparation, with no line to the old destination. Check backing recovery.
+4. Toggle the option off/on while moving and paused. Off hides immediately; on restores the current remainder.
+   Restart the game to check both persisted values; fresh/reset options should default on.
+5. Complete, Skip and cancel trips; get out of an own car; load/unload a save; test hospital/foreign travel
+   interruption where practical. No line should remain. The next ride should have just one line.
+6. Depart parking bays/parallel spaces and arrive with autopark. The road line hides during the separate local
+   manoeuvres and returns after departure. Check the Hamptons bridge in both directions: hidden during fades,
+   correct far-side remainder, no old cross-map segment after landing.
+7. Check slopes/ramps, streamed road sections, near/far cameras, daylight/night and rain. Watch for clipping,
+   flicker or hovering. Geometry without a nearby collider uses planned height and needs particular attention.
+8. Disable real car physics and repeat a curved taxi/driver trip and reroute for the legacy Gley route. Compare
+   frame times on a long route with the option on/off; no continuing managed allocation or growing renderer count.
+
 ## Quick destinations, 22 October 2026 (0.4.1)
 
 J selects vanilla's pinned building; K selects the most recent residential building entered in the loaded
