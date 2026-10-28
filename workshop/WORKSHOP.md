@@ -72,7 +72,7 @@ Made for the HART. Group series. The full README ships with the mod. MIT licence
 
 **Change log** (0.4.2 update):
 
-The same text is in `workshop/CHANGENOTE-0.4.2.md` for the uploader's --change-note-file.
+The same text is in `workshop/CHANGENOTE-0.4.2.md`; the separate workshop-uploader tool posts that file as the Steam change note.
 
 ```
 0.4.2 — planned route line
