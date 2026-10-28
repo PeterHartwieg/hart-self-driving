@@ -4,7 +4,7 @@ A mod for Big Ambitions. Taxi rides, taxi stands, your private driver and your o
 
 Version 0.4.2. Built for Big Ambitions 1.0 (game build 3682; Steam build 25482473).
 
-This update adds configurable shortcuts for the pinned building and the last residence visited. See [CHANGELOG.md](CHANGELOG.md) for the changes and remaining issues.
+This update adds an optional blue line on the road that shows the route your car will drive. See [CHANGELOG.md](CHANGELOG.md) for the changes and remaining issues.
 
 ## What it does
 

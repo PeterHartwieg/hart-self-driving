@@ -40,13 +40,14 @@ The car uses the game's own driving physics, the same your car has when you driv
 [*][b]Quicker driving.[/b] Closer following, smaller junction gaps and faster corners. Tight turns still slow down when the car needs more steering room.
 [*][b]Radio during rides.[/b] Taxis and private-driver rides play the normal car radio with your selected station, volume and phone controls. Headphones can keep playing when you get out.
 [*][b]The ride panel.[/b] A small card shows the distance left, 1x, 2x and 3x speed, a slider for the clock and [b]Skip[/b]. Skip ends the ride the base game's way.
+[*][b]Route line.[/b] A blue line on the road shows the route the car will drive and shortens as you go. Switch it off in the mod options.
 [/list]
 
 [h2]The clock[/h2]
 A drive takes longer than the base game's instant ride, so during a ride the clock runs at a third of its speed by default. The slider sets anything from a stopped clock to normal speed. Use the time: the phone works during a ride.
 
 [h2]Options[/h2]
-Under Settings > Mods > HART. Self Driving you can switch taxis, the driver and your own car on or off, set the ride speed and clock, choose what happens at the end of a self-driven trip, and turn on "Stop for pedestrians" or "Ignore speed limits" (both off by default).
+Under Settings > Mods > HART. Self Driving you can switch taxis, the driver and your own car on or off, set the ride speed and clock, choose what happens at the end of a self-driven trip, show the planned route line, and turn on "Stop for pedestrians" or "Ignore speed limits" (both off by default).
 
 [h2]Good to know[/h2]
 [list]
@@ -69,7 +70,21 @@ The mod is free and stays free. If you'd like to say thanks, you can [url=https:
 Made for the HART. Group series. The full README ships with the mod. MIT licence for the code; the HART name and artwork are not included in that licence.
 ```
 
-**Change log** (0.4.1 update):
+**Change log** (0.4.2 update):
+
+The same text is in `workshop/CHANGENOTE-0.4.2.md` for the uploader's --change-note-file.
+
+```
+0.4.2 — planned route line
+
+- A blue line on the road shows the route your car will drive, during taxi, taxi-stand, private-driver and own-car rides. It shortens as you go.
+- Switch it off or on any time in the mod options (on by default). Switching it on mid-ride starts the line at the car.
+- The line is removed when the ride ends, is cancelled or the mod is disabled.
+
+Restart the game after updating. No save migration is needed.
+```
+
+**Previous change log** (0.4.1):
 
 ```
 0.4.1 — quick destinations
@@ -78,23 +93,6 @@ Made for the HART. Group series. The full README ships with the mod. MIT licence
 - Use either shortcut in your stopped own car or on a taxi/private-driver destination map.
 - Change or disable each key in the mod options.
 - Home resets when loading a save; loading inside a residence sets that as home.
-
-Restart the game after updating. No save migration is needed.
-```
-
-**Previous change log** (0.4.0):
-
-```
-0.4.0 — parking and more assertive driving
-
-- Start self-driven trips from legal parking bays and parallel spaces, including forward or reverse exits through an aisle or driveway.
-- Visible parallel parking, with traffic held outside the manoeuvre area and the existing fade-and-park fallback.
-- Closer following, smaller junction gaps and quicker passing of waiting cars.
-- Firmer braking for stationary cars and queues.
-- Faster corners while retaining slower, tighter turns where the car needs steering room.
-- Normal car radio in taxis and private-driver rides, with your current station, volume and phone controls.
-
-Known issues: one larger-car test overran a stop line at 3x speed; wider traffic, vehicle and tight-parking coverage remains pending. Corner timing improved in the sampled tests, but a general full-trip speedup is unverified.
 
 Restart the game after updating. No save migration is needed.
 ```
