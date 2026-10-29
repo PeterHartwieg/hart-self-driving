@@ -73,8 +73,9 @@ namespace AgentTests
             ["product"] = Product, ["data_path"] = dataPath, ["cache_path"] = cachePath,
             ["executable"] = executable, ["test_only"] = true, ["workshop"] = false,
             ["steam_stats_writes"] = false, ["audio_muted"] = audioVolume == 0f,
-            ["audio_listener_volume"] = audioVolume, ["pump_frame"] = pumpFrame, ["runtime_version"] = 6,
-            ["steam_connected"] = false, ["owned_dlc_snapshot"] = new JArray(ownedDlc.OrderBy(x => x))
+            ["audio_listener_volume"] = audioVolume, ["pump_frame"] = pumpFrame, ["runtime_version"] = 7,
+            ["steam_connected"] = false, ["owned_dlc_snapshot"] = new JArray(ownedDlc.OrderBy(x => x)),
+            ["rig_input"] = RigInput.Describe(),
         };
 
         private static void MuteAudio()
@@ -97,6 +98,8 @@ namespace AgentTests
                 lastFrame = Stopwatch.GetTimestamp();
             }
             MuteAudio();
+            // The bridge pump runs: the optional rig virtual mouse can start (once) and gets its frame check.
+            RigInput.Tick(executable);
             // The windowed mode is for rendered-game checks (performance mods among them): the game's own frame settings.
             if (mode == "windowed") { pumpFrame = Time.frameCount; return; }
             QualitySettings.vSyncCount = 0;
@@ -108,6 +111,8 @@ namespace AgentTests
         public static JObject Health(JObject result)
         {
             result["agent_instance"] = Describe();
+            var mouse = RigInput.Health();
+            if (mouse != null) result["rig_mouse"] = mouse;
             return BridgeControl.ControlGate.Health(result);
         }
 
