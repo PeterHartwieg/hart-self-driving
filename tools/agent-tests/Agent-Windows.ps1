@@ -129,6 +129,8 @@ switch ($Action) {
         Check-Hash (Join-Path $overlay $entry.file) $entry.patched_sha256
     }
     Check-Hash (Join-Path $overlay 'globalgamemanagers') $player.patched_sha256
+    $rigManifest=Get-Content -Raw (Join-Path $overlay 'rig-input-manifest.json') | ConvertFrom-Json
+    Check-Hash (Join-Path $overlay 'AgentRigInput.dll') $rigManifest.sha256
     Read-Entitlements (Join-Path $overlay 'steam-entitlements.json')
     # Include the newly patched game adapter and ownership snapshot in older installations.
     $gameDll=Join-Path $data 'Managed\BigAmbitions.dll'
@@ -155,6 +157,13 @@ switch ($Action) {
     if (!($install.files | Where-Object path -eq $controller)) {
         $install.files+=@{path=$controller;sha256=(Get-FileHash -Algorithm SHA256 $controller).Hash.ToLowerInvariant()}
     }
+    # The rig-only virtual mouse: the runtime loads it only with this recorded hash; start refuses it changed or missing.
+    $rigInput=Join-Path $data 'Managed\AgentRigInput.dll'
+    Copy-Item (Join-Path $overlay 'AgentRigInput.dll') $rigInput -Force
+    Check-Hash $rigInput $rigManifest.sha256
+    if (!($install.files | Where-Object path -eq $rigInput)) {
+        $install.files+=@{path=$rigInput;sha256=$rigManifest.sha256}
+    }
     Copy-Item $PSCommandPath (Join-Path $root 'Agent-Windows.ps1') -Force
     $install | Add-Member -NotePropertyName sources -NotePropertyValue @($manifest) -Force
     $install | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $markerPath
@@ -173,6 +182,8 @@ switch ($Action) {
         Check-Hash $input $entry.source_sha256
         Check-Hash (Join-Path $overlay $entry.file) $entry.patched_sha256
     }
+    $rigManifest=Get-Content -Raw (Join-Path $overlay 'rig-input-manifest.json') | ConvertFrom-Json
+    Check-Hash (Join-Path $overlay 'AgentRigInput.dll') $rigManifest.sha256
     Read-Entitlements (Join-Path $overlay 'steam-entitlements.json')
     New-Item -ItemType Directory $root | Out-Null
     @{product=$product;root=$root;status='installing'} | ConvertTo-Json | Set-Content -Encoding UTF8 $markerPath
@@ -187,7 +198,7 @@ switch ($Action) {
     Copy-Item (Join-Path $overlay 'globalgamemanagers') (Join-Path $data 'globalgamemanagers')
     [IO.File]::WriteAllText((Join-Path $data 'app.info'), "Hovgaard Games`n$product`n")
     $files=@()
-    foreach ($name in @('HGPlugins.dll','BigAmbitions.dll','BigAmbitions.ModsInternal.dll','AgentTestRuntime.dll','BridgeControl.dll','FoodTrucks.dll')) {
+    foreach ($name in @('HGPlugins.dll','BigAmbitions.dll','BigAmbitions.ModsInternal.dll','AgentTestRuntime.dll','BridgeControl.dll','AgentRigInput.dll','FoodTrucks.dll')) {
         $dest=if ($name -eq 'FoodTrucks.dll') { Join-Path $profile 'ModsLocal\FoodTrucks\FoodTrucks.dll' } else { Join-Path $data ('Managed\'+$name) }
         Copy-Item (Join-Path $overlay $name) $dest
         $files+=@{path=$dest;sha256=(Get-FileHash -Algorithm SHA256 $dest).Hash.ToLowerInvariant()}

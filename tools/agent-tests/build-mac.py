@@ -26,6 +26,9 @@ if __name__=='__main__':
     run(['dotnet','build',HERE/'AgentRuntime/AgentRuntime.csproj',*props,'-p:AgentMac=true','-p:GameManaged='+str(managed),'-o',OUT/'runtime'])
     run(['dotnet','run','--project',HERE/'Patcher/Patcher.csproj','-c','Release','--',inputs,output,OUT/'runtime/AgentTestRuntime.dll','28330'])
     shutil.copy2(OUT/'control/BridgeControl.dll',output/'BridgeControl.dll')
+    # The rig-only virtual mouse against the installed player's Managed folder (references only).
+    run([sys.executable,BRIDGE_TOOLS/'rig-input/build.py','--game-managed',managed,'--output',OUT/'rig-input'])
+    for name in ('AgentRigInput.dll','rig-input-manifest.json'):shutil.copy2(OUT/'rig-input'/name,output/name)
     python=REPO/'build/agent-tests/venv/bin/python'
     if not python.exists():raise SystemExit('Create the agent build venv with UnityPy 1.24.2 first')
     run([python,HERE/'patch-player.py',SOURCE/'Contents/Resources/Data/globalgamemanagers',output/'globalgamemanagers',PRODUCT])

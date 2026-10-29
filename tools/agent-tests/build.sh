@@ -25,9 +25,13 @@ if [ ! -x "$out/venv/bin/python" ]; then
   python3.13 -m venv "$out/venv"
   "$out/venv/bin/pip" install 'UnityPy==1.24.2'
 fi
-locks="${BA_BRIDGE_TOOLS:-$repo/../big-ambitions-food-trucks/tools}/bridge-locks"
+tools="${BA_BRIDGE_TOOLS:-$repo/../big-ambitions-food-trucks/tools}"
+locks="$tools/bridge-locks"
 dotnet build tools/agent-tests/AgentRuntime/AgentRuntime.csproj -p:BridgeControlProject="$locks/BridgeControl.csproj" -c Release -p:GameManaged="$out/input" --nologo
 dotnet run --project tools/agent-tests/Patcher/Patcher.csproj -c Release -- "$out/input" "$out/output" tools/agent-tests/AgentRuntime/bin/Release/netstandard2.1/AgentTestRuntime.dll
 cp "$locks/bin/Release/netstandard2.0/BridgeControl.dll" "$out/output/BridgeControl.dll"
+# The rig-only virtual mouse, compiled against the same game inputs (references only); installed into Managed with its hash.
+python3 "$tools/rig-input/build.py" --game-managed "$out/input" --output "$out/rig-input"
+cp "$out/rig-input/AgentRigInput.dll" "$out/rig-input/rig-input-manifest.json" "$out/output/"
 "$out/venv/bin/python" tools/agent-tests/patch-player.py "$out/input/globalgamemanagers" "$out/output/globalgamemanagers"
 echo 'Private test overlay built under build/agent-tests/output. Never redistribute the overlay or game files.'

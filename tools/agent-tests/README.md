@@ -89,6 +89,12 @@ For a tooling correction on the same game build, stop the agent, rebuild with `b
 
 Game updates require rebuilding and reviewing the private copy against the new binaries. Do not drop newer normal-game binaries into it. Do not run the normal game's install/park scripts against the agent instance. Source files here are distinct from all Workshop packages.
 
+## Rig virtual mouse
+
+Runtime 7 can load the optional rig virtual mouse, `AgentRigInput.dll`, from the Food Trucks repository's `tools/rig-input` (through `BA_BRIDGE_TOOLS`, like the lock library). `build.sh` and `build-mac.py` compile it against the same game inputs, as references only, and put it with `rig-input-manifest.json` into the overlay. `install.py` (`--update` for an existing rig) and `install-mac.py` verify it against that manifest, copy it into the player's `Managed` folder and record its SHA-256 in the install receipt, so `start` refuses a changed or missing copy. The runtime loads it once, after the bridge pump runs, only if its hash matches the receipt, and passes the isolated product and port. Health reports `agent_instance.rig_input` (`status`, `sha256`) and the addon's `rig_mouse` capability. Without the file the rig runs as before (`rig_input.status: absent`).
+
+Commands, gating, cleanup, the exact install steps and the Schedule resize cases are in the Food Trucks `docs/test-bridge.md`, "Rig virtual mouse". **Unverified:** built and offline-tested only; the first owned rig run records the evidence listed there.
+
 ## Evidence
 
 Checked on 17 October 2026 with Big Ambitions build 3682 / Unity 2022.3.62f2 and the private Food Trucks 0.10.0 snapshot:

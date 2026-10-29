@@ -18,8 +18,8 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--update', action='store_true', help='Update only the verified, stopped agent copy; keep its saves')
     opts=parser.parse_args()
-    names=['BridgeControl.dll','AgentTestRuntime.dll','HGPlugins.dll','BigAmbitions.dll','BigAmbitions.ModsInternal.dll','FoodTrucks.dll',
-           'globalgamemanagers','patch-manifest.json','player-manifest.json']
+    names=['BridgeControl.dll','AgentTestRuntime.dll','AgentRigInput.dll','HGPlugins.dll','BigAmbitions.dll','BigAmbitions.ModsInternal.dll','FoodTrucks.dll',
+           'globalgamemanagers','patch-manifest.json','player-manifest.json','rig-input-manifest.json']
     for name in names:
         if not (overlay/name).is_file():
             raise SystemExit('Missing build artifact: '+name+'; run build.sh first')
