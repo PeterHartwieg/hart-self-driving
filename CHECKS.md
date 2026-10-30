@@ -270,7 +270,7 @@ stationary; a failure after movement returns control in place.
   centre-only rasterization missed a thin raised curb; the original search could exhaust its budget for the
   reverse orientation; execution could consume the planning margin and then stop unnecessarily; counting a
   bridge teleport as road mileage could produce a false test pass. Each led to a targeted correction.
-- **Coverage harness:** `tools/agent-tests/parking-cases.py` verifies the installed package, reloads a disposable
+- **Coverage harness:** `tools/parking-cases.py` (formerly `tools/agent-tests/`) verifies the installed package, reloads a disposable
   FT checkpoint for each seed, samples actual free legal spaces and records the actual starting pose. It tests
   real exit movement plus 20 m of physical road driving and cleanup. Bays, parallel spots, reversed orientation,
   location filtering and unrestricted selection are supported. Failed/refused cases remain failed results.
