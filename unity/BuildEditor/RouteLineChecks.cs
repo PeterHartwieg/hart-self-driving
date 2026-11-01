@@ -32,8 +32,9 @@ namespace DrivenRides.BuildEditor
                 // Unity resolves script components to its editor copy, as in the existing paint checks.
                 type = view.GetType();
                 var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-                var show = (Action<Polyline, float, Transform>)Delegate.CreateDelegate(typeof(Action<Polyline, float, Transform>),
+                var showWithCar = (Action<Polyline, float, Transform, Vec3?>)Delegate.CreateDelegate(typeof(Action<Polyline, float, Transform, Vec3?>),
                     view, type.GetMethod("Show", flags)!);
+                Action<Polyline, float, Transform> show = (route, along, car) => showWithCar(route, along, car, null);
                 var hide = (Action)Delegate.CreateDelegate(typeof(Action), view, type.GetMethod("Hide", flags)!);
                 road = new GameObject("Road collider");
                 var box = road.AddComponent<BoxCollider>();
@@ -59,6 +60,13 @@ namespace DrivenRides.BuildEditor
                 show(line, 3, vehicle.transform);
                 Require(r.positionCount == 6 && r.GetPosition(0).x == 3 && r.GetPosition(1).x == 4, "Consumed prefix retained");
                 Require(r.GetPosition(5).z == 6, "Destination lost");
+                // Native Gley can be several metres off its outgoing U-turn lane; physics still uses the plan.
+                vehicle.transform.position = new Vector3(3, 1, -7.792f);
+                showWithCar(line, 3, vehicle.transform, new Vec3(3, 1, -7.792f));
+                Require(r.GetPosition(0).x == 3 && r.GetPosition(0).z == -7.792f, "Gley head detached from car");
+                Require(Mathf.Abs(r.GetPosition(0).y - 0.06f) < 0.001f && r.GetPosition(1).x == 4, "Gley road height/suffix changed");
+                show(line, 3, vehicle.transform);
+                Require(r.GetPosition(0).x == 3 && r.GetPosition(0).z == 0 && r.GetPosition(1).x > 3, "Physics plan head/forward segment changed");
                 hide(); Require(!r.enabled, "Hide did not disable renderer");
                 show(line, 3, vehicle.transform);
                 Require(r.enabled && root.GetComponentsInChildren<LineRenderer>(true).Length == 1 && r.sharedMaterial == material, "Renderer/material not reused");
@@ -78,15 +86,23 @@ namespace DrivenRides.BuildEditor
                 Require(r.positionCount == 3 && r.GetPosition(2).z == -4, "Reroute retained old destination");
                 show(reroute, 4, vehicle.transform); Require(!r.enabled, "Completed path still visible");
                 var longLine = new Polyline(new List<Vec3> { new Vec3(0, 0, 0), new Vec3(1000, 0, 0) });
-                show(longLine, 0, vehicle.transform); Require(!r.enabled, "Unfinished height probes exposed stale route");
-                for (int i = 0; i < 4; i++) show(longLine, 0, vehicle.transform);
+                show(longLine, 0, vehicle.transform);
+                Require(r.enabled && r.positionCount == 128 && r.GetPosition(0).x == 0 && Mathf.Abs(r.GetPosition(127).x - 254) < 0.01f,
+                    "Prepared near route not visible immediately, or stale/unprepared route exposed");
+                show(longLine, 0, vehicle.transform);
+                Require(r.positionCount == 256 && Mathf.Abs(r.GetPosition(255).x - 510) < 0.01f, "Prepared route did not extend within probe budget");
+                for (int i = 0; i < 3; i++) show(longLine, 0, vehicle.transform);
                 Require(r.enabled && r.positionCount == 501, "Bounded probes failed to finish long route");
+                var lateLine = new Polyline(new List<Vec3> { new Vec3(0, 0, 0), new Vec3(10000, 0, 0) });
+                show(lateLine, 9000, vehicle.transform);
+                Require(r.enabled && r.positionCount == 128 && Mathf.Abs(r.GetPosition(0).x - 9000) < 0.01f && Mathf.Abs(r.GetPosition(127).x - 9254) < 0.01f,
+                    "Consumed prefix delayed a late switch-on, or old route retained");
                 root.SetActive(false);
                 Require(!r.gameObject.activeInHierarchy, "Inactive host left route visible");
                 // Batch editor objects do not receive player-loop callbacks; exercise the callback explicitly.
                 type.GetMethod("OnDisable", flags)!.Invoke(view, null);
                 Require(!r.enabled, "Disable callback left renderer enabled");
-                Debug.Log("[DrivenRidesRouteLineChecks] PASS: road height/lift, ribbon orientation, HDRP colour/depth, trim, reroute, completion, bounded probes, reuse, non-finite plan, disable; zero bytes in 1,000 warm updates.");
+                Debug.Log("[DrivenRidesRouteLineChecks] PASS: road height/lift, ribbon orientation, HDRP colour/depth, Gley car/physics plan head, trim, reroute, completion, incremental bounded probes, late switch-on, reuse, non-finite plan, disable; zero bytes in 1,000 warm updates.");
             }
             catch (Exception ex) { code = 1; Debug.LogError("[DrivenRidesRouteLineChecks] FAIL: " + ex); }
             finally

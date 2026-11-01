@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using DrivenRides.Core.Ride;
+using DrivenRides.Core.Routing;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
@@ -46,13 +47,13 @@ namespace DrivenRides
             try
             {
                 var ride = Ride.Active;
-                if (!Options.RouteLine || ride == null || !ride.TryRouteLine(out var line, out var along, out var vehicle))
+                if (!Options.RouteLine || ride == null || !ride.TryRouteLine(out var line, out var along, out var vehicle, out var headCarPosition))
                 {
                     Hide();
                     source = null;
                     return;
                 }
-                Show(line, along, vehicle);
+                Show(line, along, vehicle, headCarPosition);
             }
             catch (Exception ex)
             {
@@ -63,7 +64,7 @@ namespace DrivenRides
             }
         }
 
-        internal void Show(Polyline line, float along, Transform vehicle)
+        internal void Show(Polyline line, float along, Transform vehicle, Vec3? headCarPosition = null)
         {
             if (!ReferenceEquals(source, line))
             {
@@ -87,7 +88,13 @@ namespace DrivenRides
                 nearRefreshAt = 0f;
             }
             if (rejected) return;
+            var next = samples.FirstAfter(Mathf.Max(0f, along));
+            if (next >= samples.Count) { Hide(); return; }
+            // Begin at the visible suffix, including the sample used to interpolate the head height.
+            // Consumed road needs no probes when switching on midway through a long ride.
+            probed = Math.Max(probed, Math.Max(0, next - 1));
             var end = Math.Min(samples.Count, probed + ProbesPerFrame);
+            if (end > probed) first = -1; // Upload again as the prepared portion grows.
             for (; probed < end; probed++)
             {
                 var point = samples.Point(probed);
@@ -95,17 +102,14 @@ namespace DrivenRides
                 p.y = (NwhPlanner.RoadAt(p, vehicle) ?? p.y) + Lift;
                 grounded[probed] = p;
             }
-            // No partly projected line or stale previous route during a reroute. A long route may take a few
-            // frames to prepare. The plan's height is retained where the game's surface has no collider.
-            if (probed < samples.Count) return;
-            var next = samples.FirstAfter(Mathf.Max(0f, along));
-            if (next >= samples.Count) { Hide(); return; }
+            // Show only the prepared near portion, extending it each frame within the same probe budget.
+            // No unprojected points or old route are exposed while a very long plan finishes preparing.
             // Distant colliders can stream in after the route was prepared. Recheck only the next 64 m,
             // twice a second, so the visible nearby ribbon follows newly loaded road surfaces too.
             if (Time.unscaledTime >= nearRefreshAt)
             {
                 nearRefreshAt = Time.unscaledTime + 0.5f;
-                var nearEnd = Math.Min(samples.Count, next + 32);
+                var nearEnd = Math.Min(probed, next + 32);
                 for (var i = Math.Max(0, next - 1); i < nearEnd; i++)
                 {
                     var point = samples.Point(i);
@@ -118,9 +122,9 @@ namespace DrivenRides
             }
             EnsureRenderer();
             var r = lineRenderer!;
-            // The line starts where `along` is on the plan. On a physics ride that is the rear axle, not the body's
-            // pivot about 1.3 m ahead of it, which folded the ribbon back on itself under the car (review round 1).
-            var at = line.At(Mathf.Max(0f, along));
+            // Gley supplies the car position because its native U-turn can run wide of the waypoint line.
+            // Physics supplies no override: keep the rear axle, avoiding a folded first segment under the body.
+            var at = RouteLinePath.Head(line, along, headCarPosition);
             var head = new Vector3(at.X, 0f, at.Z);
             // Use the sampled road height as the ray's reference, not the vehicle's body pivot height.
             var previous = Math.Max(0, next - 1);
@@ -131,7 +135,7 @@ namespace DrivenRides
             if (first != next)
             {
                 upload[0] = head;
-                var count = samples.Count - next;
+                var count = probed - next;
                 Array.Copy(grounded, next, upload, 1, count);
                 r.positionCount = count + 1;
                 r.SetPositions(upload);
