@@ -48,12 +48,3 @@ namespace Helpers
         public static bool IsInsideVehicle() => Current != null;
     }
 }
-namespace DrivenRides
-{
-    internal static class Log
-    {
-        internal static readonly List<string> Errors = new();
-        internal static void Error(string message) => Errors.Add(message);
-        internal static void Trace(string message) { }
-    }
-}
