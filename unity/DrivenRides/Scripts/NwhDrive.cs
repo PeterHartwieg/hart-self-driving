@@ -97,6 +97,8 @@ namespace DrivenRides
         public string EndReason { get; private set; } = "";
         public bool WaitingNow { get; private set; }
         public float Along => driver.Along;
+        // The exact curve currently being driven, replaced by UsePath on every accepted reroute.
+        internal Polyline PlannedLine => line.Line;
         // The rig's records (TurnTests sets it before Begin): the per-step trace, kept as a ring of the last
         // TraceLines steps, the traffic recorder behind the scenario dumps, and the traffic cost. Off on a ride: nothing
         // kept, and none of their buffers made (review round 2, U5).

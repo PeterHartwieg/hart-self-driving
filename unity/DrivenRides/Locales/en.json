@@ -1,5 +1,6 @@
 {
     "drivenrides:notification": "{message}",
+    "drivenrides:options_route_line": "Show the planned route on the road",
     "drivenrides:options_header": "HART. Self Driving",
     "drivenrides:options_taxis": "Taxis drive you there",
     "drivenrides:options_driver": "Your private driver drives you there",
