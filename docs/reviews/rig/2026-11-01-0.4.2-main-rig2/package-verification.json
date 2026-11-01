@@ -1,0 +1,130 @@
+{
+  "before": {
+    "utc": "2026-11-01T10:23:51.9167233Z",
+    "build": "before",
+    "files": [
+      {
+        "sha256": "df1f68c33cfe72a8c97d6a3472e31aee3c7f35cb7620637eb3f29e234d5fb2fc",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\CHANGELOG.md"
+      },
+      {
+        "sha256": "062d63970052cb4a8f04751c697313c10cf021c7cfd4ca751ff6e49493481724",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\DrivenRides.dll"
+      },
+      {
+        "sha256": "dfb53130398530b7569d6d2686991c0dba5f6e9785b4a83fa60fd51dc6ba1ba1",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\LICENSE.txt"
+      },
+      {
+        "sha256": "4f1e8d3a2fa9e1e61b9a1512d072234f7e5e23ad71966bdc782012aceb0ab42b",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\preview.jpg"
+      },
+      {
+        "sha256": "ace78b01664c0eda286b269f1579edddddd9147a5412c65f548b5c7ad6b390f9",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\README.md"
+      },
+      {
+        "sha256": "7b9e756306fa3d7620e02a857c8927a6ab04973f9bd8a77d3866700a6deac55c",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\0Harmony.dll"
+      },
+      {
+        "sha256": "c7222d8e37b6bc7cd2eca96ee9a90bf9805ccc9c50b6b4d81283a35b4047a687",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\DrivenRides.Core.dll"
+      },
+      {
+        "sha256": "407ddd98200c9f17f49942b5a7791e288a2bd553b59bf2f462db87dbb21c50bc",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\Harmony-LICENSE.txt"
+      },
+      {
+        "sha256": "76d8a78e852e6cb28ee19857f0185e4d4c4f38292901c73dc525f66a56972b26",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Locales\\en.json"
+      }
+    ],
+    "zip_sha256": "336615f8bb9ce0e940d9cf61db13d95dfac1c63d07f0e346c120bb72ea8ff345"
+  },
+  "after": {
+    "utc": "2026-11-01T10:30:36.4448268Z",
+    "build": "after",
+    "files": [
+      {
+        "sha256": "61d64f18347de2c57463a05449484297220a0a1d8162762e95454639b82e82ad",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\CHANGELOG.md"
+      },
+      {
+        "sha256": "21ef8f8e965e1d46229499128c15592c7110e36d0b20e6b5ab6cbac1072f3226",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\DrivenRides.dll"
+      },
+      {
+        "sha256": "dfb53130398530b7569d6d2686991c0dba5f6e9785b4a83fa60fd51dc6ba1ba1",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\LICENSE.txt"
+      },
+      {
+        "sha256": "4f1e8d3a2fa9e1e61b9a1512d072234f7e5e23ad71966bdc782012aceb0ab42b",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\preview.jpg"
+      },
+      {
+        "sha256": "c3d3d03f4ce2ae8d48d41f52eee14d681d8a1766411772f0907b2464e4613abe",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\README.md"
+      },
+      {
+        "sha256": "7b9e756306fa3d7620e02a857c8927a6ab04973f9bd8a77d3866700a6deac55c",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\0Harmony.dll"
+      },
+      {
+        "sha256": "3a6fb16b37a4ecf365a07bbb197f762f2e1ec261c63f8e30313b8b87206abf32",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\DrivenRides.Core.dll"
+      },
+      {
+        "sha256": "407ddd98200c9f17f49942b5a7791e288a2bd553b59bf2f462db87dbb21c50bc",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\Harmony-LICENSE.txt"
+      },
+      {
+        "sha256": "76d8a78e852e6cb28ee19857f0185e4d4c4f38292901c73dc525f66a56972b26",
+        "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Locales\\en.json"
+      }
+    ],
+    "zip_sha256": "ff23a3d0716cbbb01c3002d496fdf8c0fa0c93ff849e4e606f1e514c6dfd294e"
+  },
+  "afterPostTest": {
+    "utc": "2026-11-01T10:36:41.004530+00:00",
+    "verified": true,
+    "files": [
+      {
+        "relative": "CHANGELOG.md",
+        "sha256": "61d64f18347de2c57463a05449484297220a0a1d8162762e95454639b82e82ad"
+      },
+      {
+        "relative": "DrivenRides.dll",
+        "sha256": "21ef8f8e965e1d46229499128c15592c7110e36d0b20e6b5ab6cbac1072f3226"
+      },
+      {
+        "relative": "LICENSE.txt",
+        "sha256": "dfb53130398530b7569d6d2686991c0dba5f6e9785b4a83fa60fd51dc6ba1ba1"
+      },
+      {
+        "relative": "preview.jpg",
+        "sha256": "4f1e8d3a2fa9e1e61b9a1512d072234f7e5e23ad71966bdc782012aceb0ab42b"
+      },
+      {
+        "relative": "README.md",
+        "sha256": "c3d3d03f4ce2ae8d48d41f52eee14d681d8a1766411772f0907b2464e4613abe"
+      },
+      {
+        "relative": "Dependencies\\0Harmony.dll",
+        "sha256": "7b9e756306fa3d7620e02a857c8927a6ab04973f9bd8a77d3866700a6deac55c"
+      },
+      {
+        "relative": "Dependencies\\DrivenRides.Core.dll",
+        "sha256": "3a6fb16b37a4ecf365a07bbb197f762f2e1ec261c63f8e30313b8b87206abf32"
+      },
+      {
+        "relative": "Dependencies\\Harmony-LICENSE.txt",
+        "sha256": "407ddd98200c9f17f49942b5a7791e288a2bd553b59bf2f462db87dbb21c50bc"
+      },
+      {
+        "relative": "Locales\\en.json",
+        "sha256": "76d8a78e852e6cb28ee19857f0185e4d4c4f38292901c73dc525f66a56972b26"
+      }
+    ]
+  }
+}

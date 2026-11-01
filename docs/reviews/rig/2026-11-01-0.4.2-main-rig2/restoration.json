@@ -1,0 +1,40 @@
+{
+  "backup": {
+    "receipt_files": 107,
+    "verified": true,
+    "utc": "2026-11-01T08:39:25.5526902Z",
+    "profile_files": 4828
+  },
+  "restore": {
+    "restored": true,
+    "preferences_sha256": "66FCCBCC5F63BC492E36BA7F342D9D2480ADB2B87404A650A8607094D207381D",
+    "agent_processes": 0,
+    "receipt_sha256": "9785D1DE5C7360875B2A2A47F511815660DD98A38D6F64AB4ECFF8C20627B949",
+    "receipt_files": 107,
+    "profile_files": 4828,
+    "utc": "2026-11-01T10:37:47.2918745Z"
+  },
+  "acquire": {
+    "instance": "agent1",
+    "held": true,
+    "owner": "selfdriving-0.4.2-main-rig2",
+    "purpose": "Release re-run main 539015b / exact 0.4.2 package",
+    "acquired_utc": "2026-11-01T08:38:15.2141892Z",
+    "expires_automatically": false,
+    "pending": 0,
+    "legacy_blocked": false
+  },
+  "release": {
+    "status": {
+      "instance": "agent1",
+      "held": false,
+      "owner": null,
+      "purpose": null,
+      "acquired_utc": null,
+      "expires_automatically": false,
+      "pending": 0,
+      "legacy_blocked": false
+    },
+    "utc": "2026-11-01T10:37:47.3744790Z"
+  }
+}

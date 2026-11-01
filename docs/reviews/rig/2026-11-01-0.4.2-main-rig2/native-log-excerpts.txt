@@ -1,0 +1,95 @@
+=== before-final; original log SHA-256 in native-qa.json ===
+[Mod:DrivenRides] Version 0.4.1 loading.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Departed: 97 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Departed: 63 waypoints for Gley, light cycle 8 s.
+
+=== after-first; original log SHA-256 in native-qa.json ===
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed: 202 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] NWH drive: traffic cost over 5486 steps: reading Gley's cars within 150 m (8 cars at the median, 12 at most) p50 53 µs, p99 108 µs; deciding p50 502 µs, p99 1466 µs, max 2241 µs; per frame at 1x on average (1 physics steps at the median, 9 at most) p50 502 µs, p99 1500 µs, max 5938 µs.
+[Mod:DrivenRides] NWH drive: traffic cost over 5486 steps: reading Gley's cars within 150 m (8 cars at the median, 12 at most) p50 53 µs, p99 108 µs; deciding p50 502 µs, p99 1466 µs, max 2241 µs; per frame at 1x on average (1 physics steps at the median, 9 at most) p50 502 µs, p99 1500 µs, max 5938 µs.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] NWH drive: traffic cost over 7076 steps: reading Gley's cars within 150 m (9 cars at the median, 16 at most) p50 72 µs, p99 131 µs; deciding p50 545 µs, p99 1723 µs, max 29726 µs; per frame at 1x on average (1 physics steps at the median, 14 at most) p50 547 µs, p99 2439 µs, max 29726 µs.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed: 97 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Departed: 137 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Ride finished.
+[Mod:DrivenRides] Ride finished.
+
+=== after-long-prelife; original log SHA-256 in native-qa.json ===
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed: 86 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride finished.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Bridge: targets ahead (-1579.5, 0.0, -1209.2).
+[Mod:DrivenRides] Bridge: skipping 1568 m to waypoint 151.
+[Mod:DrivenRides] Bridge: the car landed on waypoint 151; 422 route waypoints on.
+[Mod:DrivenRides] NWH drive: traffic cost over 21639 steps: reading Gley's cars within 150 m (8 cars at the median, 14 at most) p50 53 µs, p99 101 µs; deciding p50 1148 µs, p99 2838 µs, max 31657 µs; per frame at 3x on average (3 physics steps at the median, 50 at most) p50 2042 µs, p99 26907 µs, max 99097 µs.
+[Mod:DrivenRides] NWH drive: traffic cost over 21639 steps: reading Gley's cars within 150 m (8 cars at the median, 14 at most) p50 53 µs, p99 101 µs; deciding p50 1148 µs, p99 2838 µs, max 31657 µs; per frame at 3x on average (3 physics steps at the median, 50 at most) p50 2042 µs, p99 26907 µs, max 99097 µs.
+[Mod:DrivenRides] Ride finished.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] NWH drive: traffic cost over 23 steps: reading Gley's cars within 150 m (6 cars at the median, 6 at most) p50 41 µs, p99 53 µs; deciding p50 750 µs, p99 796 µs, max 796 µs; per frame at 1.1x on average (1 physics steps at the median, 7 at most) p50 765 µs, p99 4179 µs, max 4179 µs.
+
+=== after-coverage; original log SHA-256 in native-qa.json ===
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: mod unload.
+[Mod:DrivenRides] NWH drive: traffic cost over 45 steps: reading Gley's cars within 150 m (5 cars at the median, 6 at most) p50 32 µs, p99 4374 µs; deciding p50 722 µs, p99 1737 µs, max 1737 µs; per frame at 1.1x on average (1 physics steps at the median, 13 at most) p50 804 µs, p99 10441 µs, max 10441 µs.
+[Mod:DrivenRides] NWH drive: traffic cost over 45 steps: reading Gley's cars within 150 m (5 cars at the median, 6 at most) p50 32 µs, p99 4374 µs; deciding p50 722 µs, p99 1737 µs, max 1737 µs; per frame at 1.1x on average (1 physics steps at the median, 13 at most) p50 804 µs, p99 10441 µs, max 10441 µs.
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] NWH drive: traffic cost over 103 steps: reading Gley's cars within 150 m (6 cars at the median, 6 at most) p50 61 µs, p99 127 µs; deciding p50 1028 µs, p99 1425 µs, max 1522 µs; per frame at 2.7x on average (14 physics steps at the median, 15 at most) p50 13964 µs, p99 16666 µs, max 16666 µs.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride finished.
+[Mod:DrivenRides] Departed: 84 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Watchdog: replanned, 84 waypoints, 487 m, 1836 expanded.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride finished.
+[Mod:DrivenRides] Bridge: targets ahead (-358.3, 0.0, -214.5).
+[Mod:DrivenRides] Bridge: skipping 201 m to waypoint 15242.
+[Mod:DrivenRides] Bridge: the car landed on waypoint 15242; 189 route waypoints on.
+
+=== after-final; original log SHA-256 in native-qa.json ===
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed: 97 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed: 63 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.

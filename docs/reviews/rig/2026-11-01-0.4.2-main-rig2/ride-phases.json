@@ -1,0 +1,8872 @@
+{
+  "S8-J-Manhattan-lifecycle3-phases": [
+    {
+      "frame": 2201,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2202,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2221,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2239,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2259,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2274,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2294,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2312,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2330,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2348,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2366,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2385,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2403,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2423,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2441,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2459,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2477,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 2480,
+      "phase": "Boarding",
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": "OwnCar",
+      "body": [
+        -174.908966,
+        0.0218108967,
+        458.587158
+      ]
+    },
+    {
+      "frame": 2482,
+      "phase": "Driving",
+      "enabled": false,
+      "rendererCount": 0,
+      "kind": "OwnCar",
+      "body": [
+        -174.904236,
+        0.0218268931,
+        458.587158
+      ]
+    }
+  ],
+  "S8-parking-departure-factory-phases": [
+    {
+      "frame": 78901,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 78919,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 78938,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 78956,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 78971,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 78981,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 78998,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79013,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79029,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79044,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79061,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79079,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79097,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79115,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79126,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79141,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    },
+    {
+      "frame": 79155,
+      "phase": "Boarding",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0167193618,
+        -310.02002
+      ]
+    },
+    {
+      "frame": 79156,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0167193618,
+        -310.02002
+      ]
+    },
+    {
+      "frame": 79178,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0211245865,
+        -310.019348
+      ]
+    },
+    {
+      "frame": 79188,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02126979,
+        -310.01944
+      ]
+    },
+    {
+      "frame": 79203,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0214770343,
+        -310.019562
+      ]
+    },
+    {
+      "frame": 79213,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0215486065,
+        -310.0196
+      ]
+    },
+    {
+      "frame": 79226,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0216261521,
+        -310.019623
+      ]
+    },
+    {
+      "frame": 79243,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02169147,
+        -310.019653
+      ]
+    },
+    {
+      "frame": 79258,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0217381977,
+        -310.019684
+      ]
+    },
+    {
+      "frame": 79271,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0217791032,
+        -310.019684
+      ]
+    },
+    {
+      "frame": 79286,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02181198,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79301,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0218393337,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79317,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0218614843,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79332,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0218771156,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79349,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0218915865,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79366,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219026413,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79383,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219117738,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79400,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219186135,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79415,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219238549,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 79432,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219286848,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79449,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219332483,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79463,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219359845,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79478,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219378434,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79489,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02193963,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79502,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219411552,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79522,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219424665,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79538,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219431166,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79550,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219442286,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79565,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219449233,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 79579,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021945402,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79597,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021945985,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 79624,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219464228,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79642,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946663,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79659,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219463482,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79680,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219459347,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79702,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194627,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79713,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219464079,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79735,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219465531,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79750,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194659,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79767,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219466053,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79786,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468046,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79803,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469033,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79824,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946907,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79847,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946812,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79860,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468325,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79878,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469219,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79895,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469257,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79913,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194699,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79931,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194707,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79944,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194696,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 79962,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468456,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79978,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470747,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 79998,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468232,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 80014,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470244,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80029,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194697,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 80052,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470561,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80066,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469629,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80081,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469015,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80098,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468568,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80115,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468959,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80130,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194696,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80145,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468847,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80161,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194704,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80177,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946881,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80181,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470114,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80192,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467562,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80210,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468586,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80224,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946989,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 80241,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470114,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80257,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469517,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80274,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467953,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80292,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469741,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 80309,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468977,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80327,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946907,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 80344,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194684,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80364,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470169,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80372,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469368,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80391,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467971,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80409,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469536,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80422,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467916,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80441,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194697,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80458,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468214,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80476,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469536,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80494,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467748,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80512,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467953,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80530,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946976,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80550,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194684,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80568,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467729,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80586,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470076,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 80605,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468884,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80623,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467916,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80643,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946989,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 80675,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469257,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80878,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468269,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80894,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021947097,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80911,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469368,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80924,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80934,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469126,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 80984,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468549,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 81000,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471119,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81013,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470635,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81031,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470039,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 81048,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470318,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81066,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469331,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81084,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469666,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81103,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194684,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81121,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469257,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81139,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194707,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81153,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194682,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81170,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467934,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81188,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468549,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81212,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469462,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81227,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467841,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81245,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469946,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 81264,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469927,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81281,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946881,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81299,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81363,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468735,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81381,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467618,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81401,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194701,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81419,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468959,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81438,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194688,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81456,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194675,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81474,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469219,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81494,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468288,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81512,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194698,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81530,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467618,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81548,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469778,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81568,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194698,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 81584,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194681,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81601,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194696,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81616,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468623,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81632,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470281,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81651,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468661,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81665,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469965,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 81684,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470114,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81701,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468344,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81719,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468623,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81737,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468027,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81739,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468474,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81756,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469257,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81774,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470225,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81792,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469983,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81810,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470263,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81828,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468251,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81846,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470412,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81863,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194708,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81881,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468642,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81899,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946948,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81919,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468288,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81937,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468381,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81955,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470114,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81972,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194686,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 81990,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469517,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82008,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470412,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82024,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469331,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82042,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470058,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 82060,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194684,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82080,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470523,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82097,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470412,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82117,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946907,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82135,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470356,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82155,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468512,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82173,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470784,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82191,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469629,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82210,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469257,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82229,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469219,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82248,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469238,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82268,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470859,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82283,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946989,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82303,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946853,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82321,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470132,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82336,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946853,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82356,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470672,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 82373,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470412,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 82393,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468959,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82411,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470374,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82429,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468921,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 82449,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470151,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82467,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469313,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82485,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194684,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82505,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194674,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82523,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469331,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82541,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82561,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194696,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82579,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194673,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82597,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468139,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82615,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467655,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82633,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469331,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82649,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467841,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82660,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469275,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82677,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946948,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82695,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946948,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 82715,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470114,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82736,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468139,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82754,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469722,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82771,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469145,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82789,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946894,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82805,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470467,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82823,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467953,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82841,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021947,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82860,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946935,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82878,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194677,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82896,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468176,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82914,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470151,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82934,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468735,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82949,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82965,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468214,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 82982,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469685,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83001,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470784,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83015,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946935,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83096,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470952,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83111,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469517,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83115,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471026,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83124,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471045,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83141,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468679,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83161,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194704,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 83183,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194709,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 83206,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471138,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83224,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469219,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83241,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946948,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83258,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469666,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 83278,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946976,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83292,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469164,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83304,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468474,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83315,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194697,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83327,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470169,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83335,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470076,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83349,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194682,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83361,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946907,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83372,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.639954,
+        0.0219471138,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83383,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468232,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83396,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469555,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83406,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471157,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83416,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946989,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83430,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470989,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83441,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194703,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83450,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469145,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 83463,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194697,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83471,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467822,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 83478,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470654,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 83486,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468474,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83499,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194698,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 83513,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469648,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83526,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469219,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83536,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469741,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83544,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468679,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83552,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470188,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83558,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946976,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83567,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468735,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83579,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469853,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83594,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467785,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83611,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470225,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83630,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194726,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83642,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471343,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83660,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219473131,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83677,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219472889,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 83695,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469722,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83713,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021947097,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83731,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219472051,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 83749,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83767,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194715,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83786,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470728,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83804,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470188,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83822,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469219,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83840,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471939,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83859,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471734,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83879,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468269,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83897,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471138,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83914,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470561,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83929,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946989,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83947,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468363,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83967,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021947125,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 83985,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469648,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84005,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467934,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84023,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470952,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84041,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468586,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84061,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470933,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 84079,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194701,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84099,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469052,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84117,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469462,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84135,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194717,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84154,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471566,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84172,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470486,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84185,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470467,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84202,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469555,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84219,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469219,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84237,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219472088,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84257,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194699,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84275,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219472032,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84293,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469629,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84311,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470859,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 84329,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469853,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84347,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471566,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84365,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219472,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84383,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194689,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84401,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470281,
+        -310.0197
+      ]
+    },
+    {
+      "frame": 84420,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470114,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84438,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471846,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 84457,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219470784,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84474,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219471641,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84494,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194658,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84507,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467878,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84526,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219465587,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84544,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.02194668,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84562,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468214,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84578,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219466183,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84594,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946609,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84612,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468977,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84630,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219466146,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84648,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219467152,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84666,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 84684,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84702,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021946758,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84720,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219468921,
+        -310.019745
+      ]
+    },
+    {
+      "frame": 84735,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.0219469555,
+        -310.019775
+      ]
+    },
+    {
+      "frame": 84754,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.6403,
+        0.021941347,
+        -310.020172
+      ]
+    },
+    {
+      "frame": 84771,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.6407,
+        0.0219366346,
+        -310.0207
+      ]
+    },
+    {
+      "frame": 84789,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.64,
+        0.021932805,
+        -310.0186
+      ]
+    },
+    {
+      "frame": 84807,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.634155,
+        0.021929685,
+        -310.001953
+      ]
+    },
+    {
+      "frame": 84825,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.621033,
+        0.0219317432,
+        -309.963257
+      ]
+    },
+    {
+      "frame": 84845,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.5995,
+        0.0219411477,
+        -309.8954
+      ]
+    },
+    {
+      "frame": 84862,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.574341,
+        0.0219527874,
+        -309.809052
+      ]
+    },
+    {
+      "frame": 84879,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.545349,
+        0.0219671987,
+        -309.7011
+      ]
+    },
+    {
+      "frame": 84897,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.511169,
+        0.0219824389,
+        -309.5589
+      ]
+    },
+    {
+      "frame": 84913,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.480957,
+        0.0219952259,
+        -309.4129
+      ]
+    },
+    {
+      "frame": 84930,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.4501,
+        0.0219996981,
+        -309.227722
+      ]
+    },
+    {
+      "frame": 84948,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.427551,
+        0.0219930746,
+        -309.039429
+      ]
+    },
+    {
+      "frame": 84966,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.413452,
+        0.0219821818,
+        -308.837128
+      ]
+    },
+    {
+      "frame": 84984,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.410645,
+        0.0219715927,
+        -308.6287
+      ]
+    },
+    {
+      "frame": 85004,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.416443,
+        0.0218353085,
+        -308.4261
+      ]
+    },
+    {
+      "frame": 85022,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.433655,
+        0.0218424015,
+        -308.249939
+      ]
+    },
+    {
+      "frame": 85040,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.4591,
+        0.021866437,
+        -308.077057
+      ]
+    },
+    {
+      "frame": 85058,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.495,
+        0.0218897555,
+        -307.8958
+      ]
+    },
+    {
+      "frame": 85077,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.5487,
+        0.0219120421,
+        -307.6861
+      ]
+    },
+    {
+      "frame": 85093,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.6048,
+        0.0219247565,
+        -307.508881
+      ]
+    },
+    {
+      "frame": 85113,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.682068,
+        0.02193384,
+        -307.304657
+      ]
+    },
+    {
+      "frame": 85131,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.764038,
+        0.0219384972,
+        -307.120972
+      ]
+    },
+    {
+      "frame": 85149,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.8558,
+        0.0219408534,
+        -306.942566
+      ]
+    },
+    {
+      "frame": 85167,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -528.9551,
+        0.0219419636,
+        -306.773
+      ]
+    },
+    {
+      "frame": 85187,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -529.074,
+        0.0219423026,
+        -306.5939
+      ]
+    },
+    {
+      "frame": 85205,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -529.187744,
+        0.02194342,
+        -306.44165
+      ]
+    },
+    {
+      "frame": 85223,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -529.3103,
+        0.0219441876,
+        -306.2946
+      ]
+    },
+    {
+      "frame": 85242,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -529.448242,
+        0.0219450761,
+        -306.145966
+      ]
+    },
+    {
+      "frame": 85261,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -529.597168,
+        0.0219465513,
+        -306.0028
+      ]
+    },
+    {
+      "frame": 85279,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -529.7373,
+        0.0219478477,
+        -305.881927
+      ]
+    },
+    {
+      "frame": 85297,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -529.887451,
+        0.021949755,
+        -305.765381
+      ]
+    },
+    {
+      "frame": 85315,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -530.042358,
+        0.0219506528,
+        -305.657562
+      ]
+    },
+    {
+      "frame": 85333,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -530.216064,
+        0.0219522528,
+        -305.550232
+      ]
+    },
+    {
+      "frame": 85350,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -530.390259,
+        0.0219536275,
+        -305.455353
+      ]
+    },
+    {
+      "frame": 85367,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -530.559143,
+        0.021954678,
+        -305.374756
+      ]
+    },
+    {
+      "frame": 85383,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -530.72644,
+        0.02195546,
+        -305.3051
+      ]
+    },
+    {
+      "frame": 85402,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -530.9179,
+        0.0219568163,
+        -305.236969
+      ]
+    },
+    {
+      "frame": 85417,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -531.085,
+        0.0219569635,
+        -305.187134
+      ]
+    },
+    {
+      "frame": 85436,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -531.2724,
+        0.021957878,
+        -305.141541
+      ]
+    },
+    {
+      "frame": 85454,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -531.4487,
+        0.0219579525,
+        -305.109131
+      ]
+    },
+    {
+      "frame": 85474,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -531.647034,
+        0.0219530873,
+        -305.0926
+      ]
+    },
+    {
+      "frame": 85492,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -531.8272,
+        0.0219498221,
+        -305.089722
+      ]
+    },
+    {
+      "frame": 85512,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -532.02594,
+        0.0219388418,
+        -305.0966
+      ]
+    },
+    {
+      "frame": 85530,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -532.2033,
+        0.0219285972,
+        -305.112335
+      ]
+    },
+    {
+      "frame": 85549,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -532.395264,
+        0.0219314434,
+        -305.140869
+      ]
+    },
+    {
+      "frame": 85567,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -532.564148,
+        0.0219244324,
+        -305.183746
+      ]
+    },
+    {
+      "frame": 85585,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -532.7276,
+        0.0219137222,
+        -305.2391
+      ]
+    },
+    {
+      "frame": 85605,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -532.904663,
+        0.0219012462,
+        -305.309753
+      ]
+    },
+    {
+      "frame": 85623,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -533.057861,
+        0.0218928773,
+        -305.3801
+      ]
+    },
+    {
+      "frame": 85641,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -533.219055,
+        0.0218877513,
+        -305.458466
+      ]
+    },
+    {
+      "frame": 85659,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -533.371643,
+        0.0218876339,
+        -305.540771
+      ]
+    },
+    {
+      "frame": 85676,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -533.519043,
+        0.0218901951,
+        -305.6254
+      ]
+    },
+    {
+      "frame": 85694,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -533.663269,
+        0.02189157,
+        -305.710632
+      ]
+    },
+    {
+      "frame": 85712,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -533.8004,
+        0.02189678,
+        -305.792847
+      ]
+    },
+    {
+      "frame": 85732,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -533.9527,
+        0.0219012052,
+        -305.883026
+      ]
+    },
+    {
+      "frame": 85750,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -534.0924,
+        0.0219067074,
+        -305.964233
+      ]
+    },
+    {
+      "frame": 85768,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -534.2358,
+        0.02191212,
+        -306.045
+      ]
+    },
+    {
+      "frame": 85788,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -534.3948,
+        0.0219177,
+        -306.130157
+      ]
+    },
+    {
+      "frame": 85806,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -534.546631,
+        0.0219227523,
+        -306.207
+      ]
+    },
+    {
+      "frame": 85824,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -534.6952,
+        0.02192745,
+        -306.277466
+      ]
+    },
+    {
+      "frame": 85844,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -534.8635,
+        0.0219317246,
+        -306.351532
+      ]
+    },
+    {
+      "frame": 85862,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -535.0263,
+        0.02193524,
+        -306.417358
+      ]
+    },
+    {
+      "frame": 85879,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -535.1992,
+        0.0219386388,
+        -306.481079
+      ]
+    },
+    {
+      "frame": 85894,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -535.365051,
+        0.0219411869,
+        -306.536316
+      ]
+    },
+    {
+      "frame": 85908,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -535.5406,
+        0.02194321,
+        -306.588562
+      ]
+    },
+    {
+      "frame": 85923,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -535.717957,
+        0.02194403,
+        -306.635742
+      ]
+    },
+    {
+      "frame": 85936,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -535.8882,
+        0.0219450165,
+        -306.6754
+      ]
+    },
+    {
+      "frame": 85953,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -536.061768,
+        0.0219453778,
+        -306.710846
+      ]
+    },
+    {
+      "frame": 85970,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -536.2439,
+        0.0219454952,
+        -306.7426
+      ]
+    },
+    {
+      "frame": 85987,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -536.425964,
+        0.0219458621,
+        -306.769165
+      ]
+    },
+    {
+      "frame": 85998,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -536.5922,
+        0.0219416618,
+        -306.790344
+      ]
+    },
+    {
+      "frame": 86014,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -536.781433,
+        0.0219375528,
+        -306.8125
+      ]
+    },
+    {
+      "frame": 86025,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -536.949158,
+        0.0219364222,
+        -306.8303
+      ]
+    },
+    {
+      "frame": 86038,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -537.1385,
+        0.02193613,
+        -306.846527
+      ]
+    },
+    {
+      "frame": 86050,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -537.3102,
+        0.02193776,
+        -306.857483
+      ]
+    },
+    {
+      "frame": 86066,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -537.5099,
+        0.0219377019,
+        -306.8629
+      ]
+    },
+    {
+      "frame": 86079,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -537.694153,
+        0.02193712,
+        -306.858856
+      ]
+    },
+    {
+      "frame": 86093,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -537.8642,
+        0.02193794,
+        -306.847
+      ]
+    },
+    {
+      "frame": 86108,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -538.0537,
+        0.0219324231,
+        -306.8299
+      ]
+    },
+    {
+      "frame": 86121,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -538.2251,
+        0.0219301712,
+        -306.812073
+      ]
+    },
+    {
+      "frame": 86136,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -538.4007,
+        0.0219312739,
+        -306.791351
+      ]
+    },
+    {
+      "frame": 86148,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -538.580444,
+        0.02193502,
+        -306.766724
+      ]
+    },
+    {
+      "frame": 86163,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -538.7573,
+        0.02193812,
+        -306.7386
+      ]
+    },
+    {
+      "frame": 86176,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -538.948853,
+        0.0219371468,
+        -306.700531
+      ]
+    },
+    {
+      "frame": 86187,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -539.1118,
+        0.0219389014,
+        -306.659546
+      ]
+    },
+    {
+      "frame": 86199,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -539.2855,
+        0.02194141,
+        -306.6071
+      ]
+    },
+    {
+      "frame": 86216,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -539.4879,
+        0.0219415035,
+        -306.5345
+      ]
+    },
+    {
+      "frame": 86228,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -539.6382,
+        0.021939123,
+        -306.468
+      ]
+    },
+    {
+      "frame": 86243,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -539.7994,
+        0.021938283,
+        -306.383362
+      ]
+    },
+    {
+      "frame": 86258,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -539.957153,
+        0.0219268873,
+        -306.292725
+      ]
+    },
+    {
+      "frame": 86273,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -540.108154,
+        0.0219244286,
+        -306.198822
+      ]
+    },
+    {
+      "frame": 86287,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -540.261169,
+        0.0219224431,
+        -306.095276
+      ]
+    },
+    {
+      "frame": 86301,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -540.4249,
+        0.0219154134,
+        -305.977356
+      ]
+    },
+    {
+      "frame": 86314,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -540.5967,
+        0.0219063945,
+        -305.853668
+      ]
+    },
+    {
+      "frame": 86328,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -540.7438,
+        0.0219034981,
+        -305.735168
+      ]
+    },
+    {
+      "frame": 86345,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -540.8848,
+        0.0219065677,
+        -305.612274
+      ]
+    },
+    {
+      "frame": 86359,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.005859,
+        0.0219063647,
+        -305.500244
+      ]
+    },
+    {
+      "frame": 86374,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.126,
+        0.021906497,
+        -305.384
+      ]
+    },
+    {
+      "frame": 86391,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.2545,
+        0.0219081715,
+        -305.257782
+      ]
+    },
+    {
+      "frame": 86401,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.37616,
+        0.02191085,
+        -305.1378
+      ]
+    },
+    {
+      "frame": 86416,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.5005,
+        0.0219137967,
+        -305.0152
+      ]
+    },
+    {
+      "frame": 86430,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.6279,
+        0.0219167732,
+        -304.89328
+      ]
+    },
+    {
+      "frame": 86445,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.754,
+        0.021920504,
+        -304.7762
+      ]
+    },
+    {
+      "frame": 86453,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -541.899048,
+        0.0219247881,
+        -304.647278
+      ]
+    },
+    {
+      "frame": 86464,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -542.039734,
+        0.0219285768,
+        -304.528381
+      ]
+    },
+    {
+      "frame": 86479,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -542.209839,
+        0.0219331291,
+        -304.3927
+      ]
+    },
+    {
+      "frame": 86490,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -542.340149,
+        0.0219356474,
+        -304.294739
+      ]
+    },
+    {
+      "frame": 86502,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -542.507141,
+        0.0219390634,
+        -304.1767
+      ]
+    },
+    {
+      "frame": 86517,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -542.67,
+        0.0219365954,
+        -304.072876
+      ]
+    },
+    {
+      "frame": 86531,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -542.842,
+        0.0219303686,
+        -303.979675
+      ]
+    },
+    {
+      "frame": 86543,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -543.0045,
+        0.0219260566,
+        -303.899658
+      ]
+    },
+    {
+      "frame": 86558,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -543.170654,
+        0.0219250675,
+        -303.826721
+      ]
+    },
+    {
+      "frame": 86573,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -543.350037,
+        0.0219144933,
+        -303.749542
+      ]
+    },
+    {
+      "frame": 86589,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -543.5538,
+        0.0219165981,
+        -303.665833
+      ]
+    },
+    {
+      "frame": 86605,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -543.7633,
+        0.0219163243,
+        -303.586945
+      ]
+    },
+    {
+      "frame": 86620,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -543.927856,
+        0.02191656,
+        -303.5332
+      ]
+    },
+    {
+      "frame": 86634,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -544.103638,
+        0.0219204,
+        -303.483978
+      ]
+    },
+    {
+      "frame": 86648,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -544.2734,
+        0.02192077,
+        -303.442017
+      ]
+    },
+    {
+      "frame": 86661,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -544.4384,
+        0.02191851,
+        -303.405273
+      ]
+    },
+    {
+      "frame": 86676,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -544.6325,
+        0.0219169,
+        -303.363831
+      ]
+    },
+    {
+      "frame": 86690,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -544.8146,
+        0.0219165143,
+        -303.324432
+      ]
+    },
+    {
+      "frame": 86705,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -544.990662,
+        0.0219182987,
+        -303.284271
+      ]
+    },
+    {
+      "frame": 86720,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -545.167,
+        0.0219213553,
+        -303.240967
+      ]
+    },
+    {
+      "frame": 86734,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -545.340149,
+        0.0219215266,
+        -303.193268
+      ]
+    },
+    {
+      "frame": 86747,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -545.515442,
+        0.021925129,
+        -303.13855
+      ]
+    },
+    {
+      "frame": 86760,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -545.6961,
+        0.0219284613,
+        -303.0756
+      ]
+    },
+    {
+      "frame": 86769,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -545.8843,
+        0.021929713,
+        -303.0036
+      ]
+    },
+    {
+      "frame": 86782,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -546.0558,
+        0.0219305772,
+        -302.9329
+      ]
+    },
+    {
+      "frame": 86799,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -546.233337,
+        0.0219315141,
+        -302.85495
+      ]
+    },
+    {
+      "frame": 86812,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -546.3802,
+        0.0219294149,
+        -302.787628
+      ]
+    },
+    {
+      "frame": 86825,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -546.5431,
+        0.0219288915,
+        -302.7063
+      ]
+    },
+    {
+      "frame": 86839,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -546.701965,
+        0.0219300669,
+        -302.618378
+      ]
+    },
+    {
+      "frame": 86849,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -546.8541,
+        0.0219297856,
+        -302.528442
+      ]
+    },
+    {
+      "frame": 86865,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -547.015,
+        0.0219300482,
+        -302.426575
+      ]
+    },
+    {
+      "frame": 86881,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -547.172,
+        0.0219285674,
+        -302.3226
+      ]
+    },
+    {
+      "frame": 86896,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -547.3176,
+        0.0219285414,
+        -302.222778
+      ]
+    },
+    {
+      "frame": 86911,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -547.4527,
+        0.021929495,
+        -302.1274
+      ]
+    },
+    {
+      "frame": 86928,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -547.6054,
+        0.0219287276,
+        -302.017578
+      ]
+    },
+    {
+      "frame": 86943,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -547.736267,
+        0.0219301917,
+        -301.922058
+      ]
+    },
+    {
+      "frame": 86960,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -547.8863,
+        0.021931041,
+        -301.8118
+      ]
+    },
+    {
+      "frame": 86975,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -548.026062,
+        0.0219322,
+        -301.708557
+      ]
+    },
+    {
+      "frame": 86990,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -548.1622,
+        0.021933794,
+        -301.6078
+      ]
+    },
+    {
+      "frame": 87007,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -548.3164,
+        0.0219356958,
+        -301.493622
+      ]
+    },
+    {
+      "frame": 87022,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -548.4543,
+        0.0219375715,
+        -301.392181
+      ]
+    },
+    {
+      "frame": 87037,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -548.595459,
+        0.0219382141,
+        -301.288818
+      ]
+    },
+    {
+      "frame": 87049,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -548.739441,
+        0.0219400655,
+        -301.183746
+      ]
+    },
+    {
+      "frame": 87066,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -548.891541,
+        0.0219417233,
+        -301.0736
+      ]
+    },
+    {
+      "frame": 87080,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -549.0254,
+        0.0219426081,
+        -300.977051
+      ]
+    },
+    {
+      "frame": 87097,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -549.1692,
+        0.0219435319,
+        -300.874084
+      ]
+    },
+    {
+      "frame": 87112,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -549.309143,
+        0.0219415836,
+        -300.7737
+      ]
+    },
+    {
+      "frame": 87128,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -549.4518,
+        0.0219391249,
+        -300.66864
+      ]
+    },
+    {
+      "frame": 87143,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -549.5924,
+        0.02193881,
+        -300.5628
+      ]
+    },
+    {
+      "frame": 87158,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -549.737854,
+        0.0219367966,
+        -300.4527
+      ]
+    },
+    {
+      "frame": 87175,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -549.8775,
+        0.0219366215,
+        -300.346649
+      ]
+    },
+    {
+      "frame": 87192,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -550.0182,
+        0.0219357722,
+        -300.2412
+      ]
+    },
+    {
+      "frame": 87209,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -550.1623,
+        0.0219344851,
+        -300.135834
+      ]
+    },
+    {
+      "frame": 87224,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -550.3075,
+        0.0219330769,
+        -300.032043
+      ]
+    },
+    {
+      "frame": 87241,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -550.461,
+        0.0219296385,
+        -299.9214
+      ]
+    },
+    {
+      "frame": 87251,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -550.5974,
+        0.0219285637,
+        -299.819946
+      ]
+    },
+    {
+      "frame": 87264,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -550.7386,
+        0.0219290145,
+        -299.7136
+      ]
+    },
+    {
+      "frame": 87278,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -550.8871,
+        0.0219310373,
+        -299.601654
+      ]
+    },
+    {
+      "frame": 87292,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -551.029053,
+        0.02193106,
+        -299.4955
+      ]
+    },
+    {
+      "frame": 87305,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -551.162842,
+        0.021932587,
+        -299.3977
+      ]
+    },
+    {
+      "frame": 87319,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -551.311646,
+        0.02193391,
+        -299.291443
+      ]
+    },
+    {
+      "frame": 87331,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -551.4513,
+        0.0219352562,
+        -299.194824
+      ]
+    },
+    {
+      "frame": 87343,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -551.6075,
+        0.0219364334,
+        -299.091
+      ]
+    },
+    {
+      "frame": 87358,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -551.7457,
+        0.021937849,
+        -299.0031
+      ]
+    },
+    {
+      "frame": 87374,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -551.9114,
+        0.02193907,
+        -298.9029
+      ]
+    },
+    {
+      "frame": 87387,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -552.0573,
+        0.02194039,
+        -298.819153
+      ]
+    },
+    {
+      "frame": 87400,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -552.2212,
+        0.0219421443,
+        -298.730316
+      ]
+    },
+    {
+      "frame": 87413,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -552.389038,
+        0.0219433121,
+        -298.645
+      ]
+    },
+    {
+      "frame": 87425,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -552.5455,
+        0.0219448786,
+        -298.5704
+      ]
+    },
+    {
+      "frame": 87439,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -552.713135,
+        0.0219458267,
+        -298.495483
+      ]
+    },
+    {
+      "frame": 87456,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -552.8913,
+        0.0219466239,
+        -298.421722
+      ]
+    },
+    {
+      "frame": 87468,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -553.0608,
+        0.0219468232,
+        -298.35672
+      ]
+    },
+    {
+      "frame": 87478,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -553.219849,
+        0.0219474211,
+        -298.300262
+      ]
+    },
+    {
+      "frame": 87491,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -553.3963,
+        0.0219468921,
+        -298.242859
+      ]
+    },
+    {
+      "frame": 87508,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -553.5781,
+        0.02194148,
+        -298.1922
+      ]
+    },
+    {
+      "frame": 87523,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -553.7733,
+        0.0219386891,
+        -298.151245
+      ]
+    },
+    {
+      "frame": 87535,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -553.9281,
+        0.0219312236,
+        -298.123474
+      ]
+    },
+    {
+      "frame": 87548,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -554.101746,
+        0.02192928,
+        -298.098236
+      ]
+    },
+    {
+      "frame": 87561,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -554.299438,
+        0.0219238829,
+        -298.073
+      ]
+    },
+    {
+      "frame": 87575,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -554.4626,
+        0.0219153669,
+        -298.0515
+      ]
+    },
+    {
+      "frame": 87586,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -554.6428,
+        0.0219045449,
+        -298.021149
+      ]
+    },
+    {
+      "frame": 87596,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -554.8222,
+        0.0219054688,
+        -297.9879
+      ]
+    },
+    {
+      "frame": 87607,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -554.9876,
+        0.0219048578,
+        -297.9612
+      ]
+    },
+    {
+      "frame": 87621,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -555.166565,
+        0.0219056066,
+        -297.939362
+      ]
+    },
+    {
+      "frame": 87638,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -555.355957,
+        0.0219137724,
+        -297.923553
+      ]
+    },
+    {
+      "frame": 87653,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -555.5227,
+        0.0219186936,
+        -297.916321
+      ]
+    },
+    {
+      "frame": 87670,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -555.7175,
+        0.0219152272,
+        -297.914978
+      ]
+    },
+    {
+      "frame": 87685,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -555.891052,
+        0.0219007581,
+        -297.9109
+      ]
+    },
+    {
+      "frame": 87700,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -556.0642,
+        0.02189409,
+        -297.8986
+      ]
+    },
+    {
+      "frame": 87715,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -556.244751,
+        0.0219007153,
+        -297.8816
+      ]
+    },
+    {
+      "frame": 87730,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -556.4027,
+        0.0219030846,
+        -297.86554
+      ]
+    },
+    {
+      "frame": 87747,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -556.588257,
+        0.02190775,
+        -297.84613
+      ]
+    },
+    {
+      "frame": 87762,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -556.760742,
+        0.0219110772,
+        -297.829071
+      ]
+    },
+    {
+      "frame": 87774,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -556.9325,
+        0.0219168849,
+        -297.813934
+      ]
+    },
+    {
+      "frame": 87788,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -557.1157,
+        0.02192062,
+        -297.802368
+      ]
+    },
+    {
+      "frame": 87802,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -557.3099,
+        0.0219265334,
+        -297.797058
+      ]
+    },
+    {
+      "frame": 87815,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -557.480835,
+        0.0219304655,
+        -297.799377
+      ]
+    },
+    {
+      "frame": 87830,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -557.667542,
+        0.0219349917,
+        -297.811066
+      ]
+    },
+    {
+      "frame": 87847,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -557.868835,
+        0.021939896,
+        -297.834564
+      ]
+    },
+    {
+      "frame": 87862,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -558.0497,
+        0.0219434611,
+        -297.8655
+      ]
+    },
+    {
+      "frame": 87875,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -558.228333,
+        0.021947369,
+        -297.905457
+      ]
+    },
+    {
+      "frame": 87887,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -558.4125,
+        0.02195021,
+        -297.956665
+      ]
+    },
+    {
+      "frame": 87902,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -558.6081,
+        0.0219532717,
+        -298.022827
+      ]
+    },
+    {
+      "frame": 87915,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -558.788147,
+        0.0219554026,
+        -298.095032
+      ]
+    },
+    {
+      "frame": 87926,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -558.9574,
+        0.021957146,
+        -298.1734
+      ]
+    },
+    {
+      "frame": 87941,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.127441,
+        0.0219582357,
+        -298.263184
+      ]
+    },
+    {
+      "frame": 87953,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.2839,
+        0.0219581816,
+        -298.356445
+      ]
+    },
+    {
+      "frame": 87968,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.4277,
+        0.0218213536,
+        -298.448364
+      ]
+    },
+    {
+      "frame": 87983,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.5405,
+        0.0218233224,
+        -298.530853
+      ]
+    },
+    {
+      "frame": 87998,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.647949,
+        0.0218292326,
+        -298.614044
+      ]
+    },
+    {
+      "frame": 88013,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.717346,
+        0.0217224769,
+        -298.6705
+      ]
+    },
+    {
+      "frame": 88026,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.776733,
+        0.0217462927,
+        -298.723328
+      ]
+    },
+    {
+      "frame": 88034,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.827942,
+        0.021771349,
+        -298.770752
+      ]
+    },
+    {
+      "frame": 88045,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.8806,
+        0.02179814,
+        -298.821625
+      ]
+    },
+    {
+      "frame": 88059,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.92395,
+        0.02181881,
+        -298.86496
+      ]
+    },
+    {
+      "frame": 88070,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.955566,
+        0.0218344852,
+        -298.8974
+      ]
+    },
+    {
+      "frame": 88085,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.984741,
+        0.0218481757,
+        -298.928223
+      ]
+    },
+    {
+      "frame": 88099,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.00946,
+        0.0218599457,
+        -298.954926
+      ]
+    },
+    {
+      "frame": 88114,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0266,
+        0.0218680874,
+        -298.973755
+      ]
+    },
+    {
+      "frame": 88130,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0399,
+        0.0218753777,
+        -298.988617
+      ]
+    },
+    {
+      "frame": 88143,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0498,
+        0.0218805056,
+        -298.9999
+      ]
+    },
+    {
+      "frame": 88160,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0585,
+        0.0218857881,
+        -299.009918
+      ]
+    },
+    {
+      "frame": 88172,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0653,
+        0.0218906086,
+        -299.0179
+      ]
+    },
+    {
+      "frame": 88185,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.072,
+        0.0218953546,
+        -299.0261
+      ]
+    },
+    {
+      "frame": 88199,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.080139,
+        0.0219011717,
+        -299.035583
+      ]
+    },
+    {
+      "frame": 88212,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0878,
+        0.0219072551,
+        -299.0448
+      ]
+    },
+    {
+      "frame": 88227,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0802,
+        0.0218318887,
+        -299.0337
+      ]
+    },
+    {
+      "frame": 88240,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0721,
+        0.0218349379,
+        -299.023376
+      ]
+    },
+    {
+      "frame": 88255,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0655,
+        0.0218164381,
+        -299.0027
+      ]
+    },
+    {
+      "frame": 88270,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0565,
+        0.0217503477,
+        -298.948639
+      ]
+    },
+    {
+      "frame": 88283,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.040344,
+        0.021697225,
+        -298.8572
+      ]
+    },
+    {
+      "frame": 88300,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -560.0169,
+        0.02169786,
+        -298.727753
+      ]
+    },
+    {
+      "frame": 88317,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.993,
+        0.0217223074,
+        -298.5822
+      ]
+    },
+    {
+      "frame": 88334,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9742,
+        0.02173979,
+        -298.437866
+      ]
+    },
+    {
+      "frame": 88350,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9636,
+        0.0217505284,
+        -298.308563
+      ]
+    },
+    {
+      "frame": 88365,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9601,
+        0.0217686,
+        -298.23822
+      ]
+    },
+    {
+      "frame": 88378,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9584,
+        0.0218124427,
+        -298.1673
+      ]
+    },
+    {
+      "frame": 88391,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9594,
+        0.0218454842,
+        -298.099426
+      ]
+    },
+    {
+      "frame": 88405,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9614,
+        0.02187082,
+        -298.0386
+      ]
+    },
+    {
+      "frame": 88419,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9641,
+        0.0218920857,
+        -297.9824
+      ]
+    },
+    {
+      "frame": 88432,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9666,
+        0.0219093934,
+        -297.938354
+      ]
+    },
+    {
+      "frame": 88447,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.9684,
+        0.0219243281,
+        -297.897766
+      ]
+    },
+    {
+      "frame": 88460,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.96936,
+        0.0219373461,
+        -297.865448
+      ]
+    },
+    {
+      "frame": 88475,
+      "phase": "Unparking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.970154,
+        0.0219453536,
+        -297.844543
+      ]
+    },
+    {
+      "frame": 88487,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -559.969849,
+        0.0219115261,
+        -297.847168
+      ]
+    },
+    {
+      "frame": 88490,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.527832,
+        0.274552166,
+        -196.419891
+      ]
+    },
+    {
+      "frame": 88499,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.527832,
+        0.274552166,
+        -196.419891
+      ]
+    },
+    {
+      "frame": 88512,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.527832,
+        0.274552166,
+        -196.419891
+      ]
+    },
+    {
+      "frame": 88525,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.527832,
+        0.274552166,
+        -196.419891
+      ]
+    },
+    {
+      "frame": 88540,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.527832,
+        0.274552166,
+        -196.419891
+      ]
+    },
+    {
+      "frame": 88555,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.527832,
+        0.274552166,
+        -196.419891
+      ]
+    },
+    {
+      "frame": 88564,
+      "phase": "Bridging",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.533356,
+        0.136717245,
+        -195.965866
+      ]
+    },
+    {
+      "frame": 88572,
+      "phase": "Driving",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -385.534943,
+        0.07413983,
+        -194.923
+      ]
+    }
+  ],
+  "S8-arrival-phases": [
+    {
+      "frame": 67758,
+      "phase": "Driving",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -109.626884,
+        0.0213018879,
+        458.639221
+      ]
+    },
+    {
+      "frame": 67760,
+      "phase": "Driving",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -108.569145,
+        0.0209706165,
+        458.639771
+      ]
+    },
+    {
+      "frame": 67762,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -106.076973,
+        0.02028579,
+        458.6408
+      ]
+    },
+    {
+      "frame": 67764,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -99.74063,
+        0.0204044189,
+        458.6394
+      ]
+    },
+    {
+      "frame": 67765,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -94.294754,
+        0.0205477923,
+        458.635
+      ]
+    },
+    {
+      "frame": 67767,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -83.7672348,
+        0.0209014378,
+        458.6236
+      ]
+    },
+    {
+      "frame": 67769,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -74.9380646,
+        0.02145976,
+        458.614227
+      ]
+    },
+    {
+      "frame": 67771,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -67.87781,
+        0.0219788011,
+        458.607361
+      ]
+    },
+    {
+      "frame": 67773,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -63.3145676,
+        0.0218033381,
+        458.6028
+      ]
+    },
+    {
+      "frame": 67775,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -59.5913849,
+        0.0217700414,
+        458.599121
+      ]
+    },
+    {
+      "frame": 67777,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -56.04044,
+        0.0210208,
+        458.595947
+      ]
+    },
+    {
+      "frame": 67779,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -51.872467,
+        0.021006478,
+        458.594452
+      ]
+    },
+    {
+      "frame": 67782,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -45.40365,
+        0.02118303,
+        458.595947
+      ]
+    },
+    {
+      "frame": 67785,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -38.69033,
+        0.0213317871,
+        458.599731
+      ]
+    },
+    {
+      "frame": 67788,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -31.6042156,
+        0.021374153,
+        458.603668
+      ]
+    },
+    {
+      "frame": 67791,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -23.5448151,
+        0.0214201771,
+        458.6068
+      ]
+    },
+    {
+      "frame": 67794,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -14.8607187,
+        0.0214676484,
+        458.607666
+      ]
+    },
+    {
+      "frame": 67797,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        -7.587693,
+        0.0215415414,
+        458.6077
+      ]
+    },
+    {
+      "frame": 67801,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        1.09821939,
+        0.0208233763,
+        458.607666
+      ]
+    },
+    {
+      "frame": 67805,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        11.3051615,
+        0.021088168,
+        458.607666
+      ]
+    },
+    {
+      "frame": 67807,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        18.1538467,
+        0.02126661,
+        458.6077
+      ]
+    },
+    {
+      "frame": 67810,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        30.5600815,
+        0.0215859264,
+        458.6076
+      ]
+    },
+    {
+      "frame": 67812,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        39.5545845,
+        0.0216111355,
+        458.60556
+      ]
+    },
+    {
+      "frame": 67814,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        49.9287033,
+        0.0216776729,
+        458.600616
+      ]
+    },
+    {
+      "frame": 67816,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        60.55819,
+        0.02174861,
+        458.596924
+      ]
+    },
+    {
+      "frame": 67818,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        72.5947952,
+        0.0217834674,
+        458.601959
+      ]
+    },
+    {
+      "frame": 67820,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        84.69101,
+        0.0217999052,
+        458.612
+      ]
+    },
+    {
+      "frame": 67823,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        106.359917,
+        0.0223913174,
+        458.628479
+      ]
+    },
+    {
+      "frame": 67848,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        108.702316,
+        0.02128965,
+        458.6302
+      ]
+    },
+    {
+      "frame": 67871,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        108.701385,
+        0.02173401,
+        458.6302
+      ]
+    },
+    {
+      "frame": 67879,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        109.065826,
+        0.0210219789,
+        458.630432
+      ]
+    },
+    {
+      "frame": 67890,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        111.353394,
+        0.0209395178,
+        458.632141
+      ]
+    },
+    {
+      "frame": 67892,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        114.026222,
+        0.0210192166,
+        458.633972
+      ]
+    },
+    {
+      "frame": 67894,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        116.589554,
+        0.0205903742,
+        458.6358
+      ]
+    },
+    {
+      "frame": 67897,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        121.842972,
+        0.02058781,
+        458.6177
+      ]
+    },
+    {
+      "frame": 67899,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        128.874146,
+        0.0209102053,
+        457.6826
+      ]
+    },
+    {
+      "frame": 67901,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        133.0954,
+        0.02156683,
+        454.087433
+      ]
+    },
+    {
+      "frame": 67904,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.502792,
+        0.021335654,
+        449.075684
+      ]
+    },
+    {
+      "frame": 67908,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.5122,
+        0.02024962,
+        443.24472
+      ]
+    },
+    {
+      "frame": 67911,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.2824,
+        0.02021429,
+        436.699036
+      ]
+    },
+    {
+      "frame": 67914,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.1213,
+        0.0205616374,
+        428.301361
+      ]
+    },
+    {
+      "frame": 67916,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.090591,
+        0.0207038689,
+        422.1925
+      ]
+    },
+    {
+      "frame": 67919,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.100143,
+        0.02132771,
+        414.279144
+      ]
+    },
+    {
+      "frame": 67921,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.107147,
+        0.02160561,
+        409.1844
+      ]
+    },
+    {
+      "frame": 67923,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.108215,
+        0.02183554,
+        405.4558
+      ]
+    },
+    {
+      "frame": 67925,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.107727,
+        0.0220580827,
+        403.2679
+      ]
+    },
+    {
+      "frame": 67927,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.1073,
+        0.0217373241,
+        402.102325
+      ]
+    },
+    {
+      "frame": 67931,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.107285,
+        0.0216813311,
+        401.583221
+      ]
+    },
+    {
+      "frame": 67935,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.107285,
+        0.0214727484,
+        401.58252
+      ]
+    },
+    {
+      "frame": 67939,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.1073,
+        0.0203027986,
+        400.393066
+      ]
+    },
+    {
+      "frame": 67943,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.107574,
+        0.0206385329,
+        397.666077
+      ]
+    },
+    {
+      "frame": 67946,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.10965,
+        0.02097163,
+        394.335632
+      ]
+    },
+    {
+      "frame": 67948,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.113449,
+        0.02117255,
+        390.9107
+      ]
+    },
+    {
+      "frame": 67951,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.120361,
+        0.0215026475,
+        386.6341
+      ]
+    },
+    {
+      "frame": 67954,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.128738,
+        0.0214001145,
+        382.118073
+      ]
+    },
+    {
+      "frame": 67956,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.136673,
+        0.0201697517,
+        377.8551
+      ]
+    },
+    {
+      "frame": 67958,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.1476,
+        0.0206438173,
+        371.836639
+      ]
+    },
+    {
+      "frame": 67960,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.1565,
+        0.0212975815,
+        366.844452
+      ]
+    },
+    {
+      "frame": 67963,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.163315,
+        0.02163511,
+        360.878967
+      ]
+    },
+    {
+      "frame": 67965,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.155853,
+        0.02023836,
+        355.8333
+      ]
+    },
+    {
+      "frame": 67966,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.156464,
+        0.02020787,
+        351.938538
+      ]
+    },
+    {
+      "frame": 67968,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.180283,
+        0.0207057223,
+        340.272461
+      ]
+    },
+    {
+      "frame": 67970,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.169052,
+        0.0209418982,
+        326.714478
+      ]
+    },
+    {
+      "frame": 67972,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.1472,
+        0.0212677345,
+        313.375549
+      ]
+    },
+    {
+      "frame": 67974,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.130478,
+        0.02123453,
+        299.871735
+      ]
+    },
+    {
+      "frame": 67975,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.123352,
+        0.0214457847,
+        293.4096
+      ]
+    },
+    {
+      "frame": 67977,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.0764,
+        0.0218091384,
+        282.0444
+      ]
+    },
+    {
+      "frame": 67979,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.013809,
+        0.0216449555,
+        271.066467
+      ]
+    },
+    {
+      "frame": 67981,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.048965,
+        0.0218177475,
+        259.6569
+      ]
+    },
+    {
+      "frame": 67982,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.10289,
+        0.0209208876,
+        252.757568
+      ]
+    },
+    {
+      "frame": 67983,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.163391,
+        0.0210348926,
+        244.02356
+      ]
+    },
+    {
+      "frame": 67984,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.186386,
+        0.02126905,
+        234.813675
+      ]
+    },
+    {
+      "frame": 67985,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.179947,
+        0.0216730572,
+        225.79071
+      ]
+    },
+    {
+      "frame": 67986,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.165955,
+        0.0218539238,
+        215.396179
+      ]
+    },
+    {
+      "frame": 67987,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.157227,
+        0.021963669,
+        205.8631
+      ]
+    },
+    {
+      "frame": 67988,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.15184,
+        0.0219463687,
+        197.0841
+      ]
+    },
+    {
+      "frame": 67989,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.147263,
+        0.0219821371,
+        188.942322
+      ]
+    },
+    {
+      "frame": 67990,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        134.146255,
+        0.021945212,
+        181.1102
+      ]
+    },
+    {
+      "frame": 67992,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        137.2598,
+        0.0218152255,
+        168.315353
+      ]
+    },
+    {
+      "frame": 67994,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        142.999435,
+        0.0221615769,
+        163.379547
+      ]
+    },
+    {
+      "frame": 67996,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        148.029,
+        0.0221799519,
+        161.913284
+      ]
+    },
+    {
+      "frame": 67998,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        152.523132,
+        0.021732064,
+        161.737427
+      ]
+    },
+    {
+      "frame": 68000,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        156.812164,
+        0.0208634753,
+        161.780823
+      ]
+    },
+    {
+      "frame": 68002,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        162.21344,
+        0.0202249531,
+        161.21608
+      ]
+    },
+    {
+      "frame": 68005,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        170.041367,
+        0.02057929,
+        159.381744
+      ]
+    },
+    {
+      "frame": 68009,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        174.830719,
+        0.022536017,
+        158.3562
+      ]
+    },
+    {
+      "frame": 68014,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        178.359253,
+        0.02177715,
+        157.940521
+      ]
+    },
+    {
+      "frame": 68019,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        180.872589,
+        0.0215599556,
+        157.827042
+      ]
+    },
+    {
+      "frame": 68025,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        185.3717,
+        0.0202023983,
+        157.791718
+      ]
+    },
+    {
+      "frame": 68034,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        192.484711,
+        0.0205250848,
+        157.829468
+      ]
+    },
+    {
+      "frame": 68038,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        197.987076,
+        0.0202585813,
+        157.8522
+      ]
+    },
+    {
+      "frame": 68044,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        206.4675,
+        0.0206700955,
+        157.848328
+      ]
+    },
+    {
+      "frame": 68048,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        216.275635,
+        0.0212691352,
+        156.792648
+      ]
+    },
+    {
+      "frame": 68051,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        220.380829,
+        0.02212706,
+        153.246384
+      ]
+    },
+    {
+      "frame": 68053,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.448059,
+        0.0218612812,
+        150.282684
+      ]
+    },
+    {
+      "frame": 68056,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.738983,
+        0.0213819724,
+        147.474319
+      ]
+    },
+    {
+      "frame": 68060,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.600861,
+        0.0201884061,
+        140.124176
+      ]
+    },
+    {
+      "frame": 68062,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.412628,
+        0.0206517763,
+        133.166443
+      ]
+    },
+    {
+      "frame": 68064,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.343857,
+        0.0209398232,
+        126.479172
+      ]
+    },
+    {
+      "frame": 68066,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.339523,
+        0.0208739117,
+        120.564056
+      ]
+    },
+    {
+      "frame": 68069,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.350433,
+        0.0214138441,
+        113.959633
+      ]
+    },
+    {
+      "frame": 68074,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.356613,
+        0.0209664367,
+        107.3357
+      ]
+    },
+    {
+      "frame": 68078,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.356659,
+        0.0204361584,
+        101.028854
+      ]
+    },
+    {
+      "frame": 68084,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.352783,
+        0.0206704065,
+        91.5848846
+      ]
+    },
+    {
+      "frame": 68089,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.348724,
+        0.0209568776,
+        82.93354
+      ]
+    },
+    {
+      "frame": 68093,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.344879,
+        0.0208302364,
+        73.25457
+      ]
+    },
+    {
+      "frame": 68097,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.341568,
+        0.02094022,
+        63.77595
+      ]
+    },
+    {
+      "frame": 68102,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.337219,
+        0.0211934485,
+        51.98951
+      ]
+    },
+    {
+      "frame": 68106,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3331,
+        0.021414198,
+        40.2427826
+      ]
+    },
+    {
+      "frame": 68109,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.32991,
+        0.0215342771,
+        31.2985744
+      ]
+    },
+    {
+      "frame": 68116,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.325363,
+        0.02165989,
+        18.3607635
+      ]
+    },
+    {
+      "frame": 68123,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.321426,
+        0.0217291769,
+        7.603285
+      ]
+    },
+    {
+      "frame": 68130,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.321655,
+        0.0217584427,
+        -3.392117
+      ]
+    },
+    {
+      "frame": 68136,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3396,
+        0.0217720717,
+        -14.4414873
+      ]
+    },
+    {
+      "frame": 68144,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.37326,
+        0.0218049325,
+        -25.63033
+      ]
+    },
+    {
+      "frame": 68150,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.40744,
+        0.0218194425,
+        -36.02826
+      ]
+    },
+    {
+      "frame": 68156,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.427643,
+        0.0218139738,
+        -47.4597473
+      ]
+    },
+    {
+      "frame": 68162,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.427628,
+        0.0218213387,
+        -59.10134
+      ]
+    },
+    {
+      "frame": 68166,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.42157,
+        0.0218380913,
+        -69.3957748
+      ]
+    },
+    {
+      "frame": 68169,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.416443,
+        0.0218397323,
+        -79.31161
+      ]
+    },
+    {
+      "frame": 68172,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.412338,
+        0.0218413714,
+        -92.05904
+      ]
+    },
+    {
+      "frame": 68175,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.409653,
+        0.0218410045,
+        -103.660408
+      ]
+    },
+    {
+      "frame": 68177,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.407562,
+        0.0218563266,
+        -112.761215
+      ]
+    },
+    {
+      "frame": 68180,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.404816,
+        0.02184406,
+        -124.774109
+      ]
+    },
+    {
+      "frame": 68184,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.402008,
+        0.0218692888,
+        -136.4776
+      ]
+    },
+    {
+      "frame": 68187,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.399612,
+        0.02209223,
+        -145.443085
+      ]
+    },
+    {
+      "frame": 68193,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.397522,
+        0.022370277,
+        -153.542328
+      ]
+    },
+    {
+      "frame": 68198,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3962,
+        0.0225291234,
+        -158.987915
+      ]
+    },
+    {
+      "frame": 68206,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.394989,
+        0.0227182545,
+        -163.94812
+      ]
+    },
+    {
+      "frame": 68214,
+      "phase": "Driving",
+      "enabled": true,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.394684,
+        0.0225839578,
+        -165.128891
+      ]
+    },
+    {
+      "frame": 68222,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3947,
+        0.022254914,
+        -165.146469
+      ]
+    },
+    {
+      "frame": 68238,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3947,
+        0.0213077161,
+        -165.144028
+      ]
+    },
+    {
+      "frame": 68240,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3947,
+        0.0216330253,
+        -165.145325
+      ]
+    },
+    {
+      "frame": 68241,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3947,
+        0.0217645932,
+        -165.144333
+      ]
+    },
+    {
+      "frame": 68242,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.394684,
+        0.0218476169,
+        -165.143768
+      ]
+    },
+    {
+      "frame": 68243,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.394821,
+        0.0214101523,
+        -164.5022
+      ]
+    },
+    {
+      "frame": 68245,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.3948,
+        0.0218041651,
+        -163.862671
+      ]
+    },
+    {
+      "frame": 68247,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.394821,
+        0.0216018315,
+        -163.457321
+      ]
+    },
+    {
+      "frame": 68253,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.394821,
+        0.02137848,
+        -163.203613
+      ]
+    },
+    {
+      "frame": 68262,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        221.394821,
+        0.0214526244,
+        -163.204
+      ]
+    },
+    {
+      "frame": 68272,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        173.026611,
+        0.0189938974,
+        -201.846634
+      ]
+    },
+    {
+      "frame": 68282,
+      "phase": "Parking",
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": "OwnCar",
+      "body": [
+        173.026962,
+        0.020661287,
+        -201.846619
+      ]
+    },
+    {
+      "frame": 68293,
+      "phase": null,
+      "enabled": false,
+      "rendererCount": 1,
+      "kind": null,
+      "body": null
+    }
+  ]
+}

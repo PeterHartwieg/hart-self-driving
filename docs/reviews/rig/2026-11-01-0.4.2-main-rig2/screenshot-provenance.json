@@ -1,0 +1,380 @@
+[
+  {
+    "file": "S1-before-fullblock-final-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "2ef2d8cd49f84dccf6ec73e8d6387417f8fe31bd9bd01c6835672b574cd520ae",
+    "publishedSha256": "fd8af40ad831e012ab9eb9a66212d87976172bd536f27f0fa6143ad4c467f69e",
+    "publishedBytes": 206961
+  },
+  {
+    "file": "S1-after-fullblock-final-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "a65a2c43422a49fd3907e4c29f968f637698c575ab6642bef9bf393aa5e76a75",
+    "publishedSha256": "2226bc0c70e933965a0e504b12d4475f18a2fd5cf7e6698491b77c6fa4026a1b",
+    "publishedBytes": 207234
+  },
+  {
+    "file": "S1-before-fullblock-final-paused-overview-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "fa821c1e7f3a3fa601adb0d50279f95d40d7caef1aceb1b0f3e1ac0c9eb5e8be",
+    "publishedSha256": "3810955c1b033c86e5fc489a11da4f51dba09d92c11240683dd3eecdeb68cf2a",
+    "publishedBytes": 384314
+  },
+  {
+    "file": "S1-after-fullblock-final-paused-overview-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "c2462c307c75c2ba74de39da314583f8184dd7328460a23836f146976ba592bd",
+    "publishedSha256": "7dffcb4cc4331ded13e428909c6d2195720874442b66aa22cbdce894f5146a39",
+    "publishedBytes": 385192
+  },
+  {
+    "file": "S1-before-uturn-final-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "2221e98050abf3241ed49a6b3a2683b58707d87d94027da95a3069ce1de569a3",
+    "publishedSha256": "50150eb6b55e6f9f2756c9320ecc986d4f082e1960acd540c7d9e417f7bcb6c6",
+    "publishedBytes": 386650
+  },
+  {
+    "file": "S1-after-uturn-final-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "ba7e21bcedb2ffeb30df5b4af05e6bdb9d53ae25c9e30b726145552110dc7e68",
+    "publishedSha256": "e227fe77c66faf62246f2415686a49a6903ac46cd109c7da7d78383f82cd764f",
+    "publishedBytes": 385105
+  },
+  {
+    "file": "S2-before-fullblock-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "6147ee63da065d72bdc2497c870d79df806886f15aa00bad7e23c617ceff595c",
+    "publishedSha256": "51b127e194aa9612272d40b312ca67cf32f3378368f12be2b145b0ee9682fbf5",
+    "publishedBytes": 134050
+  },
+  {
+    "file": "S2-after-fullblock-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "e83e06ca8f07a4eceec11bbb5fc03d931da135a27d31bf8a013b263a41d5fdac",
+    "publishedSha256": "48b36f2075c6ae0cae34c181990137ad1f7e7d1534701485f9024c40660196b9",
+    "publishedBytes": 125384
+  },
+  {
+    "file": "S2-before-loop-repeat-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "8558eb0d2bf18b6d6d7653f9cdb34a5d90037fec700096dd640bce79020ff9c9",
+    "publishedSha256": "43315f6b32afa0eac5607a18d174ff84938fb0497525ed9d28734b687f2c4bac",
+    "publishedBytes": 177021
+  },
+  {
+    "file": "S2-after-loop-repeat-switch-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "af3d1f6106546ad5f6752e5db4815bf8c622aedbc8cc62553e54eebafb17f2c6",
+    "publishedSha256": "3b0efe09bbe6f4e0e1d9690c61e7cd515a3cbb2f86d3d839ae36660fa6d2cb33",
+    "publishedBytes": 129309
+  },
+  {
+    "file": "S2-after-slow-switch-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "e7d505013a2011f39ac690e8d6c9428b0247ad5e045b0cdf6300b96aa6525e1e",
+    "publishedSha256": "b56f0dad88c55c5fc98a4390b10053f0a8b9775036ba0ea5f57be64855169af8",
+    "publishedBytes": 186798
+  },
+  {
+    "file": "S3-after-private-arc-0-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "d4d1f935bba6775121baea504cd7ecffdbdb4c9c58b6c3f172a401b5696a1dfa",
+    "publishedSha256": "2b14f3a83c5d4ef9a56fad4b1e13edc8f53f2e0ab3cbe213f2a61643f23f35a3",
+    "publishedBytes": 295938
+  },
+  {
+    "file": "S3-after-private-arc-1-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "e96ccd547ddb40140c0fec2c00a6f33a19c399ece3a3db3b0bc30cc6286f07d3",
+    "publishedSha256": "cb8b52ec9ee2fef7e41b4edd315d8a864e41ea69b7632680f0dcb7f9466cb3c6",
+    "publishedBytes": 231806
+  },
+  {
+    "file": "S4-after-long-route-on-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "2a5a9cbc241ed1573a086ef85790f961fecfdc76edad1eeead68c2313274547f",
+    "publishedSha256": "fa7c1ae8877f85f1b431219114340f0e99a4067ed23f8cfdc08ff1aa328f2aa1",
+    "publishedBytes": 329117
+  },
+  {
+    "file": "S5-after-Hamptons-slope.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "1085ba2a22c79616bae7cc912cc12ec988118246937fbd94f34e6bdac90ea4c3",
+    "publishedSha256": "abbb16dfd9dc1dccb8e07f6e5f562d70f25572f926f00aa143d5a45745957e91",
+    "publishedBytes": 411498
+  },
+  {
+    "file": "S6-after-Hamptons-landing-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "baf5ae0f9b4b52a913b524a5b80c5b33fde6ccc7068f9c0114999e7e4e87eef5",
+    "publishedSha256": "e7ac06fe7c6b6fe316cb32ea3b182b12bc2a8a6c072bd20b1786ed4959e695c3",
+    "publishedBytes": 450488
+  },
+  {
+    "file": "S6-after-reroute-new-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "f68fbbafda4b2721ddd98ef22788cdd6e58ee63bcf73723fa6f1581b47c21f92",
+    "publishedSha256": "6ee455c2019a2e894e9ec0b6920bf2b6fcec379cd3a9934ad56df16af23705da",
+    "publishedBytes": 202269
+  },
+  {
+    "file": "S7c-after-midride-reload-no-line.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "010e375a803e352cfbbf8ff81070db6fdedd60e6bf350836e07ffa7c40b23562",
+    "publishedSha256": "7c6d76079923f8f441e4f2a07c2e99d769394f51e978ec8218bad86e45a5d4ef",
+    "publishedBytes": 124905
+  },
+  {
+    "file": "S7c-after-reenable-one-line-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "e1cba7607790917669103b99b0d0346805258dc2e61cce6566402dacced54b66",
+    "publishedSha256": "dc01754d12198bbb03a6e5a920bf6fe47b3cfec5881c9be80d587ed33b865712",
+    "publishedBytes": 130959
+  },
+  {
+    "file": "S7c-after-cancel-no-line.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "9562032b649968b472bc75befcdf95092f731f748621ab6a243326a1677152f5",
+    "publishedSha256": "4cc0dd98b86e172b34a9b4ee46186b2727b4787f1a769c846a69642e1cd31168",
+    "publishedBytes": 145137
+  },
+  {
+    "file": "S8-after-J-Manhattan-lifecycle3-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "f7065e87af8b4b1dd862a890a76332bb1cedef754466e24ab137da5866fb5fb6",
+    "publishedSha256": "d6321c12a143a28c2877aa3a1683ffbeed6ba819136e0acdbe98d1ba0352ddf6",
+    "publishedBytes": 122654
+  },
+  {
+    "file": "S8-after-K-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "a16f9a635112c078eebbf34f12847f81aa5aca6f704ce527ef227757cc5a937b",
+    "publishedSha256": "54146e0c19d22aef7665f0ec06eda11b8102c015dbfaa33ceb64c5d71bd29ee5",
+    "publishedBytes": 117901
+  },
+  {
+    "file": "S8-after-stand-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "d9a3ffb07a6c9b66ca21db545e80f8ca3e623c10217a6d994728d7831b02a62e",
+    "publishedSha256": "e779dd1f1be4533644e649251ce5986ff6149adf758f748f915802fa46209629",
+    "publishedBytes": 203952
+  },
+  {
+    "file": "S8-after-parking-arrival-manoeuvre.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "c61f38e99a2116a4b6c78e11a0783739c3770c9796d9086370ec06a569d9d3c3",
+    "publishedSha256": "005b7478b09dbd06ed120c3aad88bbea8648b45b26f85de80fa10db9ddd487c4",
+    "publishedBytes": 307484
+  },
+  {
+    "file": "S7-after-parking-arrival-no-line.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "0497c749737dadadea3dd3e9b1abc47e452161db68b78e525919ef3007a5d3f3",
+    "publishedSha256": "069a8dd0efc9d7f94d7e64a41ead416f2cedd952959390441a23971394eccb18",
+    "publishedBytes": 222719
+  },
+  {
+    "file": "S8-parking-departure-factory-manoeuvre.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "5d227a2733208c63f0b74c71b77bda60be1e61afaf9e0be658b99ef5c5f5579e",
+    "publishedSha256": "e40285fb2bc8bec7abba07d7c52aca6015cfe0b6fd5b8bdbaea1c6001ee032d2",
+    "publishedBytes": 251969
+  },
+  {
+    "file": "S8-after-factory-departure-road-offscreen.png",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "aadea75b03246822c2e77e4d04329e2d810261f62b14b66f1cf2ea3cc74cf08d",
+    "publishedSha256": "20c76d744c26d151ea0b3c3bea4602e93353a5ad08acdd7672a622801a1bb4bf",
+    "publishedBytes": 289947
+  }
+]

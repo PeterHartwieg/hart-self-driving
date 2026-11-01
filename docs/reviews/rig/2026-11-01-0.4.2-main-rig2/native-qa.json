@@ -1,0 +1,65 @@
+{
+  "after-coverage-native-qa": {
+    "log_sha256": "c6753ecb9b4a31501f5e81a162bdf952f153a4d8c04cbbfdd736ce83ed5299d4",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 52,
+    "clean": true
+  },
+  "after-final-native-qa": {
+    "log_sha256": "a3ff0bf22a5ab1a981db1fb8b895eb497c029d970b853df959eca53e61c739a0",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  },
+  "after-first-native-qa": {
+    "log_sha256": "5c9d09bb7f3d61677d02d94ee85ef41df4d80fce48f520274d7d40945c086ca7",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  },
+  "after-long-prelife-native-qa": {
+    "log_sha256": "41902f9c7532da5eb7aae3648a1a5b60a70f64485df1ffe9b1330dddfa718252",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  },
+  "before-final-native-qa": {
+    "log_sha256": "5094d3ced79405769417b442a82296219203bab3ce6ef0729d225cd3aee1d93b",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  },
+  "before-native-qa": {
+    "log_sha256": "926e8634750dcbf32cd267741a847c47e874e50c5904d13379d394c7b787e468",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  },
+  "before-preflight-native-qa": {
+    "log_sha256": "da966983885f2533b6d2947446c1f16dc1839325e2d0d3ef87e14a15f8c37cf3",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  }
+}

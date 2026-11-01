@@ -1,0 +1,1020 @@
+[
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:43:01",
+    "ended": "2026-11-01T09:45:32",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 149.7,
+    "end": "Cancelled: game unloaded",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 386.8
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:51:44",
+    "ended": "2026-11-01T09:52:55",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "1 ba:street_fifthstreet",
+    "targetAt": [
+      58.4,
+      191.8
+    ],
+    "driven": true,
+    "seconds": 70.3,
+    "end": "Complete: arrived",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 6.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:54:09",
+    "ended": "2026-11-01T09:54:16",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "27 ba:street_firstavenue",
+    "targetAt": [
+      -68.2,
+      450.7
+    ],
+    "driven": true,
+    "seconds": 1.6,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 168.2
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:54:23",
+    "ended": "2026-11-01T09:54:29",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "24 ba:street_firstavenue",
+    "targetAt": [
+      72.9,
+      479.6
+    ],
+    "driven": true,
+    "seconds": 1.0,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 34.1
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:54:36",
+    "ended": "2026-11-01T09:54:42",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "1 ba:street_seventhstreet",
+    "targetAt": [
+      -119.7,
+      416.3
+    ],
+    "driven": true,
+    "seconds": 0.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 223.6
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:54:49",
+    "ended": "2026-11-01T09:54:55",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "26 ba:street_secondavenue",
+    "targetAt": [
+      -162.7,
+      329.9
+    ],
+    "driven": true,
+    "seconds": 0.7,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 292.4
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:55:02",
+    "ended": "2026-11-01T09:55:07",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 0.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 152.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:55:15",
+    "ended": "2026-11-01T09:55:20",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "28 ba:street_firstavenue",
+    "targetAt": [
+      2.4,
+      477.8
+    ],
+    "driven": true,
+    "seconds": 0.7,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 99.4
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:55:27",
+    "ended": "2026-11-01T09:55:33",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "4 ba:street_fifthstreet",
+    "targetAt": [
+      39.1,
+      215.6
+    ],
+    "driven": true,
+    "seconds": 1.0,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 250.5
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:56:41",
+    "ended": "2026-11-01T09:58:13",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 87.3,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 74.8
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:59:04",
+    "ended": "2026-11-01T09:59:09",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 2.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 205.1
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:59:16",
+    "ended": "2026-11-01T09:59:17",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "27 ba:street_firstavenue",
+    "targetAt": [
+      -68.2,
+      450.7
+    ],
+    "driven": true,
+    "seconds": 1.0,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 203.8
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:59:25",
+    "ended": "2026-11-01T09:59:26",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "24 ba:street_firstavenue",
+    "targetAt": [
+      72.9,
+      479.6
+    ],
+    "driven": true,
+    "seconds": 0.2,
+    "end": "Complete: arrived",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 9.3
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:59:32",
+    "ended": "2026-11-01T09:59:34",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 0.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 204.4
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T09:59:41",
+    "ended": "2026-11-01T09:59:43",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "27 ba:street_firstavenue",
+    "targetAt": [
+      -68.2,
+      450.7
+    ],
+    "driven": true,
+    "seconds": 0.7,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 151.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:02:16",
+    "ended": "2026-11-01T10:02:18",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "2 ba:street_firstavenue",
+    "targetAt": [
+      373.1,
+      478.9
+    ],
+    "driven": false,
+    "seconds": 1.5,
+    "end": "vanilla ride",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 0.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:02:24",
+    "ended": "2026-11-01T10:02:25",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "22 ba:street_firstavenue",
+    "targetAt": [
+      92.4,
+      479.4
+    ],
+    "driven": true,
+    "seconds": 0.6,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 242.3
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:02:32",
+    "ended": "2026-11-01T10:02:33",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "31 ba:street_firstavenue",
+    "targetAt": [
+      -175.1,
+      451.7
+    ],
+    "driven": true,
+    "seconds": 0.7,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 87.1
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:02:40",
+    "ended": "2026-11-01T10:04:41",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 120.6,
+    "end": "Vanilla: the car is no longer the ride's",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 0.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:06:02",
+    "ended": "2026-11-01T10:06:04",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": false,
+    "seconds": 1.5,
+    "end": "vanilla ride",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 0.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:06:08",
+    "ended": "2026-11-01T10:06:38",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 29.6,
+    "end": "Vanilla: the car is no longer the ride's",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 0.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:06:45",
+    "ended": "2026-11-01T10:06:48",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "27 ba:street_firstavenue",
+    "targetAt": [
+      -68.2,
+      450.7
+    ],
+    "driven": true,
+    "seconds": 2.6,
+    "end": "Vanilla: the car was gone before departure",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 0.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:06:52",
+    "ended": "2026-11-01T10:06:56",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "27 ba:street_firstavenue",
+    "targetAt": [
+      -68.2,
+      450.7
+    ],
+    "driven": true,
+    "seconds": 3.3,
+    "end": "Complete: arrived",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 27.7
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T10:07:03",
+    "ended": "2026-11-01T10:07:36",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 27.7,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 53.5
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:08:48",
+    "ended": "2026-11-01T10:09:57",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 67.6,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 375.6
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:10:57",
+    "ended": "2026-11-01T10:12:57",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 114.8,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 358.8
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:13:48",
+    "ended": "2026-11-01T10:16:20",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 146.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 74.8
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:17:18",
+    "ended": "2026-11-01T10:17:59",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 35.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 65.6
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:19:29",
+    "ended": "2026-11-01T10:20:37",
+    "kind": "driver",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 67.3,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 32.2
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:23:47",
+    "ended": "2026-11-01T10:25:44",
+    "kind": "taxi",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 115.7,
+    "end": "Complete: arrived",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 6.8
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:25:50",
+    "ended": "2026-11-01T10:26:15",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 19.9,
+    "end": "Vanilla: skipped",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 7.6
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:28:28",
+    "ended": "2026-11-01T10:29:55",
+    "kind": "driver",
+    "carPhysics": false,
+    "target": "22 ba:street_firstavenue",
+    "targetAt": [
+      92.4,
+      479.4
+    ],
+    "driven": true,
+    "seconds": 86.5,
+    "end": "Complete: arrived",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 8.9
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:31:52",
+    "ended": "2026-11-01T10:31:52",
+    "kind": "own",
+    "carPhysics": true,
+    "refused": "no destination building found"
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:31:55",
+    "ended": "2026-11-01T10:31:59",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "6 ba:street_cottageroad",
+    "targetAt": [
+      -3200.5,
+      -1598.8
+    ],
+    "driven": false,
+    "refused": "TravelTo started no ride (fare refused, or the map closed)"
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:32:02",
+    "ended": "2026-11-01T10:37:28",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "8 ba:street_legacyavenue",
+    "targetAt": [
+      -3252.0,
+      -1369.8
+    ],
+    "driven": true,
+    "seconds": 321.3,
+    "end": "Complete: arrived",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 4.2
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:39:57",
+    "ended": "2026-11-01T10:39:58",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "14 ba:street_seventhavenue",
+    "targetAt": [
+      -2826.3,
+      -1085.3
+    ],
+    "refused": "no driving lane within 80 m of the player"
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:42:38",
+    "ended": "2026-11-01T10:42:41",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "14 ba:street_seventhavenue",
+    "targetAt": [
+      -2826.3,
+      -1085.3
+    ],
+    "driven": false,
+    "refused": "TravelTo started no ride (fare refused, or the map closed)",
+    "shortcut": "J"
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:44:52",
+    "ended": "2026-11-01T10:49:02",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 243.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "shortcut": "J",
+    "shortcutTargetMatches": true,
+    "arrivedMetres": 729.0
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T10:59:30",
+    "ended": "2026-11-01T10:59:41",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 5.7,
+    "end": "Cancelled: mod unload",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "shortcut": "J",
+    "shortcutTargetMatches": true,
+    "arrivedMetres": 728.5
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:02:09",
+    "ended": "2026-11-01T11:02:21",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "8 ba:street_fourthstreet",
+    "targetAt": [
+      142.9,
+      73.3
+    ],
+    "driven": true,
+    "seconds": 7.5,
+    "end": "Vanilla: skipped",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "shortcut": "K",
+    "shortcutTargetMatches": true,
+    "arrivedMetres": 5.0
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:02:31",
+    "ended": "2026-11-01T11:02:33",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "22 ba:street_firstavenue",
+    "targetAt": [
+      92.4,
+      479.4
+    ],
+    "driven": false,
+    "seconds": 1.5,
+    "end": "vanilla ride",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 0.0
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:04:37",
+    "ended": "2026-11-01T11:04:50",
+    "kind": "stand",
+    "carPhysics": false,
+    "target": "22 ba:street_firstavenue",
+    "targetAt": [
+      92.4,
+      479.4
+    ],
+    "driven": true,
+    "seconds": 12.3,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 242.8
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:07:39",
+    "ended": "2026-11-01T11:07:51",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 7.9,
+    "end": "Cancelled: unparking: no manoeuvre within the search budget",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 695.0
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:07:56",
+    "ended": "2026-11-01T11:08:24",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 23.2,
+    "end": "Cancelled: parking test: departed and drove 20 m on the road",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "departurePassed": true,
+    "arrivedMetres": 620.6
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:13:31",
+    "ended": "2026-11-01T11:14:27",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 51.2,
+    "end": "Cancelled: unparking: no safe progress during manoeuvre",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 639.1
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:14:32",
+    "ended": "2026-11-01T11:14:47",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 10.4,
+    "end": "Cancelled: unparking: no manoeuvre within the search budget",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 695.0
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:14:47",
+    "ended": "2026-11-01T11:15:29",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 36.6,
+    "end": "Complete: arrived",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 60.2
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:17:30",
+    "ended": "2026-11-01T11:19:55",
+    "kind": "own",
+    "carPhysics": true,
+    "target": "51 ba:street_thirdstreet",
+    "targetAt": [
+      214.2,
+      -158.0
+    ],
+    "driven": true,
+    "seconds": 139.7,
+    "end": "Cancelled: parking test: departed and drove 20 m on the road",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "departurePassed": true,
+    "arrivedMetres": 600.0
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T11:24:54",
+    "ended": "2026-11-01T11:26:16",
+    "kind": "driver",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 78.0,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 28.8
+  },
+  {
+    "version": "0.4.1",
+    "started": "2026-11-01T11:27:17",
+    "ended": "2026-11-01T11:28:21",
+    "kind": "driver",
+    "carPhysics": false,
+    "target": "27 ba:street_firstavenue",
+    "targetAt": [
+      -68.2,
+      450.7
+    ],
+    "driven": true,
+    "seconds": 59.9,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 57.0
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:31:38",
+    "ended": "2026-11-01T11:33:19",
+    "kind": "driver",
+    "carPhysics": false,
+    "target": "2 ba:street_sixthstreet",
+    "targetAt": [
+      -47.4,
+      421.1
+    ],
+    "driven": true,
+    "seconds": 93.5,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 29.3
+  },
+  {
+    "version": "0.4.2",
+    "started": "2026-11-01T11:34:47",
+    "ended": "2026-11-01T11:35:33",
+    "kind": "driver",
+    "carPhysics": false,
+    "target": "27 ba:street_firstavenue",
+    "targetAt": [
+      -68.2,
+      450.7
+    ],
+    "driven": true,
+    "seconds": 42.4,
+    "end": "Cancelled: route acceptance cancel",
+    "contacts": 0,
+    "contactsCaused": 0,
+    "redRuns": 0,
+    "stalls": 0,
+    "arrivedMetres": 58.9
+  }
+]
