@@ -1,0 +1,61 @@
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Patch PlayerHelper.SaveCurrentPosition: Active.
+[Mod:DrivenRides] Patch PlayerActivityUI.CanStartActivity(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch TimeMachine.StartTimeMachine(Timestamp, Boolean, String, Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch DrivingAI.WaypointRequested(Int32, VehicleTypes): Active.
+[Mod:DrivenRides] Patch DrivingAI.HasReachedOrPassedWaypoint(Int32, Int32): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch GameSpeedController.SetPause(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch SfxManager.SetSoundSnapshotCityMap(Boolean, Single): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryUnEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch TaxiSystem.TravelTo(EntityController): Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch PositionValidator.IsValid(Vector3, Single, Single, Single, Boolean, Single, Quaternion): Active.
+[Mod:DrivenRides] Patch TaxiSystem.GetPrice(Single): Active.
+[Mod:DrivenRides] Patch CarController.Update: Active.
+[Mod:DrivenRides] Patch CarController.ExitVehicle: Active.
+[Mod:DrivenRides] Patch ItemPanelUI.ClickAutoPark: Active.
+[Mod:DrivenRides] Patch SkipBridgeHelper.SkipBridge: Active.
+[Mod:DrivenRides] Patch CarFeatures.UpdateBridgeHiddenState: Active.
+[Mod:DrivenRides] Patch SmartphonePrivateDriverUI.OnClickVehicle(VehicleInstance): Active.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: rides with car physics off.
+[Mod:DrivenRides] Departed: 63 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride command: {"version":"0.4.2","started":"2026-11-01T12:18:47","kind":"driver","carPhysics":false,"radioBefore":{"muted":true,"playing":true,"station":"Jazz","clip":"Shtriker Big Band - Lover Please Stay","controls":false,"headset":false,"rideOwnsRadio":false},"target":"27 ba:street_firstavenue","targetAt":[-68.2,450.7],"straightMetres":168.0,"waitedSeconds":2.9,"taxiMetres":19.6,"driven":true,"radioDuring":{"muted":false,"playing":true,"station":"Jazz","clip":"Shtriker Big Band - Lover Please Stay","controls":true,"headset":false,"rideOwnsRadio":true},"radioAfter":{"muted":true,"playing":false,"station":"Jazz","clip":"Shtriker Big Band - Lover Please Stay","controls":false,"headset":false,"rideOwnsRadio":false},"seconds":40.5,"end":"Cancelled: route acceptance cancel","contacts":0,"contactsCaused":0,"redRuns":0,"stalls":0,"arrivedMetres":58.2,"ended":"2026-11-01T12:19:31"}
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: rides with car physics off.
+[Mod:DrivenRides] Departed: 97 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride command: {"version":"0.4.2","started":"2026-11-01T12:20:23","kind":"driver","carPhysics":false,"radioBefore":{"muted":true,"playing":true,"station":"Jazz","clip":"Shtriker Big Band - Lover Please Stay","controls":false,"headset":false,"rideOwnsRadio":false},"target":"2 ba:street_sixthstreet","targetAt":[-47.4,421.1],"straightMetres":97.0,"waitedSeconds":3.9,"taxiMetres":9.9,"driven":true,"radioDuring":{"muted":false,"playing":true,"station":"Jazz","clip":"Shtriker Big Band - Lover Please Stay","controls":true,"headset":false,"rideOwnsRadio":true},"radioAfter":{"muted":true,"playing":false,"station":"Jazz","clip":"Shtriker Big Band - Lover Please Stay","controls":false,"headset":false,"rideOwnsRadio":false},"seconds":72.0,"end":"Cancelled: route acceptance cancel","contacts":0,"contactsCaused":0,"redRuns":0,"stalls":0,"arrivedMetres":28.1,"ended":"2026-11-01T12:21:39"}
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: rides with car physics on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride command: {"version":"0.4.2","started":"2026-11-01T12:23:00","kind":"own","carPhysics":true,"radioBefore":{"muted":true,"playing":true,"station":"Jazz","clip":"Wesly Thomas - Summertime Bossa","controls":false,"headset":false,"rideOwnsRadio":false},"target":"2 ba:street_sixthstreet","targetAt":[-47.4,421.1],"straightMetres":150.0,"car":"ba:vehicletype_vordtiaravic","autoparkSupported":false,"seatedAt":[99.9,458.6,11447],"fuelBefore":70.003,"autopark":"Off","driven":true,"radioDuring":{"muted":false,"playing":true,"station":"Jazz","clip":"Wesly Thomas - Summertime Bossa","controls":true,"headset":false,"rideOwnsRadio":false},"radioAfter":{"muted":false,"playing":false,"station":"Jazz","clip":"Wesly Thomas - Summertime Bossa","controls":true,"headset":false,"rideOwnsRadio":false},"seconds":73.4,"end":"Cancelled: route acceptance cancel","contacts":0,"contactsCaused":0,"redRuns":0,"stalls":0,"arrivedMetres":75.0,"inCar":true,"keysBack":true,"driveLeft":false,"manoeuvreLeft":false,"parkingReservationsLeft":0,"parkingState":"Legal","fuelAfter":68.703,"carMetres":65.5,"carEnd":[-100.733032,0.0218618829,459.167053,89.8254547],"ended":"2026-11-01T12:24:18"}
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: rides with car physics on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride command: {"version":"0.4.2","started":"2026-11-01T12:25:12","kind":"own","carPhysics":true,"radioBefore":{"muted":true,"playing":true,"station":"Jazz","clip":"River Lume - They Left Me There for You","controls":false,"headset":false,"rideOwnsRadio":false},"target":"2 ba:street_sixthstreet","targetAt":[-47.4,421.1],"straightMetres":150.0,"car":"ba:vehicletype_vordtiaravic","autoparkSupported":false,"seatedAt":[99.9,458.6,11447],"fuelBefore":70.003,"autopark":"Off","driven":true,"radioDuring":{"muted":false,"playing":true,"station":"Jazz","clip":"River Lume - They Left Me There for You","controls":true,"headset":false,"rideOwnsRadio":false},"radioAfter":{"muted":false,"playing":false,"station":"Jazz","clip":"River Lume - They Left Me There for You","controls":true,"headset":false,"rideOwnsRadio":false},"seconds":39.4,"end":"Cancelled: route acceptance cancel","contacts":0,"contactsCaused":0,"redRuns":0,"stalls":0,"arrivedMetres":67.6,"inCar":true,"keysBack":true,"driveLeft":false,"manoeuvreLeft":false,"parkingReservationsLeft":0,"parkingState":"Legal","fuelAfter":68.155,"carMetres":53.6,"carEnd":[-86.1185455,0.0216241516,458.153748,92.25699],"ended":"2026-11-01T12:25:56"}
+[Mod:DrivenRides] Option: rides with car physics on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride command: {"version":"0.4.2","started":"2026-11-01T12:27:33","kind":"own","carPhysics":true,"radioBefore":{"muted":true,"playing":true,"station":"Jazz","clip":"The Delegates - Confusion","controls":false,"headset":false,"rideOwnsRadio":false},"target":"8 ba:street_legacyavenue","targetAt":[-3252.0,-1369.8],"straightMetres":4054.0,"car":"ba:vehicletype_vordtiaravic","autoparkSupported":false,"seatedAt":[399.9,382.6,7869],"fuelBefore":70.008,"autopark":"Off","driven":true,"radioAfter":{"muted":false,"playing":false,"station":"Jazz","clip":"The Delegates - Confusion","controls":true,"headset":false,"rideOwnsRadio":false},"seconds":7.0,"end":"Cancelled: route acceptance cancel","contacts":0,"contactsCaused":0,"redRuns":0,"stalls":0,"arrivedMetres":4051.3,"inCar":true,"keysBack":true,"driveLeft":false,"manoeuvreLeft":false,"parkingReservationsLeft":0,"parkingState":"Legal","fuelAfter":69.975,"carMetres":4054.0,"carEnd":[399.842529,0.02149795,390.73407,359.890259],"ended":"2026-11-01T12:27:45"}
+[Mod:DrivenRides] Option: rides with car physics on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride command: {"version":"0.4.2","started":"2026-11-01T12:30:26","kind":"own","carPhysics":true,"radioBefore":{"muted":true,"playing":true,"station":"Jazz","clip":"Anthony Lazaro - Sunday Breakfast","controls":false,"headset":false,"rideOwnsRadio":false},"target":"51 ba:street_thirdstreet","targetAt":[214.2,-158.0],"straightMetres":723.0,"car":"ba:vehicletype_vordtiaravic","autoparkSupported":false,"seatedAt":[-166.8,458.6,18612],"fuelBefore":70.008,"autopark":"Off","driven":true,"radioDuring":{"muted":false,"playing":true,"station":"Jazz","clip":"Anthony Lazaro - Sunday Breakfast","controls":true,"headset":false,"rideOwnsRadio":false},"radioAfter":{"muted":false,"playing":true,"station":"Jazz","clip":"Anthony Lazaro - Sunday Breakfast","controls":true,"headset":false,"rideOwnsRadio":false},"seconds":4.6,"end":"Cancelled: route acceptance cancel","contacts":0,"contactsCaused":0,"redRuns":0,"stalls":0,"arrivedMetres":710.9,"inCar":true,"keysBack":true,"driveLeft":false,"manoeuvreLeft":false,"parkingReservationsLeft":0,"parkingState":"Legal","fuelAfter":69.857,"carMetres":700.1,"carEnd":[-118.722107,0.0218592025,457.930237,91.76863],"ended":"2026-11-01T12:30:35"}

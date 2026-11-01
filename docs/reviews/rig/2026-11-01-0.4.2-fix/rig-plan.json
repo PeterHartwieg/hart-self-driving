@@ -1,0 +1,23 @@
+﻿{
+    "candidate":  "6af187fb9dc29c52e06c051dbefd41e4c2fb4def",
+    "scope":  "Batched targeted native PC rig proof for Sol-r2-1 and Opus-r2-1",
+    "baseline":  {
+                     "source":  "https://github.com/PeterHartwieg/hart-self-driving/tree/985fb1ae12fc8fd52818ff27266c1f10374b2b69/docs/reviews/rig/2026-11-01-0.4.2-main-rig2",
+                     "packageSha256":  "ff23a3d0716cbbb01c3002d496fdf8c0fa0c93ff849e4e606f1e514c6dfd294e",
+                     "commit":  "539015bd69d0b5c27fb15fbf0e67d20f7dd48453",
+                     "freshRerun":  false
+                 },
+    "fixtures":  [
+                     "Actual L-called private driver, Gley physics OFF: native U-turn indices in recorded plan, switch ON after turn, first visible head at car",
+                     "Same Gley fixture: four-turn block with route OFF during travel, first-visible suffix after switch ON",
+                     "Physics ON: own-car full block and repeated loop, rear-axle plan start and first-segment direction",
+                     "Accepted long own-car route to 8 Legacy Avenue: line OFF immediate, then ON first visible within 6 frames"
+                 ],
+    "acceptedBehavior":  "A sideways first segment connecting an off-lane Gley car after a native U-turn to the road plan is expected. Do not classify that Gley connector as the physics folded-first-segment regression.",
+    "evidenceRules":  [
+                          "Only first-enabled native renderer frames establish switch-on latency and geometry",
+                          "Archived before measurements are explicitly identified; no old package is labeled candidate",
+                          "Local csc compiled candidate against real game/Unity/.NET references; no official Unity editor/SDK build claim",
+                          "Only isolated agent1 and disposable FT saves; preserve and restore original profile, install receipt, preferences; stop and release"
+                      ]
+}

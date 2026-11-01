@@ -234,9 +234,10 @@ namespace DrivenRides
 
         // A read-only view for the city-owned overlay. It must not plan, steer or extend the route across the
         // pavement to the building door. The final point is the driver's selected road destination.
-        internal bool TryRouteLine(out Polyline line, out float along, out Transform vehicle)
+        // Only Gley supplies a car-position head override; physics keeps its rear-axle plan point.
+        internal bool TryRouteLine(out Polyline line, out float along, out Transform vehicle, out Vec3? headCarPosition)
         {
-            line = null!; along = 0f; vehicle = null!;
+            line = null!; along = 0f; vehicle = null!; headCarPosition = null;
             if (finished || cancelled || SaveChanged || outcome != Outcome.None ||
                 (phase != Phase.Driving && phase != Phase.Stopping) || !OwnsCar) return false;
             if (nwh != null)
@@ -264,6 +265,7 @@ namespace DrivenRides
             }
             line = displayLine!.Line;
             var position = vehicle.position;
+            headCarPosition = GleyGraph.ToVec(position);
             // Seated by the ride's own waypoint progress, which runs every frame, so turning the option on after
             // a block or a loop starts at the car and not at the value from when it was last shown.
             displayAlong = displayLine.Follow(position.x, position.z, displayAlong, progress.NextIndex);

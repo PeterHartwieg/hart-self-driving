@@ -1,0 +1,54 @@
+{
+  "installedFileCount": 9,
+  "files": [
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\CHANGELOG.md",
+      "sha256": "20c163b21d712f3abbe308dafa4471e01e733be6fc2fdf9062fa4d13ee0cca0a",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\0Harmony.dll",
+      "sha256": "7b9e756306fa3d7620e02a857c8927a6ab04973f9bd8a77d3866700a6deac55c",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\DrivenRides.Core.dll",
+      "sha256": "c0ed1ddffe7222152c1320e24b74d03dcde247f95bef281324fb94d1afb487da",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Dependencies\\Harmony-LICENSE.txt",
+      "sha256": "407ddd98200c9f17f49942b5a7791e288a2bd553b59bf2f462db87dbb21c50bc",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\DrivenRides.dll",
+      "sha256": "8157b0c0b754ae594529615b3d1db50de5dc6f1cdaaa90270ecdefe458e522ac",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\LICENSE.txt",
+      "sha256": "798c303b2493d9642a1ac0dcfb2ec4f24bc8d23b7cbdab1cf291050b20f68825",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\Locales\\en.json",
+      "sha256": "79fcf7ed469549490d005389361b1cb716b468d7d82015c99100aff67566eb7a",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\preview.jpg",
+      "sha256": "4f1e8d3a2fa9e1e61b9a1512d072234f7e5e23ad71966bdc782012aceb0ab42b",
+      "matches": true
+    },
+    {
+      "path": "LOCAL-USER\\AppData\\LocalLow\\Hovgaard Games\\Big Ambitions Agent Tests\\ModsLocal\\DrivenRides\\README.md",
+      "sha256": "1d982d76f36029c0d349b2c83a1be7302db8f222ef2ffb93bb05a472b16fa12e",
+      "matches": true
+    }
+  ],
+  "zip_sha256": "0f32181d0096d81605a0c3d7658a8fd3bbf3ce3d248313ce20e38dd377995f52",
+  "allMatch": true,
+  "sourceCommit": "6af187fb9dc29c52e06c051dbefd41e4c2fb4def",
+  "utc": "2026-11-01T11:31:20.1182878Z"
+}

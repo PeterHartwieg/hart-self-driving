@@ -15,6 +15,15 @@ namespace DrivenRides.Core.Ride
         public Vec3 Point(int index) => points[index];
         public float Distance(int index) => distances[index];
 
+        // Physics rides keep their rear-axle plan point. Native Gley can run wide of its waypoint line
+        // after a U-turn: anchor its head at the car without changing which suffix progress consumes.
+        // Keep the planned height as the reference for the adapter's road probe in either case.
+        public static Vec3 Head(Polyline line, float along, Vec3? carPosition = null)
+        {
+            var at = line.At(Math.Max(0f, along));
+            return carPosition is Vec3 car ? new Vec3(car.X, at.Y, car.Z) : at;
+        }
+
         public void Reset(Polyline line, float spacing = 2f)
         {
             if (line == null) throw new ArgumentNullException(nameof(line));
@@ -42,7 +51,7 @@ namespace DrivenRides.Core.Ride
             }
         }
 
-        // Strictly after the consumed distance: the adapter supplies the moving car as vertex zero.
+        // Strictly after the consumed distance: the adapter supplies the head as vertex zero.
         // Binary search avoids rescanning the consumed portion and chooses by progress, never spatial proximity
         // (a future loop/crossing can occupy the same position).
         public int FirstAfter(float along)

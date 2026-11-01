@@ -6,8 +6,9 @@ only an active road-driving phase. Physics rides expose `NwhDrive.PlannedLine`, 
 replaces that line reference, including the bridge landing. Legacy Gley rides cache a display curve from
 their expanded path and steering arcs; projection advances locally so a nearby future loop is not consumed,
 and is never more than a waypoint behind the ride's own progress, so switching the option on after a block or
-a loop starts at the car. Every line starts at the plan's point for the driver's progress (the rear axle on
-physics rides), not at the body's pivot.
+a loop selects the current suffix. Physics lines start at the plan's point for the driver's progress (the
+rear axle). Gley lines start at the car's horizontal position and connect to that unconsumed suffix, because
+native Gley turns can run wide of their waypoint line. Both use the plan's road height as the probe reference.
 No steering, routing, speed, destination selection or save data is changed.
 
 `RouteLinePath` retains the steering vertices and subdivides spans to at most 2 m. Its horizontal distances
@@ -18,16 +19,19 @@ sets transparent blending and double-sided rendering, with depth testing enabled
 disabled. It does not show through buildings or vehicles. The material owns its colour because HDRP/Unlit
 does not use LineRenderer vertex colours.
 
-Initial height probes are limited to 128 samples per frame. The previous line is hidden immediately on a
-reroute; the new complete line appears after sampling finishes. Nearby samples are refreshed twice a
-second (at most 33 probes, covering up to 64 m) for streamed road colliders. One additional head probe follows
+Initial height probes are limited to 128 samples per frame, beginning with the visible suffix and its preceding
+height sample. The previous line is hidden immediately on a reroute; the prepared near portion of the new line
+appears on the first update and extends as probing finishes. Unprepared points are never uploaded.
+Nearby samples are refreshed twice a second (at most 33 probes, covering up to 64 m) for streamed road
+colliders. One additional head probe follows
 the car. Where no collider is available within 1.5 m of the planned height, the planned height is retained.
 The Hamptons slopes/bridge and streamed geometry need rendered acceptance; this is not a guarantee that
 every collider matches the visible asphalt.
 
 One renderer/material and capacity-grown arrays are reused between rides. During ordinary frames the managed
-side moves only the head vertex; when a sample is consumed, the cached suffix is uploaded in one call. Unity
-still rebuilds the line mesh for the whole remaining route on any position change, so the native cost per
+side moves only the head vertex; when a sample is consumed or preparation extends the line, the cached suffix
+is uploaded in one call. Unity still rebuilds the line mesh for the whole remaining route on any position
+change, so the native cost per
 frame grows with the route's remaining length. Geometry buffers may grow on a larger plan, never per ordinary
 frame. A plan with a non-finite point hides the overlay for that plan only; other display errors hide it and
 log once for that city, leaving the ride running. The first show in a city logs the shader and render queue
@@ -35,6 +39,49 @@ the material ended up with. Cancel, completion and Skip hide synchronously; phas
 boarding, manoeuvres and bridge fades. City destruction and mod unload destroy the component, which releases
 its objects/material. Option `routeline` uses the existing ModOptions/PlayerPrefs mechanism, default on, and
 logs its changes like the other options.
+
+## 0.4.2 rig follow-up, 1 November 2026
+
+**Checked in the PC rig: the targeted S1/S4 fixes and block/physics regressions.** The
+[rig re-run](https://github.com/PeterHartwieg/hart-self-driving/pull/3#issuecomment-6556866222)
+recorded S1's first Gley U-turn head at (-127.096, 458.642), beside a car at (-127.090, 450.850).
+The outgoing suffix was selected, but placing the head at its plan projection left a 7.792 m lateral gap.
+There was no fitted steering arc for this native U-turn. Changing progress projection cannot put an
+off-plan car onto that plan. `RouteLinePath.Head` now uses the Gley car's X/Z while retaining planned height;
+physics keeps the rear-axle plan point. Waypoint progress and suffix selection are unchanged.
+
+S4 is fixed with incremental display rather than accepting the 29-frame delay. Waiting for every height
+probe made 3,716 samples take 30 preparation updates at 128 per frame. The same buffers and probe budget can
+show the prepared near portion on the first update, then extend it, without a new renderer or asynchronous
+job. Already-consumed samples are skipped. Full-route preparation can still take those updates, but no
+longer gates first visibility. This was a small change to the existing preparation/upload loop.
+
+The focused Core U-turn test failed with a 7.79199982 m head gap using the old plan-point behavior and passed
+after the fix. It also checks the outgoing suffix; the block case now checks the head, and a new physics
+case checks the rear-axle point and forward first segment. The required foreground Release suite passed
+412 tests, with three existing skips (two unavailable graph fixtures and the pending traffic scenario).
+`Ride.cs`, `RouteLineView.cs` and `RouteLineChecks.cs` were checked by hand for types, call sites, nullable
+head propagation, delegate signature and prepared-buffer bounds. The updated Unity checks cover Gley/physics
+heads, immediate near display, bounded extension and late switch-on; those editor checks were not run.
+
+The required `rig_test` session (Codex Sol, high) ran the targeted native PC batch on source commit
+`6af187fb9dc29c52e06c051dbefd41e4c2fb4def`. Its
+[report and raw proof](reviews/rig/2026-11-01-0.4.2-fix/README.md) identify the exact installed package and
+pair archived baseline captures from `539015b` with fresh candidate captures:
+
+- Native L private-driver U-turn: first-visible head/body horizontal gap **7.792 m -> 0.000 m**.
+- Four-turn Gley block: **0.318 m -> 0.000 m**, with the consumed trail removed.
+- Physics full block and repeated loop: rear-axle plan heads retained; the first segments project
+  **+1.134 m** and **+0.732 m** forward. Native first-frame vectors establish the absence of a reversed
+  segment; the screenshots provide context.
+- Native 5.194 km route: first visibility **29 frames -> 0 frames** after the callback. The candidate
+  exposes a 128-vertex near portion first, then finishes the full remaining suffix after 29 frames.
+
+The off-lane Gley head's sideways connector back to the planned lane is accepted and explicitly included
+in the rig plan. It is distinct from the physics reversed-first-segment regression.
+All runtime scripts were compiled locally with Roslyn against the actual game/Unity/.NET reference DLLs;
+the package passed the existing nine-file packaging checks. This was not an official Unity editor/SDK
+build. Source, compiler, reference and package hashes are recorded with the native proof.
 
 ## Offline validation
 

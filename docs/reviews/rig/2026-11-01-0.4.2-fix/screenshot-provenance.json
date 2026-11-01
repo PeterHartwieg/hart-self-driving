@@ -1,0 +1,168 @@
+[
+  {
+    "file": "S1-candidate-fullblock-final-paused-overview-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "014cfca9f9eb400cb097b74805b6978c52d69a599b4f1806944ca3bec1dfe360",
+    "publishedSha256": "dce394652341616a23e4d1f514a63bdf0c3ce72d7025e8e839c20ea9322092b5"
+  },
+  {
+    "file": "S1-candidate-fullblock-final-switch-on-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "781b3f8f30615506dba58a402a7bf22d0aa9897d3f7bc0c895f73c076aa018ad",
+    "publishedSha256": "382c3f76691df915128d23467186980c6a41ca27071bc80c8a7ae74cc67de956"
+  },
+  {
+    "file": "S1-candidate-uturn-final-paused-overview-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "52970ce90caf7aceebf7632ae2e6e66b0f1fe79f37725ac654f277c66482d627",
+    "publishedSha256": "c1567fad8cf7142040da0a900d60cd81fb918831363036fdd03d1e01288493d8"
+  },
+  {
+    "file": "S1-candidate-uturn-final-switch-on-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "e089dc728f8963aa738436adbe81c820db4942fabb94654689bcf9f884ff6917",
+    "publishedSha256": "c62e5fd555f0a0e819e8d99382a71a743e9c27d90579eb811e955c5b8db1a95d"
+  },
+  {
+    "file": "S2-candidate-fullblock-switch-on-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "3b19e4050f60cdfdc9b1d43140468c8a4f0516566b82250f6220a6e733f7dcd4",
+    "publishedSha256": "dd73330906e79ab9e8587218ee9da9f68216d4e2d039dcf4cbc966b6d413ae3c"
+  },
+  {
+    "file": "S2-candidate-loop-repeat-switch-on-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "6eda68c48d3b9036094f6238887de166a995044d7ef49d0886ba941661918533",
+    "publishedSha256": "4129f3f9167f8db92cc46f9b34f7aa0d9b9f2f3b427b168b3452dbaee5511ba3"
+  },
+  {
+    "file": "S4-candidate-long-on-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "02182744d0f9dd88d1414da6e03e8d8ced2f775b2012da7416db0a91fd31ca87",
+    "publishedSha256": "2930175d6aa8580b566edef481906d2b0387221c81a9fa94bce3901127b33e16"
+  },
+  {
+    "file": "S4-candidate-slow-on-offscreen.png",
+    "source": "fresh candidate native observer",
+    "originalDimensions": [
+      1600,
+      900
+    ],
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "originalSha256": "a9632fb841c5e0fec6f7f11b0cc0cc8ec4e6358bff4e53c6532ee5e8a2a83f20",
+    "publishedSha256": "da37d762e5897bd3c1536e615ffcf128cbb4facc9b2449c0468962e97a5c6c70"
+  },
+  {
+    "file": "S1-after-uturn-final-switch-on-offscreen.png",
+    "source": "archived 539015b native evidence, commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "publishedSha256": "e227fe77c66faf62246f2415686a49a6903ac46cd109c7da7d78383f82cd764f"
+  },
+  {
+    "file": "S1-after-fullblock-final-switch-on-offscreen.png",
+    "source": "archived 539015b native evidence, commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "publishedSha256": "2226bc0c70e933965a0e504b12d4475f18a2fd5cf7e6698491b77c6fa4026a1b"
+  },
+  {
+    "file": "S1-after-fullblock-final-paused-overview-offscreen.png",
+    "source": "archived 539015b native evidence, commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "publishedSha256": "7dffcb4cc4331ded13e428909c6d2195720874442b66aa22cbdce894f5146a39"
+  },
+  {
+    "file": "S2-after-fullblock-switch-on-offscreen.png",
+    "source": "archived 539015b native evidence, commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "publishedSha256": "48b36f2075c6ae0cae34c181990137ad1f7e7d1534701485f9024c40660196b9"
+  },
+  {
+    "file": "S2-after-loop-repeat-switch-on-offscreen.png",
+    "source": "archived 539015b native evidence, commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "publishedSha256": "3b0efe09bbe6f4e0e1d9690c61e7cd515a3cbb2f86d3d839ae36660fa6d2cb33"
+  },
+  {
+    "file": "S4-after-long-route-on-offscreen.png",
+    "source": "archived 539015b native evidence, commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "publishedSha256": "fa7c1ae8877f85f1b431219114340f0e99a4067ed23f8cfdc08ff1aa328f2aa1"
+  }
+]
