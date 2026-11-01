@@ -1,0 +1,42 @@
+[
+  {
+    "file": "S1-before-close-first-visible-offscreen.png",
+    "width": 1600,
+    "height": 900,
+    "bytes": 747331,
+    "sha256": "495a7790cf2ed239e022cc86f95a92167d8411fa1f330d185d1ae70e10a39435",
+    "native_bytes_unchanged": true
+  },
+  {
+    "file": "S1-after-close-first-visible-offscreen.png",
+    "width": 1600,
+    "height": 900,
+    "bytes": 441580,
+    "sha256": "17a5303013bbd4a4925f372b279ff91519c56b92fd1264494edad0c1f09a15f6",
+    "native_bytes_unchanged": true
+  },
+  {
+    "file": "S2-before-close-first-visible-offscreen.png",
+    "width": 1600,
+    "height": 900,
+    "bytes": 501788,
+    "sha256": "375b7bc5aebba126f9c4c83b1bd5e707577f16ad1768022486a98fe69bc5be45",
+    "native_bytes_unchanged": true
+  },
+  {
+    "file": "S2-after-close-first-visible-offscreen.png",
+    "width": 1600,
+    "height": 900,
+    "bytes": 527127,
+    "sha256": "f3e84668c90b78e6aabdaceb2238f7f0121c0239021e1c9fd62c5a8aaeaf1266",
+    "native_bytes_unchanged": true
+  },
+  {
+    "file": "S2-after-slow-first-visible-offscreen.png",
+    "width": 1600,
+    "height": 900,
+    "bytes": 754120,
+    "sha256": "bb7cfdc90d584a44fc6001d803b9dbbc7933928ff539693cb04ad0f758240499",
+    "native_bytes_unchanged": true
+  }
+]

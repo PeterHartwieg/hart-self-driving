@@ -1,0 +1,170 @@
+{
+  "S1-before-close": {
+    "armed_frame": 5580,
+    "first_visible_frame": 5585,
+    "delay_frames": 5,
+    "body": [
+      134.1691,
+      0.009994864,
+      243.272766
+    ],
+    "head": [
+      134.1691,
+      0.06999996,
+      243.272766
+    ],
+    "next_point": [
+      -83.33744,
+      0.06999996,
+      462.6228
+    ],
+    "first_segment_horizontal_metres": 308.9069962926912,
+    "first_segment_forward_metres": -219.6938797356234,
+    "head_body_horizontal_metres": 0.0,
+    "vertices": 625,
+    "renderer_count": 1,
+    "shader": "HDRP/Unlit",
+    "render_queue": 3000,
+    "phase": "Driving"
+  },
+  "S2-before-close": {
+    "armed_frame": 14113,
+    "first_visible_frame": 14118,
+    "delay_frames": 5,
+    "body": [
+      53.99591,
+      0.0218552686,
+      157.7998
+    ],
+    "head": [
+      53.99591,
+      0.06999996,
+      157.7998
+    ],
+    "next_point": [
+      53.0494843,
+      0.06999996,
+      157.801483
+    ],
+    "first_segment_horizontal_metres": 0.946427196412639,
+    "first_segment_forward_metres": -0.9463280862804387,
+    "head_body_horizontal_metres": 0.0,
+    "vertices": 324,
+    "renderer_count": 1,
+    "shader": "HDRP/Unlit",
+    "render_queue": 3000,
+    "phase": "Driving"
+  },
+  "S1-after-close": {
+    "armed_frame": 7942,
+    "first_visible_frame": 7947,
+    "delay_frames": 5,
+    "body": [
+      -9.315064,
+      0.0100003434,
+      157.860275
+    ],
+    "head": [
+      -9.315069,
+      0.06999996,
+      157.860291
+    ],
+    "next_point": [
+      -9.129634,
+      0.06999996,
+      157.860062
+    ],
+    "first_segment_horizontal_metres": 0.18543514139989756,
+    "first_segment_forward_metres": 0.18543514905080427,
+    "head_body_horizontal_metres": 1.6763054602754418e-05,
+    "vertices": 344,
+    "renderer_count": 1,
+    "shader": "HDRP/Unlit",
+    "render_queue": 3000,
+    "phase": "Driving"
+  },
+  "S2-after-close": {
+    "armed_frame": 28815,
+    "first_visible_frame": 28820,
+    "delay_frames": 5,
+    "body": [
+      52.1256447,
+      0.0218561348,
+      157.800552
+    ],
+    "head": [
+      50.75256,
+      0.06999996,
+      157.802368
+    ],
+    "next_point": [
+      51.3031235,
+      0.06999996,
+      157.802155
+    ],
+    "first_segment_horizontal_metres": 0.5505635412023258,
+    "first_segment_forward_metres": 0.5505070073104936,
+    "head_body_horizontal_metres": 1.3730859008926168,
+    "vertices": 325,
+    "renderer_count": 1,
+    "shader": "HDRP/Unlit",
+    "render_queue": 3000,
+    "phase": "Driving"
+  },
+  "S4-after-on-repeat": {
+    "armed_frame": 15530,
+    "first_visible_frame": 15535,
+    "delay_frames": 5,
+    "body": [
+      -9.315064,
+      0.0100003434,
+      157.860275
+    ],
+    "head": [
+      -9.315069,
+      0.06999996,
+      157.860291
+    ],
+    "next_point": [
+      -9.129634,
+      0.06999996,
+      157.860062
+    ],
+    "first_segment_horizontal_metres": 0.18543514139989756,
+    "first_segment_forward_metres": 0.18543514905080427,
+    "head_body_horizontal_metres": 1.6763054602754418e-05,
+    "vertices": 344,
+    "renderer_count": 1,
+    "shader": "HDRP/Unlit",
+    "render_queue": 3000,
+    "phase": "Driving"
+  },
+  "S2-after-slow": {
+    "armed_frame": 36308,
+    "first_visible_frame": 36313,
+    "delay_frames": 5,
+    "body": [
+      118.635956,
+      0.02203807,
+      157.858154
+    ],
+    "head": [
+      117.368004,
+      0.06999996,
+      157.858047
+    ],
+    "next_point": [
+      118.674492,
+      0.06999996,
+      157.857117
+    ],
+    "first_segment_horizontal_metres": 1.3064883310018518,
+    "first_segment_forward_metres": 1.3064846314081617,
+    "head_body_horizontal_metres": 1.2679520045147548,
+    "vertices": 282,
+    "renderer_count": 1,
+    "shader": "HDRP/Unlit",
+    "render_queue": 3000,
+    "phase": "Driving"
+  }
+}

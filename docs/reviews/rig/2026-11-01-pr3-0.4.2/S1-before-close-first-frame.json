@@ -1,0 +1,434 @@
+{
+  "summary": {
+    "armed_frame": 5580,
+    "first_visible_frame": 5585,
+    "delay_frames": 5,
+    "body": [
+      134.1691,
+      0.009994864,
+      243.272766
+    ],
+    "head": [
+      134.1691,
+      0.06999996,
+      243.272766
+    ],
+    "next_point": [
+      -83.33744,
+      0.06999996,
+      462.6228
+    ],
+    "first_segment_horizontal_metres": 308.9069962926912,
+    "first_segment_forward_metres": -219.6938797356234,
+    "head_body_horizontal_metres": 0.0,
+    "vertices": 625,
+    "renderer_count": 1,
+    "shader": "HDRP/Unlit",
+    "render_queue": 3000,
+    "phase": "Driving"
+  },
+  "frames_through_first_visible": [
+    {
+      "activeRide": true,
+      "option": true,
+      "view": true,
+      "failed": false,
+      "enabled": false,
+      "count": 0,
+      "sourceId": -1150284096,
+      "phase": "Driving",
+      "along": null,
+      "speed": 1.0,
+      "screen": [
+        960,
+        540
+      ],
+      "frameMs": 30.8974,
+      "rendererCount": 0,
+      "frame": 5580,
+      "carPhysics": false,
+      "body": [
+        134.1691,
+        0.009994864,
+        243.272766
+      ],
+      "forward": [
+        0.00158206257,
+        5.435277e-07,
+        -0.9999988
+      ],
+      "lastAlong": 506.8340552707615,
+      "progress": {},
+      "progressIndex": null,
+      "arcAt": 0,
+      "arcAlong": -1.0
+    },
+    {
+      "activeRide": true,
+      "option": true,
+      "view": true,
+      "failed": false,
+      "enabled": false,
+      "count": 0,
+      "sourceId": -1150284096,
+      "phase": "Driving",
+      "along": null,
+      "speed": 1.0,
+      "screen": [
+        960,
+        540
+      ],
+      "frameMs": 65.9661942,
+      "rendererCount": 0,
+      "frame": 5581,
+      "carPhysics": false,
+      "body": [
+        134.1691,
+        0.009994864,
+        243.272766
+      ],
+      "forward": [
+        0.00158206257,
+        5.435277e-07,
+        -0.9999988
+      ],
+      "lastAlong": 506.8340552707615,
+      "progress": {},
+      "progressIndex": null,
+      "arcAt": 0,
+      "arcAlong": -1.0
+    },
+    {
+      "activeRide": true,
+      "option": true,
+      "view": true,
+      "failed": false,
+      "enabled": false,
+      "count": 0,
+      "sourceId": -1150284096,
+      "phase": "Driving",
+      "along": null,
+      "speed": 1.0,
+      "screen": [
+        960,
+        540
+      ],
+      "frameMs": 55.7999,
+      "rendererCount": 0,
+      "frame": 5582,
+      "carPhysics": false,
+      "body": [
+        134.1691,
+        0.009994864,
+        243.272766
+      ],
+      "forward": [
+        0.00158206257,
+        5.435277e-07,
+        -0.9999988
+      ],
+      "lastAlong": 506.8340552707615,
+      "progress": {},
+      "progressIndex": null,
+      "arcAt": 0,
+      "arcAlong": -1.0
+    },
+    {
+      "activeRide": true,
+      "option": true,
+      "view": true,
+      "failed": false,
+      "enabled": false,
+      "count": 0,
+      "sourceId": -1150284096,
+      "phase": "Driving",
+      "along": null,
+      "speed": 1.0,
+      "screen": [
+        960,
+        540
+      ],
+      "frameMs": 46.5328979,
+      "rendererCount": 0,
+      "frame": 5583,
+      "carPhysics": false,
+      "body": [
+        134.1691,
+        0.009994864,
+        243.272766
+      ],
+      "forward": [
+        0.00158206257,
+        5.435277e-07,
+        -0.9999988
+      ],
+      "lastAlong": 506.8340552707615,
+      "progress": {},
+      "progressIndex": null,
+      "arcAt": 0,
+      "arcAlong": -1.0
+    },
+    {
+      "activeRide": true,
+      "option": true,
+      "view": true,
+      "failed": false,
+      "enabled": false,
+      "count": 0,
+      "sourceId": -1150284096,
+      "phase": "Driving",
+      "along": null,
+      "speed": 1.0,
+      "screen": [
+        960,
+        540
+      ],
+      "frameMs": 38.9186,
+      "rendererCount": 0,
+      "frame": 5584,
+      "carPhysics": false,
+      "body": [
+        134.1691,
+        0.009994864,
+        243.272766
+      ],
+      "forward": [
+        0.00158206257,
+        5.435277e-07,
+        -0.9999988
+      ],
+      "lastAlong": 506.8340552707615,
+      "progress": {},
+      "progressIndex": null,
+      "arcAt": 0,
+      "arcAlong": -1.0
+    },
+    {
+      "activeRide": true,
+      "option": true,
+      "view": true,
+      "failed": false,
+      "enabled": true,
+      "count": 625,
+      "sourceId": -1150284096,
+      "phase": "Driving",
+      "along": null,
+      "speed": 1.0,
+      "screen": [
+        960,
+        540
+      ],
+      "frameMs": 35.5913,
+      "rendererCount": 1,
+      "shader": "HDRP/Unlit",
+      "supported": true,
+      "width": 0.4,
+      "head": [
+        134.1691,
+        0.06999996,
+        243.272766
+      ],
+      "tail": [
+        221.39621,
+        0.06999996,
+        -159.064667
+      ],
+      "nearPoints": [
+        [
+          134.1691,
+          0.06999996,
+          243.272766
+        ],
+        [
+          -83.33744,
+          0.06999996,
+          462.6228
+        ],
+        [
+          -81.99958,
+          0.06999996,
+          462.62146
+        ],
+        [
+          -80.66172,
+          0.06999996,
+          462.620117
+        ],
+        [
+          -79.2688446,
+          0.06999996,
+          462.618744
+        ],
+        [
+          -77.87597,
+          0.06999996,
+          462.61734
+        ],
+        [
+          -76.48309,
+          0.06999996,
+          462.615967
+        ],
+        [
+          -74.952034,
+          0.06999996,
+          462.614441
+        ],
+        [
+          -73.42098,
+          0.06999996,
+          462.612885
+        ],
+        [
+          -71.88992,
+          0.06999996,
+          462.611359
+        ],
+        [
+          -70.13741,
+          0.06999996,
+          462.609619
+        ],
+        [
+          -68.3848953,
+          0.06999996,
+          462.60788
+        ],
+        [
+          -66.6323853,
+          0.06999996,
+          462.60614
+        ],
+        [
+          -65.0895538,
+          0.06999996,
+          462.604584
+        ],
+        [
+          -63.5467262,
+          0.06999996,
+          462.603027
+        ],
+        [
+          -62.0039,
+          0.06999996,
+          462.60144
+        ],
+        [
+          -60.4610672,
+          0.06999996,
+          462.599884
+        ],
+        [
+          -58.5017662,
+          0.06999996,
+          462.597931
+        ],
+        [
+          -56.54247,
+          0.06999996,
+          462.595978
+        ],
+        [
+          -54.583168,
+          0.06999996,
+          462.594025
+        ],
+        [
+          -52.9206123,
+          0.06999996,
+          462.59436
+        ],
+        [
+          -51.2580566,
+          0.06999996,
+          462.594727
+        ],
+        [
+          -49.5955,
+          0.06999996,
+          462.5951
+        ],
+        [
+          -47.9329453,
+          0.06999996,
+          462.595428
+        ],
+        [
+          -45.9648361,
+          0.06999996,
+          462.5965
+        ],
+        [
+          -43.996727,
+          0.06999996,
+          462.597565
+        ],
+        [
+          -42.38938,
+          0.06999996,
+          462.5984
+        ],
+        [
+          -40.782032,
+          0.06999996,
+          462.599243
+        ],
+        [
+          -39.2677765,
+          0.06999996,
+          462.600037
+        ],
+        [
+          -37.7535248,
+          0.06999996,
+          462.600861
+        ],
+        [
+          -36.064682,
+          0.06999996,
+          462.601746
+        ],
+        [
+          -34.37584,
+          0.06999996,
+          462.602661
+        ],
+        [
+          -32.9551,
+          0.06999996,
+          462.603424
+        ],
+        [
+          -31.53436,
+          0.06999996,
+          462.604218
+        ],
+        [
+          -30.11362,
+          0.06999996,
+          462.60498
+        ]
+      ],
+      "frame": 5585,
+      "carPhysics": false,
+      "body": [
+        134.1691,
+        0.009994864,
+        243.272766
+      ],
+      "forward": [
+        0.00158206257,
+        5.435277e-07,
+        -0.9999988
+      ],
+      "lastAlong": 506.8340552707615,
+      "progress": {},
+      "progressIndex": null,
+      "arcAt": 0,
+      "arcAlong": -1.0,
+      "renderQueue": 3000,
+      "color": "RGBA(0.184, 0.502, 1.000, 0.820)"
+    }
+  ]
+}

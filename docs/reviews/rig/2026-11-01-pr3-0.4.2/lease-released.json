@@ -1,0 +1,13 @@
+{
+  "status": {
+    "instance": "agent1",
+    "held": false,
+    "owner": null,
+    "purpose": null,
+    "acquired_utc": null,
+    "expires_automatically": false,
+    "pending": 0,
+    "legacy_blocked": false
+  },
+  "utc": "2026-11-01T08:23:13.2912691Z"
+}

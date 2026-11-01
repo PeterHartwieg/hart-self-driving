@@ -1,0 +1,56 @@
+{
+  "extras-skip-request": {
+    "utc": "2026-11-01T08:19:39.8381570Z",
+    "frame": 44367,
+    "phase": "Finishing",
+    "activeRide": true,
+    "option": true,
+    "enabled": false,
+    "sourceId": 924397572,
+    "rendererCount": 1,
+    "count": 282
+  },
+  "extras-cancel-immediate": {
+    "utc": "2026-11-01T08:20:15.6453766Z",
+    "frame": 46959,
+    "phase": "Done",
+    "activeRide": true,
+    "option": true,
+    "enabled": false,
+    "sourceId": -1805493206,
+    "rendererCount": 1,
+    "count": 2677
+  },
+  "extras-cancel-observed": {
+    "utc": "2026-11-01T08:21:29.1925603Z",
+    "frame": 378,
+    "phase": null,
+    "activeRide": false,
+    "option": true,
+    "enabled": false,
+    "sourceId": 0,
+    "rendererCount": 0,
+    "count": 0
+  },
+  "after-on-restart-menu": {
+    "utc": "2026-11-01T08:22:08.4765421Z",
+    "frame": 3887,
+    "phase": null,
+    "activeRide": false,
+    "option": true,
+    "enabled": false,
+    "sourceId": 0,
+    "rendererCount": 0,
+    "count": 0
+  },
+  "Gley-arrival": {
+    "utc": "2026-11-01T08:13:04.8183623Z",
+    "frame": 21354,
+    "phase": null,
+    "activeRide": false,
+    "enabled": false,
+    "sourceId": 0,
+    "rendererCount": 1,
+    "count": 3
+  }
+}

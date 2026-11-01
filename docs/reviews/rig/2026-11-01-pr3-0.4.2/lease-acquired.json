@@ -1,0 +1,10 @@
+{
+  "instance": "agent1",
+  "held": true,
+  "owner": "selfdriving-pr3-0.4.2-rig",
+  "purpose": "Release PR3 exact zip comparison 0.4.2; locked session",
+  "acquired_utc": "2026-11-01T07:42:30.4080123Z",
+  "expires_automatically": false,
+  "pending": 0,
+  "legacy_blocked": false
+}

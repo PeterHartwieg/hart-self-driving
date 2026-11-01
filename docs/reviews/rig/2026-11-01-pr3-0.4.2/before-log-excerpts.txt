@@ -1,0 +1,9 @@
+[Mod:DrivenRides] Version 0.4.1 loading.
+[Mod:DrivenRides] Options: driven taxis on, private driver on, own car on, autopark Every, ride speed 1x, clock during rides 33%, driver shortcut on, stop at red lights on, car physics off.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Ride accepted: Taxi, 199 waypoints, 978 m, drive 125 s, walk 5 s, planned in 28 ms, budget 29.1 game minutes. Destination 51 ba:street_thirdstreet at (214.21, 0.09, -157.96), drop-off 8141 at (221.40, 0.00, -159.06).
+[Mod:DrivenRides] Ride cancelled: game unloaded.
+[Mod:DrivenRides] Ride accepted: OwnCar, 199 waypoints, 994 m, drive 113 s, walk 5 s, planned in 585 ms, budget 29.2 game minutes. Destination 51 ba:street_thirdstreet at (214.21, 0.09, -157.96), drop-off 8141 at (221.40, 0.00, -159.06).
+[Mod:DrivenRides] Ride cancelled: mod unload.
+[Mod:DrivenRides] Own car: the keys are the player's again (cancelled: mod unload).

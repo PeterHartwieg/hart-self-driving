@@ -1,0 +1,4 @@
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Options: driven taxis on, private driver on, own car on, autopark Every, ride speed 1x, clock during rides 33%, driver shortcut on, stop at red lights on, car physics on, route line on.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.

@@ -1,0 +1,28 @@
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Options: driven taxis on, private driver on, own car on, autopark Every, ride speed 1x, clock during rides 33%, driver shortcut on, stop at red lights on, car physics on, route line off.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Ride accepted: Taxi, 209 waypoints, 1039 m, drive 116 s, walk 5 s, planned in 15 ms, budget 29.1 game minutes. Destination 51 ba:street_thirdstreet at (214.21, 0.09, -157.96), drop-off 8141 at (221.40, 0.00, -159.06).
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride ending: Complete (arrived), 50.5 game minutes so far.
+[Mod:DrivenRides] Ride finished.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Ride accepted: OwnCar, 199 waypoints, 994 m, drive 113 s, walk 5 s, planned in 683 ms, budget 29.2 game minutes. Destination 51 ba:street_thirdstreet at (214.21, 0.09, -157.96), drop-off 8141 at (221.40, 0.00, -159.06).
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride ending: Vanilla (skipped), 17.2 game minutes so far.
+[Mod:DrivenRides] Own car: the keys are the player's again (skipped).
+[Mod:DrivenRides] Ride finished.
+[Mod:DrivenRides] Ride accepted: OwnCar, 727 waypoints, 3816 m, drive 341 s, walk 34 s, planned in 250 ms, budget 127.4 game minutes. Destination 14 ba:street_seventhavenue at (-2826.28, 0.02, -1085.26), drop-off 13098 at (-2801.18, -0.01, -1044.96).
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Own car: the keys are the player's again (cancelled: route acceptance cancel).
