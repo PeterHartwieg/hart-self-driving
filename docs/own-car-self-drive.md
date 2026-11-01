@@ -1,6 +1,11 @@
 # Own car self-drive and autopark: design notes
 
-Not part of the implementation plan yet. Written 12 October 2026 from a read of the 1.0 decompile (23 September 2026) and the Gley decompile in `build/decompiled-external/GleyTrafficSystem/`. Nothing here has been tried in the game. Game paths are relative to the decompile's `BigAmbitions/`, Gley paths to `GleyTrafficSystem/`.
+Dated design notes, starting 12 October 2026 from the 1.0 decompile (23 September 2026) and the Gley decompile
+in `build/decompiled-external/GleyTrafficSystem/`. The original stand-in proposal below was replaced by
+[NWH driving](#on-nwh-driving-from-14-october-2026), including later parking and departure work. Current
+evidence and pending in-game checks are in [../CHECKS.md](../CHECKS.md); the early proposal's untested
+claims do not describe the current release. Game paths are relative to the decompile's `BigAmbitions/`,
+Gley paths to `GleyTrafficSystem/`.
 
 ## Peter's decisions, 12 October 2026
 
@@ -128,10 +133,15 @@ Every ride now drives with the game's own car physics (`docs/implementation-plan
 - **Getting out** during the trip ends the ride first (`CarController.ExitVehicle` prefix), then the game takes the player out where the car stands.
 - **Ride.cs** drives it through the NWH rides seam, `NwhRideCar` (`NwhRides.cs`), filled by `OwnCarTaxi.RideCar`: `PlayerInside` (no attach, anchor, hiding, exit or entry; a cancel leaves the player and the car where they are), `Owned = false`, `End` (the keys back, the drive component off the car), `Arrive` (after a Skip or a given-up trip the car goes to the lane nearest the destination, then autopark).
 - **Planning** uses the car's drivable prefab's shape (`NwhPlanner.For`, the car's own vehicle type) and, where Gley's questions need a traffic model (lanes allowed, a free waypoint), the car's traffic twin or the pooled car closest in length (`OwnCarTaxi.PlanPrefab`); nothing is loaded.
-- **Kerb starts** stay the player's (Peter, 14 October 2026): a car beside its lane gets "pull out into the lane first". A pull-out (the line's start moved sideways) was built and driven once in game, then taken out: it shared `DrivePlan.Shifts` with the planner's obstacle shifts, which the look-ahead and the shift blend don't tell apart.
+- **Historical kerb-start decision, 14 October 2026 (superseded on 17 October):** starts originally stayed the player's. A pull-out using `DrivePlan.Shifts` was removed because obstacle shifts shared that state. The separate local manoeuvre planner described above now handles legal parking departures.
 - **Autopark hunts** (0.1.93): the game makes spots only within 6 m of a car the player gets into, out of or teleports, and looks only around the car; the mod makes them on every parking lane within 20, 50, 100 and 150 m in turn and takes the nearest free one long enough for the car (`OwnCarTaxi.Hunt`).
 - **Open:** a modded car without a `Vehicles/PlayerVehicles/<id>` prefab has no shape to plan with and gets "can't drive itself there"; planning from the live car would cover it.
 - **No longer needed:** the parking-charge suppression (the car is the active vehicle the whole time), the fuel charge (the car burns its own), the re-entry refusal.
+
+## Original decompile findings and superseded stand-in proposal
+
+The following preserves the 12 October research. The hidden-car swap, pool expansion and stand-in
+recommendation are not the current own-car implementation.
 
 ## What the game does
 
