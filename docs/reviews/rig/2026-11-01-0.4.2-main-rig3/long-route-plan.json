@@ -1,0 +1,54 @@
+{
+  "nativeCommand": "ride kind=own address=ba:street_legacyavenue#8 speed=3 kerb=0.01 autopark=off",
+  "movingPerformanceCommand": "ride kind=own address=ba:street_legacyavenue#8 speed=1 kerb=0.01 autopark=off",
+  "startTeleport": {
+    "x": 404.5,
+    "z": 381.27,
+    "y": 0
+  },
+  "initialState": {
+    "activeRide": true,
+    "option": true,
+    "enabled": true,
+    "count": 896,
+    "sourceId": -1943775912,
+    "phase": "Driving",
+    "rendererCount": 1,
+    "body": [
+      399.857056,
+      0.02044649,
+      383.323425
+    ],
+    "head": [
+      399.8491,
+      0.06999996,
+      382.052734
+    ],
+    "forward": [
+      -0.00140603224,
+      0.0252671149,
+      0.999679744
+    ],
+    "frame": 35055,
+    "arcAt": 0,
+    "arcAlong": -1.0,
+    "carPhysics": true,
+    "along": 0.7522,
+    "left": 5192.852373691901,
+    "boundsMin": [
+      -242.057526,
+      -0.13000004,
+      -21.4960785
+    ],
+    "boundsMax": [
+      400.118561,
+      0.269999981,
+      466.972229
+    ],
+    "kind": "OwnCar",
+    "uTurnPath": []
+  },
+  "fullPreparedVertexCount": 896,
+  "maximumRoadY": 0.06999996,
+  "minimumRoadY": 0.06999996
+}

@@ -1,0 +1,40 @@
+{
+  "backup": {
+    "receipt_files": 107,
+    "verified": true,
+    "utc": "2026-11-01T12:32:15.1445239Z",
+    "profile_files": 4828
+  },
+  "acquired": {
+    "instance": "agent1",
+    "held": true,
+    "owner": "selfdriving-0.4.2-main-rig3",
+    "purpose": "HART 0.4.2 main cdebd60 release rig3, disposable FT saves",
+    "acquired_utc": "2026-11-01T12:29:59.6839959Z",
+    "expires_automatically": false,
+    "pending": 0,
+    "legacy_blocked": false
+  },
+  "restored": {
+    "restored": true,
+    "preferences_sha256": "66FCCBCC5F63BC492E36BA7F342D9D2480ADB2B87404A650A8607094D207381D",
+    "agent_processes": 0,
+    "receipt_sha256": "9785D1DE5C7360875B2A2A47F511815660DD98A38D6F64AB4ECFF8C20627B949",
+    "receipt_files": 107,
+    "profile_files": 4828,
+    "utc": "2026-11-01T13:20:04.5218095Z"
+  },
+  "released": {
+    "status": {
+      "instance": "agent1",
+      "held": false,
+      "owner": null,
+      "purpose": null,
+      "acquired_utc": null,
+      "expires_automatically": false,
+      "pending": 0,
+      "legacy_blocked": false
+    },
+    "utc": "2026-11-01T13:20:04.6034695Z"
+  }
+}

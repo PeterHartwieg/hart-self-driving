@@ -1,0 +1,221 @@
+=== after-first-complete; SHA-256 fb770380740ea369f9e8d0720c836969b47884e1976e1195cccab17dbdc22978 ===
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Options: driven taxis on, private driver on, own car on, autopark Every, ride speed 3x, clock during rides 33%, driver shortcut on, stop at red lights on, car physics on, route line on.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Patch PlayerHelper.SaveCurrentPosition: Active.
+[Mod:DrivenRides] Patch PlayerActivityUI.CanStartActivity(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch TimeMachine.StartTimeMachine(Timestamp, Boolean, String, Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch DrivingAI.WaypointRequested(Int32, VehicleTypes): Active.
+[Mod:DrivenRides] Patch DrivingAI.HasReachedOrPassedWaypoint(Int32, Int32): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch GameSpeedController.SetPause(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch SfxManager.SetSoundSnapshotCityMap(Boolean, Single): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryUnEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch TaxiSystem.TravelTo(EntityController): Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch PositionValidator.IsValid(Vector3, Single, Single, Single, Boolean, Single, Quaternion): Active.
+[Mod:DrivenRides] Patch TaxiSystem.GetPrice(Single): Active.
+[Mod:DrivenRides] Patch CarController.Update: Active.
+[Mod:DrivenRides] Patch CarController.ExitVehicle: Active.
+[Mod:DrivenRides] Patch ItemPanelUI.ClickAutoPark: Active.
+[Mod:DrivenRides] Patch SkipBridgeHelper.SkipBridge: Active.
+[Mod:DrivenRides] Patch CarFeatures.UpdateBridgeHiddenState: Active.
+[Mod:DrivenRides] Patch SmartphonePrivateDriverUI.OnClickVehicle(VehicleInstance): Active.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed: 97 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed: 63 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed (NWH): 134 waypoints, 666 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed (NWH): 134 waypoints, 666 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed: 158 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride ending: Complete (arrived), 29.9 game minutes so far.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed (NWH): 197 waypoints, 986 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride ending: Vanilla (skipped), 4.4 game minutes so far.
+[Mod:DrivenRides] Option: route line off.
+=== after-off-restart; SHA-256 a0f19bb37378e1571bad049dd7d5c2ce404398ab3900df09427d2c31be424177 ===
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Options: driven taxis on, private driver on, own car on, autopark Every, ride speed 3x, clock during rides 33%, driver shortcut on, stop at red lights on, car physics on, route line off.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Patch PlayerHelper.SaveCurrentPosition: Active.
+[Mod:DrivenRides] Patch PlayerActivityUI.CanStartActivity(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch TimeMachine.StartTimeMachine(Timestamp, Boolean, String, Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch DrivingAI.WaypointRequested(Int32, VehicleTypes): Active.
+[Mod:DrivenRides] Patch DrivingAI.HasReachedOrPassedWaypoint(Int32, Int32): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch GameSpeedController.SetPause(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch SfxManager.SetSoundSnapshotCityMap(Boolean, Single): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryUnEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch TaxiSystem.TravelTo(EntityController): Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch PositionValidator.IsValid(Vector3, Single, Single, Single, Boolean, Single, Quaternion): Active.
+[Mod:DrivenRides] Patch TaxiSystem.GetPrice(Single): Active.
+[Mod:DrivenRides] Patch CarController.Update: Active.
+[Mod:DrivenRides] Patch CarController.ExitVehicle: Active.
+[Mod:DrivenRides] Patch ItemPanelUI.ClickAutoPark: Active.
+[Mod:DrivenRides] Patch SkipBridgeHelper.SkipBridge: Active.
+[Mod:DrivenRides] Patch CarFeatures.UpdateBridgeHiddenState: Active.
+[Mod:DrivenRides] Patch SmartphonePrivateDriverUI.OnClickVehicle(VehicleInstance): Active.
+[Mod:DrivenRides] Option: route line on.
+=== after-final; SHA-256 e3868df1fce7f9784f669eb6e7c420fd427181b95d16f75835331ea89b1bdd71 ===
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Options: driven taxis on, private driver on, own car on, autopark Every, ride speed 3x, clock during rides 33%, driver shortcut on, stop at red lights on, car physics on, route line on.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Patch PlayerHelper.SaveCurrentPosition: Active.
+[Mod:DrivenRides] Patch PlayerActivityUI.CanStartActivity(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch TimeMachine.StartTimeMachine(Timestamp, Boolean, String, Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch DrivingAI.WaypointRequested(Int32, VehicleTypes): Active.
+[Mod:DrivenRides] Patch DrivingAI.HasReachedOrPassedWaypoint(Int32, Int32): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch GameSpeedController.SetPause(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch SfxManager.SetSoundSnapshotCityMap(Boolean, Single): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryUnEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch TaxiSystem.TravelTo(EntityController): Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch PositionValidator.IsValid(Vector3, Single, Single, Single, Boolean, Single, Quaternion): Active.
+[Mod:DrivenRides] Patch TaxiSystem.GetPrice(Single): Active.
+[Mod:DrivenRides] Patch CarController.Update: Active.
+[Mod:DrivenRides] Patch CarController.ExitVehicle: Active.
+[Mod:DrivenRides] Patch ItemPanelUI.ClickAutoPark: Active.
+[Mod:DrivenRides] Patch SkipBridgeHelper.SkipBridge: Active.
+[Mod:DrivenRides] Patch CarFeatures.UpdateBridgeHiddenState: Active.
+[Mod:DrivenRides] Patch SmartphonePrivateDriverUI.OnClickVehicle(VehicleInstance): Active.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed (NWH): 113 waypoints, 562 m, top 50 km/h, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride ending: Vanilla (skipped), 0.3 game minutes so far.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed (NWH): 153 waypoints, 840 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride ending: Vanilla (skipped), 0.2 game minutes so far.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed: 84 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed (NWH): 199 waypoints, 994 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: mod unload.
+[Mod:DrivenRides] Version 0.4.2 loading.
+[Mod:DrivenRides] Options: driven taxis on, private driver on, own car on, autopark Every, ride speed 3x, clock during rides 33%, driver shortcut on, stop at red lights on, car physics on, route line on.
+[Mod:DrivenRides] Patch TaxiSystem.TravelCoroutine(EntityController, Single): Active.
+[Mod:DrivenRides] Patch PrivateDriverVehicle.Update: Active.
+[Mod:DrivenRides] Patch GameManager.RunMainGameTick(Single): Active.
+[Mod:DrivenRides] Patch PlayerHelper.SaveCurrentPosition: Active.
+[Mod:DrivenRides] Patch PlayerActivityUI.CanStartActivity(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch TimeMachine.StartTimeMachine(Timestamp, Boolean, String, Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch DrivingAI.WaypointRequested(Int32, VehicleTypes): Active.
+[Mod:DrivenRides] Patch DrivingAI.HasReachedOrPassedWaypoint(Int32, Int32): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch FullMenu.Toggle(Boolean): Active.
+[Mod:DrivenRides] Patch GameSpeedController.SetPause(Boolean, Boolean): Active.
+[Mod:DrivenRides] Patch SfxManager.SetSoundSnapshotCityMap(Boolean, Single): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch RadioPlayer.OnAccessoryUnEquipped(CargoInstance): Active.
+[Mod:DrivenRides] Patch TaxiSystem.TravelTo(EntityController): Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch TrafficManager.FixedUpdate: Active.
+[Mod:DrivenRides] Patch PositionValidator.IsValid(Vector3, Single, Single, Single, Boolean, Single, Quaternion): Active.
+[Mod:DrivenRides] Patch TaxiSystem.GetPrice(Single): Active.
+[Mod:DrivenRides] Patch CarController.Update: Active.
+[Mod:DrivenRides] Patch CarController.ExitVehicle: Active.
+[Mod:DrivenRides] Patch ItemPanelUI.ClickAutoPark: Active.
+[Mod:DrivenRides] Patch SkipBridgeHelper.SkipBridge: Active.
+[Mod:DrivenRides] Patch CarFeatures.UpdateBridgeHiddenState: Active.
+[Mod:DrivenRides] Patch SmartphonePrivateDriverUI.OnClickVehicle(VehicleInstance): Active.
+[Mod:DrivenRides] Departed (NWH): 200 waypoints, 1000 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Departed (NWH): 246 waypoints, 1216 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Bridge: targets ahead (-358.3, 0.0, -214.5).
+[Mod:DrivenRides] Bridge: skipping 201 m to waypoint 15242.
+[Mod:DrivenRides] Bridge: the car landed on waypoint 15242; 189 route waypoints on.
+[Mod:DrivenRides] Ride cancelled: parking test: departed and drove 20 m on the road.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed (NWH): 173 waypoints, 842 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Ride cancelled: parking test: departed and drove 20 m on the road.
+[Mod:DrivenRides] Departed (NWH): 151 waypoints, 764 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Ride ending: Complete (arrived), 36.9 game minutes so far.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed (NWH): 988 waypoints, 5195 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Bridge: targets ahead (-1579.5, 0.0, -1209.2).
+[Mod:DrivenRides] Bridge: skipping 1567 m to waypoint 151.
+[Mod:DrivenRides] Bridge: the car landed on waypoint 151; 422 route waypoints on.
+[Mod:DrivenRides] Ride ending: Complete (arrived), 232.5 game minutes so far.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed (NWH): 988 waypoints, 5195 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Bridge: targets ahead (-1579.5, 0.0, -1209.2).
+[Mod:DrivenRides] Bridge: skipping 1572 m to waypoint 151.
+[Mod:DrivenRides] Bridge: the car landed on waypoint 151; 422 route waypoints on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Ride ending: Vanilla (skipped), 123.7 game minutes so far.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed: 86 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Departed: 81 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Departed: 123 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Departed: 119 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line off.
+[Mod:DrivenRides] Departed (NWH): 988 waypoints, 5195 m, top 70 km/h, light cycle 8 s.
+[Mod:DrivenRides] Ride ending: Vanilla (skipped), 20.5 game minutes so far.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Option: route line on.
+[Mod:DrivenRides] Departed: 267 waypoints for Gley, light cycle 8 s.
+[Mod:DrivenRides] Route line material: shader HDRP/Unlit, render queue 3000.
+[Mod:DrivenRides] Ride cancelled: route acceptance cancel.

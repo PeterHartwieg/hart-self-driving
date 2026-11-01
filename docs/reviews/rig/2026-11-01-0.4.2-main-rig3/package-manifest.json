@@ -1,0 +1,45 @@
+{
+  "name": "HART. Self Driving",
+  "folder": "DrivenRides",
+  "version": "0.4.2",
+  "targetGameBuild": 3682,
+  "previewPlaceholder": false,
+  "files": {
+    "CHANGELOG.md": {
+      "sha256": "20c163b21d712f3abbe308dafa4471e01e733be6fc2fdf9062fa4d13ee0cca0a",
+      "bytes": 3726
+    },
+    "Dependencies/0Harmony.dll": {
+      "sha256": "7b9e756306fa3d7620e02a857c8927a6ab04973f9bd8a77d3866700a6deac55c",
+      "bytes": 2461696
+    },
+    "Dependencies/DrivenRides.Core.dll": {
+      "sha256": "f1a5d678a493611e03373fb54d39c3b41e3671afda97e5e40a3bbef73b956385",
+      "bytes": 271360
+    },
+    "Dependencies/Harmony-LICENSE.txt": {
+      "sha256": "407ddd98200c9f17f49942b5a7791e288a2bd553b59bf2f462db87dbb21c50bc",
+      "bytes": 1094
+    },
+    "DrivenRides.dll": {
+      "sha256": "8157b0c0b754ae594529615b3d1db50de5dc6f1cdaaa90270ecdefe458e522ac",
+      "bytes": 436736
+    },
+    "LICENSE.txt": {
+      "sha256": "798c303b2493d9642a1ac0dcfb2ec4f24bc8d23b7cbdab1cf291050b20f68825",
+      "bytes": 1590
+    },
+    "Locales/en.json": {
+      "sha256": "79fcf7ed469549490d005389361b1cb716b468d7d82015c99100aff67566eb7a",
+      "bytes": 3888
+    },
+    "preview.jpg": {
+      "sha256": "4f1e8d3a2fa9e1e61b9a1512d072234f7e5e23ad71966bdc782012aceb0ab42b",
+      "bytes": 947401
+    },
+    "README.md": {
+      "sha256": "1d982d76f36029c0d349b2c83a1be7302db8f222ef2ffb93bb05a472b16fa12e",
+      "bytes": 14205
+    }
+  }
+}

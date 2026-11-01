@@ -1,0 +1,10 @@
+DR_TRAFFIC_SEEDS=500 dotnet test tests -c Release; foreground, game stopped, isolated build staging.
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.71]     DrivenRides.Core.Tests.OfflineCatalogueTests.OceanCrestPocketNeedsANearbyStartBeforeWideningTheDestination [SKIP]
+[xUnit.net 00:00:00.71]     DrivenRides.Core.Tests.OfflineCatalogueTests.RealGraphBuildsAllManoeuvresAndFourControls [SKIP]
+  Skipped DrivenRides.Core.Tests.OfflineCatalogueTests.OceanCrestPocketNeedsANearbyStartBeforeWideningTheDestination [1 ms]
+  Skipped DrivenRides.Core.Tests.OfflineCatalogueTests.RealGraphBuildsAllManoeuvresAndFourControls [1 ms]
+[xUnit.net 00:00:22.30]     DrivenRides.Core.Tests.TrafficTests.PendingScenarios [SKIP]
+  Skipped DrivenRides.Core.Tests.TrafficTests.PendingScenarios [1 ms]
+
+Passed!  - Failed:     0, Passed:   412, Skipped:     3, Total:   415, Duration: 41 s - DrivenRides.Core.Tests.dll (net10.0)

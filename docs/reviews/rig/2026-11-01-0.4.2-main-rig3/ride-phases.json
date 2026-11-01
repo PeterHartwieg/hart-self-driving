@@ -1,0 +1,3265 @@
+{
+  "S1-after-fullblock-final-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 21,
+        "enabledSamples": 0,
+        "firstFrame": 6815,
+        "lastFrame": 7090
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 7094,
+        "lastFrame": 7094
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 7096,
+        "lastFrame": 7096
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 6815,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          -127.9064,
+          0.010002289,
+          387.023956
+        ],
+        "forward": [
+          -0.002433286,
+          4.17493254e-07,
+          -0.999997139
+        ],
+        "frame": 7094,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 0.0,
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Driving",
+        "rendererCount": 0,
+        "body": [
+          -127.906708,
+          0.0100018894,
+          386.897675
+        ],
+        "forward": [
+          -0.00243326626,
+          3.87815021e-07,
+          -0.999997139
+        ],
+        "frame": 7096,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 471.04518183534003,
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Driving",
+        "rendererCount": 0,
+        "body": [
+          -127.906708,
+          0.0100018894,
+          386.897675
+        ],
+        "forward": [
+          -0.00243326626,
+          3.87815021e-07,
+          -0.999997139
+        ],
+        "frame": 7096,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 471.04518183534003,
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S1-after-uturn-final-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 19,
+        "enabledSamples": 0,
+        "firstFrame": 15520,
+        "lastFrame": 15788
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 15791,
+        "lastFrame": 15791
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 15520,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Driving",
+        "rendererCount": 0,
+        "body": [
+          96.65047,
+          0.009997243,
+          470.621155
+        ],
+        "forward": [
+          -0.9999995,
+          -3.910401e-08,
+          -0.001078248
+        ],
+        "frame": 15791,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 300.0195865286509,
+        "kind": "PrivateDriver",
+        "uTurnPath": [
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ]
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Driving",
+        "rendererCount": 0,
+        "body": [
+          96.65047,
+          0.009997243,
+          470.621155
+        ],
+        "forward": [
+          -0.9999995,
+          -3.910401e-08,
+          -0.001078248
+        ],
+        "frame": 15791,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 300.0195865286509,
+        "kind": "PrivateDriver",
+        "uTurnPath": [
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ]
+      }
+    ]
+  },
+  "S3-private-tight-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 63,
+        "enabledSamples": 0,
+        "firstFrame": 48617,
+        "lastFrame": 49619
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 49633,
+        "lastFrame": 49633
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 49635,
+        "lastFrame": 49635
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 48617,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          -123.918312,
+          0.0100020478,
+          382.1297
+        ],
+        "forward": [
+          0.00243941625,
+          3.58160634e-07,
+          0.999997
+        ],
+        "frame": 49633,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 0.0,
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1955196380,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -123.918,
+          0.0100016519,
+          382.2576
+        ],
+        "head": [
+          -123.918312,
+          0.06999996,
+          382.1297
+        ],
+        "forward": [
+          0.00243944325,
+          4.17592474e-07,
+          0.999997
+        ],
+        "frame": 49635,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 801.010740866284,
+        "boundsMin": [
+          -124.118317,
+          -0.13000004,
+          381.929718
+        ],
+        "boundsMax": [
+          211.628754,
+          0.269999981,
+          458.853
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1955196380,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -123.918,
+          0.0100016519,
+          382.2576
+        ],
+        "head": [
+          -123.918312,
+          0.06999996,
+          382.1297
+        ],
+        "forward": [
+          0.00243944325,
+          4.17592474e-07,
+          0.999997
+        ],
+        "frame": 49635,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 801.010740866284,
+        "boundsMin": [
+          -124.118317,
+          -0.13000004,
+          381.929718
+        ],
+        "boundsMax": [
+          211.628754,
+          0.269999981,
+          458.853
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S4-switching-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 12,
+        "enabledSamples": 0,
+        "firstFrame": 58852,
+        "lastFrame": 58979
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 58986,
+        "lastFrame": 58986
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 58988,
+        "lastFrame": 58988
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 3,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          96.65945,
+          0.06999996,
+          469.953644
+        ],
+        "forward": null,
+        "frame": 58852,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          94.16529,
+          -0.13000004,
+          469.753632
+        ],
+        "boundsMax": [
+          96.85944,
+          0.269999981,
+          470.8196
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 3,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 1,
+        "body": [
+          -166.792831,
+          0.0217110012,
+          458.595245
+        ],
+        "head": [
+          96.65945,
+          0.06999996,
+          469.953644
+        ],
+        "forward": [
+          0.9999007,
+          0.0140633956,
+          0.0009996037
+        ],
+        "frame": 58986,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          94.16529,
+          -0.13000004,
+          469.753632
+        ],
+        "boundsMax": [
+          96.85944,
+          0.269999981,
+          470.8196
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -540764896,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -166.79187,
+          0.0217530113,
+          458.595276
+        ],
+        "head": [
+          -168.06073,
+          0.06999996,
+          458.603973
+        ],
+        "forward": [
+          0.999899,
+          0.0141862258,
+          0.0009995725
+        ],
+        "frame": 58988,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0007,
+        "left": 984.3316903156697,
+        "boundsMin": [
+          -168.260742,
+          -0.13000004,
+          168.131714
+        ],
+        "boundsMax": [
+          -124.312134,
+          0.269999981,
+          458.830078
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -540764896,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -166.79187,
+          0.0217530113,
+          458.595276
+        ],
+        "head": [
+          -168.06073,
+          0.06999996,
+          458.603973
+        ],
+        "forward": [
+          0.999899,
+          0.0141862258,
+          0.0009995725
+        ],
+        "frame": 58988,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0007,
+        "left": 984.3316903156697,
+        "boundsMin": [
+          -168.260742,
+          -0.13000004,
+          168.131714
+        ],
+        "boundsMax": [
+          -124.312134,
+          0.269999981,
+          458.830078
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S5-Hamptons-gley-first-start-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 30,
+        "enabledSamples": 0,
+        "firstFrame": 82270,
+        "lastFrame": 82785
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 82791,
+        "lastFrame": 82791
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 82270,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 240,
+        "sourceId": -1950191648,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -3245.91577,
+          0.05031728,
+          -1357.08569
+        ],
+        "head": [
+          -3245.85083,
+          0.109994993,
+          -1357.04285
+        ],
+        "forward": [
+          -0.835211933,
+          2.041364e-06,
+          -0.549928546
+        ],
+        "frame": 82791,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 1480.619744852218,
+        "boundsMin": [
+          -3246.051,
+          -0.14805758,
+          -1369.34766
+        ],
+        "boundsMax": [
+          -2848.23413,
+          0.3802215,
+          -1355.56934
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 240,
+        "sourceId": -1950191648,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -3245.91577,
+          0.05031728,
+          -1357.08569
+        ],
+        "head": [
+          -3245.85083,
+          0.109994993,
+          -1357.04285
+        ],
+        "forward": [
+          -0.835211933,
+          2.041364e-06,
+          -0.549928546
+        ],
+        "frame": 82791,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 1480.619744852218,
+        "boundsMin": [
+          -3246.051,
+          -0.14805758,
+          -1369.34766
+        ],
+        "boundsMax": [
+          -2848.23413,
+          0.3802215,
+          -1355.56934
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S5-weather-ride-0-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 32,
+        "enabledSamples": 0,
+        "firstFrame": 70187,
+        "lastFrame": 70648
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 70658,
+        "lastFrame": 70658
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 70660,
+        "lastFrame": 70660
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 70187,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          -127.906334,
+          0.0100033246,
+          387.057159
+        ],
+        "forward": [
+          -0.00243168185,
+          2.38572937e-07,
+          -0.9999974
+        ],
+        "frame": 70658,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 0.0,
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 685572438,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -127.906723,
+          0.0100026177,
+          386.8951
+        ],
+        "head": [
+          -127.906334,
+          0.06999996,
+          387.057159
+        ],
+        "forward": [
+          -0.002431658,
+          4.473379e-07,
+          -0.9999974
+        ],
+        "frame": 70660,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 495.8746028624551,
+        "boundsMin": [
+          -128.276352,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          59.9788971,
+          0.269999981,
+          387.257141
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 685572438,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -127.906723,
+          0.0100026177,
+          386.8951
+        ],
+        "head": [
+          -127.906334,
+          0.06999996,
+          387.057159
+        ],
+        "forward": [
+          -0.002431658,
+          4.473379e-07,
+          -0.9999974
+        ],
+        "frame": 70660,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 495.8746028624551,
+        "boundsMin": [
+          -128.276352,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          59.9788971,
+          0.269999981,
+          387.257141
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S5-weather-ride-1-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 3,
+        "enabledSamples": 0,
+        "firstFrame": 71198,
+        "lastFrame": 71207
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 71210,
+        "lastFrame": 71210
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 71212,
+        "lastFrame": 71212
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 441,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          -127.937019,
+          0.06999996,
+          374.4402
+        ],
+        "forward": null,
+        "frame": 71198,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          -128.276337,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          138.144043,
+          0.269999981,
+          470.819641
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 441,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 1,
+        "body": [
+          -127.964012,
+          0.0100009227,
+          363.378448
+        ],
+        "head": [
+          -127.937019,
+          0.06999996,
+          374.4402
+        ],
+        "forward": [
+          -0.00239195325,
+          3.8774445e-07,
+          -0.9999974
+        ],
+        "frame": 71210,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          -128.276337,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          138.144043,
+          0.269999981,
+          470.819641
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 261346532,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -127.964325,
+          0.0100009441,
+          363.246918
+        ],
+        "head": [
+          -127.964012,
+          0.06999996,
+          363.378448
+        ],
+        "forward": [
+          -0.002391955,
+          3.877416e-07,
+          -0.999997139
+        ],
+        "frame": 71212,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 476.51126431912445,
+        "boundsMin": [
+          -128.276352,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          78.13699,
+          0.269999981,
+          371.728943
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 261346532,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -127.964325,
+          0.0100009441,
+          363.246918
+        ],
+        "head": [
+          -127.964012,
+          0.06999996,
+          363.378448
+        ],
+        "forward": [
+          -0.002391955,
+          3.877416e-07,
+          -0.999997139
+        ],
+        "frame": 71212,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 476.51126431912445,
+        "boundsMin": [
+          -128.276352,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          78.13699,
+          0.269999981,
+          371.728943
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S5-weather-ride-2-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 3,
+        "enabledSamples": 0,
+        "firstFrame": 71627,
+        "lastFrame": 71639
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 71643,
+        "lastFrame": 71643
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 71645,
+        "lastFrame": 71645
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 428,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          -127.991821,
+          0.06999996,
+          351.888184
+        ],
+        "forward": null,
+        "frame": 71627,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          -128.276337,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          138.144043,
+          0.269999981,
+          470.819641
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 428,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 1,
+        "body": [
+          -128.021973,
+          0.0100008519,
+          339.52533
+        ],
+        "head": [
+          -127.991821,
+          0.06999996,
+          351.888184
+        ],
+        "forward": [
+          -0.00242508878,
+          3.87409443e-07,
+          -0.999997139
+        ],
+        "frame": 71643,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          -128.276337,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          138.144043,
+          0.269999981,
+          470.819641
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": [
+          18,
+          19,
+          20,
+          21,
+          22
+        ]
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1707639708,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -128.021973,
+          0.0100008547,
+          339.52533
+        ],
+        "head": [
+          -128.021973,
+          0.06999996,
+          339.52533
+        ],
+        "forward": [
+          -0.002425088,
+          3.8741e-07,
+          -0.999997139
+        ],
+        "frame": 71645,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 645.2948620710515,
+        "boundsMin": [
+          -218.894,
+          -0.13000004,
+          305.300659
+        ],
+        "boundsMax": [
+          36.9880829,
+          0.269999981,
+          371.717834
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": [
+          18,
+          19,
+          20,
+          21,
+          22
+        ]
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1707639708,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -128.021973,
+          0.0100008547,
+          339.52533
+        ],
+        "head": [
+          -128.021973,
+          0.06999996,
+          339.52533
+        ],
+        "forward": [
+          -0.002425088,
+          3.8741e-07,
+          -0.999997139
+        ],
+        "frame": 71645,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 645.2948620710515,
+        "boundsMin": [
+          -218.894,
+          -0.13000004,
+          305.300659
+        ],
+        "boundsMax": [
+          36.9880829,
+          0.269999981,
+          371.717834
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": [
+          18,
+          19,
+          20,
+          21,
+          22
+        ]
+      }
+    ]
+  },
+  "S5-weather-ride-3-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 3,
+        "enabledSamples": 0,
+        "firstFrame": 72174,
+        "lastFrame": 72188
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 72192,
+        "lastFrame": 72192
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 460,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          -128.142746,
+          0.06999996,
+          332.54184
+        ],
+        "forward": null,
+        "frame": 72174,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          -218.894012,
+          -0.13000004,
+          305.300659
+        ],
+        "boundsMax": [
+          138.144043,
+          0.269999981,
+          470.819641
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -453689680,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -130.33345,
+          0.009998989,
+          323.05127
+        ],
+        "head": [
+          -130.2934,
+          0.06999996,
+          323.1625
+        ],
+        "forward": [
+          -0.338901371,
+          4.16818182e-07,
+          -0.940822
+        ],
+        "frame": 72192,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 628.4617703264532,
+        "boundsMin": [
+          -218.894,
+          -0.13000004,
+          305.3007
+        ],
+        "boundsMax": [
+          49.12825,
+          0.269999981,
+          371.721161
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": [
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -453689680,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -130.33345,
+          0.009998989,
+          323.05127
+        ],
+        "head": [
+          -130.2934,
+          0.06999996,
+          323.1625
+        ],
+        "forward": [
+          -0.338901371,
+          4.16818182e-07,
+          -0.940822
+        ],
+        "frame": 72192,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 628.4617703264532,
+        "boundsMin": [
+          -218.894,
+          -0.13000004,
+          305.3007
+        ],
+        "boundsMax": [
+          49.12825,
+          0.269999981,
+          371.721161
+        ],
+        "kind": "PrivateDriver",
+        "uTurnPath": [
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      }
+    ]
+  },
+  "S8-arrival-phases.json": {
+    "phaseSummary": {
+      "Driving": {
+        "samples": 169,
+        "enabledSamples": 169,
+        "firstFrame": 31110,
+        "lastFrame": 32817
+      },
+      "Parking": {
+        "samples": 12,
+        "enabledSamples": 0,
+        "firstFrame": 32822,
+        "lastFrame": 32881
+      },
+      "None": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 32891,
+        "lastFrame": 32891
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 512,
+        "sourceId": 1605245328,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -25.663,
+          0.0214939844,
+          371.490967
+        ],
+        "head": [
+          -26.9620171,
+          0.06999996,
+          371.50058
+        ],
+        "forward": [
+          0.999874532,
+          0.01584366,
+          0.0003101972
+        ],
+        "frame": 31110,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0282,
+        "left": 763.0293705839248,
+        "boundsMin": [
+          -27.1620178,
+          -0.13000004,
+          -57.6869049
+        ],
+        "boundsMax": [
+          221.6259,
+          0.269999981,
+          371.7406
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 2,
+        "sourceId": 0,
+        "phase": "Parking",
+        "rendererCount": 1,
+        "body": [
+          221.394638,
+          0.0219059475,
+          -165.238632
+        ],
+        "head": [
+          221.394989,
+          0.06999996,
+          -163.83934
+        ],
+        "forward": [
+          -0.0002766715,
+          -0.00709538674,
+          -0.999974966
+        ],
+        "frame": 32822,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 768.2335,
+        "left": 0.0,
+        "boundsMin": [
+          221.194687,
+          -0.13000004,
+          -165.139191
+        ],
+        "boundsMax": [
+          221.594986,
+          0.269999981,
+          -163.639343
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 2,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          221.394989,
+          0.06999996,
+          -163.83934
+        ],
+        "forward": null,
+        "frame": 32891,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          221.194687,
+          -0.13000004,
+          -165.139191
+        ],
+        "boundsMax": [
+          221.594986,
+          0.269999981,
+          -163.639343
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 2,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          221.394989,
+          0.06999996,
+          -163.83934
+        ],
+        "forward": null,
+        "frame": 32891,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          221.194687,
+          -0.13000004,
+          -165.139191
+        ],
+        "boundsMax": [
+          221.594986,
+          0.269999981,
+          -163.639343
+        ],
+        "kind": null,
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S8-J-Manhattan-lifecycle3-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 21,
+        "enabledSamples": 0,
+        "firstFrame": 14360,
+        "lastFrame": 14699
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 14700,
+        "lastFrame": 14700
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 14702,
+        "lastFrame": 14702
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 14360,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          -174.908951,
+          0.02180851,
+          458.587158
+        ],
+        "forward": [
+          0.9998988,
+          0.014199568,
+          0.0009941165
+        ],
+        "frame": 14700,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1265149650,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -174.906555,
+          0.0218314137,
+          458.587158
+        ],
+        "head": [
+          -176.176834,
+          0.06999996,
+          458.5959
+        ],
+        "forward": [
+          0.9998955,
+          0.0144287962,
+          0.0009959968
+        ],
+        "frame": 14702,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.002,
+        "left": 992.4478136052236,
+        "boundsMin": [
+          -176.376831,
+          -0.13000004,
+          170.675522
+        ],
+        "boundsMax": [
+          -125.892212,
+          0.269999981,
+          458.830078
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1265149650,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -174.906555,
+          0.0218314137,
+          458.587158
+        ],
+        "head": [
+          -176.176834,
+          0.06999996,
+          458.5959
+        ],
+        "forward": [
+          0.9998955,
+          0.0144287962,
+          0.0009959968
+        ],
+        "frame": 14702,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.002,
+        "left": 992.4478136052236,
+        "boundsMin": [
+          -176.376831,
+          -0.13000004,
+          170.675522
+        ],
+        "boundsMax": [
+          -125.892212,
+          0.269999981,
+          458.830078
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S8-K-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 15,
+        "enabledSamples": 0,
+        "firstFrame": 5347,
+        "lastFrame": 5598
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 5599,
+        "lastFrame": 5599
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 5601,
+        "lastFrame": 5601
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 5347,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          -166.792786,
+          0.02180791,
+          458.5952
+        ],
+        "forward": [
+          0.9998988,
+          0.0141991712,
+          0.00100168516
+        ],
+        "frame": 5599,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -171491364,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -166.791077,
+          0.0218326245,
+          458.595245
+        ],
+        "head": [
+          -168.060684,
+          0.06999996,
+          458.603973
+        ],
+        "forward": [
+          0.9998962,
+          0.0143702924,
+          0.00100046059
+        ],
+        "frame": 5601,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0008,
+        "left": 838.9181123338815,
+        "boundsMin": [
+          -168.260681,
+          -0.13000004,
+          168.131714
+        ],
+        "boundsMax": [
+          -124.312134,
+          0.269999981,
+          458.830078
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -171491364,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -166.791077,
+          0.0218326245,
+          458.595245
+        ],
+        "head": [
+          -168.060684,
+          0.06999996,
+          458.603973
+        ],
+        "forward": [
+          0.9998962,
+          0.0143702924,
+          0.00100046059
+        ],
+        "frame": 5601,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0008,
+        "left": 838.9181123338815,
+        "boundsMin": [
+          -168.260681,
+          -0.13000004,
+          168.131714
+        ],
+        "boundsMax": [
+          -124.312134,
+          0.269999981,
+          458.830078
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S8-parking-arrival-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 17,
+        "enabledSamples": 0,
+        "firstFrame": 30865,
+        "lastFrame": 31097
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 31106,
+        "lastFrame": 31106
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 31108,
+        "lastFrame": 31108
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 593,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          -40.48429,
+          0.06999996,
+          409.518555
+        ],
+        "forward": null,
+        "frame": 30865,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          -40.811142,
+          -0.13000004,
+          -159.2647
+        ],
+        "boundsMax": [
+          221.6259,
+          0.269999981,
+          409.718567
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 593,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 1,
+        "body": [
+          -25.6946926,
+          0.02151044,
+          371.490936
+        ],
+        "head": [
+          -40.48429,
+          0.06999996,
+          409.518555
+        ],
+        "forward": [
+          0.9999071,
+          0.0136348372,
+          0.000274581136
+        ],
+        "frame": 31106,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          -40.811142,
+          -0.13000004,
+          -159.2647
+        ],
+        "boundsMax": [
+          221.6259,
+          0.269999981,
+          409.718567
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1605245328,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -25.6944046,
+          0.0215543583,
+          371.490936
+        ],
+        "head": [
+          -26.9625778,
+          0.06999996,
+          371.50058
+        ],
+        "forward": [
+          0.999905646,
+          0.0137417875,
+          0.000276176725
+        ],
+        "frame": 31108,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0002,
+        "left": 763.0304139035891,
+        "boundsMin": [
+          -27.16257,
+          -0.13000004,
+          175.52356
+        ],
+        "boundsMax": [
+          134.463318,
+          0.269999981,
+          371.7406
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1605245328,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -25.6944046,
+          0.0215543583,
+          371.490936
+        ],
+        "head": [
+          -26.9625778,
+          0.06999996,
+          371.50058
+        ],
+        "forward": [
+          0.999905646,
+          0.0137417875,
+          0.000276176725
+        ],
+        "frame": 31108,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0002,
+        "left": 763.0304139035891,
+        "boundsMin": [
+          -27.16257,
+          -0.13000004,
+          175.52356
+        ],
+        "boundsMax": [
+          134.463318,
+          0.269999981,
+          371.7406
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S8-parking-departure-factory-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 16,
+        "enabledSamples": 0,
+        "firstFrame": 17239,
+        "lastFrame": 17488
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 17501,
+        "lastFrame": 17501
+      },
+      "Unparking": {
+        "samples": 584,
+        "enabledSamples": 0,
+        "firstFrame": 17502,
+        "lastFrame": 27483
+      },
+      "Bridging": {
+        "samples": 9,
+        "enabledSamples": 0,
+        "firstFrame": 27490,
+        "lastFrame": 27609
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 27621,
+        "lastFrame": 27621
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 732,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          -174.973358,
+          0.06999996,
+          458.597076
+        ],
+        "forward": null,
+        "frame": 17239,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          -175.173355,
+          -0.13000004,
+          -165.139191
+        ],
+        "boundsMax": [
+          221.6259,
+          0.269999981,
+          458.8301
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 732,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 1,
+        "body": [
+          -528.64,
+          0.0167834722,
+          -310.02
+        ],
+        "head": [
+          -174.973358,
+          0.06999996,
+          458.597076
+        ],
+        "forward": [
+          2.36119746e-07,
+          0.0074237017,
+          -0.9999726
+        ],
+        "frame": 17501,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          -175.173355,
+          -0.13000004,
+          -165.139191
+        ],
+        "boundsMax": [
+          221.6259,
+          0.269999981,
+          458.8301
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 732,
+        "sourceId": 0,
+        "phase": "Unparking",
+        "rendererCount": 1,
+        "body": [
+          -528.64,
+          0.0167834722,
+          -310.02
+        ],
+        "head": [
+          -174.973358,
+          0.06999996,
+          458.597076
+        ],
+        "forward": [
+          2.36119746e-07,
+          0.0074237017,
+          -0.9999726
+        ],
+        "frame": 17502,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          -175.173355,
+          -0.13000004,
+          -165.139191
+        ],
+        "boundsMax": [
+          221.6259,
+          0.269999981,
+          458.8301
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 128,
+        "sourceId": 0,
+        "phase": "Bridging",
+        "rendererCount": 1,
+        "body": [
+          -559.9689,
+          0.021894373,
+          -297.8318
+        ],
+        "head": [
+          -559.892761,
+          0.06999993,
+          -299.079254
+        ],
+        "forward": [
+          0.175970137,
+          0.0131217577,
+          0.984308064
+        ],
+        "frame": 27490,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 3.858,
+        "left": 0.0,
+        "boundsMin": [
+          -560.486633,
+          -0.13000007,
+          -299.279266
+        ],
+        "boundsMax": [
+          -440.263641,
+          0.269999921,
+          -212.272629
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 648,
+        "sourceId": -120490132,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -385.500427,
+          0.06900858,
+          -195.154343
+        ],
+        "head": [
+          -385.4933,
+          0.06999996,
+          -196.506348
+        ],
+        "forward": [
+          -0.005305895,
+          0.05699383,
+          0.998360455
+        ],
+        "frame": 27621,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 1.2568,
+        "left": 942.0475504948365,
+        "boundsMin": [
+          -386.543762,
+          -0.13000004,
+          -196.706345
+        ],
+        "boundsMax": [
+          221.625931,
+          0.269999981,
+          -28.7932281
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 648,
+        "sourceId": -120490132,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -385.500427,
+          0.06900858,
+          -195.154343
+        ],
+        "head": [
+          -385.4933,
+          0.06999996,
+          -196.506348
+        ],
+        "forward": [
+          -0.005305895,
+          0.05699383,
+          0.998360455
+        ],
+        "frame": 27621,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 1.2568,
+        "left": 942.0475504948365,
+        "boundsMin": [
+          -386.543762,
+          -0.13000004,
+          -196.706345
+        ],
+        "boundsMax": [
+          221.625931,
+          0.269999981,
+          -28.7932281
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S8-parking-departure-final-5-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 13,
+        "enabledSamples": 0,
+        "firstFrame": 28729,
+        "lastFrame": 28878
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 28888,
+        "lastFrame": 28888
+      },
+      "Unparking": {
+        "samples": 76,
+        "enabledSamples": 0,
+        "firstFrame": 28896,
+        "lastFrame": 30164
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 30177,
+        "lastFrame": 30177
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 638,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 1,
+        "body": null,
+        "head": [
+          -385.5734,
+          0.06999996,
+          -177.1329
+        ],
+        "forward": null,
+        "frame": 28729,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "boundsMin": [
+          -386.543762,
+          -0.13000004,
+          -177.3329
+        ],
+        "boundsMax": [
+          221.625931,
+          0.269999981,
+          -28.7932281
+        ],
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 638,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 1,
+        "body": [
+          -43.4668045,
+          0.0183908,
+          434.458984
+        ],
+        "head": [
+          -385.5734,
+          0.06999996,
+          -177.1329
+        ],
+        "forward": [
+          2.06779347e-07,
+          0.007520874,
+          -0.999971867
+        ],
+        "frame": 28888,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          -386.543762,
+          -0.13000004,
+          -177.3329
+        ],
+        "boundsMax": [
+          221.625931,
+          0.269999981,
+          -28.7932281
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 638,
+        "sourceId": 0,
+        "phase": "Unparking",
+        "rendererCount": 1,
+        "body": [
+          -43.4668045,
+          0.0196819343,
+          434.459229
+        ],
+        "head": [
+          -385.5734,
+          0.06999996,
+          -177.1329
+        ],
+        "forward": [
+          4.26290853e-07,
+          0.009193507,
+          -0.999958038
+        ],
+        "frame": 28896,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "boundsMin": [
+          -386.543762,
+          -0.13000004,
+          -177.3329
+        ],
+        "boundsMax": [
+          221.625931,
+          0.269999981,
+          -28.7932281
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1268784170,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -40.5928,
+          0.02188294,
+          428.093567
+        ],
+        "head": [
+          -40.5607,
+          0.06999996,
+          429.3535
+        ],
+        "forward": [
+          0.126616031,
+          0.0145848934,
+          -0.991844654
+        ],
+        "frame": 30177,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 9.6569,
+        "left": 830.8567837732039,
+        "boundsMin": [
+          -40.8111534,
+          -0.13000004,
+          157.642929
+        ],
+        "boundsMax": [
+          5.56405258,
+          0.269999981,
+          429.553467
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 1268784170,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -40.5928,
+          0.02188294,
+          428.093567
+        ],
+        "head": [
+          -40.5607,
+          0.06999996,
+          429.3535
+        ],
+        "forward": [
+          0.126616031,
+          0.0145848934,
+          -0.991844654
+        ],
+        "frame": 30177,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 9.6569,
+        "left": 830.8567837732039,
+        "boundsMin": [
+          -40.8111534,
+          -0.13000004,
+          157.642929
+        ],
+        "boundsMax": [
+          5.56405258,
+          0.269999981,
+          429.553467
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S8-stand-retry-0-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 3,
+        "enabledSamples": 0,
+        "firstFrame": 12040,
+        "lastFrame": 12066
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 12070,
+        "lastFrame": 12070
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 12040,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": false,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 716645380,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -127.927185,
+          0.005737692,
+          378.483765
+        ],
+        "head": [
+          -127.926758,
+          0.06999996,
+          378.6604
+        ],
+        "forward": [
+          -0.00243091513,
+          5.59183036e-07,
+          -0.999997139
+        ],
+        "frame": 12070,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 491.51078989063325,
+        "boundsMin": [
+          -128.276352,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          64.2323151,
+          0.269999981,
+          378.8604
+        ],
+        "kind": "Stand",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": 716645380,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          -127.927185,
+          0.005737692,
+          378.483765
+        ],
+        "head": [
+          -127.926758,
+          0.06999996,
+          378.6604
+        ],
+        "forward": [
+          -0.00243091513,
+          5.59183036e-07,
+          -0.999997139
+        ],
+        "frame": 12070,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": false,
+        "along": null,
+        "left": 491.51078989063325,
+        "boundsMin": [
+          -128.276352,
+          -0.13000004,
+          309.250916
+        ],
+        "boundsMax": [
+          64.2323151,
+          0.269999981,
+          378.8604
+        ],
+        "kind": "Stand",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S8-taxi-0-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 5,
+        "enabledSamples": 0,
+        "firstFrame": 2288,
+        "lastFrame": 2350
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 2352,
+        "lastFrame": 2352
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 2354,
+        "lastFrame": 2354
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 2288,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          134.119354,
+          0.409999967,
+          387.650421
+        ],
+        "forward": [
+          0.00161233684,
+          0.0,
+          -0.9999988
+        ],
+        "frame": 2352,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "kind": "Taxi",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1862875396,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          134.1193,
+          0.166600168,
+          387.636353
+        ],
+        "head": [
+          134.121628,
+          0.06999996,
+          386.267181
+        ],
+        "forward": [
+          0.00154684379,
+          0.00816953648,
+          -0.9999654
+        ],
+        "frame": 2354,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0,
+        "left": 561.56173500817,
+        "boundsMin": [
+          -119.393906,
+          -0.13000004,
+          322.71
+        ],
+        "boundsMax": [
+          134.321625,
+          0.269999981,
+          386.4672
+        ],
+        "kind": "Taxi",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1862875396,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          134.1193,
+          0.166600168,
+          387.636353
+        ],
+        "head": [
+          134.121628,
+          0.06999996,
+          386.267181
+        ],
+        "forward": [
+          0.00154684379,
+          0.00816953648,
+          -0.9999654
+        ],
+        "frame": 2354,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0,
+        "left": 561.56173500817,
+        "boundsMin": [
+          -119.393906,
+          -0.13000004,
+          322.71
+        ],
+        "boundsMax": [
+          134.321625,
+          0.269999981,
+          386.4672
+        ],
+        "kind": "Taxi",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S9-long-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 16,
+        "enabledSamples": 0,
+        "firstFrame": 34869,
+        "lastFrame": 35042
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 35048,
+        "lastFrame": 35048
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 35050,
+        "lastFrame": 35050
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 34869,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          399.858643,
+          0.0217175037,
+          382.56897
+        ],
+        "forward": [
+          -0.0007786048,
+          0.0140704876,
+          0.9999007
+        ],
+        "frame": 35048,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1943775912,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          399.858582,
+          0.021695599,
+          382.589
+        ],
+        "head": [
+          399.84967,
+          0.06999996,
+          381.3011
+        ],
+        "forward": [
+          -0.0008012256,
+          0.0155707579,
+          0.999878466
+        ],
+        "frame": 35050,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0196,
+        "left": 5193.606830261283,
+        "boundsMin": [
+          308.532959,
+          -0.13000004,
+          353.498718
+        ],
+        "boundsMax": [
+          400.11853,
+          0.269999981,
+          466.972229
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1943775912,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          399.858582,
+          0.021695599,
+          382.589
+        ],
+        "head": [
+          399.84967,
+          0.06999996,
+          381.3011
+        ],
+        "forward": [
+          -0.0008012256,
+          0.0155707579,
+          0.999878466
+        ],
+        "frame": 35050,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0196,
+        "left": 5193.606830261283,
+        "boundsMin": [
+          308.532959,
+          -0.13000004,
+          353.498718
+        ],
+        "boundsMax": [
+          400.11853,
+          0.269999981,
+          466.972229
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S9-off-prefix-long-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 16,
+        "enabledSamples": 0,
+        "firstFrame": 74841,
+        "lastFrame": 75086
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 75098,
+        "lastFrame": 75098
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 75100,
+        "lastFrame": 75100
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 74841,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          399.858643,
+          0.02170894,
+          382.56897
+        ],
+        "forward": [
+          -0.00077862473,
+          0.0140571222,
+          0.9999009
+        ],
+        "frame": 75098,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Driving",
+        "rendererCount": 0,
+        "body": [
+          399.858643,
+          0.0217535961,
+          382.56955
+        ],
+        "forward": [
+          -0.0007787847,
+          0.0141509725,
+          0.999899566
+        ],
+        "frame": 75100,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.001,
+        "left": 5193.606830261283,
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": false,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Driving",
+        "rendererCount": 0,
+        "body": [
+          399.858643,
+          0.0217535961,
+          382.56955
+        ],
+        "forward": [
+          -0.0007787847,
+          0.0141509725,
+          0.999899566
+        ],
+        "frame": 75100,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.001,
+        "left": 5193.606830261283,
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  },
+  "S9-perf-long-phases.json": {
+    "phaseSummary": {
+      "None": {
+        "samples": 12,
+        "enabledSamples": 0,
+        "firstFrame": 50354,
+        "lastFrame": 50471
+      },
+      "Boarding": {
+        "samples": 1,
+        "enabledSamples": 0,
+        "firstFrame": 50479,
+        "lastFrame": 50479
+      },
+      "Driving": {
+        "samples": 1,
+        "enabledSamples": 1,
+        "firstFrame": 50481,
+        "lastFrame": 50481
+      }
+    },
+    "transitionsAndLast": [
+      {
+        "activeRide": false,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": null,
+        "rendererCount": 0,
+        "body": null,
+        "forward": null,
+        "frame": 50354,
+        "arcAt": null,
+        "arcAlong": null,
+        "carPhysics": true,
+        "along": null,
+        "left": null,
+        "kind": null,
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": false,
+        "count": 0,
+        "sourceId": 0,
+        "phase": "Boarding",
+        "rendererCount": 0,
+        "body": [
+          399.858643,
+          0.0217235088,
+          382.56897
+        ],
+        "forward": [
+          -0.0007785588,
+          0.0140794031,
+          0.9999006
+        ],
+        "frame": 50479,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": null,
+        "left": 0.0,
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1032621944,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          399.858582,
+          0.0216521136,
+          382.600128
+        ],
+        "head": [
+          399.84967,
+          0.06999996,
+          381.3011
+        ],
+        "forward": [
+          -0.000813921564,
+          0.0161920972,
+          0.9998686
+        ],
+        "frame": 50481,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0309,
+        "left": 5193.606830261283,
+        "boundsMin": [
+          308.532959,
+          -0.13000004,
+          353.498718
+        ],
+        "boundsMax": [
+          400.11853,
+          0.269999981,
+          466.972229
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      },
+      {
+        "activeRide": true,
+        "option": true,
+        "enabled": true,
+        "count": 256,
+        "sourceId": -1032621944,
+        "phase": "Driving",
+        "rendererCount": 1,
+        "body": [
+          399.858582,
+          0.0216521136,
+          382.600128
+        ],
+        "head": [
+          399.84967,
+          0.06999996,
+          381.3011
+        ],
+        "forward": [
+          -0.000813921564,
+          0.0161920972,
+          0.9998686
+        ],
+        "frame": 50481,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "carPhysics": true,
+        "along": 0.0309,
+        "left": 5193.606830261283,
+        "boundsMin": [
+          308.532959,
+          -0.13000004,
+          353.498718
+        ],
+        "boundsMax": [
+          400.11853,
+          0.269999981,
+          466.972229
+        ],
+        "kind": "OwnCar",
+        "uTurnPath": []
+      }
+    ]
+  }
+}

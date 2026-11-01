@@ -1,0 +1,29 @@
+{
+  "role": "rig_test",
+  "sourceCommit": "cdebd60f1ff3f32fac55e03fee8ed73b19fd9c5d",
+  "sourceTree": "307fb6a805bc97b85be8e4ddaddf1bb30819b122",
+  "owner": "selfdriving-0.4.2-main-rig3",
+  "instance": "agent1",
+  "install": "C:\\BigAmbitions-AgentTests",
+  "port": 18330,
+  "normalGameProcessLaunchGuard": true,
+  "windowsSessionLocked": true,
+  "graphicsAndWindowsSettingsChanges": false,
+  "testSavesOnly": "Disposable FT fixture copies",
+  "before": {
+    "sourceCommit": "539015bd69d0b5c27fb15fbf0e67d20f7dd48453",
+    "zipSha256": "ff23a3d0716cbbb01c3002d496fdf8c0fa0c93ff849e4e606f1e514c6dfd294e",
+    "freshlyVerifiedZipHash": true,
+    "evidence": "Archived rig2 native captures; not rerun in rig3",
+    "evidenceCommit": "985fb1ae12fc8fd52818ff27266c1f10374b2b69"
+  },
+  "mandatory": {
+    "S1": "Gley option-off full block and native U-turn indices 43-48; compare first visible head/body XZ and outgoing suffix",
+    "S4": "Immediate OFF; first visible ON at most 6 frames, including native 5.194 km route; separately report full vertex preparation"
+  },
+  "acceptedGleySidewaysConnector": "An off-lane native Gley car starts at its actual X/Z and connects sideways to the remaining planned lane; accepted by the requested PR6 plan, not classified as a physics fold",
+  "physicsHead": "Retain rear-axle plan point and positive first-segment forward projection",
+  "observer": "Test-only independent native camera and renderer/pose reads; native option, keyboard, lifecycle and existing test operations; no route/steering changes; excluded from candidate package",
+  "performance": "Native moving 1x ride, timer-controlled nominal 60-second windows, no continuous observer rendering or capture operations inside measurements; extra OFF prefix to avoid bridge confounding",
+  "scope": "Build, isolated native proof, restore, new evidence branch and one PR6 comment; no Workshop upload, merge or release handoff"
+}

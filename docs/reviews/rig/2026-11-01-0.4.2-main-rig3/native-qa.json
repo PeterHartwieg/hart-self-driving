@@ -1,0 +1,29 @@
+{
+  "after-final-native-qa.json": {
+    "log_sha256": "e3868df1fce7f9784f669eb6e7c420fd427181b95d16f75835331ea89b1bdd71",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 52,
+    "clean": true
+  },
+  "after-first-complete-native-qa.json": {
+    "log_sha256": "fb770380740ea369f9e8d0720c836969b47884e1976e1195cccab17dbdc22978",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  },
+  "after-off-restart-native-qa.json": {
+    "log_sha256": "a0f19bb37378e1571bad049dd7d5c2ce404398ab3900df09427d2c31be424177",
+    "standard_checker_ok": true,
+    "inactive_patches": [],
+    "all_mod_errors": [],
+    "DrivenRides_exceptions": [],
+    "DrivenRides_active_patch_count": 26,
+    "clean": true
+  }
+}

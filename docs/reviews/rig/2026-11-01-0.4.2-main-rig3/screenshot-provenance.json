@@ -1,0 +1,382 @@
+[
+  {
+    "file": "S1-after-uturn-final-switch-on-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "9ecb2748211278f27e925e939c9cabe6cda0ce1500bcefef1c655b18b6437305",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "37b7c38b8ff24b6fb23f963fad917f73a13e66c31e3db6cfeea0d16be8f75782",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S1-after-fullblock-final-paused-overview-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "bf4c7d67681adeba61bab3e848b35145eae9e36fc6490c629a2e58dbd6b3be77",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "c0d7ebb1f00820103c489a47c0e99ec394526272a74ac9e21ede25d9d889dc4a",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S2-after-fullblock-switch-on-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "1bfd8913d56d981e38db27b6673df5be5cae3576eae446f95afda1f4ee8535cd",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "412fd4aa2d46ae12f453a62515a06847a181d947e287614ef5a908f038c32b39",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S2-after-loop-repeat-switch-on-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "cada074ccd13f82fa865f1c58638ec10ec2fffa268ce9924e95018c5811b0abe",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "c5b6b98f711efb932c2b58dee6e2881feabe69e6ed3adf9716f4a4c7ed65e3a6",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S2-after-slow-switch-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "a9a7341eba5a26f2368b95960e15a08119f936ff8b1306302fc39b637b257838",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "266a3887ea045c65495654da542ad2db0ccc1fccdfbdb7dd038a109437da9411",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S3-after-private-arc-0-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "0c2688cf8cfeec161604a172f92da5a9164c0c6c1c651add97ce2608b0aae31a",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "25b441ab397802530135a5b95dae79c8fd8814b0c8dd41706ae9f1b7d4df0d9f",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S4-after-long-route-on-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "5bf6b85079079c5baf07086ff5d47cb8c8a81cdf76ba87aeba3fdfd371c0a362",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "3c84465b8afe44e9e0dfd8af345fdb960f1311c7e2df680e11b45c4e549bf797",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S5-after-Hamptons-first-start-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "d0117b340cce11845a01d7b5b29b6766286d86c617a23918a99b10bbee900e08",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "4ceb05c10748b2540980aa3b3f4b0c8340627506feeed97daad003810742270e",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S5-after-night-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "0216971f5c5a82d1522b5e60ad77680f9980d8816461c35ff7928be97fd6df7b",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "82580d988f39686da0fde420ffa7caa2864850b3d8752046ad4fc689118b65b9",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S5-after-bridge-slope.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "f2b13ccf48a2483e674f0d03c8b0c91200cba7d8d9dacbf271729edb7f06b688",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "ceac3a9225a9cb4968bf711a68eadf1e831712b4105304159679ecdf1614fc43",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S6-after-reroute-new-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "305a8a82aa60e212bc1fe5d2568c40813eaae51df7203d344edd9b8bfeb6dfbb",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "ff1ce2e5db3e3f97d452b7a17bd8d46fda523b7837c640af0a634b5f74b844f6",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S6-after-bridge-landing-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "6f0b07900cfe5701f149ca4ca4b857eb4b8e3f92f4c6bb4a01e8df62a7789c80",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "d2ed3d813de19825d6920937d6d39ba297b8ce90fb29913afb98ce89bf22611c",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S7c-after-midride-reload-no-line.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "bc4d52a1fae6a623b0354b9b0fc76524f6c3d7fcf8012769ad25eb2ef9dfa4f8",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "879d0dd427bc17a088adad7758d816b50c069228abb27e075084f66e4cfd850d",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S7c-after-reenable-one-line-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "18a701f69da2d2546c86101403770fc2f7db122582ae9d7fa2a6c2367668d9dc",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "8d67f7ec30d68e85bf52410eab936422292f2f9976212023935d2bbdc404f45e",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S8-after-hailed-taxi-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "e9da56fd1e591bc9a7e1583de4f3db29577bf682d2e933b04399ac22114fff1f",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "d7f2c997fcf93ca725a624b74117a9a827d5d12e6405bb94ad6213f1f837ca9a",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S8-after-stand-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "4022f794ab2f6bead586cfb45502da2cb3cf4b8e1e73492d8f2e8c8cff44f7a7",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "283a6d35e961f5ad3e078b52cac1f3c2ff5d0592511467e44cacce8c032db39a",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S8-after-K-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "8aa1cf2bee45833161bb8b7cfe77b07bbef3810f558c804e9a21419aa48f807e",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "40641f9528e4aa605e4849da252ac901e66d9a5475d427c21cf0e70f5dcaf450",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S8-after-J-Manhattan-lifecycle3-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "2347e13c9f9b84c9b5728aaae3666f0592045db4a24f09638cf1dd2d85d517f7",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "260b914a991386aab8e592076d374789d80cd4ae94f8ce7abe0cb22b4af513c3",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S8-parking-departure-factory-manoeuvre.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "593d17db34a853880aef9d7a7c79035587149bcd9f9ebdc1010a18fdf2260c00",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "9ab95f419012a92b85d8aa4028586a3b7a11f7dd85dd7eefa86dbd8056372508",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S8-after-factory-departure-road-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "93f432df4d4597fe12a36b12f73a0e398c30e54b2f3ac8f903365c5da0bf4004",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "ad3ae6aaa4d67644fc41bb6d3c66a0ff9700dd3525e8bf949135de71a9f30bd8",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S8-after-parking-arrival-manoeuvre.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "ed2181935dcee1d4e60243f2f9268a6f669d8d67ccb763bce2aca607416a910d",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "9d970948f573f2f9fdc605964a995f3aa8129ea43eb601a19ef71e417668046c",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S7-after-parking-arrival-no-line.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "a2ea0503eba0320dafef9170d57e40d705652e628096096761075c5d3af233a8",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "44c2ba23a3b97215542a905c5944fed03b76692b427446d3c2fc23bfa3bff1bc",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S5-after-rain-attempt-2-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "918f62755443a15f6f638a3bed84fdeb4d68adce48d880293101a1bbe80b31a6",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "207cb0a9db8a30a9849f414ad412701f126370f690887ee702d39e2e63731a94",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "S5-after-rain-attempt-3-offscreen.png",
+    "source": "fresh rig3 native independent observer",
+    "sourceSha256": "e1e6d69988ab412af0e7cd48cb84a3df08ffb0b5f0b46ccd374913e2d9d14498",
+    "sourceDimensions": [
+      1600,
+      900
+    ],
+    "publishedSha256": "8411fcaa14f679f95b02a4ca570d3329cb44762b4de7dc2fe7031859ccc66857",
+    "publishedDimensions": [
+      720,
+      405
+    ],
+    "transform": "uniform downscale only; no crop, annotation, composite or brightness change"
+  },
+  {
+    "file": "archived/S1-after-uturn-final-switch-on-offscreen.png",
+    "source": "archived baseline 539015b from evidence commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69, via PR6 evidence on cdebd60; original after filename retained",
+    "sha256": "e227fe77c66faf62246f2415686a49a6903ac46cd109c7da7d78383f82cd764f",
+    "dimensions": [
+      720,
+      405
+    ],
+    "transform": "none in this session"
+  },
+  {
+    "file": "archived/S4-after-long-route-on-offscreen.png",
+    "source": "archived baseline 539015b from evidence commit 985fb1ae12fc8fd52818ff27266c1f10374b2b69, via PR6 evidence on cdebd60; original after filename retained",
+    "sha256": "fa7c1ae8877f85f1b431219114340f0e99a4067ed23f8cfdc08ff1aa328f2aa1",
+    "dimensions": [
+      720,
+      405
+    ],
+    "transform": "none in this session"
+  }
+]
