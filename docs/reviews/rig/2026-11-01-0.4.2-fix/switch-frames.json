@@ -1,0 +1,4028 @@
+{
+  "archivedBaseline539015b": {
+    "armed": {
+      "armedFrame": 24521,
+      "id": "S4-after-long-route-on",
+      "op": "watch",
+      "main_menu": false,
+      "utc": "2026-11-01T09:33:12.7014861Z"
+    },
+    "firstVisible": {
+      "activeRide": true,
+      "option": true,
+      "view": true,
+      "failed": false,
+      "enabled": true,
+      "count": 3716,
+      "sourceId": 1635814956,
+      "phase": "Driving",
+      "along": 0.0454,
+      "speed": 3.0,
+      "screen": [
+        960,
+        540
+      ],
+      "frameMs": 31.0872,
+      "rendererCount": 1,
+      "shader": "HDRP/Unlit",
+      "supported": true,
+      "width": 0.4,
+      "head": [
+        399.84964,
+        0.06999996,
+        381.345978
+      ],
+      "tail": [
+        -3251.87671,
+        0.109994017,
+        -1365.27759
+      ],
+      "nearPoints": [
+        [
+          399.84964,
+          0.06999996,
+          381.345978
+        ],
+        [
+          399.8486,
+          0.06999996,
+          382.679321
+        ],
+        [
+          399.847534,
+          0.06999996,
+          384.0581
+        ],
+        [
+          399.846466,
+          0.06999996,
+          385.436859
+        ],
+        [
+          399.8455,
+          0.06999996,
+          386.78125
+        ],
+        [
+          399.844482,
+          0.06999996,
+          388.1256
+        ],
+        [
+          399.8435,
+          0.06999996,
+          389.47
+        ],
+        [
+          399.842468,
+          0.06999996,
+          390.804474
+        ],
+        [
+          399.841461,
+          0.06999996,
+          392.138916
+        ],
+        [
+          399.840424,
+          0.06999996,
+          393.4734
+        ],
+        [
+          399.839417,
+          0.06999996,
+          394.822723
+        ],
+        [
+          399.838379,
+          0.06999996,
+          396.172028
+        ],
+        [
+          399.837372,
+          0.06999996,
+          397.521362
+        ],
+        [
+          399.8363,
+          0.06999996,
+          398.910126
+        ],
+        [
+          399.835266,
+          0.06999996,
+          400.2989
+        ],
+        [
+          399.8342,
+          0.06999996,
+          401.687653
+        ],
+        [
+          399.8331,
+          0.06999996,
+          403.1406
+        ],
+        [
+          399.832,
+          0.06999996,
+          404.593536
+        ],
+        [
+          399.8309,
+          0.06999996,
+          406.046478
+        ],
+        [
+          399.829742,
+          0.06999996,
+          407.588257
+        ],
+        [
+          399.828583,
+          0.06999996,
+          409.13
+        ],
+        [
+          399.827423,
+          0.06999996,
+          410.671783
+        ],
+        [
+          399.826172,
+          0.06999996,
+          412.326965
+        ],
+        [
+          399.824921,
+          0.06999996,
+          413.982178
+        ],
+        [
+          399.823669,
+          0.06999996,
+          415.63736
+        ],
+        [
+          399.822327,
+          0.06999996,
+          417.4307
+        ],
+        [
+          399.820953,
+          0.06999996,
+          419.22406
+        ],
+        [
+          399.8196,
+          0.06999996,
+          421.0174
+        ],
+        [
+          399.8181,
+          0.06999996,
+          422.9735
+        ],
+        [
+          399.81665,
+          0.06999996,
+          424.9296
+        ],
+        [
+          399.815155,
+          0.06999996,
+          426.8857
+        ],
+        [
+          399.813934,
+          0.06999996,
+          428.493378
+        ],
+        [
+          399.8127,
+          0.06999996,
+          430.101
+        ],
+        [
+          399.8115,
+          0.06999996,
+          431.708679
+        ],
+        [
+          399.810272,
+          0.06999996,
+          433.316345
+        ]
+      ],
+      "timing": {
+        "maxMs": 46.6143,
+        "frames": 1646,
+        "complete": true,
+        "meanMs": 18.2292385,
+        "p50Ms": 17.6224,
+        "p95Ms": 23.142,
+        "p99Ms": 28.6302986
+      },
+      "frame": 24550,
+      "assemblyVersion": "0.0.0.0",
+      "boundsMin": [
+        -3252.07666,
+        -0.3494873,
+        -1365.47754
+      ],
+      "boundsMax": [
+        400.1184,
+        37.8081169,
+        466.972229
+      ],
+      "carPresetCount": null,
+      "trafficCarActive": false,
+      "kind": "OwnCar",
+      "rideCommandBusy": true,
+      "left": 5193.558307232058,
+      "replan": false,
+      "uTurnPath": [],
+      "material": {
+        "surfaceType": 1.0,
+        "zWrite": 0.0,
+        "zTest": 4.0
+      },
+      "carPhysics": true,
+      "body": [
+        399.858521,
+        0.02154664,
+        382.6175
+      ],
+      "forward": [
+        -0.00083353126,
+        0.0169809479,
+        0.999855459
+      ],
+      "lastAlong": 1.3169177975706179,
+      "progress": {},
+      "progressIndex": 1,
+      "arcAt": 0,
+      "arcAlong": -1.0,
+      "renderQueue": 3000,
+      "color": "RGBA(0.184, 0.502, 1.000, 0.820)"
+    },
+    "delay": 29,
+    "transitionFrames": [
+      {
+        "frame": 24521,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24522,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24523,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24524,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24525,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24526,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24527,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24528,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24529,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24530,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24531,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24532,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24533,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24534,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24535,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24536,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24537,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24538,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24539,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24540,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24541,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24542,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24543,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24544,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24545,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24546,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24547,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24548,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24549,
+        "option": true,
+        "enabled": false,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24550,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24551,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24552,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24553,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24554,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24555,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24556,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24557,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24558,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24559,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24560,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24561,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24562,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24563,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24564,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24565,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24566,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24567,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24568,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24569,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24570,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24571,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24572,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24573,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24574,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24575,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24576,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24577,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24578,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24579,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24580,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24581,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24582,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24583,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24584,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24585,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24586,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24587,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24588,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24589,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24590,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24591,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24592,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24593,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24594,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24595,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24596,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24597,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24598,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24599,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24600,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24601,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24602,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24603,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24604,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24605,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24606,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24607,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24608,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24609,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24610,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24611,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24612,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24613,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24614,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24615,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24616,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24617,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24618,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24619,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24620,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24621,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24622,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24623,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24624,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24625,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24626,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24627,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24628,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24629,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24630,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24631,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24632,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24633,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24634,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24635,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24636,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24637,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24638,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      },
+      {
+        "frame": 24639,
+        "option": true,
+        "enabled": true,
+        "count": 3716,
+        "sourceId": 1635814956,
+        "phase": "Driving",
+        "rendererCount": 1
+      }
+    ]
+  },
+  "candidate": {
+    "S4-candidate-long-on-frames": {
+      "armed": {
+        "armedFrame": 31322,
+        "id": "S4-candidate-long-on",
+        "op": "watch",
+        "main_menu": false,
+        "utc": "2026-11-01T11:27:39.7354112Z"
+      },
+      "firstVisible": {
+        "activeRide": true,
+        "option": true,
+        "view": true,
+        "failed": false,
+        "enabled": true,
+        "count": 128,
+        "sourceId": 1568610096,
+        "phase": "Driving",
+        "along": 1.7801,
+        "speed": 3.0,
+        "screen": [
+          960,
+          540
+        ],
+        "frameMs": 19.4361,
+        "rendererCount": 1,
+        "shader": "HDRP/Unlit",
+        "supported": true,
+        "width": 0.4,
+        "head": [
+          399.8483,
+          0.06999996,
+          383.0807
+        ],
+        "tail": [
+          325.676575,
+          0.06999996,
+          466.310944
+        ],
+        "nearPoints": [
+          [
+            399.8483,
+            0.06999996,
+            383.0807
+          ],
+          [
+            399.847534,
+            0.06999996,
+            384.0581
+          ],
+          [
+            399.846466,
+            0.06999996,
+            385.436859
+          ],
+          [
+            399.8455,
+            0.06999996,
+            386.78125
+          ],
+          [
+            399.844482,
+            0.06999996,
+            388.1256
+          ],
+          [
+            399.8435,
+            0.06999996,
+            389.47
+          ],
+          [
+            399.842468,
+            0.06999996,
+            390.804474
+          ],
+          [
+            399.841461,
+            0.06999996,
+            392.138916
+          ],
+          [
+            399.840424,
+            0.06999996,
+            393.4734
+          ],
+          [
+            399.839417,
+            0.06999996,
+            394.822723
+          ],
+          [
+            399.838379,
+            0.06999996,
+            396.172028
+          ],
+          [
+            399.837372,
+            0.06999996,
+            397.521362
+          ],
+          [
+            399.8363,
+            0.06999996,
+            398.910126
+          ],
+          [
+            399.835266,
+            0.06999996,
+            400.2989
+          ],
+          [
+            399.8342,
+            0.06999996,
+            401.687653
+          ],
+          [
+            399.8331,
+            0.06999996,
+            403.1406
+          ],
+          [
+            399.832,
+            0.06999996,
+            404.593536
+          ],
+          [
+            399.8309,
+            0.06999996,
+            406.046478
+          ],
+          [
+            399.829742,
+            0.06999996,
+            407.588257
+          ],
+          [
+            399.828583,
+            0.06999996,
+            409.13
+          ],
+          [
+            399.827423,
+            0.06999996,
+            410.671783
+          ],
+          [
+            399.826172,
+            0.06999996,
+            412.326965
+          ],
+          [
+            399.824921,
+            0.06999996,
+            413.982178
+          ],
+          [
+            399.823669,
+            0.06999996,
+            415.63736
+          ],
+          [
+            399.822327,
+            0.06999996,
+            417.4307
+          ],
+          [
+            399.820953,
+            0.06999996,
+            419.22406
+          ],
+          [
+            399.8196,
+            0.06999996,
+            421.0174
+          ],
+          [
+            399.8181,
+            0.06999996,
+            422.9735
+          ],
+          [
+            399.81665,
+            0.06999996,
+            424.9296
+          ],
+          [
+            399.815155,
+            0.06999996,
+            426.8857
+          ],
+          [
+            399.813934,
+            0.06999996,
+            428.493378
+          ],
+          [
+            399.8127,
+            0.06999996,
+            430.101
+          ],
+          [
+            399.8115,
+            0.06999996,
+            431.708679
+          ],
+          [
+            399.810272,
+            0.06999996,
+            433.316345
+          ],
+          [
+            399.80896,
+            0.06999996,
+            435.08313
+          ]
+        ],
+        "frame": 31322,
+        "assemblyVersion": "0.0.0.0",
+        "boundsMin": [
+          325.476563,
+          -0.13000004,
+          382.880676
+        ],
+        "boundsMax": [
+          400.11853,
+          0.269999981,
+          466.972229
+        ],
+        "carPresetCount": null,
+        "trafficCarActive": false,
+        "kind": "OwnCar",
+        "rideCommandBusy": true,
+        "left": 5191.765152983097,
+        "replan": false,
+        "uTurnPath": [],
+        "material": {
+          "surfaceType": 1.0,
+          "zWrite": 0.0,
+          "zTest": 4.0
+        },
+        "carPhysics": true,
+        "body": [
+          399.854736,
+          0.0201111734,
+          384.410645
+        ],
+        "forward": [
+          -0.00185631344,
+          0.0296792183,
+          0.999557734
+        ],
+        "lastAlong": 3.1100720465308744,
+        "progress": {},
+        "progressIndex": 1,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "renderQueue": 3000,
+        "color": "RGBA(0.184, 0.502, 1.000, 0.820)"
+      },
+      "delay": 0,
+      "callbackFrame": 31322,
+      "firstEnabledFrame": 31322,
+      "derived": {
+        "horizontalHeadBodyOffsetMetres": 1.3299605727693677,
+        "firstSegmentForwardMetres": 0.9769691511477406
+      },
+      "maximumObservedVertexCount": 3715,
+      "firstFrameAtMaximumVertexCount": 31351,
+      "transitionFrames": [
+        {
+          "frame": 31322,
+          "option": true,
+          "enabled": true,
+          "count": 128,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31323,
+          "option": true,
+          "enabled": true,
+          "count": 256,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31324,
+          "option": true,
+          "enabled": true,
+          "count": 384,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31325,
+          "option": true,
+          "enabled": true,
+          "count": 512,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31326,
+          "option": true,
+          "enabled": true,
+          "count": 640,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31327,
+          "option": true,
+          "enabled": true,
+          "count": 768,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31328,
+          "option": true,
+          "enabled": true,
+          "count": 896,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31329,
+          "option": true,
+          "enabled": true,
+          "count": 1024,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31330,
+          "option": true,
+          "enabled": true,
+          "count": 1152,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31331,
+          "option": true,
+          "enabled": true,
+          "count": 1280,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31332,
+          "option": true,
+          "enabled": true,
+          "count": 1408,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31333,
+          "option": true,
+          "enabled": true,
+          "count": 1536,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31334,
+          "option": true,
+          "enabled": true,
+          "count": 1664,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31335,
+          "option": true,
+          "enabled": true,
+          "count": 1792,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31336,
+          "option": true,
+          "enabled": true,
+          "count": 1920,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31337,
+          "option": true,
+          "enabled": true,
+          "count": 2048,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31338,
+          "option": true,
+          "enabled": true,
+          "count": 2176,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31339,
+          "option": true,
+          "enabled": true,
+          "count": 2304,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31340,
+          "option": true,
+          "enabled": true,
+          "count": 2432,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31341,
+          "option": true,
+          "enabled": true,
+          "count": 2560,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31342,
+          "option": true,
+          "enabled": true,
+          "count": 2688,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31343,
+          "option": true,
+          "enabled": true,
+          "count": 2816,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31344,
+          "option": true,
+          "enabled": true,
+          "count": 2944,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31345,
+          "option": true,
+          "enabled": true,
+          "count": 3072,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31346,
+          "option": true,
+          "enabled": true,
+          "count": 3200,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31347,
+          "option": true,
+          "enabled": true,
+          "count": 3328,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31348,
+          "option": true,
+          "enabled": true,
+          "count": 3456,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31349,
+          "option": true,
+          "enabled": true,
+          "count": 3584,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31350,
+          "option": true,
+          "enabled": true,
+          "count": 3712,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31351,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31352,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31353,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31354,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31355,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31356,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31357,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31358,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31359,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31360,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31361,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31362,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31363,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31364,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31365,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31366,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31367,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31368,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31369,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31370,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31371,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31372,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31373,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31374,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31375,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31376,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31377,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31378,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31379,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31380,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31381,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31382,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31383,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31384,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31385,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31386,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31387,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31388,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31389,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31390,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31391,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31392,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31393,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31394,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31395,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31396,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31397,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31398,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31399,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31400,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31401,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31402,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31403,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31404,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31405,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31406,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31407,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31408,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31409,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31410,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31411,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31412,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31413,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31414,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31415,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31416,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31417,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31418,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31419,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31420,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31421,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31422,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31423,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31424,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31425,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31426,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31427,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31428,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31429,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31430,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31431,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31432,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31433,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31434,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31435,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31436,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31437,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31438,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31439,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 31440,
+          "option": true,
+          "enabled": true,
+          "count": 3715,
+          "sourceId": 1568610096,
+          "phase": "Driving",
+          "rendererCount": 1
+        }
+      ]
+    },
+    "S4-candidate-slow-on-frames": {
+      "armed": {
+        "armedFrame": 40466,
+        "id": "S4-candidate-slow-on",
+        "op": "watch",
+        "main_menu": false,
+        "utc": "2026-11-01T11:30:30.4332239Z"
+      },
+      "firstVisible": {
+        "activeRide": true,
+        "option": true,
+        "view": true,
+        "failed": false,
+        "enabled": true,
+        "count": 128,
+        "sourceId": 1570162236,
+        "phase": "Driving",
+        "along": 0.8755,
+        "speed": 3.0,
+        "screen": [
+          960,
+          540
+        ],
+        "frameMs": 11.1114,
+        "rendererCount": 1,
+        "shader": "HDRP/Unlit",
+        "supported": true,
+        "width": 0.4,
+        "head": [
+          -167.185455,
+          0.06999996,
+          458.604858
+        ],
+        "tail": [
+          -128.023575,
+          0.06999996,
+          327.1672
+        ],
+        "nearPoints": [
+          [
+            -167.185455,
+            0.06999996,
+            458.604858
+          ],
+          [
+            -166.6696,
+            0.06999996,
+            458.605377
+          ],
+          [
+            -165.278275,
+            0.06999996,
+            458.606781
+          ],
+          [
+            -163.886963,
+            0.06999996,
+            458.6082
+          ],
+          [
+            -162.358276,
+            0.06999996,
+            458.6097
+          ],
+          [
+            -160.82959,
+            0.06999996,
+            458.611237
+          ],
+          [
+            -159.3009,
+            0.06999996,
+            458.612762
+          ],
+          [
+            -157.5508,
+            0.06999996,
+            458.614532
+          ],
+          [
+            -155.8007,
+            0.06999996,
+            458.616272
+          ],
+          [
+            -154.0506,
+            0.06999996,
+            458.618042
+          ],
+          [
+            -152.5092,
+            0.06999996,
+            458.6196
+          ],
+          [
+            -150.9678,
+            0.06999996,
+            458.621155
+          ],
+          [
+            -149.426392,
+            0.06999996,
+            458.622681
+          ],
+          [
+            -147.885,
+            0.06999996,
+            458.624237
+          ],
+          [
+            -145.926514,
+            0.06999996,
+            458.6262
+          ],
+          [
+            -143.968018,
+            0.06999996,
+            458.628143
+          ],
+          [
+            -142.009537,
+            0.06999996,
+            458.6301
+          ],
+          [
+            -140.125778,
+            0.06999996,
+            458.624817
+          ],
+          [
+            -138.242,
+            0.06999996,
+            458.619568
+          ],
+          [
+            -136.358246,
+            0.06999996,
+            458.6143
+          ],
+          [
+            -135.8972,
+            0.06999996,
+            458.60498
+          ],
+          [
+            -135.438751,
+            0.06999996,
+            458.579681
+          ],
+          [
+            -134.9829,
+            0.06999996,
+            458.5384
+          ],
+          [
+            -134.529663,
+            0.06999996,
+            458.481079
+          ],
+          [
+            -134.079025,
+            0.06999996,
+            458.407776
+          ],
+          [
+            -133.630981,
+            0.06999996,
+            458.318481
+          ],
+          [
+            -133.185547,
+            0.06999996,
+            458.213165
+          ],
+          [
+            -132.742722,
+            0.06999996,
+            458.091858
+          ],
+          [
+            -132.30249,
+            0.06999996,
+            457.954559
+          ],
+          [
+            -132.047974,
+            0.06999996,
+            457.8703
+          ],
+          [
+            -131.628632,
+            0.06999996,
+            457.71347
+          ],
+          [
+            -131.230927,
+            0.06999996,
+            457.5278
+          ],
+          [
+            -130.854874,
+            0.06999996,
+            457.3133
+          ],
+          [
+            -130.500458,
+            0.06999996,
+            457.069946
+          ],
+          [
+            -130.167664,
+            0.06999996,
+            456.797729
+          ]
+        ],
+        "frame": 40466,
+        "assemblyVersion": "0.0.0.0",
+        "boundsMin": [
+          -167.385452,
+          -0.13000004,
+          326.967224
+        ],
+        "boundsMax": [
+          -127.511887,
+          0.269999981,
+          458.830078
+        ],
+        "carPresetCount": null,
+        "trafficCarActive": false,
+        "kind": "OwnCar",
+        "rideCommandBusy": true,
+        "left": 983.4310995986272,
+        "replan": false,
+        "uTurnPath": [],
+        "material": {
+          "surfaceType": 1.0,
+          "zWrite": 0.0,
+          "zTest": 4.0
+        },
+        "carPhysics": true,
+        "body": [
+          -165.892242,
+          0.0210203528,
+          458.5974
+        ],
+        "forward": [
+          0.9997803,
+          0.0208937768,
+          0.00174131547
+        ],
+        "lastAlong": 2.1686629302176694,
+        "progress": {},
+        "progressIndex": 1,
+        "arcAt": 0,
+        "arcAlong": -1.0,
+        "renderQueue": 3000,
+        "color": "RGBA(0.184, 0.502, 1.000, 0.820)"
+      },
+      "delay": 0,
+      "callbackFrame": 40466,
+      "firstEnabledFrame": 40466,
+      "derived": {
+        "horizontalHeadBodyOffsetMetres": 1.2932345050813285,
+        "firstSegmentForwardMetres": 0.5157425703992166
+      },
+      "maximumObservedVertexCount": 722,
+      "firstFrameAtMaximumVertexCount": 40471,
+      "transitionFrames": [
+        {
+          "frame": 40466,
+          "option": true,
+          "enabled": true,
+          "count": 128,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40467,
+          "option": true,
+          "enabled": true,
+          "count": 256,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40468,
+          "option": true,
+          "enabled": true,
+          "count": 384,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40469,
+          "option": true,
+          "enabled": true,
+          "count": 511,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40470,
+          "option": true,
+          "enabled": true,
+          "count": 639,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40471,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40472,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40473,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40474,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40475,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40476,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40477,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40478,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40479,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40480,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40481,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40482,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40483,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40484,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40485,
+          "option": true,
+          "enabled": true,
+          "count": 722,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40486,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40487,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40488,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40489,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40490,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40491,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40492,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40493,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40494,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40495,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40496,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40497,
+          "option": true,
+          "enabled": true,
+          "count": 721,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40498,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40499,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40500,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40501,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40502,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40503,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40504,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40505,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40506,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40507,
+          "option": true,
+          "enabled": true,
+          "count": 720,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40508,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40509,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40510,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40511,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40512,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40513,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40514,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40515,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40516,
+          "option": true,
+          "enabled": true,
+          "count": 719,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40517,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40518,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40519,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40520,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40521,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40522,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40523,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40524,
+          "option": true,
+          "enabled": true,
+          "count": 718,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40525,
+          "option": true,
+          "enabled": true,
+          "count": 717,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40526,
+          "option": true,
+          "enabled": true,
+          "count": 717,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40527,
+          "option": true,
+          "enabled": true,
+          "count": 717,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40528,
+          "option": true,
+          "enabled": true,
+          "count": 717,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40529,
+          "option": true,
+          "enabled": true,
+          "count": 717,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40530,
+          "option": true,
+          "enabled": true,
+          "count": 717,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40531,
+          "option": true,
+          "enabled": true,
+          "count": 717,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40532,
+          "option": true,
+          "enabled": true,
+          "count": 716,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40533,
+          "option": true,
+          "enabled": true,
+          "count": 716,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40534,
+          "option": true,
+          "enabled": true,
+          "count": 716,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40535,
+          "option": true,
+          "enabled": true,
+          "count": 716,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40536,
+          "option": true,
+          "enabled": true,
+          "count": 715,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40537,
+          "option": true,
+          "enabled": true,
+          "count": 715,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40538,
+          "option": true,
+          "enabled": true,
+          "count": 715,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40539,
+          "option": true,
+          "enabled": true,
+          "count": 715,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40540,
+          "option": true,
+          "enabled": true,
+          "count": 715,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40541,
+          "option": true,
+          "enabled": true,
+          "count": 715,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40542,
+          "option": true,
+          "enabled": true,
+          "count": 715,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40543,
+          "option": true,
+          "enabled": true,
+          "count": 714,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40544,
+          "option": true,
+          "enabled": true,
+          "count": 714,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40545,
+          "option": true,
+          "enabled": true,
+          "count": 714,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40546,
+          "option": true,
+          "enabled": true,
+          "count": 714,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40547,
+          "option": true,
+          "enabled": true,
+          "count": 714,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40548,
+          "option": true,
+          "enabled": true,
+          "count": 714,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40549,
+          "option": true,
+          "enabled": true,
+          "count": 714,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40550,
+          "option": true,
+          "enabled": true,
+          "count": 713,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40551,
+          "option": true,
+          "enabled": true,
+          "count": 713,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40552,
+          "option": true,
+          "enabled": true,
+          "count": 713,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40553,
+          "option": true,
+          "enabled": true,
+          "count": 713,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40554,
+          "option": true,
+          "enabled": true,
+          "count": 713,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40555,
+          "option": true,
+          "enabled": true,
+          "count": 712,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40556,
+          "option": true,
+          "enabled": true,
+          "count": 712,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40557,
+          "option": true,
+          "enabled": true,
+          "count": 712,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40558,
+          "option": true,
+          "enabled": true,
+          "count": 712,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40559,
+          "option": true,
+          "enabled": true,
+          "count": 712,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40560,
+          "option": true,
+          "enabled": true,
+          "count": 712,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40561,
+          "option": true,
+          "enabled": true,
+          "count": 711,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40562,
+          "option": true,
+          "enabled": true,
+          "count": 711,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40563,
+          "option": true,
+          "enabled": true,
+          "count": 711,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40564,
+          "option": true,
+          "enabled": true,
+          "count": 711,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40565,
+          "option": true,
+          "enabled": true,
+          "count": 711,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40566,
+          "option": true,
+          "enabled": true,
+          "count": 711,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40567,
+          "option": true,
+          "enabled": true,
+          "count": 711,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40568,
+          "option": true,
+          "enabled": true,
+          "count": 710,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40569,
+          "option": true,
+          "enabled": true,
+          "count": 710,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40570,
+          "option": true,
+          "enabled": true,
+          "count": 710,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40571,
+          "option": true,
+          "enabled": true,
+          "count": 710,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40572,
+          "option": true,
+          "enabled": true,
+          "count": 710,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40573,
+          "option": true,
+          "enabled": true,
+          "count": 710,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40574,
+          "option": true,
+          "enabled": true,
+          "count": 710,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40575,
+          "option": true,
+          "enabled": true,
+          "count": 709,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40576,
+          "option": true,
+          "enabled": true,
+          "count": 709,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40577,
+          "option": true,
+          "enabled": true,
+          "count": 709,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40578,
+          "option": true,
+          "enabled": true,
+          "count": 709,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40579,
+          "option": true,
+          "enabled": true,
+          "count": 709,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40580,
+          "option": true,
+          "enabled": true,
+          "count": 709,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40581,
+          "option": true,
+          "enabled": true,
+          "count": 709,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40582,
+          "option": true,
+          "enabled": true,
+          "count": 708,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40583,
+          "option": true,
+          "enabled": true,
+          "count": 708,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        },
+        {
+          "frame": 40584,
+          "option": true,
+          "enabled": true,
+          "count": 708,
+          "sourceId": 1570162236,
+          "phase": "Driving",
+          "rendererCount": 1
+        }
+      ]
+    }
+  }
+}

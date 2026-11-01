@@ -1,0 +1,40 @@
+{
+  "backup-verification": {
+    "receipt_files": 107,
+    "verified": true,
+    "utc": "2026-11-01T11:17:29.6489183Z",
+    "profile_files": 4828
+  },
+  "restore-verification": {
+    "restored": true,
+    "preferences_sha256": "66FCCBCC5F63BC492E36BA7F342D9D2480ADB2B87404A650A8607094D207381D",
+    "agent_processes": 0,
+    "receipt_sha256": "9785D1DE5C7360875B2A2A47F511815660DD98A38D6F64AB4ECFF8C20627B949",
+    "receipt_files": 107,
+    "profile_files": 4828,
+    "utc": "2026-11-01T11:32:11.0591625Z"
+  },
+  "lease-acquired": {
+    "instance": "agent1",
+    "held": true,
+    "owner": "selfdriving-0.4.2-fix-r2",
+    "purpose": "Exact6af187f native route-line evidence",
+    "acquired_utc": "2026-11-01T11:16:38.7396212Z",
+    "expires_automatically": false,
+    "pending": 0,
+    "legacy_blocked": false
+  },
+  "lease-released": {
+    "status": {
+      "instance": "agent1",
+      "held": false,
+      "owner": null,
+      "purpose": null,
+      "acquired_utc": null,
+      "expires_automatically": false,
+      "pending": 0,
+      "legacy_blocked": false
+    },
+    "utc": "2026-11-01T11:32:11.0886121Z"
+  }
+}

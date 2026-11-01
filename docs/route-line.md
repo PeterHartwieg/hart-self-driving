@@ -42,7 +42,7 @@ logs its changes like the other options.
 
 ## 0.4.2 rig follow-up, 1 November 2026
 
-**Offline regression checked; in-game acceptance pending the batched release rig.** The
+**Checked in the PC rig: the targeted S1/S4 fixes and block/physics regressions.** The
 [rig re-run](https://github.com/PeterHartwieg/hart-self-driving/pull/3#issuecomment-6556866222)
 recorded S1's first Gley U-turn head at (-127.096, 458.642), beside a car at (-127.090, 450.850).
 The outgoing suffix was selected, but placing the head at its plan projection left a 7.792 m lateral gap.
@@ -62,10 +62,26 @@ case checks the rear-axle point and forward first segment. The required foregrou
 412 tests, with three existing skips (two unavailable graph fixtures and the pending traffic scenario).
 `Ride.cs`, `RouteLineView.cs` and `RouteLineChecks.cs` were checked by hand for types, call sites, nullable
 head propagation, delegate signature and prepared-buffer bounds. The updated Unity checks cover Gley/physics
-heads, immediate near display, bounded extension and late switch-on; they were not run here.
+heads, immediate near display, bounded extension and late switch-on; those editor checks were not run.
 
-No game or rig was run for this fix. Before merge/upload, the required `rig_test` session (Codex Sol, high)
-must add verifiable before/red and after/green in-game proof to the PR from the owner's batched release rig.
+The required `rig_test` session (Codex Sol, high) ran the targeted native PC batch on source commit
+`6af187fb9dc29c52e06c051dbefd41e4c2fb4def`. Its
+[report and raw proof](reviews/rig/2026-11-01-0.4.2-fix/README.md) identify the exact installed package and
+pair archived baseline captures from `539015b` with fresh candidate captures:
+
+- Native L private-driver U-turn: first-visible head/body horizontal gap **7.792 m -> 0.000 m**.
+- Four-turn Gley block: **0.318 m -> 0.000 m**, with the consumed trail removed.
+- Physics full block and repeated loop: rear-axle plan heads retained; the first segments project
+  **+1.134 m** and **+0.732 m** forward. Native first-frame vectors establish the absence of a reversed
+  segment; the screenshots provide context.
+- Native 5.194 km route: first visibility **29 frames -> 0 frames** after the callback. The candidate
+  exposes a 128-vertex near portion first, then finishes the full remaining suffix after 29 frames.
+
+The off-lane Gley head's sideways connector back to the planned lane is accepted and explicitly included
+in the rig plan. It is distinct from the physics reversed-first-segment regression.
+All runtime scripts were compiled locally with Roslyn against the actual game/Unity/.NET reference DLLs;
+the package passed the existing nine-file packaging checks. This was not an official Unity editor/SDK
+build. Source, compiler, reference and package hashes are recorded with the native proof.
 
 ## Offline validation
 
