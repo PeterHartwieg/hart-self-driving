@@ -186,15 +186,20 @@ if errors:
         print("  " + e, file=sys.stderr)
     sys.exit(1)
 
+# The preview stays in the folder for the Mod Creator, which takes the first image in its root; the content zip and
+# its file listing leave it out.
 stem = f"{folder}-{version}"
-listing = {rel: {"sha256": sha256(p), "bytes": p.stat().st_size} for rel, p in files.items()}
+content = {rel: p for rel, p in files.items() if rel != preview.name}
+listing = {rel: {"sha256": sha256(p), "bytes": p.stat().st_size} for rel, p in content.items()}
 (out_root / f"{stem}.manifest.json").write_text(json.dumps({
     "name": name, "folder": folder, "version": version, "targetGameBuild": int(game_build),
-    "previewPlaceholder": placeholder, "files": listing,
+    "previewPlaceholder": placeholder,
+    "preview": {"name": preview.name, "sha256": sha256(preview), "bytes": preview.stat().st_size},
+    "files": listing,
 }, indent=2) + "\n", encoding="utf-8")
 zip_path = out_root / f"{stem}.zip"
 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    for rel, path in files.items():
+    for rel, path in content.items():
         info = zipfile.ZipInfo(f"{folder}/{rel}", date_time=(2026, 1, 1, 0, 0, 0))
         info.compress_type = zipfile.ZIP_DEFLATED
         z.writestr(info, path.read_bytes())
@@ -202,6 +207,7 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
 print(f"Packaged {name} {version} for game build {game_build}: {out}")
 for rel, entry in listing.items():
     print(f"  {entry['sha256']}  {rel}")
+print(f"  {sha256(preview)}  {preview.name} (folder only, not in the zip)")
 print(f"Manifest {out_root / (stem + '.manifest.json')}, zip {zip_path}.")
 if placeholder:
     print("The preview image is a placeholder; put the real one at workshop/preview.png (or .jpg, at most 1 MB).")
