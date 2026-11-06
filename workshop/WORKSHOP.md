@@ -18,7 +18,7 @@ Design canvas with every card: https://claude.ai/artifact/98zz4yeE3u5CBE9L5oJhvK
 
 **PC installation:** 0.4.1 installed in the normal game's `ModsLocal/DrivenRides` on 22 October 2026 at 18:40 CEST, with all nine files verified against the release manifest. The previous 0.4.0 package with passenger radio is backed up in `DrivenRidesPackageBackups/DrivenRides-20261022-184033`. The normal game was closed and was not launched. Shortcut gameplay was checked in the isolated Mac rig; Windows-specific behavior, rendered UI appearance and listening through speakers remain manual checks.
 
-**Thumbnail:** the package includes the existing `preview.jpg` (947,401 bytes, below the 1 MB limit). The Mod Creator takes the first image in the mod folder’s root.
+**Thumbnail:** the package folder includes the existing `preview.jpg` (947,401 bytes, below the 1 MB limit); the zip leaves it out. The Mod Creator takes the first image in the mod folder’s root.
 
 **Bug reports:** `#self-driving-bugs` in the Peter Hartwieg Discord (created by Peter on 14 October 2026). The invite https://discord.gg/jhdYKgkyPn opens that channel.
 
