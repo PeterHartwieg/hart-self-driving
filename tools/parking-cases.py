@@ -8,11 +8,16 @@ import argparse
 import importlib.machinery
 import importlib.util
 import json
+import os
 import pathlib
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
-loader = importlib.machinery.SourceFileLoader('agent_client', str(HERE / 'agent'))
+# The rig client lives in big-ambitions-agent-rig (BA_AGENT_RIG, default: the sibling checkout).
+RIG = pathlib.Path(os.environ.get('BA_AGENT_RIG') or HERE.parents[1] / 'big-ambitions-agent-rig')
+if not (RIG / 'scripts/agent').is_file():
+    raise SystemExit(f'Agent rig client not found at {RIG}/scripts/agent; clone big-ambitions-agent-rig beside this checkout or set BA_AGENT_RIG')
+loader = importlib.machinery.SourceFileLoader('agent_client', str(RIG / 'scripts/agent'))
 spec = importlib.util.spec_from_loader(loader.name, loader)
 agent = importlib.util.module_from_spec(spec)
 loader.exec_module(agent)

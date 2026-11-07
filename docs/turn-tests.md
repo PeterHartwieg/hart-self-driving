@@ -6,7 +6,7 @@ The design went through six review rounds (Fable 5.1, GPT 6 Astra; `build/review
 
 ## Isolated agent player
 
-For unattended parking tests use the separate PC player documented in `tools/agent-tests/README.md`. Its bridge
+For unattended parking tests use the separate PC player documented in the shared [big-ambitions-agent-rig](https://github.com/PeterHartwieg/big-ambitions-agent-rig) repository (sibling checkout, or `BA_AGENT_RIG`). Its bridge
 is port 18330, its lock is `agent1`, and its test directory is under `Big Ambitions Agent Tests/DrivenRides/tests`.
 The normal `tools/turn-tests.sh` still targets the ordinary game's profile; do not use it for this instance.
 Acquire the agent lease, deploy only into its stopped profile, and submit command files under that lease while
@@ -97,10 +97,10 @@ Population can change after reload, so the exact selected pose is recorded in ad
 A refusal or safe cancellation is recorded as a failed departure, never a successful fixture.
 
 The Windows runner verifies every installed package hash, reloads the checkpoint per seed, and leaves the world
-paused. Acquire `agent1` ownership and start its background player first, following `tools/agent-tests/README.md`:
+paused. Acquire `agent1` ownership and start its background player first, following the rig's README (`python3 scripts/agent` in the rig checkout):
 
 ```sh
-python3 tools/agent-tests/parking-cases.py --checkpoint 'FT Parking checkpoint' \
+python3 tools/parking-cases.py --checkpoint 'FT Parking checkpoint' \
   --seeds 1,2,3,4,5 --parking bays --near=-270,-341 \
   --output build/parking-cases.jsonl
 ```
