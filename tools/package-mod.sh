@@ -3,8 +3,9 @@
 # Usage: tools/package-mod.sh [--no-build]
 #   --no-build  package the existing build/DrivenRides instead of running tools/build-mod.sh first
 # Output: build/package/<MOD_FOLDER>/ (copy it into ModsLocal, then upload it from the game's Mods menu),
-#         build/package/<MOD_FOLDER>-<version>.zip, and build/package/<MOD_FOLDER>-<version>.manifest.json with
-#         the name, version, target game build and each file's SHA-256.
+#         build/package/<MOD_FOLDER>-<version>.zip (the content players get, without the preview image), and
+#         build/package/<MOD_FOLDER>-<version>.manifest.json with the name, version, target game build and each
+#         zipped file's SHA-256.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 if [ "${1:-}" != "--no-build" ]; then
