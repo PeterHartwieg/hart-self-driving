@@ -1,6 +1,6 @@
 # Announcement video: Martin's story and the mod reveal
 
-Revised direction, 15 October 2026: Peter wants to combine Martin's story with the Self Driving launch video. Martin's story is the main film; Peter introduces the mod at the end as the way to make those journeys feel more real. This replaces the feature-led announcement structure below. Draft only; no recording, timeline or publication has been changed.
+Revised direction, 15 October 2026: Peter wants to combine Martin's story with the Self Driving launch video. Martin's story is the main film; Peter introduces the mod at the end as the way to make those journeys feel more real. This replaced the earlier feature-led announcement structure. Draft only; no recording, timeline or publication has been changed.
 
 ## The combined film
 
@@ -75,97 +75,3 @@ Peter speaks in his own voice as the creator. The following is new material afte
 Make the short version a Martin story too: the apparently easy job → “one more stop” over growing businesses and changing cars → a quiet moment with the limousine → Peter's reason for building the mod → “your own Martin” and the title card. Aim initially for about 45–60 seconds, then judge the scratch assembly. Use narration excerpts or a purpose-written shorter read where a full sentence will not fit.
 
 Save the two-ticket invitation for the main film, where the earlier cinema visit and Martin's seven-o'clock boundary give it meaning. The short trailer can establish his character and show the mod without summarising all eight scenes.
-
-## Earlier feature-led concept — reference only
-
-The following 14 October draft is retained for its extra demonstration and pickup ideas. Its cold open, six-minute structure and full feature narration are superseded by the combined film above. Its build-status notes are historical; consult the current README and rehearsal results before recording.
-
-## The reason
-
-Early in Big Ambitions you drive yourself, take the subway or walk, so the city feels connected and you learn its layout. Once you have money you take the private driver and taxis everywhere. Distance stops mattering, every building becomes an interior in a void, you buy a house in the Hamptons and give up the flat in Midtown. Location becomes a number, and for Peter it started to feel like a spreadsheet game with better graphics.
-
-The mod keeps you with the car for the whole trip. Taxi fares are vanilla's. Ride time is not: during a ride the clock runs at the slider's rate (33% by default, 0 to 100%) and isn't evened out to vanilla's time on arrival. Skip adds vanilla's time for the rest of the trip, and the bridge to the Hamptons advances the clock on its own. The video says what the mod changes and doesn't claim more.
-
-Second theme: realism. The CEO in the back of a black limo, taking calls on the way. The phone works during a ride (Peter; the mod keeps time and street sound running while it is open). Reading activities stay blocked during rides. The meeting is roleplay; the mod adds no meeting gameplay.
-
-## Arc
-
-| Part | Length | What happens |
-|---|---|---|
-| Cold open | 0:20 | Vanilla taxi ride with its fade at its real length. Then the same trip with the mod. |
-| Setup | 1:30 | Early game: driving, subway, walking, one recognisable corner by the first flat. Then money: driver and taxis, quick fades, the Hamptons house, the Midtown flat given up. Ends on the spreadsheet line. |
-| The limo | 1:15 | From about 1:50. The limo pulls out, one phone action shown through to its result, the limo at a red light. |
-| Getting around | 1:00 | The L shortcut, the ride panel (speed change, Skip), a few trips at 3x. |
-| Own car | 1:00 | Stopped in a lane, L, the map, the car drives off and turns by itself. Arrival, the autopark fade, parked. |
-| Finale | 0:45 | Hamptons to Midtown: the drive, the bridge fade kept, then Manhattan to the corner from the setup. Title card. |
-
-About 5:50 in all.
-
-## Voiceover draft
-
-Peter narrates. Lines are a starting point to say in his own words. Roughly 2 minutes of speech; the rest is rides under music.
-
-**Cold open.** No voiceover. Text on screen over the fade: "You've taken this ride a thousand times." Then, over the modded ride: "You've never seen it."
-
-**Setup.** "When you start out, you get around the hard way. You drive, you take the subway, you walk. And you learn the city. You know the bank is two blocks from your flat. You know which corner your first shop is on."
-
-"Then the money comes. You hire a driver, you take taxis everywhere. I picked a destination, the screen faded, and I was there. Every building turned into its own island. I bought a house in the Hamptons and stopped seeing a reason to keep my flat in Midtown." Beat. "For me, it started to feel like a spreadsheet game with better graphics. The driver made getting around easier. I just missed the city in between."
-
-**The limo.** "So I made a mod that lets me stay with the car for the whole trip." Over the phone: "This is what I wanted: sitting in the back of a black car, taking a call on the way. At normal ride speed the clock runs at about a third of its usual speed by default, so the trip is time you can use. There's a slider if you want something else."
-
-**Getting around.** "Press L and your driver comes. Press it again and you walk over and pick where to go. If a trip's too long, speed it up. If you don't care about this one, Skip gives you the old fade." Over a taxi: "Taxi rides go through the city too, and the fare stays the same."
-
-**Own car.** "And when you want to sit up front again, your own car can drive itself. Stop in a lane, press L, pick a place." Over the autopark fade: "If the car has autopark and there's a space nearby, it parks when you get there. You can switch that on for every car."
-
-**Finale.** "I wanted the journey to feel like part of the game again." Then nothing until the title card.
-
-## Shots
-
-Cameras: G is ordinary gameplay with the mod off, R is a modded taxi or driver ride (the pedestrian camera following the carried player, which can rotate and zoom), C is the own car's camera, F is the free camera, U is a UI capture.
-
-**Cold open**
-1. G. Vanilla taxi: hail, get in, the map, the fade at its real length. Note the start and the destination.
-2. R. The same start and destination with the mod: the cab pulls into traffic. The same taxi model is enough; the pooled car won't be identical.
-
-**Setup**
-3. C, mod off. A cheap car through Midtown to the first shop.
-4. F. The subway entrance, the player going down.
-5. F. The corner by the first flat: one distinctive façade or crossing, on the finale's route. Choose it after shot 21 is scouted, then frame it with the free camera to match the angle the ride camera gets of it in the finale.
-6. G. Taxi after taxi: map, fade, arrival. 1 to 2 s each.
-7. F. The Hamptons house, first visit.
-8. U. Giving up the Midtown flat. Scout the menu first.
-9. U. A screen where locations read as rows (BizMan or Econoview, whichever really shows addresses or buildings as a list). Scout first, then write the shot around what is there.
-
-**The limo**
-10. R. The limo pulling out from the Hamptons house (or from Manhattan, if the summon there is easier).
-11. U then R. One phone action through to its result, a call or a hire, then back to the limo moving.
-12. F. The limo stopped at a red light. A pedestrian crossing in front is a bonus, not a requirement.
-13. R. The limo stopping near an office; the player gets out beside the car and walks to the door.
-
-**Getting around**
-14. U/R. L on the pavement with a driver contract already in place, the driver arrives, L again, the walk, the map.
-15. U. The ride panel, readable: one speed change, then a Skip on another trip with its fade. Recorded before the HUD is hidden for anything else.
-16. R. Two or three trips at 3x, cut to music.
-17. U then R. The fare on the map before confirming a taxi trip, then the taxi moving. For the same-fare claim, capture the fare for shot 1's and shot 2's trip in both versions.
-
-**Own car**
-18. C. Pull the car into a driving lane and stop, L, the map, the car drives off; the first turn it takes on its own, seen from outside. An interior close-up of the steering wheel is an optional pickup only if the wheel visibly turns and the free camera can frame it.
-19. C. Setting "autopark cars that have it" (the default). Arrival with a car that has autopark and a free space nearby: stop, the game's fade, the car parked, the player still in the seat. Check the car model's autopark flag first.
-20. U. The options page with the autopark choice.
-
-**Finale**
-21. R. Hamptons to Midtown in one recording: the drive to the bridge, the bridge fade (kept, at its real length), then Manhattan to the corner from shot 5. HUD hidden, music only. Before recording, scout the house, the gate, the destination and the route the planner really takes, and choose shot 5's corner on that route. End when the corner is recognised, not after a set time.
-22. Title card: HART. Self Driving, then where to get it, worded for the day it goes out.
-
-## Before recording
-
-- One disposable save played across the whole arc, so the corner in the finale is the one from the setup. Console money between acts, off camera. Never the series save.
-- Food Trucks and the other gameplay mods off.
-- Rehearse the private-driver sequence end to end on the current build for shots 10 to 14: summon (indoors too, if used), board, ride, arrival. Private-driver rides on the car physics haven't run in game yet (implementation plan, status). The panel and 3x footage (15, 16) can use a hailed taxi.
-- Rehearse the free camera for shots 4 and 12: the game keeps running and the framing holds while the player or traffic moves.
-- Settings before the limo take: ride speed 1x, clock 33%, red lights on. Speed and clock choices carry over from the last ride, so set them back after any 3x pickup.
-- Look at the ride camera on film: it follows the car, but whether it is smooth enough for long shots needs a look.
-- Red lights: the mod stops at them by default and the recorded runs had none run. The video shows it, it doesn't promise perfect driving.
-- The name: the manifest and the options page still say Driven Rides. The recording build has to show the Workshop name, and the title card the exact name and a real link or "Steam Workshop" once it is there.
-- A 45-second trailer gets cut from this footage afterwards: shots 1, 2, 10 to 12, 18, 19, 22.
-- Thumbnails are made separately and A/B tested (Peter). They don't need to match a shot here.

@@ -109,9 +109,9 @@ traffic-scenario test is explicitly skipped. The separate offline agent-client t
 They require the shared `ftlib` package; see [tools/agent-tests/README.md](tools/agent-tests/README.md).
 Do not run them against a dependency checkout that is off-limits for your session.
 
-See [docs/code-layout.md](docs/code-layout.md) for current source responsibilities. The implementation
-plan and own-car notes retain dated designs as history; [CHECKS.md](CHECKS.md) records what was actually
-checked in game and what remains pending.
+[docs/implementation-plan.md](docs/implementation-plan.md) lists the decisions in force, the game facts they rest
+on and the approaches that failed; [CHECKS.md](CHECKS.md) records what was actually checked in game and what
+remains pending.
 
 `tools/mod.conf` holds the mod's name in one place; `tools/rename-mod.sh "<new name>"` writes it everywhere it appears.
 
