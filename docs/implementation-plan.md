@@ -19,7 +19,7 @@ and namespace `DrivenRides`.
 | 12 Oct 2026 | L in the driver's seat of the own car opens the destination map; elsewhere L calls the driver. |
 | 12 Oct 2026 | Autopark is three-way: park yourself, autopark cars that have it (`autoParkSupported`, default), autopark every car. No free spot means park yourself. After autopark the player stays in the parked car. |
 | 12 Oct 2026 | Clock rate and ride speed are options; the panel's last choice is written back and becomes the next ride's start value. |
-| 13 Oct 2026 | Every ride drives with the player car's physics (NWH Vehicle Physics 2), not as a Gley traffic car. Peter judged NWH "like a car I drive". The route planner and turn rig stay. |
+| 13 Oct 2026 | Rides drive with the player car's physics (NWH Vehicle Physics 2) by default. Peter judged NWH "like a car I drive". The Gley ride stays as the supported fallback: the "Real car physics" option off, or a taxi or driver car NWH can't drive, makes it a Gley traffic car steered along the route. The own car always drives on NWH. The route planner and turn rig stay. |
 | 13 Oct 2026 | No case lists: what the car can't drive comes from the feasibility check, what it must wait for from the conflict test. `TestedSteps` is a regression record, not a mechanism. One kinematic car model is shared by planner, tests and rig judge; when it disagrees with the game, fix the model. Every in-game failure becomes an offline test. |
 | 13 Oct 2026 | U-turns a car can't make cleanly go round the block (few drivers would U-turn a big car). |
 | 14 Oct 2026 | Fix only what rides show; this is a quality-of-life mod. Traffic margins stay low (headway about 1.0 s). |
@@ -37,7 +37,7 @@ The ModAPI has an options page per mod (`BigAmbitions.Mods.OptionsService.Regist
 
 ## Rejected approaches
 
-- **Rides as Gley traffic cars** (to 0.1.51): about fifteen builds of per-case fixes (turn lines, U-turns, pivots, wiggle), and three traffic runs hit three different junction failures.
+- **Gley as the default ride** (to 0.1.51): about fifteen builds of per-case fixes (turn lines, U-turns, pivots, wiggle), and three traffic runs hit three different junction failures. Gley rides remain only as the fallback above.
 - **A hidden Gley "ghost" car the NWH car follows**: a preset-path car skips Gley's junction logic, its jam escapes leave the line, and the bodies drift apart in turns.
 - **The NWH car inside Gley's arrays**: Gley sizes every array once at `TrafficManager.Initialize`, and its jobs move the bodies.
 - **Every road car on NWH**: feasible but about 100 times Gley's cost per car, and it needs reservations and a rebuilt spawn system. 4 to 6 NWH cars near the camera stays possible.
