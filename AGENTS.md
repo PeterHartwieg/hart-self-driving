@@ -20,6 +20,7 @@ When the Windows PC is unavailable, agents can manually launch the isolated Mac 
 - Never commit game DLLs, decompiled game code, Harmony binaries or save files. The build fetches Harmony from NuGet with a pinned checksum.
 - Core decides, the game only shows. Keep game calls in thin adapters.
 - No code comments. Fix the problem, or open an issue, instead of leaving an excuse in the code. `CommentBanTests` fails on any comment that is not a directive or listed in `docs/comment-excuses.md`.
+- No new markdown files unless Peter explicitly asks for one (a plan or a review); put status in the PR description or the issue. `MarkdownBanTests` (`tools/check-md-ban.sh`) fails on any `.md`/`.mdx` path not on `origin/main`; only Peter's `docs-approved` PR label lifts it.
 - Each Harmony patch logs one `Active` or `Not active` line at startup, with the method name.
 - The mod writes nothing into saves. A ride is never saved; keep it that way or version a schema first.
 - During a ride the clock runs at a third of its speed; Skip charges vanilla's time for the rest of the way. Every failure must end the ride the vanilla way or cancel it cleanly.
