@@ -32,11 +32,9 @@ public static class MarkdownBan
         return problems;
     }
 
-    public static List<string> Labels(string? eventJson, string? labelList)
+    public static List<string> Labels(string? eventJson)
     {
         var labels = new List<string>();
-        if (!string.IsNullOrWhiteSpace(labelList))
-            labels.AddRange(labelList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
         if (string.IsNullOrWhiteSpace(eventJson)) return labels;
         using var doc = JsonDocument.Parse(eventJson);
         if (doc.RootElement.TryGetProperty("pull_request", out var pr) && pr.TryGetProperty("labels", out var list) && list.ValueKind == JsonValueKind.Array)
@@ -45,31 +43,43 @@ public static class MarkdownBan
         return labels;
     }
 
-    public static List<MarkdownChange> Parse(string nameStatus)
+    public static List<MarkdownChange> Parse(string nameStatusZ)
     {
         var changes = new List<MarkdownChange>();
-        foreach (string line in nameStatus.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        string[] fields = nameStatusZ.Split('\0');
+        for (int i = 0; i + 1 < fields.Length && fields[i].Length > 0;)
         {
-            string[] parts = line.Split('\t');
-            char status = parts[0][0];
-            changes.Add(parts.Length >= 3 ? new MarkdownChange(status, parts[1], parts[2]) : new MarkdownChange(status, null, parts[1]));
+            char status = fields[i][0];
+            if ((status == 'R' || status == 'C') && i + 2 < fields.Length)
+            {
+                changes.Add(new MarkdownChange(status, fields[i + 1], fields[i + 2]));
+                i += 3;
+            }
+            else
+            {
+                changes.Add(new MarkdownChange(status, null, fields[i + 1]));
+                i += 2;
+            }
         }
         return changes;
     }
 
+    static IEnumerable<string> Paths(string nulList) => nulList.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+
     public static List<string> Violations(string root, string baseRef, IEnumerable<string> labels)
     {
         string mergeBase = Git(root, $"merge-base {baseRef} HEAD").Trim();
-        var baseFiles = new HashSet<string>(Git(root, $"ls-tree -r --name-only {mergeBase}").Split('\n', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
-        var changes = Parse(Git(root, $"diff --name-status -M -C --diff-filter=ACR {mergeBase}"));
-        foreach (string path in Git(root, "ls-files --others --exclude-standard").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        var baseFiles = new HashSet<string>(Paths(Git(root, $"ls-tree -r -z --name-only {mergeBase}")), StringComparer.Ordinal);
+        var changes = Parse(Git(root, $"diff -z --name-status -M -C --diff-filter=ACR {mergeBase} HEAD"));
+        changes.AddRange(Parse(Git(root, "diff -z --name-status -M -C --diff-filter=ACR HEAD")));
+        foreach (string path in Paths(Git(root, "ls-files -z --others --exclude-standard")))
             changes.Add(new MarkdownChange('A', null, path));
-        return Violations(changes, baseFiles, labels);
+        return Violations(changes, baseFiles, labels).Distinct(StringComparer.Ordinal).ToList();
     }
 
     public static string Git(string root, string args)
     {
-        var info = new ProcessStartInfo("git", args) { WorkingDirectory = root, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        var info = new ProcessStartInfo("git", args) { WorkingDirectory = root, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = System.Text.Encoding.UTF8, UseShellExecute = false };
         using var process = Process.Start(info)!;
         string output = process.StandardOutput.ReadToEnd();
         string error = process.StandardError.ReadToEnd();

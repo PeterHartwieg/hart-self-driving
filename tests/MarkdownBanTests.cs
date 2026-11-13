@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Xunit;
 
 namespace DrivenRides.Core.Tests;
@@ -20,7 +21,7 @@ public sealed class MarkdownBanTests
         string baseRef = Environment.GetEnvironmentVariable("DR_MD_BASE") ?? MarkdownBan.DefaultBase;
         string? eventPath = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
         string? payload = eventPath != null && File.Exists(eventPath) ? File.ReadAllText(eventPath) : null;
-        var labels = MarkdownBan.Labels(payload, Environment.GetEnvironmentVariable("DR_PR_LABELS"));
+        var labels = MarkdownBan.Labels(payload);
         var problems = MarkdownBan.Violations(RepoRoot(), baseRef, labels);
         Assert.True(problems.Count == 0, string.Join("\n", problems));
     }
@@ -41,10 +42,10 @@ public sealed class MarkdownBanTests
     public void DocsApprovedLabelInPayloadAllowsNewMarkdown()
     {
         var payload = "{\"pull_request\":{\"labels\":[{\"name\":\"bug\"},{\"name\":\"docs-approved\"}]}}";
-        var labels = MarkdownBan.Labels(payload, null);
+        var labels = MarkdownBan.Labels(payload);
         Assert.Contains("docs-approved", labels);
         Assert.Empty(MarkdownBan.Violations(new[] { new MarkdownChange('A', null, "docs/plan.md") }, new HashSet<string>(), labels));
-        Assert.DoesNotContain("docs-approved", MarkdownBan.Labels("{\"pull_request\":{\"labels\":[{\"name\":\"bug\"}]}}", null));
+        Assert.DoesNotContain("docs-approved", MarkdownBan.Labels("{\"pull_request\":{\"labels\":[{\"name\":\"bug\"}]}}"));
     }
 
     [Fact]
@@ -75,6 +76,17 @@ public sealed class MarkdownBanTests
             MarkdownBan.Git(root, "commit -q -m new");
             Assert.Equal("docs/new.md", Assert.Single(MarkdownBan.Violations(root, "base", Array.Empty<string>())).Split(':')[0]);
             Assert.Empty(MarkdownBan.Violations(root, "base", new[] { MarkdownBan.Label }));
+
+            File.Delete(Path.Combine(root, "docs/new.md"));
+            Assert.Equal("docs/new.md", Assert.Single(MarkdownBan.Violations(root, "base", Array.Empty<string>())).Split(':')[0]);
+            MarkdownBan.Git(root, "checkout -q -- docs/new.md");
+
+            MarkdownBan.Git(root, "config core.quotePath true");
+            File.WriteAllText(Path.Combine(root, "docs/\u00fcber.md"), "x\n");
+            Assert.Equal("docs/\u00fcber.md", MarkdownBan.Violations(root, "base", Array.Empty<string>()).Select(p => p.Split(':')[0]).Single(p => p != "docs/new.md"));
+            MarkdownBan.Git(root, "add -A");
+            MarkdownBan.Git(root, "commit -q -m uber");
+            Assert.Contains("docs/\u00fcber.md", MarkdownBan.Violations(root, "base", Array.Empty<string>()).Select(p => p.Split(':')[0]));
         }
         finally
         {
