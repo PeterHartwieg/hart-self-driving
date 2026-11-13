@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""Writes a .meta for every .cs file under the given folders that lacks one.
-
-The GUID comes from the file's path relative to the repo, so a new script gets the same GUID on every
-machine and the metas can be committed. Run by tools/build-mod.sh before Unity starts.
-"""
 import hashlib
 import pathlib
 import sys

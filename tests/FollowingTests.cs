@@ -8,8 +8,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Following a traffic car on a straight (T3 20261013-191420: half the moving time was spent following, 2.3 to 2.6 s
-// behind, because every car ahead was treated as standing).
 public sealed class FollowingTests
 {
     private readonly ITestOutputHelper output;
@@ -44,8 +42,6 @@ public sealed class FollowingTests
         for (var step = 0; step < 4500; step++)
         {
             var t = step * dt;
-            // Allow the ride car to close the initial 40 m gap even when the leader is near the speed limit.
-            // It then follows at a steady pace before the leader brakes.
             if (t > 65f) v = Math.Max(0f, v - PursuitDriver.LeaderBrake * dt);
             leaderZ += v * dt;
             var other = new OtherCar { Id = 1, X = 0, Z = leaderZ, Heading = 0, Vz = v, Length = length, Width = 1.9f, TriggerLength = 3f, Target = -1 };

@@ -8,9 +8,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 2 (U3): a dump restores the drive where it was: the line with its curve spans (the driver steers
-// ahead for their curvature), the wheel with its smoothing state, the pedals' integral. A drive restored mid-turn
-// goes on as the original did.
 public sealed class RestoreTests
 {
     private readonly ITestOutputHelper output;
@@ -30,7 +27,6 @@ public sealed class RestoreTests
         TopMs = r.TopMs, Slow = r.Slow, LockCurve = r.LockCurve, TrackWidth = r.TrackWidth, YawFactor = r.YawFactor, WheelRate = r.WheelRate, WheelSmooth = r.WheelSmooth,
     };
 
-    // Ride 9's dumps: a turn by an added arc (a curve span on the line).
     [Theory]
     [InlineData("t3c-211205-ride9-contact-1.json", 1.0f)]
     [InlineData("t3c-211205-ride9-contact-1.json", 6.0f)]
@@ -48,7 +44,6 @@ public sealed class RestoreTests
         var steps = (int)(at / Dt);
         for (var k = 0; k < steps; k++) car.Step(driver.Step(car.Input(Dt)), Dt);
 
-        // The state a dump keeps, through the JSON.
         var saved = Copy(s.Ride);
         saved.X = (float)car.X; saved.Z = (float)car.Z; saved.Heading = (float)car.Heading; saved.Speed = (float)car.Speed;
         saved.Steer = (float)car.Steer; saved.Integral = driver.Integral;
@@ -71,8 +66,6 @@ public sealed class RestoreTests
         Assert.True(worst < 0.05, $"{worst:0.000} m apart");
     }
 
-    // The wheel restored at -12 degrees and asked for -12 stays there (with the angle alone it eased towards 0:
-    // -9.2 after a step, review round 2, S).
     [Fact]
     public void TheWheelHoldsItsRestoredAngle()
     {
@@ -81,7 +74,6 @@ public sealed class RestoreTests
         Assert.Equal(-12.0, car.Steer, 2);
     }
 
-    // The curve spans go through the JSON and onto the restored line.
     [Fact]
     public void TheCurveSpansComeBack()
     {

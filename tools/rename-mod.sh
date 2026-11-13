@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Renames the mod as players see it, in every place the name appears: tools/mod.conf, the manifest's DisplayName,
-# Locales/en.json, DrivenRidesMod.DisplayName and the README. The mod id, folder and namespace stay DrivenRides.
-# Usage: tools/rename-mod.sh "<new name>"
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 NEW="${1:?Pass the new name, for example: tools/rename-mod.sh \"Self Driving\"}"

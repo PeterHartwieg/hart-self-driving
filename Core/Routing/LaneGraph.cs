@@ -85,9 +85,6 @@ namespace DrivenRides.Core.Routing
         public int UTurn(int i) => uTurns[i];
         public int UTurnStart(int i) => uTurnStarts[i];
 
-        // Every U-turn from entry i: the inner one (UTurn) and the wider ones, from each lane of the approach to each
-        // lane of the far carriageway (Peter, 13 October 2026: a driver swings from the outermost lane to the
-        // outermost lane on the other side for the widest circle, when traffic allows). Width: metres across.
         public IReadOnlyList<(int Target, float Width)> UTurns(int i) =>
             uTurnPairs.TryGetValue(i, out var pairs) ? pairs : uTurns[i] >= 0 ? new[] { (uTurns[i], uTurnWidths[i]) } : Array.Empty<(int, float)>();
         public bool IsUTurn(int i, int x)
@@ -97,13 +94,9 @@ namespace DrivenRides.Core.Routing
             foreach (var (target, _) in pairs) if (target == x) return true;
             return false;
         }
-        // Whether a U-turn is one of the wider ones (not UTurn(i), the Gley path's only one).
         public bool IsWideUTurn(int i, int x) => uTurns[i] != x && IsUTurn(i, x);
-        // The waypoint where the straight way into the junction ends and the U-turn starts.
         public int UTurnStart(int i, int x) => uTurns[i] == x ? uTurnStarts[i] : uTurnPairStarts.TryGetValue((i, x), out var s) ? s : -1;
-        // Metres a U-turn is narrower than the widest of its approach and far carriageway's.
         public float UTurnNarrower(int i, int x) => uTurnNarrower.TryGetValue((i, x), out var n) ? n : 0f;
-        // The inner entry whose group a U-turn belongs to (UTurnGroup), and its width; -1 and 0 for none.
         public int UTurnGroupOf(int i, int x) => uTurnGroupOf.TryGetValue((i, x), out var m) ? m : uTurns[i] == x ? i : -1;
         public float UTurnWidth(int i, int x)
         {
@@ -115,10 +108,8 @@ namespace DrivenRides.Core.Routing
         private readonly Dictionary<(int, int), int> uTurnGroupOf = new Dictionary<(int, int), int>();
         public int InferredWideUTurns { get; private set; }
 
-        // The junctions' boxes (JunctionBoxes), built when first asked for.
         public JunctionBoxes Junctions => junctionBoxes ??= new JunctionBoxes(this);
         private JunctionBoxes? junctionBoxes;
-        // All the U-turns of the approach whose inner U-turn starts at m (entry, target, metres across), widest first.
         public IReadOnlyList<(int Entry, int Target, float Width)> UTurnGroup(int m) =>
             uTurnGroups.TryGetValue(m, out var group) ? group : uTurns[m] >= 0 ? new[] { (m, uTurns[m], uTurnWidths.Length > m ? uTurnWidths[m] : 0f) } : Array.Empty<(int, int, float)>();
         private readonly Dictionary<int, List<(int, int, float)>> uTurnGroups = new Dictionary<int, List<(int, int, float)>>();
@@ -128,10 +119,6 @@ namespace DrivenRides.Core.Routing
         private readonly Dictionary<(int, int), int> uTurnPairStarts = new Dictionary<(int, int), int>();
         private readonly Dictionary<(int, int), float> uTurnNarrower = new Dictionary<(int, int), float>();
 
-        // The wider U-turns of each inferred one: the approach's other entry lanes, level with the inner entry and to
-        // its right, and the far carriageway's other lanes, level with the inner target and to its right (its outer
-        // side). Each pair gets the straight way in from its own entry and a via at its own arc's far end, as the
-        // inner one does.
         private void InferWideUTurns()
         {
             uTurnWidths = new float[Count];
@@ -148,7 +135,6 @@ namespace DrivenRides.Core.Routing
                     float along = Along(m, dx, dz, positions[e]), side = Side(m, dx, dz, positions[e]);
                     if (Math.Abs(along) <= 8f && side >= 2f && side <= 16f) entries.Add(e);
                 }
-                // The far lanes: one junction waypoint per lane, the one most level with the inner target.
                 var lanes = new List<(int Waypoint, float Side)> { (t, 0f) };
                 foreach (int j in Near(positions[t], 20f))
                 {
@@ -202,13 +188,11 @@ namespace DrivenRides.Core.Routing
         private float Along(int i, float dx, float dz, Vec3 p) => (p.X - positions[i].X) * dx + (p.Z - positions[i].Z) * dz;
         private float Side(int i, float dx, float dz, Vec3 p) => (p.X - positions[i].X) * dz - (p.Z - positions[i].Z) * dx;
 
-        // A junction waypoint near the far end of a U-turn's arc, heading across towards the turn's side, so the car
-        // follows the curve; null if there is none.
         private int? ArcVia(int i, float dx, float dz, int target, float startAhead, int straight)
         {
             float bx = positions[target].X - positions[i].X, bz = positions[target].Z - positions[i].Z;
             float bAhead = bx * dx + bz * dz, bSide = bx * dz - bz * dx;
-            float lx = -dz, lz = dx; // left of the heading
+            float lx = -dz, lz = dx;
             float half = -bSide / 2f;
             float apexAhead = Math.Max(bAhead, startAhead) + half;
             var apex = new Vec3(positions[i].X + dx * apexAhead + lx * half, positions[i].Y, positions[i].Z + dz * apexAhead + lz * half);
@@ -231,9 +215,6 @@ namespace DrivenRides.Core.Routing
             for (int i = 0; i < Count; i++)
             {
                 if (!IsJunctionEntry(i) || !Heading(i, out float dx, out float dz) || HasParallel(i, false)) continue;
-                // The turn starts only well inside the junction, past the nose of the median (spike 11: turning at
-                // the stop line hit the divider, and the median's nose stood 10 m past it): along the junction's own
-                // straight-ahead waypoints, 14 m in at least.
                 var chain = new List<int>();
                 int straight = StraightInto(i, dx, dz, 14f, out float startAhead, chain);
                 if (straight < 0) continue;
@@ -245,8 +226,6 @@ namespace DrivenRides.Core.Routing
                     if (Math.Abs(positions[j].Y - positions[i].Y) > 2f) continue;
                     float ox = positions[j].X - positions[i].X, oz = positions[j].Z - positions[i].Z;
                     float ahead = ox * dx + oz * dz, side = ox * dz - oz * dx;
-                    // A car can't turn round tighter than about 5 m: best about 15 m across (a turning circle of about
-                    // 7.5 m), and level with or a little beyond the turn's start.
                     if (ahead < startAhead - 2f || ahead > startAhead + 20f || side > -8f || side < -30f) continue;
                     float score = Math.Abs(-side - 15f) * 2f + Math.Abs(ahead - (startAhead + 4f));
                     if (score < bestScore) { bestScore = score; best = j; }
@@ -255,10 +234,9 @@ namespace DrivenRides.Core.Routing
                 uTurns[i] = best;
                 uTurnStarts[i] = straight;
                 InferredUTurns++;
-                // Then through a junction waypoint near the far end of the arc, so the car follows the curve.
                 float bx = positions[best].X - positions[i].X, bz = positions[best].Z - positions[i].Z;
                 float bAhead = bx * dx + bz * dz, bSide = bx * dz - bz * dx;
-                float lx = -dz, lz = dx; // left of the heading
+                float lx = -dz, lz = dx;
                 float half = -bSide / 2f;
                 float apexAhead = Math.Max(bAhead, startAhead) + half;
                 var apex = new Vec3(positions[i].X + dx * apexAhead + lx * half, positions[i].Y, positions[i].Z + dz * apexAhead + lz * half);
@@ -267,23 +245,17 @@ namespace DrivenRides.Core.Routing
                 foreach (int j in Near(apex, 5f))
                 {
                     if (!intersections[j] || j == best || j == straight || Math.Abs(positions[j].Y - positions[i].Y) > 2f) continue;
-                    // At the far end of the arc the car heads across, towards the turn's side; a lane heading the
-                    // other way would put it on the wrong side.
                     if (!AnyHeading(j, out float hx, out float hz) || hx * lx + hz * lz < 0.3f) continue;
                     float d = Vec3.HorizontalDistance(apex, positions[j]);
                     if (d < viaDistance) { viaDistance = d; via = j; }
                 }
-                // The whole straight way in, so a red light's stop line on it holds the car (spike 18 ran one).
                 if (via >= 0) chain.Add(via);
                 turnVia[(i, best)] = chain.ToArray();
             }
         }
 
-        // The first junction waypoint at least `metres` ahead of entry i along the junction's straight-ahead
-        // waypoints, or -1 if the straight way leaves the junction first.
         private int StraightInto(int i, float dx, float dz, float metres, out float ahead) => StraightInto(i, dx, dz, metres, out ahead, null);
 
-        // The same, collecting every junction waypoint on the way in `chain`, so the car's path passes the stop line.
         private int StraightInto(int i, float dx, float dz, float metres, out float ahead, List<int>? chain)
         {
             ahead = 0;
@@ -310,7 +282,6 @@ namespace DrivenRides.Core.Routing
             return -1;
         }
 
-        // The heading of any waypoint with one successor, junction waypoints included.
         private bool AnyHeading(int i, out float dx, out float dz)
         {
             dx = dz = 0;
@@ -327,13 +298,8 @@ namespace DrivenRides.Core.Routing
         // three junctions in a row). From a junction entry i, the exits of the same junction it can't reach.
         public IReadOnlyList<int> MissingTurns(int i) => turns[i];
         public int InferredTurns { get; private set; }
-        // Added turns whose straight way in was cut back so it doesn't run past the exit's lane.
         public int TrimmedChains { get; private set; }
 
-        // A right turn goes from the rightmost lane into the rightmost lane of the cross street, a left turn from the
-        // leftmost lane into the leftmost one. The exit must be ahead, at roughly a right angle, on the turn's side,
-        // and within 25 m (right) or 60 m (left, which may cross the other carriageway of a divided street) of the
-        // entry.
         private void InferTurns()
         {
             for (int i = 0; i < Count; i++)
@@ -347,32 +313,16 @@ namespace DrivenRides.Core.Routing
                     if (Math.Abs(positions[x].Y - positions[i].Y) > 2f) continue;
                     float ox = positions[x].X - positions[i].X, oz = positions[x].Z - positions[i].Z;
                     float ahead = ox * dx + oz * dz, side = ox * dz - oz * dx;
-                    float turn = ex * dz - ez * dx; // > 0: the exit heads to the entry's right
+                    float turn = ex * dz - ez * dx;
                     bool right = turn > 0;
-                    // Junctions aren't all square: a right turn may be from about 40 to 140 degrees (spike 16: a
-                    // 130-degree right turn after the bridge was missed for a U-turn and a left), a left turn from
-                    // about 60 to 120.
                     if (ahead < 2f || Math.Abs(ex * dx + ez * dz) > (right ? 0.75f : 0.5f)) continue;
                     if (right != side > 0) continue;
                     float distance = (float)Math.Sqrt(ox * ox + oz * oz);
                     if (distance > (right ? 25f : 60f)) continue;
-                    // Outermost lanes on the turn's side, at both ends.
                     if (HasParallel(i, right) || HasParallel(x, right)) continue;
-                    // Straight on into the junction until about a turning radius short of the exit's lane, then the
-                    // turn, as a driver does. Turning at the stop line and cutting across drove a left turn through
-                    // the oncoming lanes of the street it turned into (spike 11). A short turn, such as a right turn
-                    // into the near lane, takes a waypoint on its curve instead.
-                    // A left turn goes on until almost level with the exit's lane (3 m short), past the oncoming lanes
-                    // of the street it turns into: a swing wide then carries the car into lanes going its own way, not
-                    // into the oncoming ones (spike 12: it corrected at the end of a left turn, just short of them).
-                    // 5 m, about the car's turning circle: from 3 m short it turned past 90 degrees and corrected
-                    // back (spike 13). The ride also aims the car further down the exit's lane (Ride.Expand).
                     float radius = right ? Math.Min(Math.Abs(side), 9f) : 5f;
                     var chain = new List<int>();
                     int straight = ahead - radius >= 4f ? StraightInto(i, dx, dz, ahead - radius, out _, chain) : -1;
-                    // StraightInto stops at the first waypoint at least that far in; where a junction's waypoints are
-                    // sparse that one can lie well past the exit's lane, and the car overshot the corner and came back
-                    // over the kerb (turn test 0.1.36: 12 m past, at a T-junction). The chain ends at most 2 m past.
                     if (straight >= 0)
                     {
                         while (chain.Count > 0 && (positions[chain[chain.Count - 1]].X - positions[i].X) * dx + (positions[chain[chain.Count - 1]].Z - positions[i].Z) * dz > ahead - radius + 2f)
@@ -380,10 +330,7 @@ namespace DrivenRides.Core.Routing
                         if (chain.Count == 0 || chain[chain.Count - 1] != straight) TrimmedChains++;
                         straight = chain.Count > 0 ? chain[chain.Count - 1] : -1;
                     }
-                    // Without a straight way in (a T-junction), a guide waypoint on the turn's line (ArcVia).
                     var via = straight >= 0 ? straight : ArcVia(i, dx, dz, x, ex, ez, right);
-                    // Without a waypoint to steer through, a longer turn would cut the corner in a straight line, over
-                    // the pavement at a T-junction (spike 16: into a pedestrian). Only a short turn goes without one.
                     if (via < 0 && (!right || distance > 15f)) continue;
                     (found ??= new List<int>()).Add(x);
                     if (straight >= 0) turnVia[(i, x)] = chain.ToArray();
@@ -397,15 +344,8 @@ namespace DrivenRides.Core.Routing
 
         private readonly Dictionary<(int, int), int[]> turnVia = new Dictionary<(int, int), int[]>();
 
-        // A junction waypoint near the middle of the curve from i to its added-turn exit x, for the car to steer
-        // through so it doesn't cut the inside corner on a straight line (spike 9); -1 if none is near.
         public IReadOnlyList<int> TurnVias(int i, int x) => turnVia.TryGetValue((i, x), out var vias) ? vias : Array.Empty<int>();
 
-        // A guide waypoint for a turn without a straight way into the junction. Where the entry's line meets the exit
-        // lane's line is the turn's corner. A right turn aims close to the corner, on the outer, squarer line (the
-        // chord cut the inside corner, where poles and tree pits stand: spike 19); a left turn at a T-junction aims at
-        // the exit lane 5 m past the corner, so the car crosses to it gently instead of overshooting into the kerb
-        // at the top of the T.
         private int ArcVia(int i, float dx, float dz, int x, float ex, float ez, bool right = true)
         {
             float px = positions[i].X, pz = positions[i].Z, qx = positions[x].X, qz = positions[x].Z;
@@ -417,8 +357,6 @@ namespace DrivenRides.Core.Routing
             var arc = right
                 ? new Vec3(cx + (mx - cx) * 0.3f, positions[i].Y, cz + (mz - cz) * 0.3f)
                 : new Vec3(cx + ex * 5f, positions[i].Y, cz + ez * 5f);
-            // Only a waypoint of a lane heading between the entry's and the exit's directions: one of the oncoming
-            // lanes would steer the car onto the wrong side of the street (spike 11).
             float bx = dx + ex, bz = dz + ez, bl = (float)Math.Sqrt(bx * bx + bz * bz);
             if (bl < 0.1f) return -1;
             bx /= bl;
@@ -452,7 +390,6 @@ namespace DrivenRides.Core.Routing
             return false;
         }
 
-        // The plain waypoints reachable from a junction entry through the junction's own waypoints.
         private HashSet<int> JunctionExits(int entry)
         {
             var exits = new HashSet<int>();
@@ -472,7 +409,6 @@ namespace DrivenRides.Core.Routing
             return exits;
         }
 
-        // A lane in the same direction beside i on the given side (2 to 4.5 m), from the waypoint layout itself.
         private bool HasParallel(int i, bool right)
         {
             if (!Heading(i, out float dx, out float dz)) return false;
@@ -500,8 +436,6 @@ namespace DrivenRides.Core.Routing
                     if (dx * ex + dz * ez < 0.95f || Math.Abs(positions[j].Y - positions[i].Y) > 1f) continue;
                     float ox = positions[j].X - positions[i].X, oz = positions[j].Z - positions[i].Z;
                     float along = ox * dx + oz * dz, side = Math.Abs(ox * dz - oz * dx);
-                    // Up to 7.5 m: a slip lane can stand that far from the next lane (spike 18: the lane for the right
-                    // turn after the bridge); the ride's world check guards a change across a barrier.
                     if (Math.Abs(along) > 3f || side < 2f || side > 7.5f) continue;
                     (found ??= new List<int>()).Add(j);
                 }
@@ -517,7 +451,6 @@ namespace DrivenRides.Core.Routing
             return false;
         }
 
-        // The unit heading of a plain waypoint (not in a junction, one successor) on the ground plane.
         private bool Heading(int i, out float dx, out float dz)
         {
             dx = dz = 0;
@@ -530,7 +463,6 @@ namespace DrivenRides.Core.Routing
             return true;
         }
 
-        // Which side of i's lane j is on: positive to the right of the heading (Unity's x right, z forward).
         public float SideOf(int i, int j)
         {
             if (!Heading(i, out float dx, out float dz)) return 0;
@@ -538,7 +470,6 @@ namespace DrivenRides.Core.Routing
             return ox * dz - oz * dx;
         }
 
-        // The same for a point: positive when p is to the right of i's lane.
         public float SideOf(int i, Vec3 p)
         {
             if (!Heading(i, out float dx, out float dz)) return 0;
@@ -549,8 +480,6 @@ namespace DrivenRides.Core.Routing
         public int GivenLaneChanges { get; }
         public int InferredLaneChanges { get; private set; }
 
-        // Gley's otherLanes: the waypoints a car can change lanes to from i. Its AI also uses them to leave a lane
-        // that leads nowhere.
         public IReadOnlyList<int> Lateral(int i) => lateral[i];
 
         public int Count => positions.Length;
@@ -569,7 +498,6 @@ namespace DrivenRides.Core.Routing
             if (!Finite(p.X) || !Finite(p.Y) || !Finite(p.Z)) throw new ArgumentException("Position must be finite.");
             double minX = Math.Floor(((double)p.X - radius) / cellSize), maxX = Math.Floor(((double)p.X + radius) / cellSize);
             double minZ = Math.Floor(((double)p.Z - radius) / cellSize), maxZ = Math.Floor(((double)p.Z + radius) / cellSize);
-            // A very wide query is cheaper as a scan than as millions of empty cell lookups.
             if ((maxX - minX + 1) * (maxZ - minZ + 1) > Math.Max(1, grid.Count) * 4.0)
             {
                 for (int i = 0; i < Count; i++) if (Vec3.HorizontalDistance(p, positions[i]) <= radius) yield return i;

@@ -20,26 +20,12 @@ namespace DrivenRides.Core.Routing
         // Turning into lanes not allowed for the vehicle type costs this much instead of being impossible: Gley's
         // own AI falls back to such lanes when no allowed one leads on. PositiveInfinity makes the filter hard.
         public float DisallowedPenaltySeconds = 20f;
-        // A second of walking counts this much against a second of driving: a passenger would rather be driven on
-        // (spike 21: the car stopped 100 m from a garage its private road leads into).
         public float WalkWeight = 2f;
-        // A lane change costs this on top of its travel time, so a route changes lanes when that saves time (to be in
-        // the turning lane at a junction) but doesn't weave. PositiveInfinity turns lane changes off.
         public float LaneChangePenaltySeconds = 5f;
-        // A turn the game's data doesn't have (LaneGraph.MissingTurns) costs this on top, so the data's own turns
-        // come first. PositiveInfinity turns them off.
         public float MissingTurnPenaltySeconds = 8f;
-        // A U-turn at a junction (LaneGraph.UTurn) costs this on top. PositiveInfinity turns them off.
         public float UTurnPenaltySeconds = 12f;
-        // The wider U-turns too (LaneGraph.UTurns: every approach lane to every far lane), for a car driven by its own
-        // physics, each costing this much more per metre it is narrower than the widest of its group still open for
-        // this car (IsBlockedStep), so the widest the car can make wins: two lanes wider (8 m) is worth more than a
-        // lane change (5 s) before the junction, and blocked wide pairs never push a route round the block. The Gley
-        // path keeps the inner one only.
         public bool WideUTurns;
         public float UTurnNarrowerSecondsPerMetre = 1.5f;
-        // Steps the caller found blocked in the world (lane changes, added turns, U-turns, and lane steps with a car
-        // parked in them), by their start and end waypoints.
         public Func<int, int, bool>? IsBlockedStep;
     }
 
@@ -161,7 +147,6 @@ namespace DrivenRides.Core.Routing
 
         public PlanStatus Step(int maxExpansions) => Step(maxExpansions, null);
 
-        // shouldStop is asked every 64 expansions, so a caller with a time budget can end a step inside the search.
         public PlanStatus Step(int maxExpansions, Func<bool>? shouldStop)
         {
             if (maxExpansions < 0) throw new ArgumentOutOfRangeException(nameof(maxExpansions));
@@ -195,20 +180,10 @@ namespace DrivenRides.Core.Routing
                     }
                 }
                 IReadOnlyList<int> successors = graph.Successors(i);
-                // A lane step can be blocked too (a car parked in the lane, NwhPlanner): T3 replanned round 24 of them
-                // in one ride while A* kept taking them.
                 for (int k = 0; k < successors.Count; k++) RelaxAdded(i, successors[k], entry.Cost, 0);
-                // From the start too, even just past a junction: the car stands there, it isn't coming out of a turn
-                // (T3: rides refused because the only way off their first step was blocked).
                 if (!float.IsPositiveInfinity(laneChangePenalty) && ((!graph.IsIntersection(i) && (i == start || !graph.IsJunctionExitWaypoint(i))) || (i == start && successors.Count == 0)))
                 {
-                    // A lane change goes diagonally to the second waypoint after the one beside i, so the car moves
-                    // over gently while driving on. Never inside a junction, and never from the first waypoint after
-                    // one, where the car may still be coming out of a turn (spike 9: into a wall).
                     IReadOnlyList<int> sideways = graph.Lateral(i);
-                    // A car standing at a lane's end (no successor: a pocket, a stand) has no other way off: it pulls
-                    // into the lane beside whatever lies ahead in it (0.1.90: a taxi on such a waypoint got no route, every
-                    // goal reachable once lane changes were allowed).
                     bool stuck = i == start && successors.Count == 0;
                     for (int k = 0; k < sideways.Count; k++)
                     {
@@ -220,8 +195,6 @@ namespace DrivenRides.Core.Routing
                             int first = ahead[m];
                             if (first == i || (graph.IsIntersection(first) && !stuck)) continue;
                             IReadOnlyList<int> further = graph.Successors(first);
-                            // Nor may it end on a junction entry: the car should be straight in its lane before it turns.
-                            // The quicker change to the first waypoint costs a little more, for short blocks only.
                             if (stuck || !graph.IsJunctionEntryWaypoint(first)) RelaxAdded(i, first, entry.Cost, laneChangePenalty + SharpChangeSeconds);
                             for (int f = 0; f < further.Count; f++)
                                 if (further[f] != i && (stuck || (!graph.IsIntersection(further[f]) && !graph.IsJunctionEntryWaypoint(further[f]))))
@@ -231,7 +204,6 @@ namespace DrivenRides.Core.Routing
                 }
                 if (!float.IsPositiveInfinity(missingTurnPenalty))
                 {
-                    // Through a junction along a curve, about a fifth longer than the straight line, plus the penalty.
                     IReadOnlyList<int> added = graph.MissingTurns(i);
                     for (int k = 0; k < added.Count; k++)
                         RelaxAdded(i, added[k], entry.Cost, missingTurnPenalty + 0.2 * Vec3.Distance(graph.Position(i), graph.Position(added[k])) / graph.SpeedMs(i));
@@ -261,7 +233,6 @@ namespace DrivenRides.Core.Routing
 
         private const double SharpChangeSeconds = 2;
 
-        // The widest U-turn of a pair's group that isn't blocked for this car; the blocked set is fixed for one plan.
         private readonly Dictionary<int, float> widestOpen = new Dictionary<int, float>();
 
         private float WidestOpen(int i, int x)
@@ -289,8 +260,6 @@ namespace DrivenRides.Core.Routing
             if (disallowed && float.IsPositiveInfinity(disallowedPenalty)) return;
             double cost = from + extra + Vec3.Distance(graph.Position(i), graph.Position(j)) /
                 (((double)graph.SpeedMs(i) + graph.SpeedMs(j)) / 2);
-            // Once, on turning into such a lane, not per waypoint: a Hamptons driveway allows no vehicle type, and
-            // 60 s for each of its waypoints kept the car on the street 100 m from the garage it leads to (spike 21).
             if (disallowed && (i == start || graph.Allows(i, vehicleType))) cost += disallowedPenalty;
             if (!graph.IsIntersection(i) && graph.IsIntersection(j)) cost += penalty;
             if (cost >= costs[j]) return;

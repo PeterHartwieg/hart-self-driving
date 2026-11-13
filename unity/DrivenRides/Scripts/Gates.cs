@@ -6,17 +6,10 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // The gates a car can drive through (the game's FenceDoor with acceptsVehicles; a gated Hamptons community's is a
-    // HamptonsPrivateFenceDoor). The game opens one when any collider enters its FenceDoorTrigger, unless IsLocked():
-    // a community's gate is locked unless the player owns or rents a building with unlocksHamptonsPrivateFence and the
-    // same privateFenceIndex (the check TaxiSystem.TravelTo makes before a taxi ride, CanEnterPrivateFence). So the ride
-    // car opens an unlocked gate itself, as the player's car does, and the planner treats its doors as open; a locked
-    // gate's lanes are not driven, and a ride whose way leads through one ends before it (NwhPlanner).
     internal static class Gates
     {
         private static readonly System.Reflection.MethodInfo? IsLockedMethod = AccessTools.Method(typeof(FenceDoor), "IsLocked");
 
-        // One gate as the planner sees it, with its door colliders.
         internal sealed class Found
         {
             public RoadGate Gate = null!;
@@ -31,7 +24,6 @@ namespace DrivenRides
 
         public static IReadOnlyList<Found> Current => current;
 
-        // Read again: the gates in the loaded city and whether each is locked now (the player may have bought a house).
         public static bool Read { get; private set; }
 
         public static void Refresh(LaneGraph graph)
@@ -74,10 +66,8 @@ namespace DrivenRides
             Log.Trace($"Gates: {current.Count} across lanes, {locked0} locked for the player.");
         }
 
-        // A door of a gate that opens for this ride: the planner counts it as open (out of the way).
         public static bool IsOpenDoor(Collider c) => byCollider.TryGetValue(c, out var f) && !f.Gate.Locked;
 
-        // The gate a lane step goes through, or null.
         public static Found? On(int from, int to) => byStep.TryGetValue((from, to), out var f) ? f : null;
 
         public static bool LockedStep(int from, int to) => On(from, to) is Found f && f.Gate.Locked;

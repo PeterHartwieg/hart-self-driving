@@ -24,21 +24,15 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // Planning operations. Fields remain in Ride.cs to preserve initialization order.
     internal sealed partial class Ride
     {
 
-        // The TravelCoroutine prefix. Returns the ride's iterator, or null for a vanilla ride. Vanilla's TravelTo has
-        // already checked and charged; until a stand's car is loaded nothing here changes the game, and the ride's
-        // static state is committed only as the last step.
         public static IEnumerator? TryCreate(TaxiSystem taxiSystem, EntityController target, float minutes)
         {
             var own = InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi;
             var ride = TryCreateRide(taxiSystem, target, minutes);
-            // A refused own-car trip leaves no ride to clear the planner's ignored car (DropState); it is cleared here.
             if (ride == null && own && planNwh != null) planNwh.Ignore = null;
             if (ride != null || !own) return ride;
-            // Vanilla's ride would take the player to the door and leave the car behind; instead nothing happens.
             if (TestMode.On) Notice.Show("Your car can't drive itself there: " + lastVanillaReason + ".");
             else Notice.Text(lastVanillaReason == NoFuel ? "drivenrides:notice_owncar_no_fuel"
                 : lastVanillaReason.StartsWith(OwnCarTaxi.NotInLane, StringComparison.Ordinal) ? "drivenrides:notice_owncar_lane"
@@ -51,7 +45,6 @@ namespace DrivenRides
         {
             try { InstanceBehavior<CityManager>.Instance.cityMap.Close(); }
             catch (Exception ex) { Log.Error("No own-car ride, map: " + ex.Message); }
-            // TravelTo stores this iterator after its first step; the field is cleared once it is stored.
             yield return null;
             TravelField?.SetValue(taxiSystem, null);
         }
@@ -74,8 +67,6 @@ namespace DrivenRides
                 if (!(taxi is MonoBehaviour taxiObject) || taxiObject == null) return Vanilla("no taxi");
                 if (PlayerActivityUI.IsPanelOpen) return Vanilla("an activity panel is open");
                 if (BuildingManager.IsInsideBuilding) return Vanilla("the player is inside a building");
-                // The Hamptons are driven too: the lane graph runs across the bridge (Peter, after the first rides).
-                // Vanilla's TravelTo has already checked the private fence.
 
                 Kind kind;
                 VehicleComponent? car = null;
@@ -84,9 +75,6 @@ namespace DrivenRides
                 {
                     case PrivateDriverVehicle pd:
                         kind = Kind.PrivateDriver;
-                        // Called from indoors, the driver waits as a parked car (PrivateDriverHelpers
-                        // .SummonPrivateDriverVehicleFromIndoors), not a traffic car; it is swapped for one on the lane
-                        // beside it once the route is known.
                         parked = pd.GetVehicleIndex() < 0 ? pd : null;
                         car = parked == null ? pd.GetComponent<VehicleComponent>() : null;
                         prefab = parked != null ? pd.GetVehiclePrefab()
@@ -106,8 +94,6 @@ namespace DrivenRides
                         ownCar = own.Car;
                         if (ownCar == null || !ownCar.gameObject.activeInHierarchy) return Vanilla("the car is gone");
                         if (!ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), ownCar)) return Vanilla("you're not in the car");
-                        // The car drives itself (NWH); a traffic model of its size stands for it where the planning
-                        // asks Gley's questions (lanes allowed, a free waypoint).
                         prefab = OwnCarTaxi.PlanPrefab(ownCar, out var planWhy);
                         if (prefab == null) return Vanilla(planWhy);
                         break;
@@ -119,9 +105,6 @@ namespace DrivenRides
                 if (prefab == null) return Vanilla("no vehicle prefab");
                 planLength = LengthOf(prefab);
                 planSteering = new Steering(PooledCopy(prefab));
-                // Driven with the car's own physics (NWH, docs/implementation-plan.md phase 5): the drivable prefab of
-                // the driver's vehicle type, or the taxi dressed on the drivable car closest in size, planned for that
-                // car by its planner. Otherwise the Gley ride.
                 var driverType = taxi is PrivateDriverVehicle driverTaxi ? driverTaxi.vehicleInstance?.vehicleTypeName : null;
                 var driverTop = taxi is PrivateDriverVehicle topTaxi ? topTaxi.vehicleInstance?.VehicleType?.maxSpeed ?? 0 : 0;
                 var nwhTop = driverTop > 0 ? driverTop : prefab.maxPossibleSpeed;
@@ -129,22 +112,17 @@ namespace DrivenRides
                 planNwhPlan = null;
                 if (ownCar != null)
                 {
-                    // The own car always drives with its own physics: there is no traffic car to fall back on.
                     var ownTop = ownCar.vehicleType != null && ownCar.vehicleType.maxSpeed > 0 ? ownCar.vehicleType.maxSpeed : prefab.maxPossibleSpeed;
                     var ownType = OwnCarTaxi.DrivableType(ownCar);
                     planNwh = ownType != null ? NwhPlanner.For(ownType, ownTop) : null;
                     if (planNwh == null) return Vanilla($"this car has no drivable shape to plan with ({ownCar.vehicleType?.vehicleTypeName ?? ownCar.name})");
                     planNwh.BeginRide();
-                    // The car the player sits in is no obstacle to its own trip: not in the first lanes' sweep, not in
-                    // the start check, not in the replans on the way. Planners are cached per car type, so it is set
-                    // back for every other ride and when this one ends (DropState).
                     planNwh.Ignore = ownCar.transform;
                 }
                 else if (DrivesWithNwh(kind))
                 {
                     planNwh = NwhRides.Planner(driverType, prefab.gameObject, nwhTop);
                     if (planNwh == null) Log.Trace("NWH ride: no drivable car for " + prefab.name + "; a Gley ride.");
-                    // A new ride: blocks from what stood in the last ride's way go (NwhPlanner.BeginRide).
                     else { planNwh.BeginRide(); planNwh.Ignore = null; }
                 }
 
@@ -158,7 +136,6 @@ namespace DrivenRides
                 if (kind == Kind.Stand)
                 {
                     var y = taxiObject.transform.position.y;
-                    // checkFreeFor makes Gley test that the spawn waypoint is free (DensityManager.cs:244-256).
                     spawn = manager.GetClosestWaypoint(taxiObject.transform.position, 50f, w => IsGoodStart(w, y), prefab);
                     if (spawn == null) return Vanilla("no free lane waypoint by the taxi stand");
                     start = spawn.listIndex;
@@ -173,14 +150,10 @@ namespace DrivenRides
                 {
                     var ownY = ownCar.transform.position.y;
                     start = OwnCarTaxi.StartUnder(graph, ownCar, -1, i => IsGoodStart(GleyGraph.Waypoints![i], ownY), out ownSideways);
-                    // Keep the established curbside pull-out for nearby parallel strips. Bays and remote
-                    // parking areas need the new aisle/driveway connection, independent of the parked heading.
                     var roadsideParallel = start >= 0 && Mathf.Abs(ownSideways) <= 6f
                         && OwnCarParking.IsLegal(ownCar, parallelOnly: true);
                     if (OwnCarParking.IsLegal(ownCar) && !roadsideParallel)
                     {
-                        // A parking bay's heading says nothing about the direction of the road outside it.
-                        // Candidates are provisional until the local exit and the road route both pass.
                         ownEntries = DepartureEntryPicker.Pick(graph, GleyGraph.ToVec(ownCar.transform.position), planNwh!.Car,
                             vehicleType, GleyGraph.IsDisabled, (a, b) => Gates.LockedStep(a, b) || GleyGraph.IsBlockedStep(a, b));
                         if (ownEntries.Count == 0) return Vanilla("no road entry near the parking area");
@@ -202,11 +175,6 @@ namespace DrivenRides
                 }
 
                 var destination = target.GetNavMeshTargetPosition();
-                // Goals in steps, each wider than the last, until one gives a route: the kerb on the destination's side
-                // of the street (a driver lets you out on your side), any kerb, any lane, then lanes of any type
-                // further out (Hamptons houses stand back on private roads; spike 15 found nothing within 60 m).
-                // Within a wider search, try the closest stops before adding farther ones: otherwise driving plus
-                // walking time can favour the road's entrance over driving round to the building (Ocean Crest Road).
                 var destinationPoint = GleyGraph.ToVec(destination);
                 var steps = new[]
                 {
@@ -237,8 +205,6 @@ namespace DrivenRides
                     }
                     elapsed = clock.ElapsedMilliseconds; return null;
                 }
-                // Finish beside a parallel parking strip, facing its way. Occupancy is resolved on arrival when
-                // the game has populated the destination; the road route never contains a parking manoeuvre.
                 if (ownCar != null && planNwh != null && OwnCarTaxi.WantsAutopark(ownCar))
                 {
                     goals = ParkingNavigation.Goals(destination, planNwh.Car, vehicleType);
@@ -270,11 +236,6 @@ namespace DrivenRides
                         if (goals.Count == 0) continue;
                         route = PlanStart(goals, out var ms, out why);
                         planMs += ms;
-                        // The driver's waypoint can lead only into a traffic pocket. Try the driving lane beside it
-                        // for these same close goals before widening the destination search: a wider search can
-                        // otherwise accept the pocket itself as a drop-off and never try the road out.
-                        // Not for the own car: it starts where it stands, so a route from another lane is one the start
-                        // check refuses (StartRefusal). It tries the wider goals from its own lane instead.
                         if (route == null && origin != null && ownCar == null)
                             route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
                         if (route != null) break;
@@ -288,9 +249,6 @@ namespace DrivenRides
                 {
                     Log.Trace($"Start bridged: from waypoint {start} to {route.Waypoints[0]}, {Vector3.Distance(origin.position, GleyGraph.Waypoints![route.Waypoints[0]].position):0} m from the car.");
                 }
-                // An NWH ride is planned as the rig plans its rides (NwhPlanner.PlanRoute): from the start the search
-                // found, to the same goals, each added step checked for this car, the first lanes swept, the line
-                // checked as driven, a failed step blocked and the route planned again.
                 if (route != null && planNwh != null && planNwhPlan == null)
                 {
                     var nwhClock = Stopwatch.StartNew();
@@ -301,12 +259,9 @@ namespace DrivenRides
                     route = nwhRoute;
                     planNwhPlan = nwhPlan;
                 }
-                // Steps the game's data doesn't have are checked against the world; a blocked one is remembered and the
-                // route planned again (spike 17: an added right turn ran into concrete barricades in a junction).
                 for (var attempt = 0; route != null && planNwh == null && attempt < 6; attempt++)
                 {
                     var blocked = planNwh != null ? planNwh.BlockedSteps(graph, route.Waypoints) : FindBlockedSteps(graph, route.Waypoints, planSteering);
-                    // The NWH car's line checked as driven too: a step it fails on is blocked like the others.
                     if (blocked.Count == 0 && planNwh != null && planNwh.Plan(graph, route.Waypoints, out var failed) == null) blocked = failed;
                     if (blocked.Count == 0) break;
                     foreach (var (from, to, what) in blocked)
@@ -327,8 +282,6 @@ namespace DrivenRides
                     var refusal = OwnCarTaxi.StartRefusal(ownCar, planNwh, planNwhPlan, graph, ownSideways);
                     if (refusal != null)
                     {
-                        // A nearby parallel parked car gets a separate local manoeuvre after the map closes. The
-                        // road plan remains untouched. Wrong-way, moving and remote starts still refuse normally.
                         if (!refusal.StartsWith(OwnCarTaxi.NotInLane, StringComparison.Ordinal) || Mathf.Abs(ownSideways) > 6f)
                             return Vanilla(refusal);
                         unpark = true;
@@ -343,7 +296,6 @@ namespace DrivenRides
                     if (loaded == null) return Vanilla("the stand's car could not be loaded");
                     var ahead = GleyGraph.Waypoints![route.Waypoints[1]].position - spawn!.position;
                     if (ahead.sqrMagnitude > 0.01f) loaded.transform.rotation = Quaternion.LookRotation(ahead);
-                    // Hold it until Depart, as vanilla's summon does for a car without a path.
                     AIEvents.TriggerChangeDrivingStateEvent(loaded.GetIndex(), SpecialDriveActionTypes.StopNow, 0f);
                     car = loaded;
                 }
@@ -365,15 +317,10 @@ namespace DrivenRides
                 }
                 else if (ownCar != null)
                 {
-                    // The player's own car, as it stands, with the player in the driver's seat: its input is the
-                    // drive's from here until the ride ends (OwnCarDrive).
                     ownNwh = OwnCarDrive.Begin(ownCar, out var ownWhy);
                     if (ownNwh == null) return Vanilla(ownWhy);
                 }
 
-                // The NWH car where the traffic car stands, while the map covers the screen; Board takes the traffic
-                // car away in this same frame (TravelTo runs the ride's first step at once), before a physics step.
-                // Thrown on failure, so the catch below lets go of a car loaded above.
                 if (planNwh != null && ownCar == null)
                 {
                     var gleyT = car!.transform;
@@ -395,14 +342,12 @@ namespace DrivenRides
                     if (graph.IsUTurn(route.Waypoints[k], route.Waypoints[k + 1])) addedTurns++;
                 }
                 if (addedTurns > 0) Log.Trace($"Route uses {addedTurns} turn{(addedTurns == 1 ? "" : "s")} or U-turn{(addedTurns == 1 ? "" : "s")} the game's traffic data doesn't have.");
-                // The own car has no traffic car: the planning prefab stands in for it where the ride keeps one.
                 var ride = new Ride(taxiSystem, taxi, kind, target, minutes, car ?? prefab, prefab, vehicleType, goals, route, spawn != null)
                 {
                     nwh = spawnedNwh != null ? new NwhRideCar { Car = spawnedNwh, Spec = planNwh!.Car } : null,
                     needsUnpark = unpark,
                     departureEntries = ownEntries,
                 };
-                // The own car's arrival stops if the ride is cancelled or the save changes meanwhile.
                 if (ownNwh != null) ride.nwh = OwnCarTaxi.RideCar(ownCar!, ownNwh, planNwh!.Car, target, prefab, () => ride.cancelled || ride.SaveChanged);
                 ownNwh = null;
                 loaded = null;
@@ -433,8 +378,6 @@ namespace DrivenRides
         {
             Log.Info("Vanilla ride: " + reason + ".");
             lastVanillaReason = reason;
-            // A ride switched off is just a vanilla ride; any other says so on screen, with the reason in test mode.
-            // The own car says it once, in its own words (TryCreate).
             var own = InstanceBehavior<CityManager>.Instance?.cityMap?.Taxi is OwnCarTaxi;
             if (reason != SwitchedOff && !own)
             {
@@ -444,12 +387,8 @@ namespace DrivenRides
             return null;
         }
 
-        // Which rides are driven with the car's own physics (docs/implementation-plan.md, phase 5); the others are
-        // Gley rides.
-        // The options page's car physics switch (Options.CarPhysics) turns them all back into Gley rides.
         private static bool DrivesWithNwh(Kind kind) => Options.CarPhysics && (kind == Kind.Taxi || kind == Kind.Stand || kind == Kind.PrivateDriver);
 
-        // A pooled copy's measurements: Gley fills length and width in when it builds the pool.
         private static VehicleComponent PooledCopy(VehicleComponent prefab)
         {
             if (TrafficVehiclesField?.GetValue(TrafficManager.Instance) is TrafficVehicles vehicles)
@@ -478,14 +417,10 @@ namespace DrivenRides
                 job.Step(PlanStep, () => watch.ElapsedMilliseconds >= budgetMs);
             ms = watch.ElapsedMilliseconds;
             why = job.Status == PlanStatus.Running ? "over the time budget" : job.Status.ToString();
-            // Small steps keep the overshoot small; a route found after the budget counts as none.
             if (job.Status == PlanStatus.Found && ms > budgetMs) { why = "found after the time budget"; return null; }
             return job.Status == PlanStatus.Found ? job.Result : null;
         }
 
-        // Proper traffic lanes within 50 m of the car, in front of it first and nearest first, with nothing built
-        // in between; the first that reaches a goal wins, within one shared planning budget. Six nearby waypoints
-        // can all belong to the same dead-end pocket, so do not cap the number of candidates.
         private static Route? PlanFromNearby(LaneGraph graph, Transform car, int pocketStart, List<Goal> goals, int vehicleType, ref long planMs)
         {
             var here = car.position;
@@ -511,8 +446,6 @@ namespace DrivenRides
             return null;
         }
 
-        // An added turn driven as Gley will drive it (Core's TurnDrive), from its entry through its vias to the aim,
-        // with the car's body box checked against street props and buildings every half metre.
         private static bool TurnClear(LaneGraph graph, int entry, int exit, int aim, Steering car, out string what, float speedKmh = TurnSpeed)
         {
             what = "";
@@ -520,19 +453,15 @@ namespace DrivenRides
             var targets = new List<Vec3>();
             foreach (var via in graph.TurnVias(entry, exit)) targets.Add(graph.Position(via));
             targets.Add(graph.Position(aim));
-            // Gley moves on from the aim while the car is still turning; the rest of the swing, 20 m down the lane.
             targets.AddRange(TurnDrive.LaneAfter(graph, aim, 20f));
             return BodyClear(TurnDrive.Drive(graph.Position(entry), dx, dz, targets, car.Shape, speedKmh / 3.6f, car.SteeringFactor), car, out what);
         }
 
-        // The car's body box, TurnMargin larger, at each pose of a modelled drive; null poses: the car never got there.
         private static bool BodyClear(List<Core.Ride.Pose>? poses, Steering car, out string what)
         {
             what = "";
             if (poses == null) { what = "a turn the car can't make"; return false; }
             var half = car.BodyHalf + new Vector3(TurnMargin, 0f, TurnMargin);
-            // Against the road's own colliders only from RoadClearance up, so the road surface is left out but a divider
-            // built into the road is not.
             var bottom = Mathf.Max(car.BodyCentre.y - car.BodyHalf.y, RoadClearance);
             var top = car.BodyCentre.y + car.BodyHalf.y;
             var roadHalf = new Vector3(half.x, Mathf.Max(0.05f, (top - bottom) / 2f), half.z);
@@ -553,8 +482,6 @@ namespace DrivenRides
 
         private static float ArcLookahead(Steering car) => car.Shape.FrontAxle + ArcLead;
 
-        // An added turn's driver's arc, if the junction has room for one this car can follow and the car, pursuing it
-        // as Gley will, touches nothing.
         private static Polyline? ClearArc(LaneGraph graph, int entry, int exit, Steering car)
         {
             if (car.Shape.WheelDistance <= 0f) return null;
@@ -562,8 +489,6 @@ namespace DrivenRides
             if (line == null) return null;
             var poses = TurnDrive.Pursue(line, car.Shape, TurnSpeed / 3.6f, car.SteeringFactor, ArcLookahead(car));
             if (poses == null) return null;
-            // The lead-in is the entry lane, driven as any lane is; the check starts where the car's nose reaches the
-            // entry waypoint.
             var turning = new List<Core.Ride.Pose>();
             var along = 0f;
             foreach (var p in poses)
@@ -586,7 +511,6 @@ namespace DrivenRides
             return graph == null || TurnClear(graph, entry, exit, aim, car, out _);
         }
 
-        // The steps of a route the game's data doesn't have, checked against street props and buildings.
         private static List<(int From, int To, string What)> FindBlockedSteps(LaneGraph graph, IReadOnlyList<int> w, Steering car)
         {
             var halfWidth = car.HalfWidth;
@@ -601,8 +525,6 @@ namespace DrivenRides
                 points.Clear();
                 points.Add(all[w[k]].position);
                 foreach (var via in graph.TurnVias(w[k], w[k + 1])) points.Add(all[via].position);
-                // A U-turn is driven as Gley will drive it, through its vias, at the speed the ride takes it: a long car
-                // that can't make one cleanly goes round the block (Peter: few drivers would U-turn a car that size).
                 if (graph.IsUTurn(w[k], w[k + 1]))
                 {
                     if (!TurnClear(graph, w[k], w[k + 1], w[k + 1], car, out var uWhat, car.Length >= LongCarMetres ? UTurnSpeed : TurnSpeed))
@@ -615,11 +537,7 @@ namespace DrivenRides
                     continue;
                 }
                 points.Add(all[w[k + 1]].position);
-                // A turn with guide waypoints is checked along them, 1.5 m wide; a short one without, along its chord
-                // back as well, since the car cuts that corner.
                 var turn = IndexOf(graph.MissingTurns(w[k]), w[k + 1]) >= 0;
-                // A lane change's sweep is as wide as the car: 0.8 m let a 2.3 m car change lanes into a lamp post by
-                // the kerb (turn test 0.1.33).
                 var radius = turn ? 1.5f : Mathf.Max(0.8f, halfWidth + 0.1f);
                 if (turn && points.Count == 2) points.Add(all[w[k]].position);
                 for (var q = 0; q + 1 < points.Count; q++)

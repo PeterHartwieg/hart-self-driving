@@ -5,8 +5,6 @@ using UI.Notification;
 
 namespace DrivenRides
 {
-    // Player-facing notices. Text shows a line from Locales/en.json; Show shows a raw English message and is for
-    // test-mode texts only (debug keys, the rig, detailed reasons), which a normal game never meets.
     internal static class Notice
     {
         public static void Text(string key, params (string Key, string Value)[] values)

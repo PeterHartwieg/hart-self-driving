@@ -12,11 +12,8 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // The game calls the ride panel needs: the HUD canvas, the HUD font, the UI sounds and the locale texts.
     internal static class GameHud
     {
-        // The HUD's sizes are laid out at 3840x2160 (Scenes.MainMenu.Options.defaultReferenceResolution); the panel's
-        // design is in pixels at 1920x1080, so one design pixel is this many canvas units.
         public static float UnitsPerDesignPixel
         {
             get
@@ -30,9 +27,6 @@ namespace DrivenRides
             }
         }
 
-        // Where the panel goes: the HUD's root canvas, just above the branch holding the Objectives panel, so it
-        // scales with the HUD (UI zoom included) and the game's later layers (menus, fades) still draw over it.
-        // Null when the HUD isn't there yet.
         public static (Transform Parent, int SiblingIndex, Canvas Canvas)? Slot()
         {
             var uis = InstanceBehavior<UIs>.Instance;
@@ -47,8 +41,6 @@ namespace DrivenRides
             return (root.transform, index, root);
         }
 
-        // Rubik, the HUD's font (FontFace.Rubik): first the font of the Objectives panel's own texts, then any loaded
-        // Rubik asset, then the game's Rubik sign font. A bold asset if the game has one, else TMP's bold style.
         public static (TMP_FontAsset? Regular, TMP_FontAsset? Bold, string From) Fonts()
         {
             TMP_FontAsset? regular = null;
@@ -81,8 +73,6 @@ namespace DrivenRides
 
         private static bool IsBold(TMP_FontAsset font) => font.name.IndexOf("bold", StringComparison.OrdinalIgnoreCase) >= 0;
 
-        // The sounds the game's ButtonEffects play: Hover on pointer enter (only while the game has focus), Click on
-        // pointer down.
         public static void HoverSound()
         {
             try { if (GameManager.IsInFocus) UiSoundHelper.Play(UiSound.Hover); }
@@ -95,7 +85,6 @@ namespace DrivenRides
             catch (Exception) { }
         }
 
-        // The game's ButtonEffects clear the selection after a click, so keys don't drive the control afterwards.
         public static void Deselect()
         {
             var events = UnityEngine.EventSystems.EventSystem.current;
@@ -103,7 +92,6 @@ namespace DrivenRides
         }
     }
 
-    // The mod's locale texts (Locales/en.json), read through the game's localizer.
     internal static class Loc
     {
         public static string Text(string key)

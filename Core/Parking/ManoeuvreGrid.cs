@@ -5,8 +5,6 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Parking
 {
-    // A local surface snapshot, also used as a coarse distance field to guide pose-space search through an aisle.
-    // It never supplies car steering: every accepted primitive is still swept with the actual car model.
     public sealed class ManoeuvreGrid
     {
         public readonly float MinX, MinZ, Cell;
@@ -19,7 +17,6 @@ namespace DrivenRides.Core.Parking
             clear = new bool[width * height]; distance = new float[clear.Length];
         }
         public void Set(int x, int z, bool value) => clear[z * Width + x] = value;
-        // Paint surface geometry into the local snapshot. Blocking wins when the caller applies exclusions last.
         public void Triangle(Vec3 a, Vec3 b, Vec3 c, bool value, bool conservative = false)
         {
             var minX = Math.Max(0, (int)Math.Floor((Math.Min(a.X, Math.Min(b.X,c.X))-MinX)/Cell));
@@ -28,7 +25,6 @@ namespace DrivenRides.Core.Parking
             var maxZ = Math.Min(Height-1, (int)Math.Floor((Math.Max(a.Z, Math.Max(b.Z,c.Z))-MinZ)/Cell));
             var area = Cross(b.X-a.X,b.Z-a.Z,c.X-a.X,c.Z-a.Z);
             if (Math.Abs(area) < 0.0001f) return;
-            // Cell/triangle separating axes: a curb narrower than a cell must still block every cell it touches.
             var abReach=conservative ? Cell/2*(Math.Abs(b.X-a.X)+Math.Abs(b.Z-a.Z)) : 0;
             var bcReach=conservative ? Cell/2*(Math.Abs(c.X-b.X)+Math.Abs(c.Z-b.Z)) : 0;
             var caReach=conservative ? Cell/2*(Math.Abs(a.X-c.X)+Math.Abs(a.Z-c.Z)) : 0;
@@ -67,7 +63,6 @@ namespace DrivenRides.Core.Parking
             var b = tyresOnly ? new Box(pose.X + (float)Math.Sin(pose.Heading)*car.Wheelbase/2,
                 pose.Z + (float)Math.Cos(pose.Heading)*car.Wheelbase/2,pose.Heading,
                 car.TrackWidth>0 ? car.TrackWidth/2+.1f : car.BodyHalf.X,car.Wheelbase/2) : ManoeuvrePlan.Body(car, pose,bodyMargin);
-            // Sample across the whole footprint so a thin pavement barrier cannot lie between the four wheels.
             var across = (int)Math.Ceiling(b.HalfWidth * 2 / (Cell * 0.75f));
             var along = (int)Math.Ceiling(b.HalfLength * 2 / (Cell * 0.75f));
             for (var ix = 0; ix <= across; ix++)

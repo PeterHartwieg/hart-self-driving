@@ -8,12 +8,10 @@ using BAModAPI;
 
 namespace DrivenRides
 {
-    // Loads once at game start: the options page and the Harmony patches.
     [ModEntryOnInitializationLoad]
     public sealed class DrivenRidesMod : IModBigAmbitions
     {
         public const string Version = "0.4.2";
-        // The name players see; tools/rename-mod.sh changes it here and in the manifest, locales and README.
         public const string DisplayName = "HART. Self Driving";
 
         public string[] RelativeAssetBundlePaths => Array.Empty<string>();

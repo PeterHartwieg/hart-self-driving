@@ -9,7 +9,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides.BuildEditor
 {
-    // Runs against the packaged DLL and real Unity/game components, without a city, player or save.
     public static class PaintChecks
     {
         public static void Run()
@@ -56,7 +55,6 @@ namespace DrivenRides.BuildEditor
                 var released = AddBody(leaving);
                 pickup.SetColor(paint);
                 riding.SetDirtiness(0.65f);
-                // An inactive child ensures stripping and copying don't overlook dormant paint components.
                 riding.gameObject.SetActive(false);
                 ride.AddComponent<RandomVehicleColor>();
                 strip.Invoke(null, new object?[] { ride, null });

@@ -46,7 +46,6 @@ public sealed class LogTests : IDisposable
         Log.Trace("Detailed ride state.");
         foreach (var prefix in new[] { "NWH drive: ", "NWH planner: ", "NWH shape for " })
         {
-            // Old Info callers and the explicit Trace callers keep identical visibility.
             Log.Info(prefix + "legacy");
             Log.Trace(prefix + "explicit");
         }

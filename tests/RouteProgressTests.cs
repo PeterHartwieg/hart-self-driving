@@ -85,7 +85,6 @@ public sealed class RouteProgressTests
     [Fact]
     public void RouteCrossingItselfDoesNotPullProgressForward()
     {
-        // The route loops round a block and passes back through its own start (review case).
         var points = new[] { new Vec3(0, 0, 0), new Vec3(40, 0, 0), new Vec3(40, 0, 40), new Vec3(0, 0, 40), new Vec3(0, 0, -40), new Vec3(-40, 0, -40) };
         var progress = new RouteProgress(points);
         progress.Update(new Vec3(0, 0, 0));
@@ -93,7 +92,6 @@ public sealed class RouteProgressTests
         Assert.Equal(1, progress.NextIndex);
         progress.Update(new Vec3(20, 0, 0.5f));
         Assert.Equal(20, progress.AlongMetres, 6);
-        // Driving on round the loop in 10 m steps keeps counting, and the later pass through the start is found in its turn.
         for (var along = 30; along <= 180; along += 10)
             progress.Update(PointAlong(points, along));
         Assert.Equal(180, progress.AlongMetres, 6);
@@ -128,7 +126,6 @@ public sealed class RouteProgressTests
     [Fact]
     public void CatchesUpAfterAnOversizedJumpOnALongSegment()
     {
-        // Review case: a hitch moves the car far along one long segment; progress must recover, not freeze.
         var progress = new RouteProgress(new[] { new Vec3(0, 0, 0), new Vec3(100, 0, 0), new Vec3(200, 0, 0) });
         foreach (var x in new[] { 0f, 30f, 40f, 80f, 100f, 150f, 200f, 200f, 200f, 200f, 200f })
             progress.Update(new Vec3(x, 0, 0));

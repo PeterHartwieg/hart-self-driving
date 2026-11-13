@@ -13,7 +13,6 @@ public sealed class PathExpanderTests
     [InlineData(true)]
     public void AddedTurnKeepsViasAndAimsAtAnExitWaypointTenMetresOn(bool longExit)
     {
-        // The exit lies 10 m along its lane from the last via, so the car aims at it directly.
         var (graph, entry, exit) = TurnTestGraph.Turn();
         int[] route = longExit ? new[] { 0, 1, entry, exit, exit + 1, exit + 2, exit + 3 } : new[] { 0, 1, entry, exit, exit + 1 };
         var expanded = PathExpander.Expand(graph, route);
@@ -27,7 +26,6 @@ public sealed class PathExpanderTests
     [Fact]
     public void AddedTurnSkipsAtMostTwoExitWaypointsThatAreTooNear()
     {
-        // A right turn whose exit lane starts 3 m past the via: the 3 m and 8 m waypoints are too near to aim at.
         var b = new TurnTestGraph();
         int a = b.Add(0, -30), run = b.Add(0, -20), entry = b.Add(0, -10);
         int j1 = b.Add(0, -5, true), j2 = b.Add(0, 5, true), straight = b.Add(0, 10), end = b.Add(0, 20);
@@ -48,11 +46,9 @@ public sealed class PathExpanderTests
         var (graph, entry, exit) = TurnTestGraph.Turn();
         var route = new[] { 0, 1, entry, exit, exit + 1, exit + 2, exit + 3 };
         var vias = graph.TurnVias(entry, exit).ToArray();
-        // The exit itself is 10 m on; its line is blocked, the next one's is clear.
         var expanded = PathExpander.Expand(graph, route, (entry, turnExit, to) => to != exit);
         Assert.Equal(new[] { 0, 1, entry }.Concat(vias).Concat(new[] { exit + 1, exit + 2, exit + 3 }), expanded.Path);
         Assert.Equal((vias[^1], exit + 1), expanded.Aims[(entry, exit)]);
-        // Nothing clear: as without a world check.
         Assert.Equal(PathExpander.Expand(graph, route).Path, PathExpander.Expand(graph, route, (e, a, b) => false).Path);
     }
 
@@ -63,10 +59,8 @@ public sealed class PathExpanderTests
         var route = new[] { 0, entry, graph.UTurn(entry), graph.UTurn(entry) + 1, exit };
         var expanded = PathExpander.Expand(graph, route);
         Assert.Equal(route.Take(2).Concat(graph.TurnVias(entry, graph.UTurn(entry))).Concat(route.Skip(2)), expanded.Path);
-        // Two positions before the entry, the entry, the vias and the U-turn's target.
         var vias = graph.TurnVias(entry, graph.UTurn(entry)).Count;
         Assert.Equal(Enumerable.Range(0, 2 + vias + 1), expanded.SlowPath.OrderBy(x => x));
-        // The U-turn itself (its vias and target) is driven slower still.
         Assert.Equal(Enumerable.Range(2, vias + 1), expanded.UTurnPath.OrderBy(x => x));
         Assert.Equal(entry + 2, graph.UTurnStart(entry));
         Assert.Equal(-1, graph.UTurnStart(0));

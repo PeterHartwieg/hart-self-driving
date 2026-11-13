@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Real Unity component/physics checks in the isolated SDK; no game or save access.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${BA_SDK:-$REPO/build/sdk}"

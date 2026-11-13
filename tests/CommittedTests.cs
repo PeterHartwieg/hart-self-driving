@@ -9,10 +9,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 2 (U1): a conflict found too late to stop short of a traffic car's way. Going on is safe only on the
-// trajectory the car can keep under its other stops (a standing car just past the lane, a person, a stop line,
-// other yields), with headway, and a car behind counted on to brake only once the body is in its trigger. Best-case
-// acceleration never makes it safe: a standing car past the lane would hold the ride car in the crossing car's way.
 public sealed class CommittedTests
 {
     private readonly ITestOutputHelper output;
@@ -24,7 +20,6 @@ public sealed class CommittedTests
         public bool GiveWayEntry(int waypoint, out int junction, out int road) { junction = road = -1; return false; }
     }
 
-    // The ride car goes north along x = 0; a lane runs east along z = 12, its car coming from the west.
     internal static TrafficDecision Decide(float rideFrontZ, float rideMs, float crossX, float crossMs, float? standingAtZ, float? personGap = null, float? plannerHold = null, float trigger = 3f)
     {
         var car = RideCar.Dash;
@@ -45,13 +40,11 @@ public sealed class CommittedTests
         if (standingAtZ is float z)
             cars.Add(new OtherCar { Id = 2, X = 0f, Z = z, Heading = 0f, Length = 4.5f, Width = 1.9f, TriggerLength = 3f, Target = -1 });
         var decision = new TrafficDecision();
-        // Twice, so the second sees the cars' pace.
         for (var t = 0; t < 2; t++)
             traffic.Decide(new TrafficSnapshot { Time = t * 0.02f, RearX = 0f, RearZ = rear, Heading = 0f, Speed = rideMs, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags(), GapAhead = personGap, PlannerHoldAlong = plannerHold }, decision);
         return decision;
     }
 
-    // The lane's car 3 s off: going on clears the lane with the headway.
     [Fact]
     public void GoesOnWhenItClearsTheLane()
     {
@@ -63,11 +56,9 @@ public sealed class CommittedTests
     [Fact]
     public void StopsNowWhenACarStandingPastTheLaneWouldHoldItInTheWay()
     {
-        // The standing car's rear 1 m past the lane: the ride car would stand across the lane behind it.
         var d = Decide(rideFrontZ: 10.4f, rideMs: 7f, crossX: -30f, crossMs: 10f, standingAtZ: 12f + 1.25f + 1f + 2.25f);
         output.WriteLine($"{d.Why} yield {d.YieldAlong} gap {d.GapAhead}");
         Assert.Equal(1, d.YieldFor);
-        // At its front now (the line starts at z = -20): the most it can brake.
         Assert.True(d.YieldAlong <= 30.5f);
     }
 
@@ -80,27 +71,21 @@ public sealed class CommittedTests
         Assert.True(d.YieldAlong <= 30.5f);
     }
 
-    // Review round 3 (V1): the planner's hold (a step ahead found blocked) is a firm stop like the others.
     [Fact]
     public void StopsNowWhenThePlannersHoldIsPastTheLane()
     {
         var free = Decide(rideFrontZ: 10.4f, rideMs: 7f, crossX: -30f, crossMs: 10f, standingAtZ: null);
         Assert.Null(free.YieldAlong);
-        // The front to stop 4 m on, in the lane (z = 12 is 32 m along the line).
         var d = Decide(rideFrontZ: 10.4f, rideMs: 7f, crossX: -30f, crossMs: 10f, standingAtZ: null, plannerHold: 34.4f);
         output.WriteLine($"{d.Why} yield {d.YieldAlong} stop {d.StopAlong}");
         Assert.Equal(1, d.YieldFor);
         Assert.True(d.YieldAlong <= 30.5f);
     }
 
-    // Round 9: too close to stop short of the lane and not clear with the headway: a stop now (the emergency rule's);
-    // going on with less than the headway (a forced commit) went. Since 0.1.110 only for a car whose trigger can't stop
-    // it short of the body (a 1 m trigger here): one whose trigger can is gone on in front of (below).
     [Theory]
     [InlineData(1f)]
     public void TooLateAndNotClearIsAStopNow(float trigger)
     {
-        // 12 m away is still an immediate conflict with the shorter gameplay headway.
         var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -12f, crossMs: 10f, standingAtZ: null, trigger: trigger);
         output.WriteLine($"{d.Why} yield {d.YieldAlong}");
         Assert.True(d.YieldAlong <= 30.5f);
@@ -110,15 +95,11 @@ public sealed class CommittedTests
     [Fact]
     public void ClearsAShortGapInsteadOfStoppingForThePreviousExtraHeadway()
     {
-        // The old 0.8 s buffer stopped here. With the 0.6 s policy the car can clear this crossing, even without
-        // relying on the other car's trigger to stop it. The nearer car above must still produce an emergency stop.
         var d = Decide(rideFrontZ: 10.4f, rideMs: 10f, crossX: -18f, crossMs: 10f, standingAtZ: null, trigger: 1f);
         Assert.Null(d.YieldAlong);
         Assert.DoesNotContain(1, d.EmergencyFor);
     }
 
-    // Peter, 14 October: Gley's cars stop for anything in their trigger, so with a 5 m one (about Gley's) the car 18 m
-    // off at 10 m/s stops short of the ride car: no stop for it.
     [Fact]
     public void GoesOnWhenTheCarsTriggerStopsItShort()
     {
@@ -128,8 +109,6 @@ public sealed class CommittedTests
         Assert.DoesNotContain(1, d.EmergencyFor);
     }
 
-    // Review round 3 (V2): inside a one-lane stretch with a car coming the other way, standing is no collision (it stops
-    // in its trigger; back-off and the planner resolve the stand-off): the ride car stops.
     [Fact]
     public void AHeadOnStandOffIsAStop()
     {

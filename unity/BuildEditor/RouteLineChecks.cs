@@ -12,7 +12,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides.BuildEditor
 {
-    // Runs the production component with real Unity rendering/physics objects, no city or game process.
     public static class RouteLineChecks
     {
         public static void Run()
@@ -70,12 +69,10 @@ namespace DrivenRides.BuildEditor
                 hide(); Require(!r.enabled, "Hide did not disable renderer");
                 show(line, 3, vehicle.transform);
                 Require(r.enabled && root.GetComponentsInChildren<LineRenderer>(true).Length == 1 && r.sharedMaterial == material, "Renderer/material not reused");
-                // A non-finite plan hides only that plan; the next one is shown again.
                 show(new Polyline(new List<Vec3> { new Vec3(0, 0, 0), new Vec3(float.NaN, 0, 0) }), 0, vehicle.transform);
                 Require(!r.enabled, "Non-finite plan shown");
                 show(line, 3, vehicle.transform);
                 Require(r.enabled && r.positionCount == 6, "Non-finite plan hid the following plan");
-                // Profile normal frames and sample-boundary uploads through a typed delegate (reflection itself allocates).
                 for (int i = 0; i < 100; i++) show(line, i % 5, vehicle.transform);
                 var before = GC.GetAllocatedBytesForCurrentThread();
                 for (int i = 0; i < 1000; i++) show(line, i % 5, vehicle.transform);

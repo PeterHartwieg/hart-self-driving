@@ -10,8 +10,6 @@ using UnityEngine.InputSystem;
 
 namespace DrivenRides
 {
-    // Debug keys on Ctrl+Alt+Shift with letters the game doesn't bind (docs/implementation-plan.md). Added to the
-    // runtime object only in test mode (TestMode), like the turn-test rig.
     internal sealed class DebugKeys : MonoBehaviour
     {
         private static readonly (Key Key, string Label, Action Action)[] Keys =
@@ -48,7 +46,6 @@ namespace DrivenRides
             manager.StartCoroutine(manager.HospitalRespawn());
         }
 
-        // Waypoint count, weak components, what the traffic pool holds, and planning times for ten routes.
         private static void GraphStats()
         {
             var graph = GleyGraph.Graph;

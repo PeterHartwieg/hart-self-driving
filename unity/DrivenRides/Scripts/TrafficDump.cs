@@ -11,11 +11,6 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // Keeps the last ten seconds of the traffic round the ride car (ten frames a second) and, when a traffic run fails
-    // (contact with a Gley car, a long standstill, a red run), turns them into a T0 scenario (Core's
-    // TrafficScenario, docs/implementation-plan.md "Tests"): the lane graph round the car with Gley's flags, the
-    // intersections it meets, the ride car on its path, and each traffic car from where it was with the targets it
-    // went through. Copied into tests/traffic-scenarios/, it runs offline in every `dotnet test`.
     internal sealed class TrafficRecorder
     {
         private const float Every = 0.1f;
@@ -26,7 +21,6 @@ namespace DrivenRides
         {
             public ScenarioFrame State = new ScenarioFrame();
             public float Along, Steer, Integral;
-            // Waypoints with `stop` set among those watched.
             public HashSet<int> Stops = new HashSet<int>();
         }
 
@@ -42,7 +36,6 @@ namespace DrivenRides
             var all = GleyGraph.Waypoints;
             var graph = GleyGraph.Graph;
             if (all == null || graph == null) return;
-            // The light waypoints round the car, looked up once a second.
             if (time - watchedAt > 1f)
             {
                 watchedAt = time;
@@ -69,8 +62,6 @@ namespace DrivenRides
             while (frames.Count > 0 && frames.First.Value.State.T < time - Keep) frames.RemoveFirst();
         }
 
-        // The scenario from the oldest frame kept to now. path/line/arcs/slow: the ride's, as NwhDrive drives it.
-        // trackWidth: the front track NwhDrive steers with (NWH's Ackermann).
         public TrafficScenario? Build(string name, string note, NwhCar car, float topMs, float trackWidth, List<int> path, DriveLine line,
             IReadOnlyList<(int Entry, Polyline Arc)> arcs, IReadOnlyList<(float From, float To, float Ms)> slow, GleyTraffic traffic)
         {
@@ -81,12 +72,10 @@ namespace DrivenRides
             var last = frames.Last.Value;
             var t0 = first.State.T;
 
-            // The ride's path from where it was at the oldest frame.
             var start = 0;
             for (var k = 0; k < path.Count; k++) if (line.AlongOf[k] <= first.Along - 2f) start = k;
             var shift = line.AlongOf[start];
 
-            // The waypoints round where the car was and is, and the path on from there.
             var chosen = new SortedSet<int>();
             foreach (var w in graph.Near(new Vec3(first.State.RideX, 0, first.State.RideZ), Around)) chosen.Add(w);
             foreach (var w in graph.Near(new Vec3(last.State.RideX, 0, last.State.RideZ), Around)) chosen.Add(w);
@@ -114,8 +103,6 @@ namespace DrivenRides
             {
                 var x = traffic.Intersection(j);
                 var spec = new ScenarioJunction { Id = j, Kind = x is PriorityIntersection ? "priority" : "replay" };
-                // Each road's entries (a light's roads too, so the simulation can go on cycling it after the replay),
-                // and a light's own green and amber times.
                 if (x is PriorityIntersection p)
                     foreach (var r in p.enterWaypoints) spec.Roads.Add(r.roadWaypoints.Where(local.ContainsKey).Select(w => local[w]).ToArray());
                 if (x is TrafficLightsIntersection l)
@@ -126,7 +113,6 @@ namespace DrivenRides
                 }
                 s.Junctions.Add(spec);
             }
-            // Light changes over the window, replayed.
             foreach (var w in watched)
             {
                 if (!local.ContainsKey(w)) continue;
@@ -159,8 +145,6 @@ namespace DrivenRides
             ride.Heading = first.State.RideHeading;
             ride.Speed = first.State.RideSpeed;
             foreach (var (from, to, ms) in slow) if (to > shift) ride.Slow.Add((from - shift, to - shift, ms));
-            // The car as measured (review round 1, S10): its lock at speeds, its track, the model's yaw factor, the
-            // wheel's rate and angle; and the line as driven (arcs, fillets, shifts) from the path's start on.
             for (var ms = 0f; ms <= 30f; ms += 2.5f) ride.LockCurve.Add((ms, car.LockAt(ms)));
             ride.TrackWidth = trackWidth;
             ride.YawFactor = CarSpec.DefaultYawFactor;
@@ -181,7 +165,6 @@ namespace DrivenRides
             ride.LineAlong = new float[ride.Path.Length];
             for (var k = 0; k < ride.Path.Length; k++) ride.LineAlong[k] = line.AlongOf[start + k] - shift;
 
-            // Each traffic car from where it was first seen, through the targets it went for.
             var seen = new Dictionary<int, ScenarioCar>();
             var fastest = new Dictionary<int, float>();
             foreach (var f in frames)

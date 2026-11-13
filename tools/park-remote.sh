@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Parks the installed mod outside ModsLocal, or restores it, on the Windows game PC.
-# Usage: tools/park-remote.sh park|restore [ssh host]   (or set BA_GAME_HOST)
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 ACTION="${1:?park or restore}"

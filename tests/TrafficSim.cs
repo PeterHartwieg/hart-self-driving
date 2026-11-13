@@ -14,68 +14,38 @@ internal sealed class SimResult
     public string? Failure;
     public float Time;
     public bool Arrived;
-    // A dump's run that left the recorded area (TrafficSim) rather than reaching the end of the line.
     public bool LeftArea;
     public float LongestStall;
     public int BackOffs;
-    // Decisions that nosed in at a creep in front of a crawling car.
     public int NoseIns;
-    // The stopping option lost while a stop for a car was imposed (metres the car could no longer stop short of its way
-    // by, at HardDecel; review round 7, BB3). HarderThanDecel: decisions where keeping it took more than Decel.
-    // Decisions whose final pass ran out of rounds, and of them those still tightening when judged once more (BB4).
     public int PassExhausted, PassUnsettled, FallbackStop;
     public int PassRoundsMost;
     public float OptionLost = float.MinValue;
-    // How long each decision took, microseconds (DecideCostTests).
     public readonly List<float> DecideMicros = new();
     public readonly List<float> QueueStarts = new();
     public readonly List<(float Delay, string Why)> QueueWhy = new();
-    // Every slowdown (BrakeEvents), for the slowdown dumps' closed-loop check.
     public readonly List<(float Time, float Peak, float Low, float Seconds, string Reason, int Car)> Slowdowns = new();
-    // The most the ride car's rear axle was off its line while turning (the wheel past 6 degrees), metres.
     public float TurnOff;
     public readonly List<(float Time, int Car, float Drop, float Lasted, string Kind)> TurnDips = new();
-    // The same, less the distance the car covers between two decisions at the speed it had (the simulation decides every
-    // DecideEvery steps; the game every step): a shortfall within it is the decisions' discretization, not a real one
-    // (review round 9, DD1). Reported by the soak.
     public float OptionLostBeyond = float.MinValue;
     public int HarderThanDecel;
-    // Stops a car could no longer make explained by news of the car (first seen, its reason to wait changing, a flag
-    // changing) within NewsSeconds: new hazards, not counted in OptionLost (review round 8, CC4).
     public int NewHazards;
     public string? LostKind;
-    // The first stop the car could no longer make that didn't come from the emergency rule (CC3).
     public string? NotEmergency;
-    // Stops for a car imposed when the car could no longer make them at Decel (found late), and stops imposed again
-    // within a second of the last for the same car with nothing holding the car in between (flicker).
     public int ApproachesLate, ApproachesAgain;
-    // The driver found the way blocked by a car that won't move (TrafficDriver.Stuck): the planner's to go round.
     public string? Blocked;
     public readonly HashSet<int> GaveWayTo = new();
-    // Bytes allocated inside TrafficDriver.Decide, and its calls (review round 1, O7).
     public long DecideBytes;
     public int Decides;
-    // Of them, those after the first second that allocated anything with the reason given unchanged: only buffers
-    // growing to a new number of cars should.
     public int DecidesAllocating;
     public readonly StringBuilder Trace = new();
     public override string ToString() => Failure ?? (Arrived ? (LeftArea ? $"left the recorded area at {Time:0.0} s" : $"arrived at {Time:0.0} s") : Blocked != null ? $"blocked at {Time:0.0} s: {Blocked}" : "not arrived");
 }
 
-// T0's simulation (docs/implementation-plan.md, "Tests"): the ride car is Core's CarModel driven by PursuitDriver
-// and TrafficDriver, exactly as NwhDrive drives the NWH car; the traffic cars behave as Gley's do, as far as the ride
-// car is concerned: they follow their lanes at the road's limit, stop at `stop` waypoints they can stop for, wait
-// at a priority junction's give-way line until it is their road's turn, and see the ride car only in a short front
-// trigger (VehicleComponent.OnTriggerEnter: the player's layer means StopInDistance), so one cut in on at speed hits
-// it. A car the ride car is ahead of in the same direction follows it (as Gley's do each other).
-// Invariants: no overlap of the ride car's body with a traffic car's; no standstill over 30 s except at a red;
-// never past a `stop` waypoint while it is set, unless it was set when the car could no longer stop at HardDecel.
 internal sealed class TrafficSim : ILiveFlags
 {
     public const float Dt = 0.02f;
 
-    // The ride's slowdowns as a real ride logs them (Core BrakeEvents); in a turn (the wheel at TurnWheel or more), back
-    // up within TurnDipSeconds and with no red: Peter's "brakes in a turn for a second or two" (14 October).
     public const float TurnDipSeconds = 3f, TurnWheel = 6f;
     private readonly BrakeEvents slowdowns = new BrakeEvents();
     private void TurnDip(SimResult result)
@@ -88,9 +58,6 @@ internal sealed class TrafficSim : ILiveFlags
         result.TurnDips.Add((time, e.Car, e.Peak - e.Low, e.Seconds, kind));
     }
 
-    // Pulling away in a queue (Peter, 14 October: "it waits for the car in front to get to a safe distance instead of
-    // accelerating with them"): standing within 6 m behind a car, the time from that car setting off (0.3 m/s) to the
-    // ride car doing so (0.5 m/s).
     private int queueLeader = -1;
     private float leaderOff = -1f;
     private string? queueWhy;
@@ -134,7 +101,6 @@ internal sealed class TrafficSim : ILiveFlags
     private readonly bool trace;
     private float time;
 
-    // decidePhase: which of the DecideEvery steps the decisions fall on (the regressions sweep it).
     public TrafficSim(TrafficScenario scenario, bool trace = false, int passRounds = TrafficDriver.MaxPassRounds, int decidePhase = 0)
     {
         sc = scenario;
@@ -149,20 +115,16 @@ internal sealed class TrafficSim : ILiveFlags
         foreach (var c in sc.Cars) cars.Add(new Car(c));
         var r = sc.Ride;
         path = r.Path;
-        // The car and the line as the game had them, when the scenario carries them (a dump), else as built from
-        // the path (review round 1, S10).
         line = r.BuildLine(graph, out pathAlong);
         body = new RideBody { Wheelbase = r.Wheelbase, FrontAhead = r.FrontAhead, RearBehind = r.RearBehind, HalfWidth = r.HalfWidth };
         driver = r.BuildDriver(line);
         ride = r.BuildCar();
         traffic = new TrafficDriver(graph, line, driver, body) { PassRoundsLimit = passRounds, Model = Environment.GetEnvironmentVariable("NOMODEL") == null ? r.BuildCar() : null };
-        // Time enough for the whole line at 3 m/s on average, lights included (a dump runs 400 m on from its window).
         seconds = Math.Max(sc.Seconds, 30f + line.Line.Length / 3f);
     }
 
     private readonly float seconds;
     private readonly int decidePhase;
-    // A dump's lights are replayed as the game showed them up to here, then cycled (Junction).
     private readonly float replayEnd;
 
     public bool Stop(int waypoint) => waypoint >= 0 && waypoint < stop.Length && stop[waypoint];
@@ -184,14 +146,10 @@ internal sealed class TrafficSim : ILiveFlags
         public bool Lost;
     }
 
-    // The ride car's observation history (review round 8, CC4): cars seen so far, when there was last news of each
-    // (first seen, its own reason to wait starting or ending), and when any stop flag last changed.
     private readonly HashSet<int> seen = new();
     private readonly Dictionary<int, float> news = new();
     private bool[] stopSeen = Array.Empty<bool>();
     private float flagNews = float.MinValue;
-    // How recent news must be to explain a stop the car can no longer make: what the driver decides on is at most a
-    // decision old, and the prediction is made from the car's pace over half a second (TrafficDriver's pace).
     public const float NewsSeconds = 1f;
 
     private bool NewsOf(int id) => time - flagNews <= NewsSeconds || news.TryGetValue(id, out var t) && time - t <= NewsSeconds;
@@ -212,7 +170,6 @@ internal sealed class TrafficSim : ILiveFlags
         var stoppable = new Dictionary<int, bool>();
         float stall = 0f, nextTrace = 0f;
         var backing = false;
-        // The red-run judge: the front wheels past a set stop (as Gley judges its own cars; JunctionRules.Overhang).
         var prevFront = driver.Along + body.Wheelbase;
         for (var step = 0; time < seconds; step++)
         {
@@ -224,8 +181,6 @@ internal sealed class TrafficSim : ILiveFlags
                 for (var k = 0; k < t.At.Count && t.At[k] <= time; k++) value = t.Stop[k];
                 stop[t.Waypoint] = value;
             }
-            // New information the ride car gets (review round 8, CC4): any stop flag changing (a light, a give-way the
-            // rules open) is news about every car; a car's own reason to wait starting or ending is news about it.
             for (var w = 0; w < stop.Length; w++) if (stop[w] != stopSeen[w]) { stopSeen[w] = stop[w]; flagNews = time; }
             var rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);
             foreach (var c in cars)
@@ -235,7 +190,6 @@ internal sealed class TrafficSim : ILiveFlags
                 if (c.Why != whyBefore || c.Granted == time) news[c.Spec.Id] = time;
             }
 
-            // The ride car, as NwhDrive drives it.
             var front = driver.Along + body.FrontAhead;
             marks.Clear();
             for (var k = 0; k < path.Length; k++)
@@ -257,7 +211,6 @@ internal sealed class TrafficSim : ILiveFlags
                 if (!c.Active) continue;
                 if ((c.X - ride.X) * (c.X - ride.X) + (c.Z - ride.Z) * (c.Z - ride.Z) > TrafficDriver.SeeMetres * TrafficDriver.SeeMetres) continue;
                 near.Add(c.AsOther());
-                // First seen: news.
                 if (seen.Add(c.Spec.Id)) news[c.Spec.Id] = time;
             }
             var snapshot = new TrafficSnapshot
@@ -284,7 +237,6 @@ internal sealed class TrafficSim : ILiveFlags
                 if (decision.Unsettled)
                 {
                     result.PassUnsettled++;
-                    // Replaced by the emergency rule (CC2): a stop now for cars all marked as the emergency rule's.
                     var front1 = driver.Along + body.FrontAhead;
                     if (decision.YieldAlong is float fy && fy <= front1 + 0.5f && decision.EmergencyFor.Count > 0) result.FallbackStop++;
                     else if (trace) result.Trace.Append($"UNSETTLED {time:0.00} yield {decision.YieldAlong} front {front1:0.0} emergency {decision.EmergencyFor.Count}\n");
@@ -333,16 +285,6 @@ internal sealed class TrafficSim : ILiveFlags
                 whys.Enqueue($"{time:0.0} {decision.Why} ({ride.Speed:0.0} m/s)");
                 if (whys.Count > 4) whys.Dequeue();
             }
-            // Against the floor at the speed the decision was made at.
-            // The stopping option, per traffic car the ride car gives way to (review round 7, BB3). An episode lasts from
-            // the first stop for that car until the ride car's front is past where its way was, or the car is gone: a
-            // stop lifted and imposed again is the same conflict. While a stop for it is imposed, the car must still be
-            // able to stop short of the car's way at all: after the brakes' latency, at HardDecel (OptionLost, metres
-            // short). Unless that was gone when the stop was first imposed, or when the way was found nearer while the
-            // stop was held all along (newly seen: the prediction's, counted as late); a stop lifted and imposed again
-            // carries over, so a lifted stop that costs the option counts. Late: a first stop needing more than Decel
-            // with nothing holding the car before; Again: a stop imposed again within a second of the last for that
-            // car, with nothing holding the car in between (flicker).
             simDecel += ((simLastSpeed - (float)ride.Speed) / Dt - simDecel) * Math.Min(1f, Dt / 0.1f);
             simLastSpeed = (float)ride.Speed;
             if ((step + decidePhase) % DecideEvery == 0)
@@ -351,18 +293,14 @@ internal sealed class TrafficSim : ILiveFlags
                 var x = decision.YieldAlong != null ? decision.YieldFor : -1;
                 if (x >= 0)
                 {
-                    // Where the body would come into the car's way: past a cautious stop by the stop uncertainty, past any
-                    // other by the margin round the body that the stop was found with.
                     var wayAt = decision.ApproachFor == x ? decision.ApproachAlong + TrafficDriver.StopUncertainty : decision.YieldWay + TrafficDriver.EndMargin;
                     var v = (float)ride.Speed;
                     var room = wayAt - front0;
                     var needA = v * v / (2f * Math.Max(0.05f, room - v * TrafficDriver.BrakeLatency));
-                    // The brakes' latency only if the car isn't slowing already (as TrafficDriver.HardStop).
                     var short_ = v * (simDecel > TrafficDriver.BrakingDecel ? 0f : TrafficDriver.BrakeLatency) + v * v / (2f * PursuitDriver.HardDecel) - room;
                     var imposed = x != prevYieldFor;
                     if (!episodes.TryGetValue(x, out var e) || front0 > e.WayAt + 0.5f)
                     {
-                        // Unmakeable when first imposed: a new hazard only if there was news of the car just before.
                         e = new Episode { WayAt = wayAt, Lost = short_ > 0f && NewsOf(x), LastYield = time };
                         if (e.Lost) result.NewHazards++;
                         if (wasFree && needA > PursuitDriver.Decel + 0.3f) result.ApproachesLate++;
@@ -374,10 +312,8 @@ internal sealed class TrafficSim : ILiveFlags
                             result.ApproachesAgain++;
                             if (trace) result.Trace.Append($"AGAIN {time:0.00} car {x} way {wayAt:0.0} front {front0:0.0} v {v:0.0} after {time - e.LastYield:0.00} s, last kind {lastKind}: {decision.Why} {decision.YieldNote}\n");
                         }
-                        // Imposed again, or the way found nearer, when the car can no longer make it: new only with news.
                         if (!e.Lost && (imposed || wayAt < e.WayAt - 0.3f) && short_ > 0f && NewsOf(x)) { e.Lost = true; result.NewHazards++; }
                     }
-                    // A stop the car can no longer make must come from the emergency rule (CC3).
                     if (short_ > 0f && !decision.EmergencyFor.Contains(x) && result.NotEmergency == null)
                         result.NotEmergency = $"{time:0.00} s, car {x}, {decision.Note.Kind}, short by {short_:0.00} m: {decision.Why}";
                     if (!e.Lost && short_ > 0f && result.LostKind == null)
@@ -407,7 +343,6 @@ internal sealed class TrafficSim : ILiveFlags
                 wasFree = decision.YieldAlong == null && decision.StopAlong == null && decision.GapAhead == null && decision.MaxSpeed == null;
             }
 
-            // Invariants.
             rideBox = traffic.BodyAt((float)ride.X, (float)ride.Z, (float)ride.Heading);
             TurnDip(result);
             QueueStart(result);
@@ -423,9 +358,7 @@ internal sealed class TrafficSim : ILiveFlags
                 var along = pathAlong[k];
                 if (!stop[path[k]]) { stoppable.Remove(k); continue; }
                 if (!stoppable.ContainsKey(k) && along > prevFront)
-                    // With a tenth of a second to see it (the game's lights change between physics steps too).
                     stoppable[k] = along - prevFront - ride.Speed * 0.1 > ride.Speed * ride.Speed / (2 * PursuitDriver.HardDecel);
-                // Standing short of a set stop: whatever it saw first, a pass from here is a red run.
                 if (Math.Abs(ride.Speed) < 0.5 && along > prevFront && along - prevFront < 10f) stoppable[k] = true;
                 if (prevFront < along && front >= along && stoppable.TryGetValue(k, out var could) && could)
                 {
@@ -497,8 +430,6 @@ internal sealed class TrafficSim : ILiveFlags
             this.spec = spec;
             this.stop = stop;
             roads = spec.Roads;
-            // A replayed light (a dump) without its roads: from the road each stop waypoint enters by (Gley's
-            // stopWaypoints group, in the dump as "r"; both ways of a street share one), else by the way they face.
             if (spec.Kind == "replay" && roads.Count == 0)
             {
                 roads = new List<int[]>();
@@ -537,12 +468,10 @@ internal sealed class TrafficSim : ILiveFlags
         public bool IsLights => spec.Kind == "lights" || (cycling && roads.Count > 0);
         public bool IsPriority => spec.Kind == "priority";
 
-        // Gley's light cycle: green, then amber until it has lasted Yellow and nobody is inside, then the next road.
         public void Update(float t)
         {
             if (spec.Kind == "replay" && !cycling && t > handOver && roads.Count > 0)
             {
-                // From where the game left it: the road with green goes on, as if its green had just begun.
                 cycling = true;
                 current = Math.Max(0, roads.FindIndex(r => r.All(w => !stop[w])));
                 amber = false;
@@ -567,8 +496,6 @@ internal sealed class TrafficSim : ILiveFlags
             for (var r = 0; r < roads.Count; r++) foreach (var w in roads[r]) stop[w] = r != current || amber;
         }
 
-        // Round robin by road with at most a few cars inside (Gley's PriorityIntersection, in outline): the current
-        // road goes; another road asking queues a change, made once the junction is empty.
         public bool Free(int waypoint, int who)
         {
             if (!roadOf.TryGetValue(waypoint, out var road)) return true;
@@ -592,14 +519,10 @@ internal sealed class TrafficSim : ILiveFlags
         public float X, Z, Heading;
         public bool ForUs;
         public string Why = "";
-        // When its give-way was last granted (the junction let it go): news about it (review round 8, CC4).
         public float Granted = float.MinValue;
         private int target = -1;
         private readonly HashSet<int> ranThrough = new(), granted = new(), passed = new();
         private float blockedByCar;
-        // Metres left to stop in since something came into its trigger (Gley's StopInDistance), or -1; and the
-        // reaction left before it starts braking, running on at its speed (review round 4, X3: each car 0.05 to
-        // 0.15 s, the driver's TrafficDriver.TriggerReact give or take half).
         private float stopLeft = -1f, reactLeft;
         private float React => 0.05f + (Spec.Id * 7919 % 101) / 100f * 0.1f;
         private float ignoreCarsUntil;
@@ -702,13 +625,11 @@ internal sealed class TrafficSim : ILiveFlags
             {
                 if (t < Spec.Spawn) return;
                 Spawn(sim);
-                // Not into anything: wait for room, as Gley's spawner does. A car with a pose (a dump) is where it was.
                 var clear = Spec.HasPose || !Body.Overlaps(rideBox.Grown(1f, 2f)) && sim.cars.All(o => o == this || !o.Active || !o.Body.Overlaps(Body.Grown(1f, 2f)));
                 if (!clear) { Active = false; route.Clear(); pts.Clear(); at.Clear(); routeOf.Clear(); corner.Clear(); return; }
             }
             var g = sim.graph;
             var front = U + L / 2f;
-            // Far behind the ride car and going away: it can't matter any more.
             float rx = (float)sim.ride.X - X, rz = (float)sim.ride.Z - Z;
             if (rx * rx + rz * rz > 220f * 220f && rx * (float)Math.Sin(Heading) + rz * (float)Math.Cos(Heading) < 0f)
             {
@@ -717,7 +638,6 @@ internal sealed class TrafficSim : ILiveFlags
                 foreach (var j in sim.junctions.Values) j.Inside.Remove(Spec.Id);
                 return;
             }
-            // Long enough ahead: its lane's first successor.
             while (at[^1] - front < 60f)
             {
                 var next = g.Successors(route[^1]);
@@ -727,8 +647,6 @@ internal sealed class TrafficSim : ILiveFlags
             }
             target = -1;
             for (var i = 0; i < pts.Count; i++) if (routeOf[i] >= 0 && at[i] > front + 0.3f) { target = route[routeOf[i]]; break; }
-            // A lane that ends (Gley gives such a waypoint giveWay): the car stands at its end for good, as Gley's
-            // did in T3 (20261013-191420, ride 1: 300 s at a lane end in the ride car's way).
             var last = sim.sc.Waypoints[route[^1]];
             var laneEnd = g.Successors(route[^1]).Count == 0 && last.GiveWay && !last.InJunction;
             if (laneEnd && target < 0) target = route[^1];
@@ -759,7 +677,6 @@ internal sealed class TrafficSim : ILiveFlags
                 var ri = routeOf[i];
                 var w = route[ri];
                 var spec = sim.sc.Waypoints[w];
-                // Membership, at the front.
                 if (room <= 0f && passed.Add(ri) && spec.Junction >= 0 && sim.junctions.TryGetValue(spec.Junction, out var jn))
                 {
                     if (spec.Enter) jn.Inside.Add(Spec.Id);
@@ -787,7 +704,6 @@ internal sealed class TrafficSim : ILiveFlags
             // the player's car through the trigger alone; following it is the simulation's own, so it doesn't
             // rear-end a ride car it has been behind for a while (the game's cars may: T3 logs who moved).
             ForUs = false;
-            // Its way ahead, in boxes a metre long along its path (Gley turns its trigger with the wheels).
             var reach = Spec.Trigger + V * 1.5f + 4f;
             var n = 0;
             var seg = 1;
@@ -818,8 +734,6 @@ internal sealed class TrafficSim : ILiveFlags
                     else stoppedByCar = otherId;
                     return;
                 }
-                // Following stops it 1.5 m short, inside its trigger (2 m or more): in Gley whatever holds a car
-                // back from the ride car is in its obstacleList.
                 var same = Math.Cos(otherHeading - Heading) > 0.7;
                 if ((!isRide || same) && Approach(0f, gap - 1.5f, 4f) < limit) { limit = Approach(0f, gap - 1.5f, 4f); Why = isRide ? "follow ride" : $"follow {otherId}"; }
             }
@@ -833,9 +747,6 @@ internal sealed class TrafficSim : ILiveFlags
             // wouldn't): the one waiting longest on a standing car moves on through it after a while.
             var blocker = stoppedByCar >= 0 ? sim.cars.FirstOrDefault(o => o.Spec.Id == stoppedByCar) : null;
             if (blockedByCar > 3f && blocker != null && blocker.V < 0.3f && (blocker.blockedByCar > 0f || (blocker.Why != "red" && blocker.Why != "give way")) && (blocker.blockedByCar < blockedByCar || Spec.Id < stoppedByCar)) ignoreCarsUntil = t + 2f;
-            // Gley's StopInDistance: its target speed falls to 0 over TrafficDriver.TriggerStopMetres from when the
-            // trigger caught something, and the speed follows the target each step (review round 3, V2; before, 8 m/s²
-            // whatever the speed).
             if (stopNow)
             {
                 if (stopLeft < 0f) { stopLeft = TrafficDriver.TriggerStopMetres; reactLeft = React; }

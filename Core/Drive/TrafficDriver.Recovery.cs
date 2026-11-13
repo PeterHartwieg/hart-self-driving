@@ -14,8 +14,6 @@ namespace DrivenRides.Core.Drive
             return null;
         }
 
-        // Layer 3's back-off: start it for a car nose to nose with this one, keep it up until the ride car's body is
-        // clear of that car's trigger, the car moves, MaxBackOff is used up or there is no room behind.
         private void Back(in TrafficSnapshot s, TrafficDecision d, int candidate)
         {
             if (backingFrom < 0 && candidate >= 0 && HasRoomBehind(s))
@@ -41,12 +39,6 @@ namespace DrivenRides.Core.Drive
         }
 
 
-        // Standing with the body in the way of a car coming (with the margins round it), where standing isn't safe for
-        // that car braking with its own brakes (TriggerBrake after TriggerReactCautious: before the point of no return
-        // the quick stop isn't counted on), and it can back out of its way before the car is there: it backs out
-        // (review round 8: the ride car stopped for a car in the far lane with its nose in the near lane, as a car came
-        // into that lane; T0 crossing). It keeps backing until out of the car's way by BackOffClear, MaxBackOff back, or
-        // the car is past.
         private void LaneBack(in TrafficSnapshot s, TrafficDecision d, bool standing)
         {
             if (laneBackFrom < 0)
@@ -58,13 +50,10 @@ namespace DrivenRides.Core.Drive
                     if (!moving.Contains(c.Id) || heldFor.Contains(c.Id)) continue;
                     corridor.Build(graph, c, s.Flags, MaxHorizon, SweepMetres, roadHeld, SpeedingUp(c.Id), LeaderOf(c, s.Cars), Cruising(c.Id));
                     if (!corridor.Covers(poses[0].Grown(SideMargin, EndMargin), out var ua, out _, out var sin, out var cos) || ua <= 0f) continue;
-                    // Only one coming across its way: not one going its way (it follows the ride car) nor one coming at it
-                    // head-on (the stand-off is backing off from a car standing for it, and the planner's).
                     if (Math.Abs(sin * poses[0].Sin + cos * poses[0].Cos) > 0.64f) continue;
                     if (StaysBehind(c, 0f, ua, null, null, 0, false)) continue;
                     var backOutMetres = BackOutDistance();
                     if (backOutMetres < 0f) continue;
-                    // Time to back out at BackOffMs, with a second to set off and stop, against the car's arrival.
                     if (backOutMetres / BackOffMs + 1f >= corridor.Reach(ua)) continue;
                     if (!PathBehindFree(s, backOutMetres + BackOffClear)) continue;
                     laneBackFrom = c.Id;
@@ -87,14 +76,6 @@ namespace DrivenRides.Core.Drive
             d.BackOffFrom = laneBackFrom;
         }
 
-        // A stand-off (review round 10: T3 ride 18, a car turning across the ride car's way waited with the ride car in
-        // its trigger while the ride car waited behind it, until Gley's car crept into it): the ride car standing
-        // StandOffSeconds and a car ahead in its way that waits for it (the ride car in its trigger, as Gley reports
-        // it) standing as long. The ride car gives it room: it backs off while the car waits for it (or did within
-        // StandOffClear: the trigger's reading comes and goes as the bodies move) or its body is in the car's way, the
-        // way behind free, up to MaxBackOff. It stays where it is until the car's body is out of its way for
-        // StandOffRoom on, StandOffHold at most. Again for the same car only once that has come StandOffMoved on: one
-        // that doesn't go when given room waits for something else.
         private void StandOff(in TrafficSnapshot s, TrafficDecision d, bool standing, float along)
         {
             if (standing) { if (rideStoodSince < 0f) rideStoodSince = now; }
@@ -110,9 +91,6 @@ namespace DrivenRides.Core.Drive
                     if (!c.StoppedForUs || moving.Contains(c.Id)) continue;
                     if (standOffGiven.TryGetValue(c.Id, out var was) && (c.X - was.X) * (c.X - was.X) + (c.Z - was.Z) * (c.Z - was.Z) < StandOffMoved * StandOffMoved) continue;
                     if (!standingSince.TryGetValue(c.Id, out var since) || now - since < StandOffSeconds) continue;
-                    // Only one ahead in the ride car's way (its body or its trigger, which the ride car keeps out of),
-                    // so each waits for the other and backing off gives it room: not one queued behind it (a U-turn's
-                    // way comes back past that one).
                     if (!Before(c, poses[0])) continue;
                     var way = FirstZoneTouch(BodyOf(c), TriggerOf(c), 0.3f, 0);
                     if (way < 0 || rearAt[way] - along > StandOffRoom) continue;
@@ -131,9 +109,6 @@ namespace DrivenRides.Core.Drive
             var touch = FirstTouch(BodyOf(o), GroundMargin, 0);
             if (!waits && (touch < 0 || rearAt[touch] - along > StandOffRoom)) { standOffFrom = -1; return; }
             var backed = (float)Math.Sqrt((s.RearX - standOffX) * (s.RearX - standOffX) + (s.RearZ - standOffZ) * (s.RearZ - standOffZ));
-            // Out of its trigger is not out of its way: a car turning across sweeps wider than its trigger reaches
-            // (T3 ride 18, in the simulation: it set off once the trigger was clear and cut the corner into the ride
-            // car's front). So also out of its way on along the lanes, with the margins and BackOffClear.
             corridor.Build(graph, o, s.Flags, MaxHorizon, SweepMetres, roadHeld, true, LeaderOf(o, s.Cars));
             var inWay = corridor.Covers(poses[0].Grown(SideMargin + BackOffClear, EndMargin + BackOffClear), out var ua, out _, out _, out _) && ua > 0f;
             if ((waits || inWay) && backed < MaxBackOff && PathBehindFree(s, SweepStep))
@@ -146,8 +121,6 @@ namespace DrivenRides.Core.Drive
             Gap(d, 0, along, o.Id);
         }
 
-        // How far back the body is out of the corridor built last (with the margins and BackOffClear), or -1 if not
-        // within MaxBackOff.
         private float BackOutDistance()
         {
             var p = poses[0];
@@ -160,8 +133,6 @@ namespace DrivenRides.Core.Drive
             return -1f;
         }
 
-        // The way back, `metres` from where the body stands, is free: nothing the adapter sees behind (parked cars,
-        // people) and no traffic car's body on it (review round 9).
         private bool PathBehindFree(in TrafficSnapshot s, float metres)
         {
             if (s.GapBehind is float g && g < metres) return false;
@@ -185,16 +156,12 @@ namespace DrivenRides.Core.Drive
             return room;
         }
 
-        // Gley turns a car's trigger with its wheels (UpdateTriggerJob): along a bend the trigger follows its way, not
-        // its heading. The body is in it if the car's way covers it within the trigger's length (and BackOffClear).
         private bool InTurnedTrigger(in OtherCar c, in TrafficSnapshot s)
         {
             corridor.Build(graph, c, s.Flags, 1f, c.TriggerLength + BackOffClear + 2f, roadHeld);
             return corridor.Covers(poses[0].Grown(BackOffClear, BackOffClear), out var ua, out _, out _, out _) && ua <= c.TriggerLength + BackOffClear;
         }
 
-        // Room to back off: nothing the adapter sees behind (parked cars, people) and no traffic car's body within
-        // RoomBehind of the ride car's rear.
         private bool HasRoomBehind(in TrafficSnapshot s)
         {
             if (s.GapBehind is float g && g < RoomBehind) return false;
@@ -211,8 +178,6 @@ namespace DrivenRides.Core.Drive
             return true;
         }
 
-        // Standing close behind a traffic car that won't move: the way is blocked (NwhDrive gives the step up, so the
-        // planner can go round it, as for a parked car).
         private void Stuck(in TrafficSnapshot s, TrafficDecision d, bool standing)
         {
             if (!standing || !(d.GapAhead is float gap) || gap > PursuitDriver.StopGap + 2f || d.GapFor < 0 || heldFor.Contains(d.GapFor)) return;

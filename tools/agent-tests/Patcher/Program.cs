@@ -46,7 +46,6 @@ Rewrite("HGPlugins.dll", module =>
 {
     var steam = module.GetType("SteamAPI");
     Prefix(Method(steam, "Awake"), Import(module, "Initialize"));
-    // Ownership/DLC are verified by a separate, short-lived installer helper. The player stays offline.
     var init = Method(steam, "InitSteam");
     Reset(init); init.Body.GetILProcessor().Emit(OpCodes.Ldarg_0);
     init.Body.GetILProcessor().Emit(OpCodes.Ldc_I4_0);
@@ -102,7 +101,6 @@ Rewrite("FoodTrucks.dll", module =>
     Prefix(start, Import(module, "Initialize"));
     Prefix(Method(module.Types.Single(t => t.Name == "TestBridgePump"), "Update"), Import(module, "Tick"));
     var health = Method(type, "HealthJson");
-    // Retarget any branch to a return through the annotation call as well.
     foreach (var ret in health.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
     {
         ret.OpCode = OpCodes.Call; ret.Operand = Import(module, "Health");
@@ -121,7 +119,6 @@ Rewrite("FoodTrucks.dll", module =>
             Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Ldarg_1),
             Instruction.Create(OpCodes.Call, Import(module, "Intercept")), Instruction.Create(OpCodes.Dup),
             Instruction.Create(OpCodes.Brfalse, firstCall), Instruction.Create(OpCodes.Ret) }) il.InsertBefore(firstCall, instruction);
-        // The null interception result remains on the stack on the original path.
         var pop = Instruction.Create(OpCodes.Pop); il.InsertBefore(firstCall, pop);
         call.Body.Instructions.First(i => i.OpCode == OpCodes.Brfalse && i.Operand == firstCall).Operand = pop;
         var queue = call.Body.Instructions.Single(i => i.Operand is MethodReference m && m.DeclaringType.Name == "TestBridgePump" && m.Name == "Run");

@@ -10,8 +10,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // A snapshot of Gley's waypoint graph for the route planner, built once per city scene. Live state
-    // (temporaryDisabled) is read from the waypoints during each search, so the snapshot never goes stale.
     internal static class GleyGraph
     {
         private static CurrentSceneData? scene;
@@ -21,7 +19,6 @@ namespace DrivenRides
         public static LaneGraph? Graph => Ensure() ? graph : null;
         public static Waypoint[]? Waypoints => Ensure() ? waypoints : null;
 
-        // Steps found blocked in the world (a barricade, a median), kept for the session: they don't move.
         private static readonly HashSet<(int, int)> blockedSteps = new HashSet<(int, int)>();
         public static bool IsBlockedStep(int from, int to) => blockedSteps.Contains((from, to));
         public static void BlockStep(int from, int to) => blockedSteps.Add((from, to));
@@ -42,8 +39,6 @@ namespace DrivenRides
 
         public static Vec3 ToVec(Vector3 v) => new Vec3(v.x, v.y, v.z);
 
-        // Test mode (TestMode) writes the lane graph once per graph size to the game's data folder, for route analysis away
-        // from the game: <LocalLow>/Hovgaard Games/Big Ambitions/DrivenRides/lane-graph-<count>.json.
         public static string DataFolder => System.IO.Path.Combine(Application.persistentDataPath, "DrivenRides");
 
         private static void Dump(Waypoint[] all, int[][] otherLanes)
@@ -74,7 +69,6 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Lane graph dump: " + ex.Message); }
         }
 
-        // One line per accepted ride (rides.jsonl beside the graph): start, goals and route, for the same analysis.
         public static void DumpRide(int start, IReadOnlyList<Goal> goals, IReadOnlyList<int> route, Vector3 destination)
         {
             try
@@ -88,8 +82,6 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Ride dump: " + ex.Message); }
         }
 
-        // Why a plan found no route: what the start leads to, and how much of the graph and how many goals are
-        // reachable with no filters, with only the disabled filter, and with only the vehicle filter.
         public static string Diagnose(LaneGraph g, int start, IReadOnlyList<Goal> goals, int vehicleType)
         {
             var goalSet = new HashSet<int>();

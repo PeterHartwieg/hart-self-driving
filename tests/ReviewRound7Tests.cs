@@ -9,9 +9,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 7. BB1: a stop for a car is kept until the car has gone by or going on is shown clear with it removed;
-// no stop comes and goes. BB2: nosing in in front of one crawling car must not let every other car off the cautious
-// judgement.
 public sealed class ReviewRound7Tests
 {
     private readonly ITestOutputHelper output;
@@ -23,9 +20,6 @@ public sealed class ReviewRound7Tests
         public bool GiveWayEntry(int waypoint, out int junction, out int road) { junction = road = -1; return false; }
     }
 
-    // The ride car goes north along x = 0 (the line starts at z = -40). Lane A runs east along z = 12 with car A
-    // crawling towards the ride car's way; lane B runs west along z = 26 with car B, slow now but free to speed up to
-    // the road's limit. One decision every 0.04 s at a steady pace.
     private TrafficDecision Decide(bool bFirst, float frontZ, float rideMs, float ax, float bx, float bMs, float laneBZ, out TrafficDriver traffic, float bTrigger = 3f)
     {
         var car = RideCar.Dash;
@@ -45,7 +39,6 @@ public sealed class ReviewRound7Tests
             var t = step * 0.04f;
             var a = new OtherCar { Id = 1, X = ax + 2f * t, Z = 12f, Heading = (float)(Math.PI / 2), Vx = 2f, Length = 4.5f, Width = 1.9f, TriggerLength = 3f,
                 Target = laneA.Where(w => graph.Position(w).X > ax + 2f * t + 2.25f).DefaultIfEmpty(-1).First() };
-            // Car A0 crawls ahead of car A, already past the ride car's way: car A can't speed up past it.
             var a0 = new OtherCar { Id = 3, X = ax + 17f + 2f * t, Z = 12f, Heading = (float)(Math.PI / 2), Vx = 2f, Length = 4.5f, Width = 1.9f, TriggerLength = 3f,
                 Target = laneA.Where(w => graph.Position(w).X > ax + 17f + 2f * t + 2.25f).DefaultIfEmpty(-1).First() };
             var bc = new OtherCar { Id = 2, X = bx - bMs * t, Z = laneBZ, Heading = -(float)(Math.PI / 2), Vx = -bMs, Length = 4.5f, Width = 1.9f, TriggerLength = bTrigger,
@@ -59,13 +52,6 @@ public sealed class ReviewRound7Tests
         return d;
     }
 
-    // Standing short of lane A, the ride car noses in in front of crawling car A (car A0 ahead of it, so it can't speed
-    // up). Car B on lane B, 6 m from lane A, comes at 6 m/s: nosing in in front of car A must not let car B off (BB2);
-    // the stop short of B's way stays, whichever order the cars come in. Round 9: with the narrower gaps
-    // (TrafficMargins) the lenient and cautious judgements meet for car B, so the stop may be either's. Since 0.1.110 a
-    // car whose trigger stops it short is gone on in front of (TrafficDriver.StopsForUs): car B's trigger here is too
-    // short to stop it (1 m). With the faster passing pace and shorter headway, B at 40 m can now be cleared;
-    // at 35 m it must still be given way to, independently of the decision to nose in in front of A.
     [Theory]
     [InlineData(false, 35f, true)]
     [InlineData(true, 35f, true)]
@@ -83,8 +69,6 @@ public sealed class ReviewRound7Tests
         else Assert.NotEqual(2, d.YieldFor);
     }
 
-    // The same with car B's trigger as Gley's (3.6 m past its bumper): it stops for the ride car, so the ride car noses
-    // in and goes on across lane B too, without a stop for it.
     [Theory]
     [InlineData(false, 35f)]
     [InlineData(true, 40f)]
@@ -95,12 +79,6 @@ public sealed class ReviewRound7Tests
         Assert.NotEqual(2, d.YieldFor);
     }
 
-    // BB1: runs whose stop came and went before (T0, through the simulated car's pedals): priority 41 gave way to an
-    // oncoming car every third decision, the U-turns and the merge (3; round 7 used 5, which now loses the option at
-    // its first stop, counted in the soak since round 8) lifted a cautious stop and imposed it again a
-    // moment later, and the head-on run lost a far car's stop every other decision. Now no stop is imposed again
-    // within a second of the last with nothing holding the car in between, and the car can stop short of the car's
-    // way at every decision a stop is imposed, through every lift (TrafficSim's OptionLost, metres short at HardDecel).
     [Theory]
     [InlineData("uturn", 2)]
     [InlineData("uturn", 11)]
@@ -116,8 +94,6 @@ public sealed class ReviewRound7Tests
         Assert.True(r.OptionLost <= 0f, $"short of the way by {r.OptionLost:0.00} m");
     }
 
-    // Priority 41's flicker came from the sweep's poses sliding with the car: a body grazing an oncoming car's way
-    // between two poses was found one decision in three. Now it is found at every decision, or the stop is kept.
     [Fact]
     public void AGrazeBetweenTwoPosesIsFoundEveryTime()
     {
@@ -129,12 +105,6 @@ public sealed class ReviewRound7Tests
         Assert.True(r.ApproachesAgain <= 1, $"{r.ApproachesAgain} stops imposed again");
     }
 
-    // BB6: a cautious stop is handed to the driver at the way itself (round 9: the stopping reserve, StopUncertainty
-    // and twice the brakes' latency travel short of it, went; the driver's braking by the distance left keeps it).
-    // Driven through pedals that act a tenth of a second late, from every distance between where the car could only just stop at HardDecel after the
-    // latency and where the stop needs no more than Decel, handed the stop as TrafficDriver hands it each decision: the
-    // front stands short of the way every time. (Round 6 also clamped the stop to no nearer than a HardDecel stop;
-    // recomputed each decision, the clamp ran ahead of the car to the way, or past it.)
     [Theory]
     [InlineData(6f)]
     [InlineData(9f)]
@@ -158,7 +128,6 @@ public sealed class ReviewRound7Tests
             {
                 var front = z + car.FrontAhead;
                 var stop = way;
-                // Where round 6's clamp would have set it.
                 clamped |= front + v * TrafficDriver.BrakeLatency + v * v / (2f * PursuitDriver.HardDecel) > stop + 0.01f;
                 var o = driver.Step(new DriveInput { RearX = 0f, RearZ = z, Heading = 0f, SpeedMs = v, Dt = dt, YieldAlong = stop });
                 throttle += (o.Throttle - throttle) * dt / 0.1f;

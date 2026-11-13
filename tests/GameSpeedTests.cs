@@ -6,12 +6,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Phase 5, 2x and 3x ride speed: the ride sets Time.timeScale and leaves fixedDeltaTime alone, so the driver and the
-// traffic rules see the same physics step at any speed (the simulation's Dt), and a rendered frame runs more of them.
-// The decisions themselves don't change with speed; what does is their cost per frame. This measures it on the T0
-// templates and the in-game dumps: each decision's cost, taken in sequence, summed over the physics steps a 60 fps
-// frame holds at 1x, 2x and 3x (the game decides every step; the simulation every DecideEvery steps, so its samples
-// stand in for consecutive steps).
 [Collection(nameof(DecideCostTests))]
 public sealed class GameSpeedTests
 {
@@ -47,7 +41,6 @@ public sealed class GameSpeedTests
         }
     }
 
-    // The decisions in sequence, grouped into frames of speed * FrameSeconds of physics time each.
     private static List<float> PerFrame(List<float> decisions, float speed)
     {
         var frames = new List<float>();

@@ -14,8 +14,6 @@ public sealed class ManoeuvreTests
     [InlineData(-1f)]
     public void PullsOutOfAGapTooShortForOneFullSearchPrimitive(float mirror)
     {
-        // Reduced from the headless departure replay: every initial 0.96 m rollout hit a parked car,
-        // although 0.56-0.80 m of each rollout was clear. The previous search exhausted its root node.
         var car = new CarSpec("tight gap", 2.665f, _ => 35, new Vec3(0, 0.782f, 1.199f),
             new Vec3(0.897f, 0.578f, 2.461f), 70, 1.504f, 140);
         var start = new CarPose(0, 0, MathF.PI);
@@ -147,8 +145,6 @@ public sealed class ManoeuvreTests
     [InlineData(-177.32f, 458.60f, 1.5707963f, -179.69f, 455.87f)]
     public void ParkingStartsByPullingAheadOfAStoppedFollower(float x, float z, float heading, float gx, float gz)
     {
-        // In-game arrival: the rear axle stopped 2.38 m beyond the space, with a car close behind.
-        // Reversing straight away deadlocked against that follower before entering the space.
         var car = new CarSpec("vord", 2.665f, _ => 35f, new Vec3(0, 0.8f, 1.199f),
             new Vec3(0.897f, 0.8f, 2.461f), 50, 1.504f, 140);
         var start = new CarPose(x, z, heading);
@@ -207,7 +203,6 @@ public sealed class ManoeuvreTests
         {
             var pose = new CarPose((float)model.X, (float)model.Z, (float)model.Heading, (float)model.Speed, (float)model.Steer);
             var o = driver.Step(pose, false);
-            // Independent longitudinal plant: throttle has a dead zone and cannot be replaced by Desired.
             var speed = Math.Abs(model.Speed);
             speed = Math.Max(0, speed + ((o.Throttle - 0.12f) * 4 - speed * 0.2f - o.Handbrake * 6) * 0.02f);
             Assert.InRange(speed, 0, 1.1f);

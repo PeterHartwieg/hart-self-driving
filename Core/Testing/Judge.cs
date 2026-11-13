@@ -18,7 +18,6 @@ namespace DrivenRides.Core.Testing
         // road and pavement are one flat collider, only the pedestrians' NavMesh tells them apart). Set, it replaces
         // the geometric kerb estimate (Pavement), which stays for T1 offline.
         public Func<Vec3, bool>? PavementAt { get; set; }
-        // Raised with the step and what, when the car is found on the pavement (the rig records it in its samples).
         public Action<int, string>? OnPavement { get; set; }
         // The footprint's corners are pulled this far inward before they are sampled, as the pedestrian ground the
         // game marks runs up to a lane's edge in places (a promenade by the pier, measured 0.5 m from a lane centre).
@@ -39,8 +38,6 @@ namespace DrivenRides.Core.Testing
             pavement = Stretches();
         }
 
-        // A ride planned again on the way (its car found a step blocked): the rest of it is judged on the new route,
-        // which runs as the old one did up to where the car left it. Gates passed and what was found stay.
         public void Reroute(CaseGeometry geometry, Fixture fixture)
         {
             this.geometry = geometry;
@@ -52,15 +49,10 @@ namespace DrivenRides.Core.Testing
         {
             plain.Clear();
             exitRoad.Clear();
-            // The pavement past the manoeuvre (the whole route for a ride or a ramp).
             var pavement = new Pavement(graph, fixture.Route, fixture.Manoeuvre == CaseKind.Turn || fixture.Manoeuvre == CaseKind.UTurn ? fixture.EntryIndex + 1 : 0);
-            // Lane stretches only: an added turn's or a lane change's step is a chord across lanes, not a lane.
             for (int k = 0; k + 1 < fixture.Route.Count; k++)
                 if (!graph.IsIntersection(fixture.Route[k]) && !graph.IsIntersection(fixture.Route[k + 1]) && Has(graph.Successors(fixture.Route[k]), fixture.Route[k + 1]))
                     plain.Add(new LaneStretch(graph, geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1], k) { Min = -1f, Max = Vec3.HorizontalDistance(geometry.RoutePolyline[k], geometry.RoutePolyline[k + 1]) + 1f });
-            // The oncoming lanes of the road turned into, from its mouth on: inside the junction a correct left turn
-            // sweeps across them, and a U-turn's own approach lanes are that road's oncoming lanes (the far-side check
-            // covers U-turns).
             if (fixture.Manoeuvre != CaseKind.Turn) return pavement;
             float length = 0;
             for (int k = fixture.ExitIndex; k + 1 < fixture.Route.Count && length < 25f; k++)
@@ -88,7 +80,6 @@ namespace DrivenRides.Core.Testing
         public void Add(Sample s)
         {
             bool newGate = false;
-            // A car loaded on the entry waypoint (no run-up) starts with its front axle just past the gate.
             if (!hasPrevious && nextGate == 0)
             {
                 Gate first = geometry.Gates[0];
@@ -119,7 +110,6 @@ namespace DrivenRides.Core.Testing
                     result.GatesPassed.Add(gate.Name);
                     newGate = true;
                     if (gate.Name == "entry") { entered = true; result.EntrySpeed = s.SpeedMs; }
-                    // A ride is judged on to its arrival (Arrive); its gates only mark the way.
                     if (gate.Name == "last" && !RideToItsEnd)
                     {
                         Finished = true;
@@ -138,9 +128,6 @@ namespace DrivenRides.Core.Testing
                 if (s.NearMiss <= 0.1f) Fail(s.Step, "near-miss");
             }
             Plain(s);
-            // Each time a corner of the footprint has moved PavementEvery metres (the planner's check simulates at 50
-            // steps a second, review round 1; measured at the corners, which swing round a slow turn much farther than
-            // the centre moves, review round 2).
             if (!Finished && s.Footprint != null && !result.Reasons.Contains("pavement") && CornersMoved(s.Footprint))
             {
                 if (pavementCorners == null || pavementCorners.Length != Math.Min(4, s.Footprint.Length)) pavementCorners = new Vec3[Math.Min(4, s.Footprint.Length)];
@@ -183,9 +170,7 @@ namespace DrivenRides.Core.Testing
             foreach (LaneStretch stretch in plain)
             {
                 if (stretch.Index != best) continue;
-                // Off either end (behind the route's start, past a stretch's end) the distance says nothing.
                 if (within) result.PlainDeviationMax = Math.Max(result.PlainDeviationMax, distance);
-                // During a turn only the receiving road is checked: crossing the approach road's oncoming lane is legal.
                 if (!entered || Finished || stretch.Index >= fixture.ExitIndex || (fixture.Manoeuvre != CaseKind.Turn && fixture.Manoeuvre != CaseKind.UTurn))
                     PlainIntrusion(s, stretch);
                 break;
@@ -255,7 +240,6 @@ namespace DrivenRides.Core.Testing
             }
         }
 
-        // A pavement finding recorded by the game (a samples file's P line), for rejudging.
         public void OnThePavement(int step, string what)
         {
             if (result.Reasons.Contains("pavement")) return;
@@ -264,8 +248,6 @@ namespace DrivenRides.Core.Testing
             OnPavement?.Invoke(step, what);
         }
 
-        // A footprint corner, pulled PavementInset inward, on pedestrian ground and not within half a lane of any
-        // lane (crosswalks are pedestrian ground too, and lie on the lanes).
         private string? OnPedestrianGround(Sample s) => Testing.Pavement.CornerOnPavement(graph, s.Footprint, s.Centre, PavementAt!, (corner, distance) =>
         {
             if (distance <= result.JunctionPavementMetres) return;
@@ -273,10 +255,6 @@ namespace DrivenRides.Core.Testing
             result.JunctionPavement = FormattableString.Invariant($"step {s.Step}: a corner on pedestrian ground at ({corner.X:0.0}, {corner.Z:0.0}), {distance:0.0} m from the nearest lane, in a junction's box");
         });
 
-        // A ride has arrived (the driver stopped at the end of its line): it passes if it went through its gates and
-        // stands in its lane, its middle within 1 m of the route and its heading within ArrivalHeading of the route's
-        // direction there, the local tangent of a bend if it ends in one (review round 1: the finish had moved to a
-        // straight stretch before a terminal bend, which then went unjudged).
         public const float ArrivalHeading = 15f;
         private bool CornersMoved(Vec3[] footprint)
         {
@@ -318,7 +296,6 @@ namespace DrivenRides.Core.Testing
             Fail(step, "contact");
         }
         public void Incident(int step, string what) => result.Incidents.Add(step + ": " + what);
-        // A failure found outside the judge (the feasibility check's carriageway and lane rules).
         public void Reject(int step, string reason, string what)
         {
             result.Incidents.Add(step + ": " + what);

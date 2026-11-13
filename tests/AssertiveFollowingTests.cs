@@ -8,8 +8,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Shorter moving gaps must work through the actual pedal outputs, including lag, when the leader brakes.
-// CarModel alone follows Desired directly and cannot expose a car coasting through a shrinking gap.
 public sealed class AssertiveFollowingTests
 {
     private readonly ITestOutputHelper output;
@@ -44,7 +42,6 @@ public sealed class AssertiveFollowingTests
         for (var step = 0; step < 4500; step++)
         {
             var time = step * dt;
-            // A steady stream, then ordinary traffic braking to a standstill at 4 m/s².
             if (time >= 65f) leaderSpeed = Math.Max(0f, leaderSpeed - 4f * dt);
             leaderRear += leaderSpeed * dt;
             cars[0].Z = leaderRear + length / 2f;

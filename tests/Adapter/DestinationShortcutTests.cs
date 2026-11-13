@@ -115,7 +115,7 @@ public sealed class DestinationShortcutTests
     public void RebindingDisablingAndDuplicateBindingsAreHandled()
     {
         SaveGameManager.Current.customDestination = shop;
-        Options.PinnedKey = 4; // U
+        Options.PinnedKey = 4;
         Press(Key.J);
         Assert.Empty(taxi.Trips);
         Press(Key.U);
@@ -189,7 +189,7 @@ public sealed class DestinationShortcutTests
         VehicleHelper.Current = new();
         OwnCarTaxi.Refuse = change == "refused";
         Press(Key.J);
-        if (change != "refused") Press(Key.J); // Pending request cannot queue another trip.
+        if (change != "refused") Press(Key.J);
         Assert.Empty(taxi.Trips);
         switch (change)
         {

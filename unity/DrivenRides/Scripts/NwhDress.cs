@@ -15,14 +15,8 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // A drivable car dressed as a traffic car that has no drivable twin (Peter, 13 October 2026: the taxi gets a
-    // drivable model, built as a re-skin). The drivable car closest in size is the donor and keeps its physics,
-    // colliders and wheels; its renderers are hidden, and a visual-only copy of the traffic model (no colliders, no
-    // scripts) sits on it, with the traffic wheels on NWH's wheel visuals so they spin,
-    // steer and ride the suspension. The prefabs can't be read offline, so everything is measured here and logged.
     internal static class NwhDress
     {
-        // A car's size in its own frame, from its meshes and its wheels.
         public sealed class Shape
         {
             public float Length, Width, Height, Wheelbase, Track, WheelRadius;
@@ -44,15 +38,11 @@ namespace DrivenRides
         private static readonly System.Reflection.FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
         private static readonly System.Reflection.FieldInfo? EngineSourceField = AccessTools.Field(typeof(EngineSoundComponent), "audioSource");
         private static readonly System.Reflection.FieldInfo? MasterVolumeField = AccessTools.Field(typeof(TrafficVehicles), "masterVolume");
-        // By traffic prefab name; null when no drivable car fits.
         private static readonly Dictionary<string, Donor?> donors = new Dictionary<string, Donor?>();
         private static readonly HashSet<string> partsLogged = new HashSet<string>();
 
-        // The wheels are placed on NWH's; a difference over this is reported as a mismatch.
         private const float Tolerance = 0.15f;
 
-        // The drivable car closest in size to a traffic prefab, picked once per prefab. Its physics, steering and body
-        // box are what the driver and the planner use.
         public static Donor? DonorFor(GameObject? trafficPrefab, out string why)
         {
             why = "";
@@ -80,7 +70,6 @@ namespace DrivenRides
                         if (shape == null || candidates.Any(c => c.TypeName == type.vehicleTypeName)) continue;
                         candidates.Add(new Donor { TypeName = type.vehicleTypeName, Drivable = shape, Look = look, Score = Score(shape, look) });
                     }
-                // Same number of wheels if any has it (a four-wheeled taxi on a four-wheeled car).
                 var same = candidates.Where(c => c.Drivable.Wheels == look.Wheels).ToList();
                 best = (same.Count > 0 ? same : candidates).OrderBy(c => c.Score).FirstOrDefault();
                 Log.Trace($"Dress donor for {key} ({look}): {(best != null ? NwhCar.Id(best.TypeName) : "none")}, {watch.ElapsedMilliseconds} ms. Candidates by score: " +
@@ -96,7 +85,6 @@ namespace DrivenRides
             return best;
         }
 
-        // The wheels count most: they are put on the donor's, so a wheelbase or track difference shows at the arches.
         private static float Score(Shape drivable, Shape look) =>
             2f * Mathf.Abs(drivable.Wheelbase - look.Wheelbase) + 1.5f * Mathf.Abs(drivable.Track - look.Track) +
             Mathf.Abs(drivable.Length - look.Length) + Mathf.Abs(drivable.Width - look.Width) +
@@ -144,8 +132,6 @@ namespace DrivenRides
             Wheels = wheels.Count, WheelRadius = radius,
         };
 
-        // An NWH wheel's centre in the car's frame: the wheel controller's x and z (NWH keeps the visual under it,
-        // Wheel.Initialize) and the visual's height as the car was built.
         private static Vector3 NwhCentre(Transform root, WheelUAPI wheel)
         {
             var at = root.InverseTransformPoint(wheel.transform.position);
@@ -154,7 +140,6 @@ namespace DrivenRides
             return at;
         }
 
-        // Gley's own radius for a traffic wheel, or its meshes' if that is unset.
         private static float TrafficRadius(Transform wheel, float gleyRadius)
         {
             if (gleyRadius > 0.05f) return gleyRadius;
@@ -162,7 +147,6 @@ namespace DrivenRides
             return b != null ? Mathf.Max(b.Value.extents.y, b.Value.extents.z) : 0.33f;
         }
 
-        // Builds the dress on a stripped NWH car that hasn't woken yet. Null when done, else why not.
         public static string? Dress(NwhCar car, GameObject trafficPrefab, Donor donor)
         {
             var watch = Stopwatch.StartNew();
@@ -175,7 +159,6 @@ namespace DrivenRides
                 copy.name = "DrivenRides.Look." + trafficPrefab.name;
                 var gley = copy.GetComponent<VehicleComponent>();
                 if (gley == null) return "the traffic prefab has no Gley VehicleComponent";
-                // Read before the scripts go: Instantiate points the copy's references at the copy's own parts.
                 var trafficWheels = new List<(Transform Graphics, float Radius)>();
                 if (gley.allWheels != null)
                     foreach (var w in gley.allWheels)
@@ -186,21 +169,18 @@ namespace DrivenRides
                 var lightsSettings = gleyLights != null
                     ? new DressLights.Settings { BlinkerSpeed = gleyLights.blinkerSpeed, BlinkerOffset = UnityEngine.Random.Range(gleyLights.blinkerOffset.x, gleyLights.blinkerOffset.y), Brake = gleyLights.brakeLightBrightness, Reverse = gleyLights.reverseLightBrightness }
                     : null;
-                // The engine sound: Gley's clip on the traffic model's own AudioSource, which stays on the copy.
                 var gleyEngine = copy.GetComponent<EngineSoundComponent>();
                 var engineSource = gleyEngine != null ? EngineSourceField?.GetValue(gleyEngine) as AudioSource ?? gleyEngine.GetComponent<AudioSource>() : null;
                 var engineSettings = gleyEngine != null && engineSource != null && engineSource.clip != null
                     ? new DressEngine.Settings
                     {
                         MinPitch = gleyEngine.minPitch, MaxPitch = gleyEngine.maxPitch, MinVolume = gleyEngine.minVolume, MaxVolume = gleyEngine.maxVolume,
-                        // Gley gives each car a top speed between these when it is spawned (VehicleComponent.ActivateVehicle).
                         TopKmh = (gley.minPossibleSpeed + gley.maxPossibleSpeed) / 2f,
                         Master = TrafficManager.HasInstance && TrafficVehiclesField?.GetValue(TrafficManager.Instance) is TrafficVehicles pool && MasterVolumeField?.GetValue(pool) is float master ? master : 1f,
                     }
                     : null;
                 var stripped = StripToLook(copy, engineSettings != null ? engineSource : null);
 
-                // The donor's own meshes are hidden; its colliders and wheel physics stay as they are.
                 var hidden = 0;
                 foreach (var r in car.Root.GetComponentsInChildren<Renderer>(true))
                     if (r.enabled) { r.enabled = false; hidden++; }
@@ -214,7 +194,6 @@ namespace DrivenRides
                 var allRenderers = copy.GetComponentsInChildren<Renderer>(true);
                 var lods = copy.GetComponentsInChildren<LODGroup>(true).Length;
 
-                // Line the copy up on the donor's wheels: the axles' middle and the wheels' centre height.
                 var nwhWheels = new List<(WheelUAPI Wheel, Transform Visual, Vector3 Centre)>();
                 foreach (var w in car.Vehicle.powertrain.wheels)
                 {
@@ -228,17 +207,12 @@ namespace DrivenRides
                 if (lookMiddle != null && nwhMiddle != null) shift = nwhMiddle.Value - lookMiddle.Value;
                 else
                 {
-                    // No wheels to go by: the body's middle on the donor's body box, its bottom on the ground under it.
                     var body = MeshBounds(root, allRenderers, shadow) ?? new Bounds();
                     var ground = car.BodyCentre.y - car.BodyHalf.y;
                     shift = new Vector3(car.BodyCentre.x - body.center.x, ground - body.min.y, car.BodyCentre.z - body.center.z);
                 }
                 copy.transform.localPosition = shift;
 
-                // Each NWH wheel takes the traffic wheel on its corner. NWH turns the visual to its wheel controller's
-                // rotation times steer and spin (WheelController.cs:937-953); Gley turns a wheel's graphics to its
-                // parent's rotation times spin and steer (UpdateWheelJob.cs:67-71). So a holder under the visual gets
-                // the traffic wheel's rest frame, and the wheel sits in it at rest.
                 var mapping = new List<string>();
                 var mismatches = new List<string>();
                 var used = new HashSet<int>();
@@ -261,11 +235,9 @@ namespace DrivenRides
                     used.Add(pick);
                     var (graphics, lookRadius) = trafficWheels[pick];
                     var placed = lookCentres[pick] + shift;
-                    // The traffic wheel is scaled to the NWH wheel's radius so it touches the ground the physics uses.
                     var radius = wheel.Radius;
                     var wanted = lookRadius > 0.01f ? radius / lookRadius : 1f;
                     var factor = Mathf.Clamp(wanted, 0.8f, 1.25f);
-                    // Out along the axle to the traffic car's own track (an offset along the spin axis doesn't wobble).
                     var outward = Mathf.Clamp(placed.x - centre.x, -0.3f, 0.3f);
                     var restRotation = wheel.transform.rotation;
                     var wheelHolder = new GameObject("DrivenRides.LookWheel").transform;
@@ -290,8 +262,6 @@ namespace DrivenRides
                 for (var k = 0; k < trafficWheels.Count; k++)
                     if (!used.Contains(k)) { mapping.Add($"{trafficWheels[k].Graphics.name} left on the body"); mismatches.Add(trafficWheels[k].Graphics.name + " has no NWH wheel"); }
 
-                // The lights are one renderer with a property block (VehicleLightsComponent): kept, off but for the
-                // brake and reverse lights.
                 string lightsText;
                 if (lightsRenderer != null && lightsSettings != null)
                 {
@@ -310,7 +280,6 @@ namespace DrivenRides
                 {
                     engineSource.playOnAwake = false;
                     engineSource.loop = true;
-                    // As EngineSoundComponent.Awake does.
                     if (TrafficComponent.Instance != null && TrafficComponent.Instance.engineMixerGroup != null) engineSource.outputAudioMixerGroup = TrafficComponent.Instance.engineMixerGroup;
                     var muted = MuteNwhEngine(car.Vehicle);
                     car.Root.AddComponent<DressEngine>().Begin(car, engineSource, engineSettings);
@@ -321,7 +290,6 @@ namespace DrivenRides
                 }
                 else engineText = "the donor's NWH engine (the traffic model has " + (gleyEngine == null ? "no EngineSoundComponent" : "no engine clip") + ")";
 
-                // Where the look sticks out of the donor's body box (the physics): parts there pass through walls.
                 var lookBody = MeshBounds(root, copy.GetComponentsInChildren<Renderer>(true), shadow);
                 var outside = "";
                 if (lookBody != null)
@@ -360,7 +328,6 @@ namespace DrivenRides
             finally { Object.Destroy(holder); }
         }
 
-        // The donor's engine, exhaust, turbo and gearbox whine sounds, emptied before the car wakes. Returns their names.
         private static string MuteNwhEngine(NwhController vehicle)
         {
             var sound = vehicle.soundManager;
@@ -379,9 +346,6 @@ namespace DrivenRides
             return string.Join(", ", muted);
         }
 
-        // Everything but the meshes goes (and keep, the engine's AudioSource): scripts (Gley's, the game's, the
-        // lights' and the sound's) first, then colliders, the rigidbody, lights, audio and the rest. Some require
-        // others, so a few passes.
         private static string StripToLook(GameObject copy, AudioSource? keep)
         {
             var gone = new SortedDictionary<string, int>();
@@ -401,7 +365,6 @@ namespace DrivenRides
             {
                 var rest = copy.GetComponentsInChildren<Component>(true).Where(c => c != null && !IsLook(c) && c != keep).Reverse().ToList();
                 if (rest.Count == 0) break;
-                // The rigidbody last: joints need it.
                 foreach (var c in rest.Where(c => !(c is Rigidbody))) Remove(c);
                 foreach (var c in rest.Where(c => c is Rigidbody)) if (c != null) Remove(c);
             }
@@ -411,15 +374,12 @@ namespace DrivenRides
 
         private static bool IsLook(Component c) => c is Transform || c is MeshFilter || c is MeshRenderer || c is SkinnedMeshRenderer || c is LODGroup;
 
-        // The middle of the wheels: the axles' middle along the car, their mean across and in height.
         private static Vector3? Middle(List<Vector3> wheels)
         {
             if (wheels.Count == 0) return null;
             return new Vector3(wheels.Average(c => c.x), wheels.Average(c => c.y), (wheels.Max(c => c.z) + wheels.Min(c => c.z)) / 2f);
         }
 
-        // The meshes' box in the root's frame, from the meshes themselves, so it works on a prefab asset and on an
-        // inactive copy. Renderers under leaveOut (Gley's shadow quad) and switched-off parts are left out.
         private static Bounds? MeshBounds(Transform root, IEnumerable<Renderer> renderers, Transform? leaveOut)
         {
             var any = false;
@@ -443,7 +403,6 @@ namespace DrivenRides
             return any ? bounds : (Bounds?)null;
         }
 
-        // Switched on below the root (the root itself may be switched off in a pooled prefab).
         private static bool ActiveUnder(Transform t, Transform root)
         {
             for (var at = t; at != null && at != root; at = at.parent)
@@ -454,11 +413,9 @@ namespace DrivenRides
         private static Vector3 Divide(Vector3 a, Vector3 b) =>
             new Vector3(b.x != 0f ? a.x / b.x : a.x, b.y != 0f ? a.y / b.y : a.y, b.z != 0f ? a.z / b.z : a.z);
 
-        // ---- Looking at one ----
 
         private static NwhCar? shown;
 
-        // The traffic prefab named (a part of its name, or "taxi" for the hailable taxi) from Gley's pool.
         public static GameObject? TrafficPrefab(string which)
         {
             var pool = (TrafficVehiclesField?.GetValue(TrafficManager.Instance) as TrafficVehicles)?.GetVehicleList();
@@ -468,8 +425,6 @@ namespace DrivenRides
             return prefabs.FirstOrDefault(p => p.name.IndexOf(which, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
-        // Ctrl+Alt+Shift+L and the rig's "dress" command: a dressed car parked beside the player, held on its handbrake,
-        // to look at. The one before goes.
         public static void SpawnBeside(string which)
         {
             Remove();
@@ -495,7 +450,6 @@ namespace DrivenRides
             if (spot == null) { Notice.Show("No free spot beside you."); Log.Trace("Dress: no free spot beside the player."); return; }
             var car = NwhCar.SpawnDressed(prefab, spot.Value + Vector3.up * 0.4f, rotation, out why);
             if (car == null) { Log.Trace("Dress: " + why + "."); Notice.Show("Dress failed: " + why); return; }
-            // The spot is for the body's middle, not the prefab's origin.
             car.Root.transform.position -= rotation * new Vector3(car.BodyCentre.x, 0f, car.BodyCentre.z);
             Physics.SyncTransforms();
             car.Root.AddComponent<HoldStill>().Vehicle = car.Vehicle;
@@ -510,7 +464,6 @@ namespace DrivenRides
             shown = null;
         }
 
-        // The highest static surface under a place (a road, a pavement, the ground).
         private static Vector3? Ground(Vector3 near)
         {
             Vector3? best = null;
@@ -519,7 +472,6 @@ namespace DrivenRides
             return best;
         }
 
-        // The car to look at stands on its handbrake (it has no driver; the engine is off).
         private sealed class HoldStill : MonoBehaviour
         {
             public NwhController? Vehicle;
@@ -535,8 +487,6 @@ namespace DrivenRides
         }
     }
 
-    // The traffic model's lights on a dressed car: Gley's VehicleLightsComponent draws them with one renderer's
-    // property block, which this sets from the NWH car's pedals and gear. Headlights and blinkers stay off.
     internal sealed class DressLights : MonoBehaviour
     {
         public sealed class Settings
@@ -544,7 +494,6 @@ namespace DrivenRides
             public float BlinkerSpeed, BlinkerOffset, Brake, Reverse;
         }
 
-        // The shader properties VehicleLightsComponent sets.
         private static readonly int IsBlinkerOn = Shader.PropertyToID("_IsBlinkerOn");
         private static readonly int IsLeftBlinkerOn = Shader.PropertyToID("_IsLeftBlinkerOn");
         private static readonly int IsRightBlinkerOn = Shader.PropertyToID("_IsRightBlinkerOn");
@@ -582,7 +531,6 @@ namespace DrivenRides
         {
             if (vehicle == null || lights == null || block == null || !vehicle.IsInitialized) return;
             var gear = vehicle.powertrain.transmission.Gear;
-            // In reverse NWH's automatic gearbox swaps the pedals (swapInputInReverse): the throttle brakes.
             var braking = (gear < 0 ? vehicle.input.Throttle : vehicle.input.Brakes) > 0.05f;
             var now = (braking ? 1 : 0) | (gear < 0 ? 2 : 0);
             if (now == state) return;
@@ -597,9 +545,6 @@ namespace DrivenRides
 
 namespace DrivenRides
 {
-    // The traffic model's engine sound on a dressed car, as Gley plays it (EngineSoundComponent.UpdateEngineSound):
-    // the car's speed over its top speed sets the volume and the pitch in a straight line. It plays while the NWH
-    // engine runs. Speed, not engine revs: no gear changes in the sound, so it is the same at any rig speed.
     internal sealed class DressEngine : MonoBehaviour
     {
         public sealed class Settings

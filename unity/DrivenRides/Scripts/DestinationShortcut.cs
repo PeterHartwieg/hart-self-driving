@@ -14,7 +14,6 @@ namespace DrivenRides
 {
     internal sealed class DestinationShortcut : MonoBehaviour
     {
-        // Only vanilla's unused letters, excluding L (call driver / open own-car map).
         private static readonly Key[] Keys = { Key.None, Key.G, Key.J, Key.K, Key.U, Key.V, Key.X };
         internal static readonly string[] Labels = { "drivenrides:key_disabled", "drivenrides:key_g", "drivenrides:key_j", "drivenrides:key_k", "drivenrides:key_u", "drivenrides:key_v", "drivenrides:key_x" };
         internal const int DefaultPinnedKey = 2;
@@ -39,7 +38,6 @@ namespace DrivenRides
                 if (Blocked()) return;
                 var map = InstanceBehavior<CityManager>.Instance?.cityMap;
                 if (map == null) return;
-                // A normal browsing/subway map never becomes a taxi map through these keys.
                 if (CityMap.IsOpen ? !map.IsTaxiMode : !VehicleHelper.IsInsideVehicle()) return;
                 if (pinned && home) { Notice.Text("drivenrides:notice_destination_key_conflict"); return; }
                 var target = DestinationTargets.Resolve(home);
@@ -53,10 +51,8 @@ namespace DrivenRides
                     Travel(target);
                     return;
                 }
-                OwnCarTaxi.Open(); // Existing stopped-car, damage, location and enabled checks.
+                OwnCarTaxi.Open();
                 if (!CityMap.IsOpen || !(map.Taxi is OwnCarTaxi own) || own.Car != VehicleHelper.GetCurrentVehicleBase()) return;
-                // Let the map initialise its camera before selecting the destination. Closing it, changing
-                // saves, leaving the car or an interruption cancels this request instead of starting it later.
                 pending = true;
                 StartCoroutine(AfterOpening(map, own, target, SaveGameManager.Current));
             }
@@ -84,7 +80,6 @@ namespace DrivenRides
 
         private static void Travel(CityBuildingController target)
         {
-            // Exactly the map's Go action: vanilla keeps its fare, access checks and existing ride patches.
             InstanceBehavior<TaxiSystem>.Instance.TravelTo(target);
         }
     }

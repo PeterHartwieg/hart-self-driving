@@ -4,7 +4,6 @@ using DrivenRides.Core.Drive;
 
 namespace DrivenRides.Core.Parking
 {
-    // Tracks one signed leg at a time. Road pursuit assumes forward travel and is intentionally not used here.
     public sealed class ManoeuvreDriver
     {
         private readonly CarSpec car;
@@ -16,8 +15,6 @@ namespace DrivenRides.Core.Parking
         public int Direction => plan.Points[Math.Min(cursor + 1, plan.Points.Count - 1)].Direction;
         public int Cursor => cursor;
         public ManoeuvreDriver(CarSpec car, ManoeuvrePlan plan) { this.car = car; this.plan = plan; SetEnd(); }
-        // Check the closed-loop trajectory, including stops and steering changes, before moving a real car.
-        // Empty means the model completed the manoeuvre inside the supplied clearance envelope.
         public static string Validate(CarSpec car, ManoeuvrePlan plan, Func<CarPose, bool> clear, Func<bool>? cancelled = null)
         {
             var start = plan.Points[0].Pose;
@@ -89,8 +86,6 @@ namespace DrivenRides.Core.Parking
                 {
                     hold.SteerDegrees = 0;
                     if (Math.Abs(pose.Wheel) > 3f) return hold;
-                    // A road handoff is checked again by JoinWork against the actual road line. It need not
-                    // meet the precise pose of a parked car, but remains well inside the road join limits.
                     if (ManoeuvrePlan.Distance(pose, plan.Goal) > (plan.RoadEntry ? 0.65f : 0.4f)
                         || Math.Abs(ManoeuvrePlan.Angle(pose.Heading - plan.Goal.Heading)) > (plan.RoadEntry ? 0.18f : 0.1f))
                         Failure = "final parking pose is outside tolerance";
@@ -112,7 +107,6 @@ namespace DrivenRides.Core.Parking
             var chord = 2f * (rx * (float)Math.Cos(reference.Heading) - rz * (float)Math.Sin(reference.Heading)) / Math.Max(0.25f, rx * rx + rz * rz);
             if (ahead > 0.15f)
                 curvature += ManoeuvrePlan.Angle(target.Heading - reference.Heading) / (direction * ahead) - chord;
-            // Invert the same calibrated Ackermann model the search used, in both directions.
             var lo = -car.LockAt(0); var hi = car.LockAt(0);
             for (var i = 0; i < 16; i++)
             {
@@ -120,7 +114,6 @@ namespace DrivenRides.Core.Parking
                 if (car.YawFactor * CarModel.Curvature(mid, car.Wheelbase, car.TrackWidth) < curvature) lo = mid; else hi = mid;
             }
             var steer = (lo + hi) / 2;
-            // Steering gets into position before the first movement or a direction change.
             if (Math.Abs(pose.Speed) < 0.06f && Math.Abs(steer - pose.Wheel) > 8f) { integral = 0; hold.SteerDegrees = steer; return hold; }
             var desired = Math.Min(0.8f, Math.Max(0.12f, toEnd * 0.7f));
             // At parking speed proportional control alone cannot overcome the real tyres' rolling resistance.

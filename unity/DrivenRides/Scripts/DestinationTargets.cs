@@ -1,8 +1,6 @@
 #nullable enable
 namespace DrivenRides
 {
-    // The pinned destination belongs to vanilla. Home is scoped to the currently loaded save object;
-    // nothing is written to saves and a replacement world cannot inherit the previous world's address.
     internal static class DestinationTargets
     {
         private static GameInstance? owner;

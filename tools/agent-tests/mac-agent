@@ -66,7 +66,6 @@ def resources():
 def start(mode='headless'):
     with lifecycle():
         if process():raise RuntimeError('Mac rig is already running')
-        # An unknown process at this exact executable also blocks startup (e.g. lost receipt).
         listing=subprocess.check_output(['ps','-axo','comm='],text=True)
         if str(EXE) in listing.splitlines():raise RuntimeError('Untracked Mac rig process exists; inspect it before starting')
         import socket

@@ -32,7 +32,6 @@ public sealed class DepartureTests
         var start = new CarPose(12, 0, facing * MathF.PI / 2);
         var goal = new CarPose(0, 12, 0);
         var world = new ManoeuvreSpace {MinX=-8, MaxX=22, MinZ=-15, MaxZ=30};
-        // Model body centres differ for nose-in and backed-in parking; leave the same physical neighbouring bays.
         world.Obstacles.Add(new Box(12 + facing * 1.2f, -3.2f, MathF.PI/2, .9f, 2.2f));
         world.Obstacles.Add(new Box(12 + facing * 1.2f, 3.2f, MathF.PI/2, .9f, 2.2f));
         var planner = new ManoeuvrePlanner(Car, world, start, goal, roadEntry:true);
@@ -112,7 +111,6 @@ public sealed class DepartureTests
         for(var i=0;i<15000 && !driver.Done && driver.Failure.Length==0;i++)
         {
             var pose=new CarPose((float)model.X,(float)model.Z,(float)model.Heading,(float)model.Speed,(float)model.Steer);
-            // Plan with the runtime clearance buffer; judge the actual body rather than that padded envelope.
             Assert.True(grid.Contains(Car,pose),"The tracked body crossed the driveway boundary");
             Assert.All(world.Obstacles,b=>Assert.False(ManoeuvrePlan.Body(Car,pose).Overlaps(b)));
             model.Step(driver.Step(pose,false),.02f);
@@ -172,7 +170,6 @@ public sealed class DepartureTests
         while(!planner.Done) planner.Step();
         Assert.NotNull(planner.Result);
         Assert.Equal("",ManoeuvreDriver.Validate(Car,planner.Result!,p=>space.ClearBody(Car,p)));
-        // An obstacle discovered on the driven path must reject the candidate before execution.
         Assert.NotEmpty(ManoeuvreDriver.Validate(Car,planner.Result!,p=>p.Z<5));
         Assert.Equal("tracking check cancelled",ManoeuvreDriver.Validate(Car,planner.Result!,_=>true,()=>true));
     }

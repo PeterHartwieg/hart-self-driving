@@ -4,7 +4,6 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Ride
 {
-    // A line through points, measured in metres along it (flat).
     public sealed class Polyline
     {
         private readonly List<Vec3> points;
@@ -22,7 +21,6 @@ namespace DrivenRides.Core.Ride
         }
 
         public IReadOnlyList<Vec3> Points => points;
-        // An arc turn's radius (TurnArc), 0 for any other line.
         public float Radius { get; set; }
         public float Length => at.Count > 0 ? at[at.Count - 1] : 0f;
 
@@ -37,8 +35,6 @@ namespace DrivenRides.Core.Ride
             return points[i - 1] + (points[i] - points[i - 1]) * f;
         }
 
-        // The first point after the first one at or past `along` metres, or the count if none: a binary search, since
-        // the driver and its foresight ask this many times a step along lines of hundreds of points.
         private int FirstAtOrPast(float along)
         {
             int lo = 1, hi = points.Count;
@@ -51,8 +47,6 @@ namespace DrivenRides.Core.Ride
             return lo;
         }
 
-        // How far along the line the point nearest (x, z) is, searching from `from` up to 10 m on (the car only moves
-        // forward along it).
         public float Project(float x, float z, float from)
         {
             var best = from;
@@ -72,23 +66,16 @@ namespace DrivenRides.Core.Ride
         }
     }
 
-    // The line a driver takes through a junction: on along the entry lane, one circular arc as wide as the junction
-    // allows, out in line with the exit lane at its mouth, then on down it (Peter, turn test 0.1.41: the car drove
-    // straight in, turned at full lock, cut the corner and overshot the exit lane). Gley's car follows it by pursuit.
     public static class TurnArc
     {
         private const double MinTurnDegrees = 30, MaxTurnDegrees = 150;
-        // The arc must be this much wider than the car's tightest circle, so pursuit has room to follow it.
         public const float RadiusSlack = 1.15f;
         private const float MaxRadius = 30f;
         // No arc is tighter than this, whatever the car: the taxi's and the limo's turning circles in Gley (3.2 m and
         // 2 m) let them pivot round a corner on their back wheels (Peter, turn test 0.1.47). The 6.7 m car's
         // tightest followable arc, 6.6 m, looked right.
         public const float MinDriveRadius = 6.5f;
-        // The arc may end this far past the exit waypoint (on into the exit lane, settling there later rather than
-        // hugging the corner; Peter, 14 October 2026), and the line runs RunOut on down the exit lane.
         private const float ExitSlack = 8f;
-        // Without a junction box given, the arc that fits ends by this far past the exit waypoint.
         private const float BoxExitSlack = 2f;
         private const float RunOut = 10f;
         // The line starts this far back along the entry lane: Gley lets go of the entry waypoint once the car's centre
@@ -97,15 +84,8 @@ namespace DrivenRides.Core.Ride
         public const float LeadIn = 12f;
         private const float Spacing = 0.5f;
 
-        // How far outside the lanes that cross a turn's way the arc may start and end: half a lane to the kerb line,
-        // and 1.5 m more, so a turn at a large junction is a little wider (Peter, turn test 0.1.44).
         private const float BoxMargin = 3.5f;
 
-        // Null when the turn is too shallow or too sharp for one arc, or the junction has no room for one the car can
-        // follow. The arc stays in the junction box: it starts no earlier than the first lane crossing the entry lane
-        // and ends by the last lane the exit lane crosses (Peter, turn test 0.1.43: with an entry waypoint 20 m short
-        // of a narrow cross street, the widest arc swept over the avenue's oncoming lanes before the junction).
-        // radius: this arc instead of the widest one the junction has room for (it must still fit).
         public static Polyline? Fit(LaneGraph graph, int entry, int exit, float minRadius, float? radius = null)
         {
             if (!graph.PlainHeading(entry, out var ux, out var uz) || !graph.PlainHeading(exit, out var vx, out var vz)) return null;
@@ -116,8 +96,6 @@ namespace DrivenRides.Core.Ride
             var a = (wx * vz - wz * vx) / cross;
             var b = (wx * uz - wz * ux) / cross;
             var meet = new Vec3(e.X + ux * a, e.Y, e.Z + uz * a);
-            // Along the entry lane from the entry, the first crossing lane; along the exit lane from the exit
-            // waypoint, the last one before it.
             float first = a, last = b;
             foreach (var i in graph.Near(meet, 40f))
             {
@@ -131,21 +109,6 @@ namespace DrivenRides.Core.Ride
             return Fit(e, ux, uz, x, vx, vz, minRadius, radius, Math.Max(0f, first - BoxMargin), last + BoxMargin);
         }
 
-        // The radii to try for a turn, largest first (Peter, 14 October 2026: "aim for larger curves which allow higher
-        // speeds"; at 4 m/s² sideways the speed goes with the root of the radius). The largest is the one the two lanes
-        // leave room for: from the entry waypoint (the stop line) to ExitSlack past the exit waypoint, an arc plus the
-        // straights either side of it. Then smaller ones, each 0.8 of the one before, down to the junction box's arc
-        // (Fit with no radius) and the car's tightest followable one. Which one the car takes is the feasibility
-        // check's: the body against the world, the pavement, kerbs and the lanes, largest first.
-        // On a left turn (across the oncoming lanes, right-hand traffic) only arcs wider than the junction box's that
-        // pass the junction's middle on its near side: the arc's apex, halfWidth more for the body, no further from where the two lanes meet than
-        // the middle is (Peter, 0.1.100: the largest arc, 27 m, swung left from the stop line straight into the
-        // oncoming lanes and the car reversed out of their way).
-        // How far past the junction's middle a widened left turn's line may reach. 0: up to the middle. From an inner
-        // lane the two lanes meet only about 2.8 m beyond the middle (two lanes each way), so a tangent arc wider than
-        // about 6.8 m passes it; T1 with 2 m gives the limo a left-turn median of 10.9 m, with 4 m 14.8 m (the First
-        // Avenue turn 14.0 m). 0.1.100's 27.4 m there reached 8.5 m past it and cut into the oncoming lanes. Peter chose
-        // 4 m (14 October 2026), about 0.1.101's widths, which he watched in game.
         public const float PastMiddle = 4f;
 
         public static List<float> Radii(LaneGraph graph, int entry, int exit, float minRadius, float halfWidth = 1f)
@@ -174,24 +137,17 @@ namespace DrivenRides.Core.Ride
             if (cross > 0f)
             {
                 var meet = new Vec3(e.X + ux * a, e.Y, e.Z + uz * a);
-                // Where the two roads' centre lines cross; the middle of the junction's box where they can't be found.
                 var middle = RoadsMeet(graph, e, ux, uz, x, vx, vz)
                     ?? graph.Junctions.CentreOf(new Vec3((e.X + x.X) / 2f, e.Y, (e.Z + x.Z) / 2f)) ?? graph.Junctions.CentreOf(meet);
                 if (middle is Vec3 c)
                 {
-                    // Into the turn from where the lanes meet: half way between back along the entry and on along the exit.
                     float bxv = -ux + vx, bzv = -uz + vz;
                     var n = (float)Math.Sqrt(bxv * bxv + bzv * bzv);
                     if (n > 1e-4f)
                     {
                         var reach = ((c.X - meet.X) * bxv + (c.Z - meet.Z) * bzv) / n;
                         var apex = 1 / Math.Cos(turn / 2) - 1;
-                        // Only the arcs larger than the junction box's (0.1.99's widening): the box's arc and the car's
-                        // tightest one are what T2 and T3 drove before, and a tight left from an inner lane passes the
-                        // middle itself.
                         var keep = box ?? least;
-                        // The planned line may run up to the middle, not past it (Peter, 0.1.101: the body's edge was
-                        // held off it and the left turns lost their width again).
                         radii.RemoveAll(r => r > keep + 0.01f && r * apex > reach + PastMiddle);
                     }
                 }
@@ -199,13 +155,9 @@ namespace DrivenRides.Core.Ride
             return radii;
         }
 
-        // Where the centre lines of the two roads of a turn cross: each road's centre line runs half way between its
-        // innermost lane each way, read from the lane graph round the entry (behind it) and the exit (beyond it). Null
-        // where a road has no lane the other way (one way) or the lines don't cross.
         public static Vec3? RoadsMeet(LaneGraph graph, Vec3 e, float ux, float uz, Vec3 x, float vx, float vz)
         {
             if (!(CentreLine(graph, e, ux, uz, -30f, 2f) is float entryMid) || !(CentreLine(graph, x, vx, vz, -2f, 30f) is float exitMid)) return null;
-            // Points on each centre line (left of each lane by its offset).
             var p = new Vec3(e.X - uz * entryMid, e.Y, e.Z + ux * entryMid);
             var q = new Vec3(x.X - vz * exitMid, x.Y, x.Z + vx * exitMid);
             var cross = ux * vz - uz * vx;
@@ -215,9 +167,6 @@ namespace DrivenRides.Core.Ride
             return new Vec3(p.X + ux * a, p.Y, p.Z + uz * a);
         }
 
-        // How far left of the lane through `at` (heading ux, uz) its road's centre line runs: half way between the
-        // leftmost lane going this way and the nearest lane going the other way, among plain waypoints from `from` to
-        // `to` metres along. Null without a lane the other way.
         private static float? CentreLine(LaneGraph graph, Vec3 at, float ux, float uz, float from, float to)
         {
             var owns = new List<float> { 0f };
@@ -242,8 +191,6 @@ namespace DrivenRides.Core.Ride
             return (own + o) / 2f;
         }
 
-        // Where the segment p-q crosses the line from `from` along (dx, dz), as metres along that line; only segments
-        // at more than 45 degrees to it.
         private static bool Crossing(Vec3 from, float dx, float dz, Vec3 p, Vec3 q, out float along)
         {
             along = 0f;
@@ -259,18 +206,12 @@ namespace DrivenRides.Core.Ride
             return true;
         }
 
-        // startFrom and endBy, the junction box: the arc should start no earlier than this far along the entry lane
-        // from e and end no later than this far along the exit lane from x (negative: before it). Where that is too
-        // tight for the car, the arc is the car's widest followable one and starts a little earlier, as a driver of a
-        // long car does; it must still fit between the two waypoints.
         public static Polyline? Fit(Vec3 e, float ux, float uz, Vec3 x, float vx, float vz, float minRadius, float? radius = null,
             float startFrom = 0f, float endBy = BoxExitSlack)
         {
             var cross = ux * vz - uz * vx;
             var turn = Math.Atan2(Math.Abs(cross), ux * vx + uz * vz);
             if (turn * 180 / Math.PI < MinTurnDegrees || turn * 180 / Math.PI > MaxTurnDegrees) return null;
-            // Where the entry and exit lanes cross: a metres on from the entry, b metres along the exit lane from the
-            // exit waypoint (negative: before it).
             float wx = x.X - e.X, wz = x.Z - e.Z;
             var a = (wx * vz - wz * vx) / cross;
             var b = (wx * uz - wz * ux) / cross;
@@ -284,7 +225,6 @@ namespace DrivenRides.Core.Ride
             var t = (float)(r * half);
             var t1 = new Vec3(e.X + ux * (a - t), e.Y, e.Z + uz * (a - t));
             var t2 = new Vec3(x.X + vx * (b + t), x.Y, x.Z + vz * (b + t));
-            // The centre is r from T1, square to the entry lane on the side the turn goes.
             var side = cross > 0 ? -1f : 1f;
             var c = new Vec3(t1.X + side * uz * r, 0f, t1.Z - side * ux * r);
             var points = new List<Vec3> { new Vec3(e.X - ux * LeadIn, e.Y, e.Z - uz * LeadIn) };
@@ -298,7 +238,6 @@ namespace DrivenRides.Core.Ride
                 var phi = sweep * k / steps;
                 double cos = Math.Cos(phi), sin = Math.Sin(phi);
                 var f = (float)k / steps;
-                // Rotating (sx, sz) by phi the way a heading atan2(x, z) turns.
                 points.Add(new Vec3((float)(c.X + sx * cos + sz * sin), e.Y + (x.Y - e.Y) * f, (float)(c.Z - sx * sin + sz * cos)));
             }
             var end = new Vec3(t2.X + vx * RunOut, x.Y, t2.Z + vz * RunOut);
@@ -306,12 +245,6 @@ namespace DrivenRides.Core.Ride
             return new Polyline(points) { Radius = r };
         }
 
-        // A U-turn as a driver takes it (Peter, T2: through Gley's vias the car made two tight 90-degree turns with a
-        // straight between): on along the entry lane, one curve tangent to the entry lane and to the target's lane,
-        // as wide as the two lanes are apart (a semicircle when they are level), then on down the target's lane.
-        // It starts where the straight way into the junction ends (LaneGraph.UTurnStart: past the median's nose),
-        // earlier if the curve would reach past the junction's far side. Null when the lanes are too close for the
-        // car's circle (minRadius, with RadiusSlack): that car goes round the block.
         public static Polyline? FitUTurn(LaneGraph graph, int entry, int target, float minRadius) => FitUTurn(graph, entry, target, minRadius, out _);
 
         public static Polyline? FitUTurn(LaneGraph graph, int entry, int target, float minRadius, out string why)
@@ -319,18 +252,15 @@ namespace DrivenRides.Core.Ride
             why = "not a U-turn with a plain entry";
             if (!graph.IsUTurn(entry, target) || !graph.PlainHeading(entry, out var ux, out var uz)) return null;
             int startWaypoint = graph.UTurnStart(entry, target);
-            // The lane the U-turn ends in: the target's lane where it leaves the junction (inside it, the target's
-            // own heading may be skewed, and the curve would end bent against the lane).
             var lane = target;
             for (var guard = 0; guard < 20 && graph.IsIntersection(lane) && graph.Successors(lane).Count > 0; guard++) lane = graph.Successors(lane)[0];
             why = "no start or target heading";
             float vx, vz;
             if (startWaypoint < 0 || !(graph.PlainHeading(lane, out vx, out vz) || Heading(graph, target, out vx, out vz))) return null;
             Vec3 e = graph.Position(entry), x = graph.Position(graph.PlainHeading(lane, out _, out _) ? lane : target);
-            float lx = -uz, lz = ux; // left of the entry heading
-            float nx = -vz, nz = vx; // left of the target's heading
+            float lx = -uz, lz = ux;
+            float nx = -vz, nz = vx;
             float Along(Vec3 p) => (p.X - e.X) * ux + (p.Z - e.Z) * uz;
-            // The far side of the junction along the entry's straight way.
             var junctionEnd = Along(graph.Position(startWaypoint));
             var at = startWaypoint;
             for (var guard = 0; guard < 40; guard++)
@@ -346,10 +276,6 @@ namespace DrivenRides.Core.Ride
                 junctionEnd = Math.Max(junctionEnd, Along(graph.Position(next)));
                 at = next;
             }
-            // The circle from S = e + u s, centre to the left, tangent to the target's lane on its left: its radius
-            // grows or shrinks with s where the lanes aren't level. S is the straight way's end (past the median's
-            // nose) unless another start gives the car a circle it can follow, or keeps the curve within the junction;
-            // never before 6 m past the entry.
             var denominator = 1f - (lx * nx + lz * nz);
             why = "the target's lane isn't turned back towards the entry";
             if (denominator < 0.2f) return null;
@@ -361,7 +287,6 @@ namespace DrivenRides.Core.Ride
             {
                 var radius = RadiusAt(along);
                 if (radius <= 0f || along + radius > junctionEnd + 3f) continue;
-                // A followable circle first, then the start nearest the straight way's end.
                 var score = (radius >= least ? 0f : 1000f + (least - radius) * 100f) + Math.Abs(along - preferred);
                 if (score < bestScore) { bestScore = score; start = along; r = radius; }
             }
@@ -371,7 +296,6 @@ namespace DrivenRides.Core.Ride
             if (r < minRadius * RadiusSlack || r > MaxRadius) return null;
             var s = new Vec3(e.X + ux * start, e.Y, e.Z + uz * start);
             var c = new Vec3(s.X + lx * r, 0f, s.Z + lz * r);
-            // Turning left: the heading (atan2(x, z)) falls from the entry's to the target's.
             var turn = Math.Atan2(ux, uz) - Math.Atan2(vx, vz);
             while (turn <= 0) turn += 2 * Math.PI;
             while (turn > 2 * Math.PI) turn -= 2 * Math.PI;
@@ -395,7 +319,6 @@ namespace DrivenRides.Core.Ride
             return new Polyline(points) { Radius = r };
         }
 
-        // A waypoint's heading towards its successor, junction waypoints included.
         private static bool Heading(LaneGraph graph, int i, out float dx, out float dz)
         {
             dx = dz = 0f;

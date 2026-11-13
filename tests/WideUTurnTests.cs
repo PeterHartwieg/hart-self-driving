@@ -8,8 +8,6 @@ namespace DrivenRides.Core.Tests;
 
 public sealed class WideUTurnTests
 {
-    // A divided street, two lanes each way: east along z = 0 (inner) and z = -4 (outer), west along z = 15 (inner) and
-    // z = 19 (outer), a junction from x = 0 to 30. Lane changes between the eastbound lanes before the junction.
     private static (LaneGraph Graph, int InnerEntry, int OuterEntry, int[] Goals) Street()
     {
         var b = new TurnTestGraph();
@@ -49,7 +47,6 @@ public sealed class WideUTurnTests
         Assert.Equal(-1, graph.UTurn(outer));
         var group = graph.UTurnGroup(inner);
         Assert.Equal(4, group.Count);
-        // Widest first: from the outer lane to the far outer lane, 8 m wider than the inner one.
         Assert.Equal(outer, group[0].Entry);
         Assert.InRange(group[0].Width - group.Single(p => p.Entry == inner && p.Target == graph.UTurn(inner)).Width, 7.5f, 8.5f);
         Assert.Equal(0f, graph.UTurnNarrower(group[0].Entry, group[0].Target));
@@ -57,7 +54,6 @@ public sealed class WideUTurnTests
         Assert.False(graph.IsWideUTurn(inner, graph.UTurn(inner)));
         Assert.All(group, p => Assert.True(graph.IsUTurn(p.Entry, p.Target)));
         Assert.All(group.Where(p => p.Entry != inner || p.Target != graph.UTurn(inner)), p => Assert.NotEmpty(graph.TurnVias(p.Entry, p.Target)));
-        // The catalogue keeps the inner one's id and names the wider ones by their target.
         var cases = Catalogue.Build(graph).Where(f => f.Kind == CaseKind.UTurn).Select(f => f.Id).ToList();
         Assert.Single(cases, id => id.StartsWith("uturn-" + inner + "-"));
         Assert.Contains("uturnw-" + group[0].Entry + "-" + group[0].Target, cases);
@@ -77,7 +73,6 @@ public sealed class WideUTurnTests
         var widest = graph.UTurnGroup(inner)[0];
         var at = wide.Waypoints.ToList().IndexOf(widest.Entry);
         Assert.True(at >= 0 && wide.Waypoints[at + 1] == widest.Target, string.Join(" ", wide.Waypoints));
-        // Blocked for this car (the feasibility check): the next widest it may take.
         request.IsBlockedStep = (a, b) => a == widest.Entry && b == widest.Target;
         var next = RoutePlanner.Plan(graph, request, int.MaxValue).Result!;
         var steps = next.Waypoints.Zip(next.Waypoints.Skip(1)).ToList();
@@ -89,8 +84,6 @@ public sealed class WideUTurnTests
     [Fact]
     public void BlockedWiderPairsCostTheInnerOneNothing()
     {
-        // All the wider pairs blocked for this car: the inner U-turn is the widest one open and costs what it costs
-        // on the Gley path, so blocked wide pairs never push a route round the block.
         var (graph, inner, _, goals) = Street();
         var group = graph.UTurnGroup(inner);
         var request = new RouteRequest { Start = 0, Goals = goals.Select(g => new Goal(g, 0)).ToArray() };
@@ -100,7 +93,6 @@ public sealed class WideUTurnTests
         var wide = RoutePlanner.Plan(graph, request, int.MaxValue).Result!;
         Assert.Equal(gley.Waypoints, wide.Waypoints);
         Assert.Equal(gley.DriveSeconds, wide.DriveSeconds, 3);
-        // With only the widest blocked, the next widest open pair costs nothing extra either; a narrower one does.
         var widest = group[0];
         request.IsBlockedStep = (a, b) => a == widest.Entry && b == widest.Target;
         var next = RoutePlanner.Plan(graph, request, int.MaxValue).Result!;
@@ -111,8 +103,6 @@ public sealed class WideUTurnTests
     [Fact]
     public void ABlockedLaneStepIsDrivenRoundFromTheStart()
     {
-        // Two lanes north (x = 0 and x = 4), the ride starting on the first waypoint after a junction, a car parked
-        // in its first step: A* changes lanes from the start (T3: rides refused there) and never takes the step.
         var b = new TurnTestGraph();
         var j = b.Add(0, -6, true);
         int[] a = Enumerable.Range(0, 10).Select(k => b.Add(0, k * 10)).ToArray();

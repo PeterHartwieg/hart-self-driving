@@ -1,14 +1,3 @@
-// Calibrates Core's CarModel against the turn rig's NWH traces (docs/implementation-plan.md, "What the car can drive":
-// the measured error becomes the feasibility check's margin). For each <run>-nwh.csv, with its samples file and the
-// results file beside it:
-//   1. the wheel: NWH's steering angle against the input the driver wrote (input x lock at the speed), with the
-//      smoothing and the wheel's rate fitted over all traces;
-//   2. the body, open loop: from each recorded pose, the bicycle model driven by the recorded wheel angle and speed for
-//      1 and 2 s, and how far it ends from where the car was;
-//   3. closed loop, on rig cases driven by the driver as it was then (0.1.51-nwh1: pure pursuit from the rear axle,
-//      no lag allowance) on the line the rig built, at the recorded speed: how far the model's rear axle is from the
-//      line against the car's at the same point. That difference is the margin to use.
-// Usage: dotnet run --project tools/calibrate -- <lane-graph.json> <run-nwh.csv>...
 using System.Globalization;
 using System.Text.Json;
 using DrivenRides.Core.Drive;
@@ -29,7 +18,6 @@ foreach (var path in args.Skip(1))
 }
 const float Dt = 0.02f;
 
-// 1. The wheel.
 (double Rms, double Max) WheelError(float smooth, float rate)
 {
     double sum = 0, max = 0;
@@ -63,7 +51,6 @@ var fitted = WheelError(best.Smooth, best.Rate);
 Console.WriteLine($"\nWheel: NWH's angle against the model's from the written input. Model's values ({CarModel.SmoothSeconds:0.00} s, {CarModel.WheelRate:0}°/s): RMS {defaults.Rms:0.00}°, worst {defaults.Max:0.0}°. " +
                   $"Fitted: smoothing {best.Smooth:0.00} s, rate {best.Rate:0}°/s: RMS {fitted.Rms:0.00}°, worst {fitted.Max:0.0}°.");
 
-// 2. Open loop.
 foreach (var seconds in new[] { 1f, 2f })
 {
     var errors = new List<double>();
@@ -75,7 +62,6 @@ foreach (var seconds in new[] { 1f, 2f })
         {
             if (run.Rows[k].Speed < 1f || run.Pose(k) is not var (x0, z0, h0)) continue;
             if (run.Pose(k + steps) is not var (x1, z1, h1)) continue;
-            // The recorded wheel, and the model's wheel from the recorded input.
             double x = x0, z = z0, h = h0;
             var car = new CarModel(run.Car.Wheelbase, run.Car.LockAt, x0, z0, h0, run.Rows[k].Speed) { Smooth = best.Smooth, Rate = best.Rate, TrackWidth = run.Car.TrackWidth };
             car.SetWheel(run.Rows[k].Angle);
@@ -88,7 +74,6 @@ foreach (var seconds in new[] { 1f, 2f })
                 car.Speed = r.Speed;
                 car.Step(new DriveOutput { SteerDegrees = r.Input * run.Car.LockAt(Math.Abs(r.Speed)), Desired = r.Speed }, Dt);
             }
-            // Sideways to the car's recorded heading at the end, the error that matters for a lane.
             double Side(double px, double pz) => Math.Abs((px - x1) * Math.Cos(h1) - (pz - z1) * Math.Sin(h1));
             errors.Add(Side(x, z));
             modelled.Add(Side(car.X, car.Z));
@@ -97,8 +82,6 @@ foreach (var seconds in new[] { 1f, 2f })
     Console.WriteLine($"Open loop, {seconds:0} s from each recorded pose ({errors.Count} starts), sideways: recorded wheel {Spread(errors)}; modelled wheel {Spread(modelled)}.");
 }
 
-// The front track: NWH's Ackermann makes the car turn wider than a bicycle with the same wheel angle (CarModel.Curvature).
-// Fitted per car to the open loop over 1 s, against the track the car's spec gives.
 var tracks = new Dictionary<string, float>();
 foreach (var group in runs.GroupBy(r => r.Car.Name))
 {
@@ -135,8 +118,6 @@ foreach (var group in runs.GroupBy(r => r.Car.Name))
                       $"a plain bicycle {Error(0f):0.00} m; the spec's {car.TrackWidth:0.00} m {Error(car.TrackWidth):0.00} m.");
 }
 
-// 3. Closed loop on rig cases that passed: nwh1's driver for the spike's runs, Core's PursuitDriver (steering for the
-// car's track, as NwhDrive does since 0.1.55) for the planner's runs, each on the line the rig built.
 var closed = new Dictionary<string, List<double>>();
 var exits = new Dictionary<string, List<double>>();
 foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && (r.Version.EndsWith("nwh1", StringComparison.Ordinal) || r.Plan != null)))
@@ -154,9 +135,7 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && 
     var plan = DrivePlan.Build(graph, f.Route, run.Car, arc);
     var line = plan.Line(graph);
     var driver = nwh1 ? null : plan.Driver(line, spec.Wheelbase, spec.FrontAhead, spec.TrackWidth);
-    // The driver as it drove these runs: no feed-forward before 0.1.65.
     if (driver != null) driver.FeedForward = string.CompareOrdinal(run.Version, "0.1.65") >= 0;
-    // The recorded speed by distance along the line, and the car's lateral offset there.
     var byAlong = run.Rows.Where(r => r.Speed > 0.05f).Select(r => (r.Along, r.Speed, r.Lateral)).ToList();
     if (byAlong.Count < 10) continue;
     // The line rebuilt here must be the one the car drove: the recorded rear axle, located on it, at the recorded
@@ -175,7 +154,6 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && 
     if (checkedRows == 0 || mismatch > 3) { Console.WriteLine($"Closed loop {run.Name} ({run.Case}): left out, its line isn't the one rebuilt here ({mismatch:0.0} m apart)."); continue; }
     var start = graph.Position(plan.Path[0]);
     var next = line.Line.At(1f);
-    // The model's track: the prefab's (as the planner uses it), the fitted one with TRACK=fit, none with BICYCLE=1.
     var modelTrack = Environment.GetEnvironmentVariable("BICYCLE") == "1" ? 0f : Environment.GetEnvironmentVariable("TRACK") == "fit" ? tracks[run.Car.Name] : spec.TrackWidth;
     var car = new CarModel(run.Car.Wheelbase, run.Car.LockAt, start.X, start.Z, Math.Atan2(next.X - start.X, next.Z - start.Z))
         { Smooth = best.Smooth, Rate = best.Rate, TrackWidth = modelTrack, YawFactor = float.TryParse(Environment.GetEnvironmentVariable("YAW"), NumberStyles.Float, CultureInfo.InvariantCulture, out var yf) ? yf : 1f };
@@ -206,7 +184,6 @@ foreach (var run in runs.Where(r => r.Fixture != null && r.Verdict == "pass" && 
         if (driver != null) steer = driver.Step(car.Input(Dt)).SteerDegrees;
         else
         {
-            // nwh1's steering: pure pursuit from the rear axle, max(wheelbase + 1.5, 1.5 + 0.45 v) ahead.
             var look = Math.Max(run.Car.Wheelbase + 1.5f, 1.5f + 0.45f * speed);
             var target = line.Line.At(along + look);
             double tx = target.X - car.X, tz = target.Z - car.Z;
@@ -253,7 +230,6 @@ static string Spread(List<double> values)
 sealed class Run
 {
     public string Name = "", Case = "", Version = "", Verdict = "";
-    // The planner's form for the manoeuvre (0.1.55 on: arc, tight arc, vias); null for the spike's runs.
     public string? Plan;
     public CarSpec Car = null!;
     public DrivenRides.Core.Testing.Fixture? Fixture;
@@ -309,7 +285,6 @@ sealed class Run
         foreach (var l in File.ReadLines(samplesPath).Where(l => l.StartsWith("S,")))
         {
             var c = l.Split(',');
-            // The front axle and the heading; the rear axle is a wheelbase behind.
             double h = F(c[9]) * Math.PI / 180;
             run.poses.Add((F(c[6]) - run.Car.Wheelbase * Math.Sin(h), F(c[8]) - run.Car.Wheelbase * Math.Cos(h), h));
             speeds.Add(F(c[10]));

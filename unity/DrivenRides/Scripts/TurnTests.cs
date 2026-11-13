@@ -23,10 +23,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // The turn test rig (docs/turn-tests.md). Commands arrive as files in <persistentDataPath>/DrivenRides/tests:
-    // command.txt (its last line "end", so a half-copied file waits) and stop.txt. The session holds the player on an
-    // anchor that follows each test car, holds the clock, switches traffic and pedestrians off, and drives each case
-    // with the ride's own code in test mode. Results: status.json, results-<session>.jsonl, <run>.png on failures.
     internal sealed class TurnTests : MonoBehaviour
     {
         private static TurnTests? instance;
@@ -37,8 +33,6 @@ namespace DrivenRides
 
         public static bool Running => session != null;
 
-        // The ride's per-frame logic (Gley's waypoint switching, the turn speed) needs frames: a 3x ride at 60 fps has
-        // 0.05 s of game time per frame, so an automatic speed keeps to that and runs faster on a faster PC.
         private const float MaxSpeed = 8f;
         private const float GameSecondsPerFrame = 0.05f;
         private float frameSeconds = 1f / 60f;
@@ -84,11 +78,7 @@ namespace DrivenRides
             public int SpeedFrames;
             public int VSyncWas;
             public int FrameRateWas;
-            // driver=nwh: each case's car is the drivable prefab driven by its own physics (NwhDrive,
-            // docs/nwh-drive-spike.md). traffic=on keeps traffic and pedestrians.
             public bool Nwh;
-            // With driver=nwh, the planner's feasibility check and parked-car sweep (NwhPlanner) decide what is
-            // driven, as in a ride: a case they leave out is "avoided". check=off drives every case as the spike did.
             public bool NwhCheck = true;
             public bool TrafficOn;
             public NwhCar? NwhCar;
@@ -144,7 +134,6 @@ namespace DrivenRides
             }
         }
 
-        // The failure picture, in the frame the judge latched the failure, before the car moves on.
         private void LateUpdate()
         {
             var s = session;
@@ -154,7 +143,6 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Turn tests picture: " + ex.Message); }
         }
 
-        // ---- Commands ----
 
         private void Poll()
         {
@@ -168,7 +156,6 @@ namespace DrivenRides
             if (!File.Exists(file)) return;
             var lines = File.ReadAllLines(file).Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
             if (lines.Count == 0 || lines[lines.Count - 1] != "end") return;
-            // A run sent while one is going waits in its file until the session ends.
             if ((session != null || routine != null) && (lines[0].StartsWith("run", StringComparison.Ordinal) || lines[0].StartsWith("rerun", StringComparison.Ordinal))) return;
             File.Delete(file);
             var words = lines[0].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -198,16 +185,12 @@ namespace DrivenRides
                             : Camera.main != null ? Camera.main.transform.position : transform.position);
                     else StartCoroutine(NwhMeasure.Run(Camera.main != null ? Camera.main.transform.position : transform.position));
                     break;
-                // dress [car=<traffic prefab, or taxi>] parks a dressed NWH car beside the player; dress remove takes it away.
                 case "dress":
                     if (rest.Contains("remove")) NwhDress.Remove();
                     else NwhDress.SpawnBeside(args.TryGetValue("car", out var which) ? which : "taxi");
                     break;
-                // ride [kind=taxi|stand|driver] ...: a real ride through the game's taxi flow (RideCommand).
                 case "ride": StartCoroutine(RideCommand.Run(args, Folder)); break;
                 case "destinations": StartCoroutine(DestinationTests.Run(args, Folder)); break;
-                // ridemode nwh|gley|options: rides with car physics, the Gley rides, or the options page's choice, until
-                // the game quits (Options.CarPhysicsOverride; PlayerPrefs untouched).
                 case "ridemode":
                     Options.CarPhysicsOverride = rest.Contains("nwh") ? true : rest.Contains("gley") ? false : (bool?)null;
                     Log.Info($"Ride mode: {(Options.CarPhysicsOverride == null ? "the options page's" : Options.CarPhysicsOverride.Value ? "car physics (NWH)" : "Gley")}; car physics now {(Options.CarPhysics ? "on" : "off")}.");
@@ -223,7 +206,6 @@ namespace DrivenRides
             routine = RunSession(args, rerunFile);
         }
 
-        // ---- Cars ----
 
         private static readonly FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
         private static readonly FieldInfo? VehicleTypesField = AccessTools.Field(typeof(VehicleTypeHelper), "VehicleTypes");
@@ -231,7 +213,6 @@ namespace DrivenRides
         private static List<VehicleComponent> Pool() =>
             (TrafficVehiclesField?.GetValue(TrafficManager.Instance) as TrafficVehicles)?.GetVehicleList() ?? new List<VehicleComponent>();
 
-        // The models that ride: each vehicle type whose traffic prefab is in Gley's pool, and the taxi.
         private static List<CarModel> Models()
         {
             var pool = Pool().Where(v => v != null && v.prefab != null).ToList();
@@ -239,7 +220,6 @@ namespace DrivenRides
             CarModel? Make(string name, GameObject prefab, int top, bool taxi)
             {
                 var copy = pool.FirstOrDefault(v => v.prefab == prefab) ?? pool.FirstOrDefault(v => v.prefab.name == prefab.name);
-                // Gley's trucks (vans, box trucks) are no ride's car.
                 if (copy == null || copy.vehicleType != VehicleTypes.Car) return null;
                 var steer = Mathf.Clamp(copy.maxSteer, 5f, 60f);
                 return new CarModel
@@ -289,7 +269,6 @@ namespace DrivenRides
             {
                 ["name"] = m.Name, ["prefab"] = m.Prefab.name, ["taxi"] = m.Taxi, ["topSpeed"] = m.TopSpeed,
                 ["length"] = Round(m.Length), ["width"] = Round(m.Width), ["turnRadius"] = Round(m.TurnRadius),
-                // The drivable car an NWH drive dresses as this one, for a car without its own drivable prefab.
                 ["donor"] = NwhCar.HasPrefab(m.Name) ? null : NwhDress.DonorFor(m.Prefab, out _) is NwhDress.Donor d ? NwhCar.Id(d.TypeName) : null,
             }.ToString(Newtonsoft.Json.Formatting.None));
             File.WriteAllLines(Path.Combine(Folder, "cars.jsonl"), lines);
@@ -298,7 +277,6 @@ namespace DrivenRides
 
         private static double Round(float v) => Math.Round(v, 2);
 
-        // ---- Catalogue ----
 
         private static CatalogueOptions CatalogueSettings()
         {
@@ -338,21 +316,17 @@ namespace DrivenRides
             return result;
         }
 
-        // ---- The session ----
 
         private IEnumerator RunSession(Dictionary<string, string> args, string? rerunFile)
         {
             var graph = GleyGraph.Graph;
             if (graph == null || !TrafficManager.HasInstance || !TrafficManager.IsInitialized) { Refuse("traffic is not ready"); yield break; }
-            // speed=auto: the speed follows the frame rate (AutoSpeed); a number is a fixed speed.
             var speed = args.TryGetValue("speed", out var sp) ? sp == "auto" ? 0f : float.TryParse(sp, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? Mathf.Clamp(v, 1f, MaxSpeed) : 3f : 3f;
             var options = CatalogueSettings();
             var catalogue = Catalogue.Build(graph, options);
             var nwh = args.TryGetValue("driver", out var dr) && dr == "nwh";
             var trafficOn = args.TryGetValue("traffic", out var tr) && tr == "on";
             var models = Models();
-            // An NWH drive needs the car's drivable prefab; a car without one (the taxi) is a drivable car dressed as
-            // it (NwhDress).
             if (nwh) models = models.Where(m => NwhCar.HasPrefab(m.Name) || NwhDress.DonorFor(m.Prefab, out _) != null).ToList();
             var plan = new List<(Fixture Fixture, CarModel Car)>();
             List<CarModel>? followUp = null;
@@ -376,9 +350,6 @@ namespace DrivenRides
             }
             else if (args.TryGetValue("tier", out var tier))
             {
-                // The tiers (docs/turn-tests.md): quick after any update, full after changes to the turning code or a
-                // game update. Both drive the first default car (the largest turning circle); full then drives the
-                // other default cars where it failed or came within 0.2 m.
                 var cars = Choose(models, "default");
                 if (cars.Count == 0) { Refuse("no car models found"); yield break; }
                 var cases = catalogue.ToList();
@@ -429,7 +400,6 @@ namespace DrivenRides
                 if (fixture.Kind == CaseKind.Control && result != null) controlResults.Add((fixture, result));
                 if (controlResults.Count > 0 && fixture.Kind != CaseKind.Control && s.Calibrated == null) s.Calibrated = Calibration(controlResults);
                 if (fixture.Kind != CaseKind.Control && result != null && (result.Verdict == "fail" || (result.NearMiss > 0 && result.NearMiss <= 0.2f))) close.Add(fixture);
-                // The full tier's second pass: the other cars where the first one failed or came close.
                 if (index == plan.Count - 1 && followUp != null)
                 {
                     foreach (var other in followUp) foreach (var f in close) plan.Add((f, other));
@@ -442,11 +412,8 @@ namespace DrivenRides
             Teardown(s.StopRequested ? "stopped" : "finished", handedOver: false);
         }
 
-        // Each control pair's bad half must fail for its stated reason: that shows the judge catches the fault. A
-        // correct half that fails is a ride fault at that spot (the first runs found two), reported, not counted.
         private const int QuickSample = 30;
 
-        // A stable order by id (string.GetHashCode differs between runs).
         private static uint StableHash(string id)
         {
             uint hash = 2166136261;
@@ -497,13 +464,11 @@ namespace DrivenRides
             s.ResultsFile = Path.Combine(Folder, $"results-{s.Id}.jsonl");
             session = s;
             Options.LightsOverride = true;
-            // No frame cap while tests run: more frames let the automatic speed go higher.
             s.VSyncWas = QualitySettings.vSyncCount;
             s.FrameRateWas = Application.targetFrameRate;
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = -1;
 
-            // Traffic and pedestrians off, as the game's own ToggleTraffic and TogglePedestrian console commands.
             if (!trafficOn)
             {
                 s.TrafficWas = manager!.spawnTraffic;
@@ -521,7 +486,6 @@ namespace DrivenRides
                 }
             }
 
-            // The player rides along on an anchor that follows each test car, as in a ride.
             player.ResetNavigation();
             s.AnchorObject = new GameObject("DrivenRides.TestAnchor");
             s.AnchorObject.transform.SetPositionAndRotation(player.transform.position, player.transform.rotation);
@@ -548,14 +512,11 @@ namespace DrivenRides
                 ["car"] = model.Name, ["speed"] = speed, ["version"] = DrivenRidesMod.Version,
             };
             if (fixture.RideLine >= 0) line["rideLine"] = fixture.RideLine;
-            // On the avoid list already: rides don't drive it with cars this long.
             if (fixture.Route.Count > fixture.EntryIndex + 1 && TestedSteps.Has(fixture.Route[fixture.EntryIndex], fixture.Route[fixture.EntryIndex + 1])) line["known"] = true;
 
-            // Over to the case: the anchor (and with it Gley's camera, the player) stands at the start.
             s.Anchor!.Target = null;
             s.Anchor.Valid = null;
             s.AnchorObject!.transform.position = start.position + Vector3.up;
-            // Traffic is off, so only the anchor (Gley's camera) has to arrive; a second is plenty.
             var until = Time.unscaledTime + 1f;
             while (Time.unscaledTime < until) { if (s.StopRequested) yield break; yield return null; }
 
@@ -615,13 +576,11 @@ namespace DrivenRides
             s.Ride = ride;
             testCar.Waiting = () => ride.WaitingNow;
 
-            // Driving. A generous limit: the route at 4 m/s plus 30 s, in game time (the ride speed scales it).
             var length = Route.Fixed(graph, route).LengthMetres;
             var limit = Time.time + 30f + length / 4f;
             while (!judge.Failed && !judge.Finished && !ride.Ended && Time.time < limit && !s.StopRequested) yield return null;
             var timedOut = Time.time >= limit;
             if (ride.Ended && ride.EndReason.StartsWith("replanned", StringComparison.Ordinal)) judge.Replanned(ride.EndReason);
-            // One more frame, so a failure latched in the last physics step gets its picture.
             yield return null;
 
             var result = judge.Result(timedOut);
@@ -641,17 +600,12 @@ namespace DrivenRides
             s.Car = null;
             s.Ride = null;
             ride.EndTest();
-            // A step the ride's world check blocks is one real rides never drive: avoided, not failed, unless the
-            // car had already gone wrong before.
             var verdict = result.Verdict;
             if (ride.EndReason.StartsWith("replanned: step", StringComparison.Ordinal) && result.Reasons.Count == 1 && result.Reasons[0] == "replanned") verdict = "avoided";
             Record(s, line, verdict, null, result, fixture);
             done(result);
         }
 
-        // One case driven by the car's own physics (docs/nwh-drive-spike.md): the drivable prefab, the same path and
-        // judge, Core's PursuitDriver at the pedals and the wheel. The path's added turns are driven along their arcs
-        // where one fits the car's turning circle; there is no world check before the drive (the judge is the check).
         private const float NwhManoeuvreKmh = 10f;
 
         private IEnumerator RunNwhCase(Session s, LaneGraph graph, Fixture fixture, CarModel model, float speed, int n, Action<JudgeResult> done)
@@ -675,9 +629,6 @@ namespace DrivenRides
             while (Time.unscaledTime < until) { if (s.StopRequested) yield break; yield return null; }
 
             TrafficManager.Instance.ClearTrafficOnArea(start.position, 40f);
-            // The planner's questions before the car is loaded, as a ride asks them when it is planned: can this car
-            // make the manoeuvre, and are the case's lanes free of parked cars (loaded now, near the anchor).
-            // The same choice of car and planner as a real ride's (NwhRides).
             var planner = s.NwhCheck && fixture.Path == null ? NwhRides.Planner(model.Name, model.Prefab, model.TopSpeed) : null;
             DrivenRides.Core.Drive.DrivePlan? ridePlan = null;
             if (planner != null)
@@ -686,10 +637,6 @@ namespace DrivenRides
                 line["minRadius"] = Math.Round(planner.Car.ArcMinRadius(), 2);
                 if (fixture.Kind == CaseKind.Ride)
                 {
-                    // A ride is planned again by the NWH planner end to end, as an NWH ride will be: from its start
-                    // to its end, wider U-turns allowed, every added step checked for this car and the first 200 m
-                    // of lanes swept, a blocked step blocked and the route planned again (T3, session
-                    // 20261013-191420: the recorded Gley route opened with an inner U-turn round a median's nose).
                     var (plannedRoute, plannedPlan, summary) = planner.PlanRoute(graph, route[0], new[] { new Goal(route[route.Count - 1], 0f) }, (int)VehicleTypes.Car);
                     var planned = plannedRoute?.Waypoints.ToList();
                     ridePlan = plannedPlan;
@@ -713,8 +660,6 @@ namespace DrivenRides
                 if (parked.Count > 0) { Record(s, line, "avoided", $"step {parked[0].From} -> {parked[0].To}: {parked[0].What}", null, fixture); yield break; }
             }
             var firstPath = fixture.Path ?? PathExpander.Expand(graph, route).Path;
-            // Along the start waypoint's own lane, as a car waiting in it stands (a route that opens with a lane change
-            // pointed the car across it); towards the next waypoint where the lane has no plain heading.
             var ahead = graph.PlainHeading(route[0], out var lx, out var lz) ? new Vector3(lx, 0f, lz) : all[firstPath.Count > 1 ? firstPath[1] : route[1]].position - start.position;
             ahead.y = 0f;
             var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(ahead) : Quaternion.identity;
@@ -722,17 +667,12 @@ namespace DrivenRides
             if (car == null) { Record(s, line, "setup-error", "no NWH car: " + why, null, null); yield break; }
             if (car.Look != null) line["donor"] = NwhCar.Id(car.TypeName);
             s.NwhCar = car;
-            // The waypoint is where the rear axle starts.
             NwhRides.PlaceRearAxle(car, start.position, rotation);
 
             var testCar = car.Root.AddComponent<TestCar>();
             testCar.SetBody(car.BodyCentre, car.BodyHalf);
             testCar.FrontAxleOf = () => car.FrontAxle;
             testCar.Wheels = car.Vehicle.powertrain.wheels.Where(w => w?.wheelUAPI != null).Select(w => w.wheelUAPI).ToArray();
-            // The body itself, 3 cm wider, from 0.35 m to 1.5 m above the start waypoint (the car is loaded 0.4 m up and
-            // settles): a placement on the lane, not a manoeuvre. 'Curb1', a kerb wall 1.36 m from an outer lane's
-            // centre, refused rides (T3, sessions 20261013-185723 and -191420). Where something stands there all the
-            // same, the start moves on along the lane, a metre at a time, up to 10 m.
             Collider[] blockers = Array.Empty<Collider>();
             var placed = start.position;
             for (var nudge = 0; nudge <= 10; nudge++)
@@ -757,8 +697,6 @@ namespace DrivenRides
                 yield break;
             }
 
-            // The path: the fixture's own (the controls), the planner's (the arc or vias its check passed), or with
-            // check=off the spike's: an arc wherever one fits the lock at 10 km/h.
             var minRadius = car.Wheelbase / Mathf.Tan(Mathf.Max(5f, car.LockAt(NwhManoeuvreKmh / 3.6f)) * Mathf.Deg2Rad);
             List<int> path;
             var arcs = new List<(int Entry, Polyline Arc)>();
@@ -773,8 +711,6 @@ namespace DrivenRides
             }
             else if (planner != null)
             {
-                // The ride's plan as PlanRoute checked it; a case's own, checked as driven (a part of it that fails
-                // leaves no plan to drive: Feasibility.Validate).
                 var plan = ridePlan;
                 if (plan == null)
                 {
@@ -805,9 +741,7 @@ namespace DrivenRides
                     var arc = at >= 0 ? TurnArc.Fit(graph, entry, exit, minRadius) : null;
                     if (arc != null) arcs.Add((at, arc));
                 }
-                // No flat speed for added turns or U-turns: the corner speed comes from the line's curvature (DrivePlan).
             }
-            // Gley caps every car at the road's limit; so does this driver (the planner's plan has them already).
             if (planner == null)
                 for (var k = 0; k < path.Count; k++) if (all[path[k]].maxSpeed > 0 && all[path[k]].maxSpeed < model.TopSpeed) slow.Add((k, all[path[k]].maxSpeed));
             line["arcs"] = arcs.Count;
@@ -821,8 +755,6 @@ namespace DrivenRides
             s.DrivenPath = path;
             var drive = car.Root.AddComponent<NwhDrive>();
             drive.Recording = true;
-            // A planned case starts as a ride does (NwhDrive.Begin with the plan and the shape it was checked for);
-            // the controls and check=off drive their own path.
             if (planner != null && firstPlan != null) drive.Begin(car, firstPlan, planner.Car, model.TopSpeed > 0 ? model.TopSpeed : 50);
             else
             {
@@ -830,10 +762,6 @@ namespace DrivenRides
                 drive.Fillets = fillets;
                 drive.Begin(car, path, arcs, slow, model.TopSpeed > 0 ? model.TopSpeed : 50);
             }
-            // A car that can't get on gives up the step it is on; the planner blocks it for this car, as a ride would
-            // before planning again.
-            // A ride drives on round it: the step is blocked for this car, the rest of the ride planned again from it,
-            // the drive handed the new path and the judge the new route (the old one up to the step, then the new one).
             var driveRoute = route;
             var driveOffset = 0;
             var rideEnd = route[route.Count - 1];
@@ -850,8 +778,6 @@ namespace DrivenRides
             var goals = new[] { new Goal(rideEnd, 0f) };
             var watch = new DrivenRides.Core.Drive.WayOnPlanner.Watch();
             if (firstPlan != null) watch.Installed(firstPlan);
-            // Takes a new way on: the drive gets its plan, the judge the old route up to where the car left it and
-            // the new one after (Judge.Reroute).
             DrivenRides.Core.Drive.DrivePlan? TakeUp((DrivenRides.Core.Drive.DrivePlan Plan, List<int> Route, string Note)? found, int position, string kind, string failure)
             {
                 var r = NwhPlanner.RouteStepAt(driveRoute, path, position);
@@ -860,8 +786,6 @@ namespace DrivenRides
                 Log.Info($"Turn test {s.RunId}: {replans[replans.Count - 1]}.");
                 if (found == null || r < 0) return null;
                 var (plan, next, _) = found.Value;
-                // The old route up to the step the car is on, then the new one (from that step's start, or a waypoint
-                // beside or ahead of it).
                 var keep = driveOffset + r + (next[0] == driveRoute[r] ? 0 : 1);
                 var judged = route.Take(keep).Concat(next).ToList();
                 driveOffset = keep;
@@ -906,7 +830,6 @@ namespace DrivenRides
             RestoreNwhScale(s);
 
             var result = judge.Result(timedOut);
-            // T3: traffic contacts this car caused, red runs and standstills fail the run (TrafficVerdict).
             TrafficVerdict.Apply(result, drive.ContactsCaused, drive.Contacts - drive.ContactsCaused, drive.RedRuns, drive.Stalls);
             try
             {
@@ -914,17 +837,14 @@ namespace DrivenRides
                 line["samples"] = s.RunId + "-samples.csv";
                 File.WriteAllText(Path.Combine(Folder, s.RunId + "-nwh.csv"), drive.TraceText());
                 line["trace"] = s.RunId + "-nwh.csv";
-                // T3: traffic contacts (this car moving), standstills, red runs; each failure's T0 scenario beside the trace.
                 line["contacts"] = drive.Contacts;
                 line["contactsCaused"] = drive.ContactsCaused;
                 line["stalls"] = drive.Stalls;
                 line["redRuns"] = drive.RedRuns;
                 line["unsettledDecisions"] = drive.UnsettledDecisions;
-                // Gley's stop for the ride car in its trigger, as measured: speed, metres and seconds to a standstill.
                 var stops = new JArray();
                 foreach (var (ms, metres, seconds) in drive.TriggerStops) stops.Add(new JArray(ms, metres, seconds));
                 line["triggerStops"] = stops;
-                // The traffic cost per physics step, microseconds (review round 1, O7).
                 if (drive.DecideCost != null && drive.ReadCost != null && drive.CarsRead != null)
                     line["trafficCost"] = new JObject
                     {
@@ -992,17 +912,14 @@ namespace DrivenRides
             Log.Info($"Turn test {line["run"]}: {line["case"]} ({line["car"]}) {verdict}{(why != null ? ", " + why : "")}{(result != null && result.Reasons.Count > 0 ? ", " + string.Join(" ", result.Reasons) : "")}.");
         }
 
-        // ---- Ending ----
 
         public static void Abort(string reason) => Teardown(reason, handedOver: true);
 
-        // A time machine that isn't a test's own (there are none) stops the session before it runs.
         public static void OnForeignTimeMachine()
         {
             if (session != null) Teardown("a time machine started", handedOver: false);
         }
 
-        // Synchronous: the car goes, the game's switches come back, the player is put down where the session began.
         private static void Teardown(string reason, bool handedOver)
         {
             var s = session;
@@ -1067,7 +984,6 @@ namespace DrivenRides
             }
         }
 
-        // ---- Status ----
 
         private static JObject StatusOf(Session s, string state) => new JObject
         {
@@ -1095,14 +1011,10 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Turn tests status: " + ex.Message); }
         }
 
-        // ---- The failure picture ----
 
         private const int PictureSize = 800;
         private const float PictureMetres = 50f;
 
-        // A top-down camera image of the failure, with the plan drawn over it: lane waypoints (grey), the planned
-        // path (green), the path driven if it differs (orange), the car's track (red), its outline at the failure
-        // (yellow), the gates (white). The drawing is done on the CPU, so it shows even if the render doesn't.
         private static void Picture(Session s)
         {
             var car = s.Car!;

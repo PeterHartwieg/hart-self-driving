@@ -4,8 +4,6 @@ using Xunit;
 
 namespace DrivenRides.Core.Tests;
 
-// 0.1.90: a taxi stood on a lane's end (no successor) beside a lane whose next waypoints are a junction's; the search
-// allowed no lane change into a junction, and the ride went vanilla with every goal reachable once it did.
 public class StuckStartTests
 {
     [Fact]
@@ -21,7 +19,6 @@ public class StuckStartTests
         Assert.Equal(PlanStatus.Found, job.Status);
         Assert.Equal(pocket, job.Result!.Waypoints[0]);
         Assert.Equal(e4, job.Result.Waypoints.Last());
-        // A car that can drive on along its own lane is held to the old rule: no change into the junction.
         var c = new TurnTestGraph();
         int f0 = c.Add(0, 0), f1 = c.Add(0, 10, true), f2 = c.Add(0, 20, true), f3 = c.Add(0, 30);
         c.Link(f0, f1, f2, f3);

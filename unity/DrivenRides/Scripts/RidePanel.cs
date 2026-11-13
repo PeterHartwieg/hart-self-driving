@@ -10,15 +10,10 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // The ride panel: a small card under the game's Objectives panel with the distance left, the clock slider, the
-    // speed buttons and Skip. Shown while the ride drives or stops (Ride.ShowPanel), so not during the bridge fade or
-    // after Skip. Built from uGUI on the HUD's canvas the first time a ride shows it, and again after a city load.
-    // All sizes are design pixels at 1920x1080; the root is scaled to the HUD's canvas units.
     internal sealed class RidePanel : MonoBehaviour
     {
         private static readonly float[] Speeds = { 1f, 2f, 3f };
 
-        // The design (Option B, "small card").
         private const float Left = 12f, Top = 324f, Width = 345f;
         private const float HeaderHeight = 34f, Pad = 18f, BodyTop = 12f, RowGap = 12f, BodyBottom = 14f;
         private const float ClockRow = 20f, ClockLabelWidth = 84f, ClockGap = 10f, SliderWidth = 132f;
@@ -68,7 +63,6 @@ namespace DrivenRides
 
         private void Hide()
         {
-            // A drag the panel didn't see let go of still ends up on disk.
             if (clockDragged) { Options.FlushClock(); clockDragged = false; }
             root!.SetActive(false);
         }
@@ -81,7 +75,6 @@ namespace DrivenRides
                 shownLeft = left;
                 header!.text = ride.PanelStatus != null ? Loc.Text(ride.PanelStatus) : Loc.Format("drivenrides:panel_left", ("km", left));
             }
-            // The options page can change the clock too; the slider follows it unless it is being dragged.
             if (!clockDragged && slider != null && Mathf.RoundToInt(slider.value) != Options.ClockPercent)
                 slider.SetValueWithoutNotify(Options.ClockPercent);
             if (Options.ClockPercent != shownClock) ShowClock(Options.ClockPercent);
@@ -100,12 +93,10 @@ namespace DrivenRides
         private void ShowClock(int percent)
         {
             shownClock = percent;
-            // Tabular figures: each digit as wide as the next, so the label doesn't shimmer while dragging.
             if (clockLabel != null)
                 clockLabel.text = Loc.Format("drivenrides:panel_clock", ("percent", $"<mspace=0.6em>{percent}</mspace>"));
         }
 
-        // Texts that only change with the language: read again each time the panel shows.
         private void Relabel()
         {
             shownLeft = "";
@@ -135,7 +126,6 @@ namespace DrivenRides
             clockDragged = false;
         }
 
-        // ---- Building ----
 
         private bool Build()
         {
@@ -150,7 +140,6 @@ namespace DrivenRides
                 var (regular, bold, fontFrom) = GameHud.Fonts();
                 if (regular == null) Log.Error("Ride panel: no TextMeshPro font found; the panel's texts use TMP's default.");
                 var unitsPerPixel = GameHud.UnitsPerDesignPixel;
-                // Sprites are drawn at four texels per design pixel, sharp up to 4K at UI zoom 2.
                 const float texels = 4f;
                 var ppuMultiplier = texels * canvas.referencePixelsPerUnit / 100f;
 
@@ -163,7 +152,6 @@ namespace DrivenRides
                 rootRect.localScale = Vector3.one * unitsPerPixel;
                 rootRect.anchoredPosition = new Vector2(Left, -Top) * unitsPerPixel;
                 rootRect.sizeDelta = new Vector2(Width, Height);
-                // A layout group on the canvas must not move it.
                 root.AddComponent<LayoutElement>().ignoreLayout = true;
 
                 var rounded = Sprite9(RoundedRect(Corner, texels, top: true, bottom: true, Color.white, Color.white, plain: true), Corner, texels, vertical: true);
@@ -173,7 +161,6 @@ namespace DrivenRides
                 var circle = SpriteWhole(Circle(HandleSize, texels));
                 var shadow = Sprite9(Shadow(texels, out var shadowBorder), shadowBorder, texels, vertical: true);
 
-                // Shadow, card, header.
                 var shadowImage = Box(root.transform, "Shadow", shadow, new Color(0f, 0f, 0f, ShadowAlpha), ppuMultiplier);
                 Place(shadowImage.rectTransform, -ShadowBlur * 1.5f, -ShadowBlur * 1.5f + ShadowDrop, Width + ShadowBlur * 3f, Height + ShadowBlur * 3f);
                 shadowImage.raycastTarget = false;
@@ -185,7 +172,6 @@ namespace DrivenRides
                 header = Label(headerImage.transform, "Text", bold ?? regular, bold != null ? FontStyles.UpperCase : FontStyles.UpperCase | FontStyles.Bold, 15f, HeaderText);
                 Place(header.rectTransform, Pad, 0f, Width - 2f * Pad, HeaderHeight);
 
-                // Clock row.
                 var rowTop = HeaderHeight + BodyTop;
                 clockLabel = Label(root.transform, "Clock", regular, FontStyles.Normal, 14f, ClockText);
                 clockLabel.fontWeight = FontWeight.Medium;
@@ -193,7 +179,6 @@ namespace DrivenRides
                 slider = MakeSlider(root.transform, pill, circle, ppuMultiplier);
                 Place((RectTransform)slider.transform, Pad + ClockLabelWidth + ClockGap, rowTop, SliderWidth, ClockRow);
 
-                // Speed buttons and Skip.
                 var buttonTop = rowTop + ClockRow + RowGap;
                 for (var i = 0; i < Speeds.Length; i++)
                 {
@@ -229,7 +214,6 @@ namespace DrivenRides
         {
             var go = new GameObject("ClockSlider", typeof(RectTransform));
             go.transform.SetParent(parent, false);
-            // The whole row height takes clicks, not only the 6 px track.
             var hit = go.AddComponent<Image>();
             hit.color = new Color(0f, 0f, 0f, 0f);
 
@@ -242,7 +226,6 @@ namespace DrivenRides
             Middle((RectTransform)fillArea.transform, HandleSize / 2f, HandleSize / 2f, TrackHeight);
             var fill = Box(fillArea.transform, "Fill", pill, Accent, ppu);
             fill.raycastTarget = false;
-            // From the track's start to the handle's centre.
             fill.rectTransform.anchorMin = new Vector2(0f, 0f);
             fill.rectTransform.anchorMax = new Vector2(0f, 1f);
             fill.rectTransform.offsetMin = new Vector2(-HandleSize / 2f, 0f);
@@ -290,7 +273,6 @@ namespace DrivenRides
             textures.Clear();
         }
 
-        // ---- Pieces ----
 
         private static Image Box(Transform parent, string name, Sprite sprite, Color color, float ppuMultiplier)
         {
@@ -318,12 +300,10 @@ namespace DrivenRides
             text.alignment = TextAlignmentOptions.MidlineLeft;
             text.raycastTarget = false;
             text.richText = true;
-            // 0.02 em, as the design's letter spacing for its uppercase texts.
             if ((style & FontStyles.UpperCase) != 0) text.characterSpacing = 2f;
             return text;
         }
 
-        // Places a child by its top-left corner in design pixels from the parent's top-left.
         private static void Place(RectTransform rect, float x, float y, float width, float height)
         {
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
@@ -331,7 +311,6 @@ namespace DrivenRides
             rect.sizeDelta = new Vector2(width, height);
         }
 
-        // Stretches a child across its parent, inset left and right, with a fixed height on the middle line.
         private static void Middle(RectTransform rect, float left, float right, float height)
         {
             rect.anchorMin = new Vector2(0f, 0.5f);
@@ -341,7 +320,6 @@ namespace DrivenRides
             rect.offsetMax = new Vector2(-right, height / 2f);
         }
 
-        // ---- Sprites, drawn once per build ----
 
         private Sprite Sprite9(Texture2D texture, float borderPixels, float texels, bool vertical)
         {
@@ -365,9 +343,6 @@ namespace DrivenRides
             return texture;
         }
 
-        // A rounded rectangle for 9-slicing: corners of the given radius, a 2 px stretchable middle. With plain the
-        // colour is white (tinted by the Image); otherwise a vertical gradient over the given height, sliced only
-        // sideways so the gradient isn't stretched.
         private Texture2D RoundedRect(float radius, float texels, bool top, bool bottom, Color topColor, Color bottomColor, bool plain, float height = 0f)
         {
             var w = Mathf.CeilToInt((2f * radius + 2f) * texels);
@@ -377,14 +352,13 @@ namespace DrivenRides
             var pixels = new Color[w * h];
             for (var y = 0; y < h; y++)
             {
-                var t = h > 1 ? 1f - y / (float)(h - 1) : 0f; // 0 at the top row, 1 at the bottom
+                var t = h > 1 ? 1f - y / (float)(h - 1) : 0f;
                 var color = plain ? Color.white : Color.Lerp(topColor, bottomColor, t);
                 for (var x = 0; x < w; x++)
                 {
                     var px = x + 0.5f;
                     var py = y + 0.5f;
                     var cx = px < r ? r : px > w - r ? w - r : px;
-                    // Texture rows run bottom-up.
                     var roundHere = (py > h - r && top) || (py < r && bottom);
                     var cy = py > h - r ? h - r : py < r ? r : py;
                     var coverage = 1f;
@@ -418,8 +392,6 @@ namespace DrivenRides
             return texture;
         }
 
-        // A soft shadow of a box, as CSS draws a 10 px blur (a Gaussian of sigma 5): a margin of 1.5 blurs round a
-        // box wide enough that its middle is flat, sliced so the middle stretches to the card's size.
         private Texture2D Shadow(float texels, out float border)
         {
             var margin = ShadowBlur * 1.5f;
@@ -446,7 +418,6 @@ namespace DrivenRides
             return texture;
         }
 
-        // Abramowitz and Stegun 7.1.26, good to 1.5e-7.
         private static float Erf(float x)
         {
             var sign = x < 0f ? -1f : 1f;
@@ -458,11 +429,9 @@ namespace DrivenRides
 
         private static Color Hex(int rgb) => new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);
 
-        // The design's hover: 15 % brighter.
         private static Color Brighter(Color c) => new Color(Mathf.Min(1f, c.r * 1.15f), Mathf.Min(1f, c.g * 1.15f), Mathf.Min(1f, c.b * 1.15f), c.a);
     }
 
-    // A flat button with the game's hover and click sounds and a hover colour.
     internal sealed class PanelButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerClickHandler
     {
         public Action? Clicked;
@@ -534,7 +503,6 @@ namespace DrivenRides
         }
     }
 
-    // The clock slider's let-go: the value is written to disk once, then.
     internal sealed class PointerRelease : MonoBehaviour, IPointerUpHandler
     {
         public Action? Released;

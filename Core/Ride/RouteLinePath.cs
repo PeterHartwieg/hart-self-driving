@@ -4,8 +4,6 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Ride
 {
-    // Display samples only: retain every steering vertex and subdivide long straight spans for road-height probes.
-    // Distances stay in the driver's horizontal metres, even after the adapter projects samples onto the road.
     public sealed class RouteLinePath
     {
         private readonly List<Vec3> points = new List<Vec3>();
@@ -51,9 +49,6 @@ namespace DrivenRides.Core.Ride
             }
         }
 
-        // Strictly after the consumed distance: the adapter supplies the head as vertex zero.
-        // Binary search avoids rescanning the consumed portion and chooses by progress, never spatial proximity
-        // (a future loop/crossing can occupy the same position).
         public int FirstAfter(float along)
         {
             if (float.IsNaN(along)) throw new ArgumentOutOfRangeException(nameof(along));

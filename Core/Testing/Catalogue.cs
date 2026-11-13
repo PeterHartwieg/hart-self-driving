@@ -53,9 +53,6 @@ namespace DrivenRides.Core.Testing
             return cases;
         }
 
-        // The case for one added step of a route (a missing turn or a U-turn from entry to exit), as the catalogue
-        // builds it: run-up, the manoeuvre, run-out. The feasibility check drives this case, so the planner asks the
-        // question the rig asks. Null for any other step, or a case the bridge rules out.
         public static Fixture? ForStep(LaneGraph graph, int entry, int exit, CatalogueOptions options)
         {
             Fixture? fixture = null;
@@ -66,9 +63,6 @@ namespace DrivenRides.Core.Testing
             return fixture == null || NearBridge(graph, options, fixture.Route) ? null : fixture;
         }
 
-        // A U-turn's case: from the entry to its target, on through the junction to the first plain waypoint of the far
-        // carriageway. The inner one (LaneGraph.UTurn) keeps its id, uturn-<entry>-<exit>; a wider one is
-        // uturnw-<entry>-<target>.
         private static Fixture? UTurnCase(LaneGraph graph, CatalogueOptions options, int i, int target)
         {
             if (target < 0) return null;
@@ -86,7 +80,6 @@ namespace DrivenRides.Core.Testing
             }
             if (graph.IsIntersection(current)) return null;
             Fixture fixture = Make(graph, options, CaseKind.UTurn, middle);
-            // Two far lanes can lead to one plain waypoint, so a wider one is named by its target.
             if (graph.IsWideUTurn(i, target)) fixture.Id = "uturnw-" + i + "-" + target;
             fixture.TurnGateWaypoint = graph.UTurnStart(i, target);
             return fixture;
@@ -138,7 +131,6 @@ namespace DrivenRides.Core.Testing
             var result = new List<int>();
             int index = backwards ? 0 : middle.Count - 1;
             int current = middle[index];
-            // Run-up follows the approach lane, even when the next route step is an added turn.
             Geometry.Heading(graph, middle, index, out float dx, out float dz);
             var seen = new HashSet<int>(middle);
             float length = 0;
@@ -146,8 +138,6 @@ namespace DrivenRides.Core.Testing
             {
                 int next = Geometry.Next(graph, current, backwards, dx, dz);
                 if (next < 0 || !seen.Add(next)) break;
-                // Never round a bend of more than 60 degrees: at a dead end the only successor is the lane back
-                // (turn test 0.1.33: a Hamptons case's run-out turned round and the car got stuck there).
                 Geometry.Direction(graph.Position(backwards ? next : current), graph.Position(backwards ? current : next), out float nx, out float nz);
                 if (nx * dx + nz * dz < 0.5f) break;
                 float segment = Vec3.HorizontalDistance(graph.Position(current), graph.Position(next));
@@ -167,7 +157,6 @@ namespace DrivenRides.Core.Testing
             if (fixture.Kind != CaseKind.Ramp && fixture.Kind != CaseKind.LaneChange) return Geometry.Angle(dx, dz, ex, ez);
             float largest = 0;
             var headings = new List<(float X, float Z)>();
-            // Include diagonal route segments, whose lane headings alone hide a lane change.
             for (int k = 0; k < fixture.Route.Count; k++)
             {
                 Geometry.Heading(graph, fixture.Route, k, out ex, out ez);
@@ -251,7 +240,6 @@ namespace DrivenRides.Core.Testing
             for (int i = 0; i < graph.Count; i++)
                 if (graph.Predecessors(i).Count != 1 || graph.Successors(i).Count != 1)
                     foreach (int next in graph.Successors(i)) if (!seen.Contains((i, next))) Chain(i, next);
-            // Closed successor chains have no endpoint.
             for (int i = 0; i < graph.Count; i++)
                 foreach (int next in graph.Successors(i)) if (!seen.Contains((i, next))) Chain(i, next);
         }

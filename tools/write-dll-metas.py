@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""Writes Unity .meta files for the game DLLs in an SDK clone, as the SDK's GameDllImporter would.
-
-Deterministic GUIDs (MD5 of "BAModTemplate.GameDllGuid:<lowercase file name>") keep the SDK's example
-assets resolvable; isExplicitlyReferenced stops the game DLLs leaking into Unity's own packages
-(the game's global PlayerPrefs type breaks them otherwise). Usage: write-dll-metas.py <GameDlls folder>
-"""
 import hashlib
 import pathlib
 import sys

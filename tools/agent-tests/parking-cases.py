@@ -56,9 +56,8 @@ def main():
     if not args.checkpoint.startswith('FT'):
         parser.error('Only disposable FT checkpoints are supported')
     seeds = [int(seed) for seed in args.seeds.split(',')]
-    agent.locks.token('agent1')  # Requires the caller's acquired ownership, never takes over.
+    agent.locks.token('agent1')
     health()
-    # Match the tested package to local build output, including Core and dependencies.
     hashes = {}
     for line in args.package.read_text().splitlines():
         digest, name = line.split(None, 1)
