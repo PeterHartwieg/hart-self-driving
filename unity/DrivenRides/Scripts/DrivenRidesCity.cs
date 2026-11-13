@@ -8,8 +8,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // Loads with every city scene: the runtime object and the event subscriptions. GlobalEvents.Init() clears
-    // subscribers before each city load, so they are made per city scope.
     [ModEntryOnCityLoad]
     public sealed class DrivenRidesCity : IModBigAmbitions
     {
@@ -39,22 +37,18 @@ namespace DrivenRides
             runtimeObject.AddComponent<RidePanel>();
             runtimeObject.AddComponent<DriverShortcut>();
             runtimeObject.AddComponent<DestinationShortcut>();
-            // Loading inside a residence counts as a visit, even if its enter event preceded city readiness.
             if (BuildingManager.IsInsideBuilding && InstanceBehavior<BuildingManager>.Instance.building != null)
                 OnEnteredBuilding(InstanceBehavior<BuildingManager>.Instance.building.Address);
-            // Testing only: the debug keys and the turn-test rig, which polls its command files.
             if (TestMode.On)
             {
                 runtimeObject.AddComponent<DebugKeys>();
                 runtimeObject.AddComponent<TurnTests>();
             }
-            // Built now, so the first ride's planning time doesn't include it.
             try { _ = GleyGraph.Graph; }
             catch (Exception ex) { Log.Error("Lane graph: " + ex); }
             Log.Trace($"City ready ({TestedSteps.Count} manoeuvres left out from turn tests).");
         }
 
-        // Fires before the city scene goes, so the ride's player and managers still exist (LoadScene.cs:27-31).
         private static void OnGameUnloaded()
         {
             DestinationTargets.Reset();
@@ -90,12 +84,10 @@ namespace DrivenRides
         }
     }
 
-    // Drives the active ride each frame; RidePanel shows its panel.
     internal sealed class RideHost : MonoBehaviour
     {
         private static RideHost? instance;
 
-        // Runs a game coroutine (an unfade after a cancel) on the mod's own object.
         public static void Run(System.Collections.IEnumerator routine)
         {
             if (instance != null) instance.StartCoroutine(routine);

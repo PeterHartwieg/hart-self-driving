@@ -5,7 +5,6 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Parking
 {
-    // A temporary patch of street, independent of road routing. Encloses the whole body sweep, not just axles.
     public sealed class TrafficReservation
     {
         public Box Area { get; }
@@ -39,7 +38,6 @@ namespace DrivenRides.Core.Parking
             float left = float.PositiveInfinity, right = float.NegativeInfinity, back = left, front = right;
             foreach (var pose in poses)
             {
-                // Includes the controller's body-check margin and the distance between search samples.
                 var body = ManoeuvrePlan.Body(car, pose, 0.5f);
                 var x = body.X * c - body.Z * s; var z = body.X * s + body.Z * c;
                 var w = body.RadiusOn(c, -s); var l = body.RadiusOn(s, c);
@@ -54,8 +52,6 @@ namespace DrivenRides.Core.Parking
         public bool Touches(Box body, float height) => Math.Abs(height - Height) < 2f && Area.Overlaps(body);
         public static Box Body(OtherCar car) => new Box(car.X, car.Z, car.Heading, car.Width / 2, car.Length / 2);
 
-        // Infinity means ordinary Gley movement. Cars already inside must be allowed to clear the reservation.
-        // There is no retained car ID/state: pooled vehicles are assessed afresh wherever they reappear.
         public float StopDistance(OtherCar car, float height, Vec3? target = null)
         {
             if (Math.Abs(height - Height) >= 2 || Area.Overlaps(Body(car))) return float.PositiveInfinity;
@@ -72,7 +68,6 @@ namespace DrivenRides.Core.Parking
                     if (turnEntry <= length) distance = Math.Min(distance, turnEntry);
                 }
             }
-            // Start braking before the boundary, including one physics-step/reaction allowance.
             var horizon = speed * speed / 8f + Math.Max(3f, speed * 0.25f + 1f);
             return distance <= horizon ? Math.Max(0, distance - 0.5f) : float.PositiveInfinity;
         }
@@ -81,7 +76,6 @@ namespace DrivenRides.Core.Parking
         {
             if (float.IsPositiveInfinity(distance) || dt <= 0) return speed;
             var deceleration = Math.Max(4f, speed * speed / (2f * Math.Max(0.01f, distance)));
-            // Also bounds this very step when acquired late, rather than crossing the boundary before braking.
             return Math.Max(0, Math.Min(speed - deceleration * dt, distance / dt));
         }
 

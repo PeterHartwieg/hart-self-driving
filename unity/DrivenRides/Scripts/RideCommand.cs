@@ -20,18 +20,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // The rig's `ride` command (docs/turn-tests.md): a real ride through the game's own taxi flow, started from the
-    // Mac, so rides are tested unattended. It hails the nearest taxi from traffic (or uses the nearest taxi stand, or
-    // calls the private driver and waits for it), picks a destination building, and calls TaxiSystem.TravelTo as the
-    // map's "Go" button does: the fare, the mod's TravelCoroutine prefix and the whole ride are the real ones. One
-    // line per ride goes to ride-results.jsonl beside the rig's results.
-    //
-    //   ride [kind=taxi|stand|driver|own] [vehicle=..] [min=500] [max=1500] [x=.. z=..] [address=street_key#number] [seed=N] [speed=1|2|3] [hamptons=on]
-    //        [autopark=off|cars|every] [skip=N] [exit=N] [kerb=M] (own: the player's own car drives itself; it is put on a
-    //        lane by the player first, or M metres to the right of it with kerb=M to test pulling out from the kerb;
-    //        kerb=0.01 re-seats a car that is in a spot; skip presses Skip N seconds in, exit gets the player out
-    //        N seconds in)
-    // `ridemode nwh|gley|options` picks car physics or the Gley rides for the rides after it (TurnTests).
     internal static class RideCommand
     {
         public static bool Busy { get; private set; }
@@ -101,7 +89,6 @@ namespace DrivenRides
                         .Where(t => t != null && t.gameObject.activeInHierarchy && t.GetComponent<VehicleComponent>() is VehicleComponent v && v.GetIndex() >= 0)
                         .OrderBy(t => Vector3.Distance(t.transform.position, player.position)).FirstOrDefault();
                     if (hailed == null || Vector3.Distance(hailed.transform.position, player.position) > 200f) { result["refused"] = "no taxi in traffic within 200 m"; yield break; }
-                    // As a click on the taxi does: the car stops where it is.
                     TaxiStop?.Invoke(hailed, null);
                     result["taxiMetres"] = Math.Round(Vector3.Distance(hailed.transform.position, player.position), 1);
                     taxi = hailed;
@@ -114,8 +101,6 @@ namespace DrivenRides
                     taxi = stand;
                     break;
                 case "driver":
-                    // Called as the L key calls it (the phone's own handler), unless one waits already; then it drives
-                    // to the player and stops, which takes up to a couple of minutes.
                     if (SmartphonePrivateDriverUI.CurrentVehicle == null)
                     {
                         var vehicles = SaveGameManager.Current.privateDriverVehicleInstances;
@@ -133,7 +118,6 @@ namespace DrivenRides
                         {
                             var body = driver.GetComponent<Rigidbody>();
                             var near = Vector3.Distance(driver.transform.position, player.position) < 25f;
-                            // A parked driver (called from indoors) is there at once.
                             if (driver.GetVehicleIndex() < 0 || (near && (body == null || body.velocity.magnitude < 0.5f))) break;
                         }
                         yield return null;
@@ -159,8 +143,6 @@ namespace DrivenRides
                     yield break;
             }
 
-            // The map in taxi mode, as the taxi's click opens it (for the own car, as L in the driver's seat does);
-            // then the map's Go.
             var shortcutKey = args.TryGetValue("shortcut", out var requestedKey) ? requestedKey : null;
             if (args.TryGetValue("pin", out var pin) && pin == "on" && target is CityBuildingController pinTarget)
                 UI.Guiders.GuidersManager.SetGuiderTarget(pinTarget.building.Address, UI.Guiders.DirectionGuiderType.Destination);
@@ -193,8 +175,6 @@ namespace DrivenRides
             if (Ride.Active != null && args.TryGetValue("speed", out var sp) && float.TryParse(sp, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed))
                 Ride.Active.SetTestSpeed(Mathf.Clamp(speed, 1f, 3f));
             if (!TaxiSystem.IsTraveling && Ride.Active == null) { result["refused"] = "TravelTo started no ride (fare refused, or the map closed)"; yield break; }
-            // To the end of the ride, vanilla or driven, at most 20 minutes. skip=N presses Skip N seconds in; exit=N
-            // gets the player out of the own car N seconds in.
             float After(string name) => args.TryGetValue(name, out var v) && float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : -1f;
             var skipAt = After("skip");
             var exitAt = After("exit");
@@ -209,7 +189,6 @@ namespace DrivenRides
                 if (Ride.IsDriving)
                 {
                     if (radioDrivingSince == null) radioDrivingSince = Time.time;
-                    // Wait for actual simulation time after the map's pause/unpause transition.
                     if (Time.time - radioDrivingSince.Value >= 1f && result["radioDuring"] == null)
                         result["radioDuring"] = RadioSnapshot();
                 }
@@ -219,8 +198,6 @@ namespace DrivenRides
                     if (previousRoadPosition is Vector3 previous)
                     {
                         var step = Vector3.Distance(previous, position);
-                        // Vanilla bridge skips can happen immediately after the handoff. A large position jump
-                        // is not evidence that the road controller drove the car, so resume measuring after it.
                         if (step <= Mathf.Max(3,40*Mathf.Min(Time.deltaTime,.5f))) roadTravelled += step;
                         else roadJumps++;
                     }
@@ -251,7 +228,6 @@ namespace DrivenRides
             result["arrivedMetres"] = Math.Round(Vector3.Distance(player.position, target.GetNavMeshTargetPosition()), 1);
             if (ownCar != null)
             {
-                // Autopark at the end runs inside the ride; give a parked car a moment to settle, then the car's state.
                 var settle = Time.unscaledTime + 2f;
                 while (Time.unscaledTime < settle) yield return null;
                 result["inCar"] = SaveGameManager.Current?.ActiveVehicleId == ownCar.vehicleInstance.id;
@@ -284,8 +260,6 @@ namespace DrivenRides
             };
         }
 
-        // The player's own car (vehicle=..: by type name), put on the nearest free driving lane by the player, facing
-        // along it, and the player in the driver's seat, as if they had stopped there.
         private static IEnumerator OwnCarSeat(Dictionary<string, string> args, JObject result, Action<CarController> found)
         {
             var cars = VehicleHelper.AllPlayerVehicles.OfType<CarController>().Where(c => c != null && c.vehicleType != null && !c.vehicleType.spawnInPlayerObject).ToList();
@@ -300,12 +274,10 @@ namespace DrivenRides
                 var park = ParkingTests.Seat(car, args, result);
                 while (park.MoveNext()) yield return park.Current;
                 if (result["refused"] != null) yield break;
-                // A failed fixture must never fall through to the lane-seating fixture and claim a parking pass.
                 if (!ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
                 { result["refused"] = "could not enter the car in its legal parking space"; yield break; }
                 found(car); yield break;
             }
-            // kerb=M: seated M metres to the right of the lane, as a car parked at the kerb.
             var kerb = args.TryGetValue("kerb", out var kv) && float.TryParse(kv, NumberStyles.Float, CultureInfo.InvariantCulture, out var km) ? km : 0f;
             if (kerb != 0f && ReferenceEquals(VehicleHelper.GetCurrentVehicleBase(), car))
             {
@@ -322,7 +294,6 @@ namespace DrivenRides
                          && w.allowedCars != null && w.allowedCars.Contains(VehicleTypes.Car));
                 if (lane == null) { result["refused"] = "no driving lane within 80 m of the player"; yield break; }
                 var rotation = TrafficManager.Instance.GetWaypointOrientation(lane);
-                // The car's rear axle on the lane waypoint, as a car stopped in the lane stands.
                 var wrapped = NwhCar.Wrap(car.vehicleController, car.gameObject, "", out _);
                 var at = lane.position + rotation * new Vector3(kerb, 0f, -(wrapped != null ? wrapped.RearZ : 0f));
                 OwnCarTaxi.Teleport(car, at, rotation);
@@ -333,7 +304,6 @@ namespace DrivenRides
                 yield return null;
                 car.EnterVehicle();
             }
-            // Settled on its wheels and standing.
             var until = Time.unscaledTime + 8f;
             var body = car.vehicleController.vehicleRigidbody;
             while (Time.unscaledTime < until && (body == null || body.velocity.magnitude > 0.1f || Time.unscaledTime < until - 6f)) yield return null;
@@ -341,14 +311,9 @@ namespace DrivenRides
             found(car);
         }
 
-        // A building by the map's coordinates (x, z: the nearest one), or a random one between min and max metres from
-        // the player, Manhattan only unless hamptons=on.
         private static EntityController? Destination(Dictionary<string, string> args, Vector3 from, JObject result)
         {
             float Arg(string name, float fallback) => args.TryGetValue(name, out var v) && float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : fallback;
-            // Inactive ones too: the Hamptons' buildings are switched off while the player is in Manhattan (hamptons=on
-            // found 0 candidates). None behind a gated community's gate: the game's taxi refuses those unless the player
-            // owns a building inside (TaxiSystem.CanEnterPrivateFence).
             var all = Object.FindObjectsOfType<CityBuildingController>(true).Where(b => b != null && b.building != null && b.building.locatedInsidePrivateFenceIndex < 0).ToList();
             CityBuildingController? pick;
             if (args.TryGetValue("address", out var address))

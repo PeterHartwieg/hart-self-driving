@@ -16,8 +16,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // Disposable-world probe: real Input System events reach DestinationShortcut.Update. Only dispatched
-    // by the opt-in rig. This does not call the shortcut or TaxiSystem on behalf of an injected key.
     internal static class DestinationTests
     {
         internal static bool Busy { get; private set; }
@@ -117,7 +115,6 @@ namespace DrivenRides
                             }
                     break;
                 case "driver-fixture":
-                    // Test-owned vehicle registration only; the normal phone still summons/drives it.
                     if (SaveGameManager.Current.privateDriverVehicleInstances.Count == 0)
                         SaveGameManager.Current.privateDriverVehicleInstances.Add(new VehicleInstance(args["vehicle"]));
                     break;

@@ -4,25 +4,13 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Drive
 {
-    // Layer 2's picture of one moving traffic car: the ground its body will cover, from its rear now along the lane to
-    // its target waypoint and on, and when (docs/implementation-plan.md, "The four layers"). Where it hasn't chosen
-    // yet (a waypoint with several successors) every way is in it. It ends where the car will stop: a waypoint with
-    // `stop` set that it can still stop for, or the give-way line of another road at a junction the ride car holds.
-    // Distances `u` are metres along the corridor from the car's front now (its rear is at -Length).
     public sealed class Corridor
     {
-        // A traffic car's way of speeding up and of slowing down. Gley's cars take about 10 s to their top speed (1.4 m/s²
-        // at 50 km/h); 2 m/s² leaves room for the quicker ones (T0's cars speed up at 2).
         public const float Accel = 2f;
         public const float Ease = 1.5f;
-        // A traffic car stops for a `stop` waypoint it can stop for at this braking or less.
         public const float StopDecel = 4.5f;
-        // How hard a car giving way brakes when it can't stop at its line at StopDecel (the T0 simulation's cars: 4).
         public const float GiveWayOvershootDecel = 4f;
-        // How hard a car brakes in its last half metre to its line (Gley's StopInPoint brings its target speed to 0 at
-        // the waypoint).
         public const float HeldStopDecel = 8f;
-        // Below this it is still pulling away.
         public const float StartingMs = 5f;
         public const float SideMargin = 0.2f;
         private const int MaxSegments = 160;
@@ -39,27 +27,15 @@ namespace DrivenRides.Core.Drive
         public readonly List<Segment> Segments = new List<Segment>(MaxSegments + 1);
         public float Speed, TopSpeed, Length;
         public bool SpeedingUp;
-        // The road's limit where it is (with Gley's 10 %): the most it may reach.
         public float Limit;
         public float MinX, MinZ, MaxX, MaxZ;
 
-        // Builds the corridor of `car` as far as it can get in `seconds` and `beyond` metres more, from the lane graph
-        // and Gley's live flags. The extra stretch is the ride car's sweep: a car coming the other way down the same
-        // lane must be seen there before the ride car goes in, not only where it can be within the time. roadHeld: the
-        // road the ride car holds at a junction, or -1 (JunctionRules.RoadHeld).
-        // speedingUp: the car has been gaining speed (TrafficDriver watches each car's speed over time): it goes on up
-        // to the road's limit, as a car that is pulling away does, rather than keeping its pace.
-        // leaderMs: the speed of a car close ahead of it on its way, which it can't pass (review round 2, U4: a car
-        // crawling behind another counted as pulling away to the limit); none: float.MaxValue.
-        // cruising: seen at a steady pace for a while (TrafficDriver): a slow car doing so isn't pulling away.
         public void Build(LaneGraph graph, in OtherCar car, ILiveFlags flags, float seconds, float beyond, Func<int, int> roadHeld, bool speedingUp = false, float leaderMs = float.MaxValue, bool cruising = false)
         {
             Segments.Clear();
             Speed = car.Speed;
             Length = car.Length;
             var target = car.Target >= 0 && car.Target < graph.Count ? car.Target : -1;
-            // A car pulling away goes up to the road's limit; one already moving keeps its pace (Gley gives each
-            // car its own top speed below the limit, VehicleComponent.maxSpeed), give or take a little.
             var limit = (target >= 0 ? graph.SpeedMs(target) : LaneGraph.DefaultSpeedMs) * 1.1f;
             SpeedingUp = speedingUp;
             Limit = limit;
@@ -75,15 +51,10 @@ namespace DrivenRides.Core.Drive
             Add(Box.Along(rx, rz, fx, fz, half), -car.Length);
             if (target < 0)
             {
-                // No target known: straight on along its heading.
                 Add(Box.Along(fx, fz, fx + hx * reach, fz + hz * reach, half), 0f);
                 return;
             }
-            // A target the front has already reached is passed: Gley moves on from it.
             var tp = graph.Position(target);
-            // Unless it is held there: a car at its line (a red, a give-way to the road the ride car holds), slow enough
-            // to stop within half a metre past it at HeldStopDecel, has its front at the waypoint and goes nowhere (T0
-            // priority: one stopping at its give-way at 1 m/s counted as coming through; review round 4).
             var toTarget = (tp.X - fx) * hx + (tp.Z - fz) * hz;
             if (toTarget < 0.5f && Speed * Speed / (2f * HeldStopDecel) <= toTarget + 0.5f && HeldAt(target, flags, roadHeld)) return;
             if ((tp.X - fx) * hx + (tp.Z - fz) * hz < 0.5f)
@@ -94,7 +65,6 @@ namespace DrivenRides.Core.Drive
                 if (next.Count == 0) Add(Box.Along(fx, fz, fx + hx * 3f, fz + hz * 3f, half), 0f);
             }
             else Walk(graph, flags, roadHeld, fx, fz, 0f, target, reach, half, 0);
-            // A car about to overtake: also the lanes beside its target (Gley's otherLanes), as it would move over.
             if (car.MayChangeLane)
             {
                 var sides = graph.Lateral(target);
@@ -117,7 +87,6 @@ namespace DrivenRides.Core.Drive
                 var p = graph.Position(w);
                 var step = (float)Math.Sqrt((p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z));
                 var end = u + step;
-                // Where it will stop: it stops with its front at the line, if it can at StopDecel.
                 var stops = false;
                 var givesWay = false;
                 if (flags.Stop(w)) stops = true;
@@ -131,13 +100,8 @@ namespace DrivenRides.Core.Drive
                     if (step > 0.05f) Add(Box.Along(x, z, p.X, p.Z, half), u);
                     return;
                 }
-                // Giving way to the road the ride car holds, too fast to stop at the line: it still brakes for it, and
-                // stops past it by what it couldn't shed at GiveWayOvershootDecel, not through the whole junction (T0
-                // priority: such a car counted as coming through forced the ride car's commitment; review round 4).
                 if (givesWay)
                 {
-                    // Every way on from the line, across as many waypoints as it takes, for what it overshoots (review
-                    // round 5, Y2: one successor and one segment only, before).
                     var past = Speed * Speed / (2f * GiveWayOvershootDecel) - end;
                     if (step > 0.05f) Add(Box.Along(x, z, p.X, p.Z, half), u);
                     if (past > 0f)
@@ -174,7 +138,6 @@ namespace DrivenRides.Core.Drive
             MaxZ = Math.Max(MaxZ, box.Z + box.ExtentZ);
         }
 
-        // How far the front gets in t seconds at the most (speeding up to TopSpeed) and at the least (easing off).
         public float Far(float t)
         {
             if (t <= 0f) return 0f;
@@ -191,7 +154,6 @@ namespace DrivenRides.Core.Drive
             return Speed * t - Ease * t * t / 2f;
         }
 
-        // The earliest time the front reaches u.
         public float Reach(float u)
         {
             if (u <= 0f) return 0f;
@@ -201,7 +163,6 @@ namespace DrivenRides.Core.Drive
             return speedUp + (u - during) / Math.Max(0.1f, TopSpeed);
         }
 
-        // Drops the segments outside an area (the ride car's sweep), so each pose tests only the ones near it.
         public void Clip(float minX, float minZ, float maxX, float maxZ)
         {
             // In place, without a predicate: Decide runs every physics step and must make no garbage.
@@ -218,8 +179,6 @@ namespace DrivenRides.Core.Drive
         public bool BoundsTouch(in Box b) =>
             b.X + b.ExtentX >= MinX && b.X - b.ExtentX <= MaxX && b.Z + b.ExtentZ >= MinZ && b.Z - b.ExtentZ <= MaxZ;
 
-        // Where along the corridor a box lies on it: the lowest and highest u it covers, and the heading of the first
-        // segment it touches. False if it is clear of the corridor.
         public bool Covers(in Box b, out float from, out float to, out float sin, out float cos)
         {
             from = float.MaxValue;

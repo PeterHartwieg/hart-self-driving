@@ -8,8 +8,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Reported 18 October: the food truck sees a queue at a red and slows, but hits its rear at 1.6–2.1 m/s.
-// CarModel follows Desired directly; this regression must drive the pedals, including their response delay.
 public sealed class FollowingPedalTests
 {
     private readonly ITestOutputHelper output;
@@ -36,7 +34,6 @@ public sealed class FollowingPedalTests
         graph.Add(0, 0);
         var traffic = new TrafficDriver(graph.Build(), line, driver,
             new RideBody { Wheelbase = wheelbase, FrontAhead = frontAhead, RearBehind = rearBehind, HalfWidth = halfWidth });
-        // A stopped delivery truck, as in the recorded ride; its rear is initially 40 m from our front bumper.
         const float leaderLength = 7.43f, dt = 0.02f;
         var leaderRear = frontAhead + 40f;
         var cars = new[] { new OtherCar { Id = 27, X = 0f, Z = leaderRear + leaderLength / 2f, Heading = 0f,
@@ -50,7 +47,6 @@ public sealed class FollowingPedalTests
             var o = driver.Step(new DriveInput { RearX = 0f, RearZ = rearZ, Heading = 0f, SpeedMs = speed, Dt = dt,
                 StopAlong = decision.StopAlong, YieldAlong = decision.YieldAlong, GapAhead = decision.GapAhead,
                 GapSpeed = decision.GapSpeed, MaxSpeed = decision.MaxSpeed });
-            // Same pedal-response model as ApproachPedalTests, independent of the desired speed.
             throttle += (o.Throttle - throttle) * dt / 0.1f;
             brake += (Math.Max(o.Brake, o.Handbrake) - brake) * dt / 0.1f;
             speed = Math.Max(0f, speed + (throttle * 3f - brake * PursuitDriver.BrakePerInput - 0.1f) * dt);

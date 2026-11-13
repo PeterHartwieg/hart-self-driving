@@ -11,8 +11,6 @@ using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace DrivenRides
 {
-    // Road destinations come from the street's parking strips. Generated spaces are checked only on arrival,
-    // after the game has populated the area. This adapter does not run the local manoeuvre planner.
     internal static class ParkingNavigation
     {
         private static readonly FieldInfo? SideBySide = AccessTools.Field(typeof(ParkingLaneGenerator), "sideBySideParkingSpots");
@@ -24,8 +22,6 @@ namespace DrivenRides
         public static List<Goal> Goals(Vector3 door, CarSpec car, int vehicleType)
         {
             var strips = new List<ParkingStrip>();
-            // Inactive street sections count too (the Hamptons, for example). Reading geometry must not spawn
-            // parked cars or regenerate gaps at the remote destination.
             foreach (var lane in Object.FindObjectsOfType<ParkingLaneGenerator>(true))
             {
                 if (!OrdinaryParallel(lane)) continue;
@@ -68,8 +64,6 @@ namespace DrivenRides
 
         internal sealed class Choice { public AutoParkSpot? Spot; }
 
-        // Pick using directed road travel plus walking cost, not proximity across a one-way street. A reachable
-        // space beside the car takes priority; no road journey is needed for that local handoff.
         public static IEnumerator ChooseSpace(CarController owner, List<AutoParkSpot> spaces, Vector3? door, Choice choice)
         {
             var graph = GleyGraph.Graph;
@@ -98,7 +92,6 @@ namespace DrivenRides
                     if (!goals.TryGetValue(goal.Waypoint, out var old) || cost < old.Goal.WalkSeconds)
                         goals[goal.Waypoint] = (new Goal(goal.Waypoint, cost), spot);
                 }
-                // A dense area can contain many gaps; do not do every graph query in one rendered frame.
                 if (++processed % 8 == 0) yield return null;
                 if (owner == null || !owner.controlledByPlayer || Ride.Active?.ParkingSkipped == true) yield break;
             }

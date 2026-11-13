@@ -11,7 +11,6 @@ namespace DrivenRides
 
         public static void Init(IModLogger modLogger) => logger = modLogger;
 
-        // The game's mod logger adds its own "[Mod:<title>]" prefix.
         public static void Info(string message)
         {
             if (!TestMode.On && IsTrace(message)) return;
@@ -19,8 +18,6 @@ namespace DrivenRides
             else Debug.Log("[" + DrivenRidesMod.DisplayName + "] " + message);
         }
 
-        // Per-step and diagnostic lines: only in test mode (TestMode), so a normal game logs the startup, one line
-        // as a ride starts and one as it ends, and errors.
         public static void Trace(string message)
         {
             if (TestMode.On) Info(message);

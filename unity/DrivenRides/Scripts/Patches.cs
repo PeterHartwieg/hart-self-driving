@@ -13,7 +13,6 @@ using Timemachine;
 
 namespace DrivenRides
 {
-    // Harmony patches. Each one logs an Active or Not active line at startup.
     internal static class Patches
     {
         private const string HarmonyId = "drivenrides.mod";
@@ -25,55 +24,36 @@ namespace DrivenRides
             harmony = new Harmony(HarmonyId);
             Log.Info($"Harmony {typeof(Harmony).Assembly.GetName().Version}.");
 
-            // The ride itself: replaces the iterator vanilla's TravelTo starts, after its checks and payment.
             Patch(typeof(TaxiSystem), "TravelCoroutine", new[] { typeof(EntityController), typeof(float) }, nameof(TravelPrefix), prefix: true);
-            // The private driver's own Update would stop the car every frame while the mod drives it.
             Patch(typeof(PrivateDriverVehicle), "Update", Type.EmptyTypes, nameof(DriverUpdatePrefix), prefix: true);
-            // The clock runs at the options' rate during a ride (a third by default).
             Patch(typeof(GameManager), "RunMainGameTick", new[] { typeof(float) }, nameof(TickPrefix), prefix: true);
-            // A save during a ride puts the player back where they got in.
             Patch(typeof(PlayerHelper), "SaveCurrentPosition", Type.EmptyTypes, nameof(SavePositionPostfix));
-            // No activities (reading, and with it fast-forward and the activity time machine) during a ride.
             Patch(typeof(PlayerActivityUI), "CanStartActivity", new[] { typeof(bool), typeof(bool) }, nameof(ActivityPrefix), prefix: true);
-            // A time machine the ride didn't start cancels the ride first. The one-argument overload forwards here.
             Patch(typeof(TimeMachine), "StartTimeMachine", new[] { typeof(Timestamp), typeof(bool), typeof(string), typeof(bool), typeof(bool) }, nameof(TimeMachinePrefix), prefix: true);
             // Red lights: Gley would move the ride car's target past a red stop line once it is within 5 m.
             Patch(typeof(DrivingAI), "WaypointRequested", new[] { typeof(int), typeof(VehicleTypes) }, nameof(WaypointRequestedPrefix), prefix: true);
             // Gley's "passed" test pops every waypoint behind the car's nose; in a sharp turn that emptied the route.
             Patch(typeof(DrivingAI), "HasReachedOrPassedWaypoint", new[] { typeof(int), typeof(int) }, nameof(PassedPrefix), prefix: true);
-            // The phone's full-screen apps pause the game; during a ride time goes on, so a passenger can be busy
-            // on the phone (Peter).
             Patch(typeof(UI.Smartphone.FullMenu), "Toggle", new[] { typeof(bool) }, nameof(FullMenuTogglePrefix), prefix: true);
             Patch(typeof(UI.Smartphone.FullMenu), "Toggle", new[] { typeof(bool) }, nameof(FullMenuTogglePostfix));
             Patch(typeof(GameSpeedController), "SetPause", new[] { typeof(bool), typeof(bool) }, nameof(SetPausePrefix), prefix: true);
-            // ... and the street stays audible: the phone's UI-only sound mix is normally undone by the unpause.
             Patch(typeof(SfxManager), "SetSoundSnapshotCityMap", new[] { typeof(bool), typeof(float) }, nameof(PhoneSoundPrefix), prefix: true);
-            // Passenger rides have a car radio even though vanilla's vehicle state still says "on foot".
             Patch(typeof(RadioPlayer), "OnAccessoryEquipped", new[] { typeof(CargoInstance) }, nameof(RadioAccessoryPrefix), prefix: true);
             Patch(typeof(RadioPlayer), "OnAccessoryUnEquipped", new[] { typeof(CargoInstance) }, nameof(RadioAccessoryPrefix), prefix: true);
-            // No taxi or driver ride while turn tests run, before the fare is taken.
             Patch(typeof(TaxiSystem), "TravelTo", new[] { typeof(EntityController) }, nameof(TravelToPrefix), prefix: true);
-            // The ride steers an arc turn by moving Gley's target for its car each physics step, before the drive job.
             Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPrefix), prefix: true);
-            // ... and after Gley has turned it, the ride car turns about its middle, not its origin.
             Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes, nameof(TrafficFixedPostfix));
-            // Local parking reserves its swept area. Scope Gley's ignored flag to this call, even on exceptions.
             var parkingMovement = Patch(typeof(TrafficManager), "FixedUpdate", Type.EmptyTypes,
                 nameof(ParkingTrafficPrefix), prefix: true, finalizer: nameof(ParkingTrafficFinalizer));
             var parkingSpawn = Patch(typeof(PositionValidator), "IsValid", new[] { typeof(UnityEngine.Vector3), typeof(float),
                 typeof(float), typeof(float), typeof(bool), typeof(float), typeof(UnityEngine.Quaternion) }, nameof(ParkingSpawnPrefix), prefix: true);
             ParkingTraffic.HooksReady = parkingMovement && parkingSpawn;
-            // An own-car ride costs no fare.
             Patch(typeof(TaxiSystem), "GetPrice", new[] { typeof(float) }, nameof(PricePrefix), prefix: true);
-            // The own car driving itself: the steering assist held off, and getting out ends the ride first.
             Patch(typeof(CarController), "Update", Type.EmptyTypes, nameof(CarUpdatePostfix));
             Patch(typeof(CarController), "ExitVehicle", Type.EmptyTypes, nameof(ExitPrefix), prefix: true);
-            // ... and the game's own autopark and bridge skip don't teleport it out from under the drive.
             Patch(typeof(UI.ItemPanel.ItemPanelUI), "ClickAutoPark", Type.EmptyTypes, nameof(TeleportPrefix), prefix: true);
             Patch(typeof(Vehicles.SkipBridgeHelper), "SkipBridge", Type.EmptyTypes, nameof(TeleportPrefix), prefix: true);
-            // A bridge doesn't hide the mod's own ride cars (NwhCar.IsStripped).
             Patch(typeof(CarFeatures), "UpdateBridgeHiddenState", Type.EmptyTypes, nameof(BridgeHiddenPrefix), prefix: true);
-            // The driver shortcut remembers the vehicle called from the phone too.
             Patch(typeof(SmartphonePrivateDriverUI), "OnClickVehicle", new[] { typeof(VehicleInstance) }, nameof(DriverCalledPostfix));
         }
 
@@ -123,7 +103,6 @@ namespace DrivenRides
 
         private static bool Patch(Type? type, string method, Type[]? args, string handler, bool prefix = false, string? finalizer = null)
         {
-            // Overloads need their arguments in the log line to tell them apart.
             var name = $"{type?.Name ?? "(type not found)"}.{method}{(args != null && args.Length > 0 ? "(" + string.Join(", ", args.Select(a => a.Name)) + ")" : "")}";
             if (type == null)
             {
@@ -186,7 +165,6 @@ namespace DrivenRides
         private static bool ActivityPrefix(bool showNotification, ref bool __result)
         {
             if (!Ride.OwnsPlayer && !TurnTests.Running) return true;
-            // Skipping the method also skips vanilla's notice, so show one, or the click looks dead.
             if (showNotification) Notice.Text("drivenrides:notice_not_during_ride");
             __result = false;
             return false;
@@ -207,7 +185,6 @@ namespace DrivenRides
             try
             {
                 if (!NwhCar.IsStripped(__instance)) return true;
-                // Once per car, the bridge the game would have hidden it with (the test log only).
                 if (BridgesContaining?.GetValue(__instance) is System.Collections.Generic.List<Streets.BridgeController> bridges)
                     foreach (var bridge in bridges)
                         if (bridge != null && bridge.IsInCameraBlockMode && KeptVisible.Add(__instance.GetInstanceID()))
@@ -252,7 +229,6 @@ namespace DrivenRides
         {
             try
             {
-                // Every other car returns here at once.
                 var car = Ride.CarCentre(index);
                 if (car == null) return true;
                 var waypoint = TrafficManager.Instance.GetWaypoint(waypointIndex);
@@ -271,8 +247,6 @@ namespace DrivenRides
 
         private static readonly System.Reflection.FieldInfo? MixerField = AccessTools.Field(typeof(SfxManager), "audioMixer");
 
-        // Opening the phone also turns the traffic engines (the street's sound) down to silence; during a ride they
-        // are turned back up so the passenger hears the road.
         private static void FullMenuTogglePostfix(bool show)
         {
             openingPhone = false;

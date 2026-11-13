@@ -8,8 +8,6 @@ using Xunit;
 
 namespace DrivenRides.Core.Tests;
 
-// The planner's fixes from review round 3 (build/review-nwh/fixes-r3.md, R1 to R7), with a world of its own for the
-// way-on planner (the game's is NwhPlanner) and a clock of its own for the jobs.
 public sealed class ReviewRound3Tests
 {
     private static CarSpec Small() => new("small", 2.5f, _ => 40f, new Vec3(0, 0.7f, 1.25f), new Vec3(0.9f, 0.7f, 2f), 50f, 1.5f);
@@ -21,8 +19,6 @@ public sealed class ReviewRound3Tests
         return Math.Abs(dx * c - dz * s) <= box.Half.X && Math.Abs(dx * s + dz * c) <= box.Half.Z ? "post" : null;
     };
 
-    // One lane: each route from a waypoint runs along it to the end, unless a step of it is blocked. Planned as the
-    // game's planner does: the route's checks worked out as work (PrepareWork), the plan built, its line validated.
     internal sealed class World : IWayOnWorld
     {
         public LaneGraph Graph { get; }
@@ -34,7 +30,6 @@ public sealed class ReviewRound3Tests
         public readonly List<string> Notes = new List<string>();
         public bool NoRoutes;
         public int Routes;
-        // What each piece of work costs on the jobs' clock, ms.
         public double Clock, PerLane = 0.1, PerRoute = 0.2;
 
         public double PerLook;
@@ -49,7 +44,6 @@ public sealed class ReviewRound3Tests
             Check = new Feasibility(Graph, Small(), Costed(world));
         }
 
-        // Another graph and the route along which every route runs.
         public World(LaneGraph graph, int[] route, Func<BodyBox, string?>? world = null)
         {
             Graph = graph;
@@ -57,7 +51,6 @@ public sealed class ReviewRound3Tests
             Check = new Feasibility(Graph, Small(), Costed(world));
         }
 
-        // Each look at the world costs PerLook on the jobs' clock.
         private Func<BodyBox, string?> Costed(Func<BodyBox, string?>? world) => box =>
         {
             Looks++;
@@ -86,7 +79,6 @@ public sealed class ReviewRound3Tests
             into.Summary = "along the lane";
         }
 
-        // Steps swept one per piece of work; an obstacle 4 m along its step. Swept is raised by each.
         public Action<int>? Swept;
 
         public IEnumerable<object?> LanesAhead(IReadOnlyList<int> path, int position, float metres, Vec3 near, List<(int From, int To, string? What, float At)> found)
@@ -109,7 +101,6 @@ public sealed class ReviewRound3Tests
 
     private static readonly Goal[] NoGoals = Array.Empty<Goal>();
 
-    // The car standing on the lane at 15 m, heading north, its front at path position 1.
     private static Func<CarPose> At15 => () => new CarPose(0f, 15f, 0f, 0f);
 
     private static WayOnPlanner PlannerFor(World w) => new WayOnPlanner(w) { ClockMs = () => w.Clock };
@@ -130,7 +121,6 @@ public sealed class ReviewRound3Tests
         var route = w.Lane.ToList();
         watch.Installed(w.PlanOf(route));
         var job = PlannerFor(w).LookAhead(route, route, 1, At15, NoGoals, 0, watch);
-        // A slice at a time (0.1 ms a lane): the hold is out before the sweep has finished, long before the job ends.
         var slices = 0;
         while (job.HoldPosition < 0 && !job.Step(0.05)) slices++;
         Assert.Equal(6, job.HoldPosition);
@@ -158,7 +148,6 @@ public sealed class ReviewRound3Tests
             Assert.Equal(6, job.HoldPosition);
             routes.Add(w.Routes);
         }
-        // Each try plans from a few starts; after MaxTries looks, none.
         Assert.True(routes[WayOnPlanner.MaxTries - 1] > 0);
         Assert.Equal(routes[WayOnPlanner.MaxTries - 1], routes[4]);
     }
@@ -170,16 +159,12 @@ public sealed class ReviewRound3Tests
         var route = w.Lane.ToList();
         var watch = new WayOnPlanner.Watch();
         watch.Installed(w.PlanOf(route));
-        // The lane 60 -> 70 m now wants a small move; nothing stands on the line driven now.
         w.Shifts[(w.Lane[6], w.Lane[7])] = (2f, 8f, 0.3f);
         var planner = PlannerFor(w);
         var job = planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch);
-        // The line driven now is swept there first and passes: no hold, not even for a moment, and nothing to act on
-        // (review round 5).
         while (!job.Step(0.05)) Assert.Equal(-1, job.HoldPosition);
         Assert.False(job.Changed);
         Assert.Contains(w.Notes, n => n.Contains("passes there"));
-        // The next look: the same change is known to pass, so no hold at all, not even for a moment.
         var next = planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch);
         while (!next.Step(0.05)) Assert.Equal(-1, next.HoldPosition);
         Assert.False(next.Changed);
@@ -188,7 +173,6 @@ public sealed class ReviewRound3Tests
     [Fact]
     public void R1ANewSidewaysMoveWithNoWayOnHoldsWhereThePlanNowFails()
     {
-        // A van parked so the line driven now (unshifted) touches it, 65 m along.
         var w = new World(Post(0.5f, 65f)) { NoRoutes = true };
         var route = w.Lane.ToList();
         var watch = new WayOnPlanner.Watch();
@@ -213,7 +197,6 @@ public sealed class ReviewRound3Tests
         Assert.False(Run(planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch)).Changed);
         w.Shifts[(w.Lane[6], w.Lane[7])] = (5f, 8f, 0.4f);
         Run(planner.LookAhead(route, route, 1, At15, NoGoals, 0, watch));
-        // Found, and the line driven now swept there (it passes, so it is kept: review round 5).
         Assert.Contains(w.Notes, n => n.Contains($"step {w.Lane[6]} -> {w.Lane[7]} passed +0.40 m sideways from 5.0") && n.Contains("passes there"));
     }
 
@@ -228,18 +211,14 @@ public sealed class ReviewRound3Tests
             yield return null;
             yield return null;
         }
-        // Comfortable: 50 m - HoldShort, whatever the speed.
         var control = new WayOnControl { LookAhead = (p, pose) => new WayOnJob("ahead", p, Holding) };
         control.Ahead(0f, 0.02f, 1, alongOf, 12f, 10f, At15);
         Assert.Equal(48f, control.HoldAlong);
-        // Standing short of it: held; after HoldSeconds with no way on, the drive ends.
         var t = 0f;
         WayOnControl.Result r = default;
         for (; t < WayOnControl.HoldSeconds + 2f && r.Act != WayOnControl.Act.End; t += 0.02f) r = control.Ahead(t, 0.02f, 4, alongOf, 47.5f, 0f, At15);
         Assert.Equal(WayOnControl.Act.End, r.Act);
         Assert.StartsWith("blocked ahead", r.Why);
-        // Too late: 15 m/s with 5 m to the step needs 24 m/s²; the stop stays short of the step (not moved on past
-        // it), and once the car stands, the step is given up as blocked at its position.
         var late = new WayOnControl { LookAhead = (p, pose) => new WayOnJob("ahead", p, Holding) };
         late.Ahead(0f, 0.02f, 4, alongOf, 45f, 15f, At15);
         Assert.Equal(50f - WayOnControl.PastHold, late.HoldAlong!.Value, 3);
@@ -270,7 +249,6 @@ public sealed class ReviewRound3Tests
             Take = job => { taken++; return job.Found?.Plan; },
         };
         IEnumerable<object?> Steps(WayOnJob job) => Finding(job);
-        // The first step holds; a restart of the drive meanwhile (a blocked step's way on) drops the job.
         control.Ahead(0f, 0.02f, 1, alongOf, 12f, 8f, At15);
         Assert.NotNull(control.Job);
         Assert.Equal(48f, control.HoldAlong);
@@ -278,7 +256,6 @@ public sealed class ReviewRound3Tests
         Assert.Null(control.Job);
         Assert.Null(control.HoldAlong);
         Assert.Equal(0, taken);
-        // A look that finds a way on: taken once, the hold gone with it.
         WayOnControl.Result r = default;
         for (var t = 2f; t < 3f && r.Act != WayOnControl.Act.Restart; t += 0.02f) r = control.Ahead(t, 0.02f, 1, alongOf, 12f, 8f, At15);
         Assert.Equal(WayOnControl.Act.Restart, r.Act);
@@ -300,8 +277,6 @@ public sealed class ReviewRound3Tests
             Replan = (p, what, pose) => planner.RoundBlock(route, route, p, what, pose, NoGoals, 0),
             Take = job => job.Found?.Plan,
         };
-        // Blocked on the step 10 -> 20 m: that step is given up for the ride, and no way on joins the car standing at
-        // 15 m (every route along the one lane runs through it, or starts ahead of the car).
         WayOnControl.Result r;
         var waits = 0;
         while ((r = control.Blocked(1, "a parked van", At15)).Act == WayOnControl.Act.Wait) waits++;
@@ -314,8 +289,6 @@ public sealed class ReviewRound3Tests
     [Fact]
     public void R4ASimulationIsSlicedWithinItsBudget()
     {
-        // The turn rechecked by the look-ahead: each look at the world costs 0.25 ms on the jobs' clock, each ground
-        // ray 0.02 ms. A 1 ms budget is overrun by at most one piece of work, not by a whole simulation.
         var clock = 0.0;
         var (graph, entry, exit) = TurnTestGraph.Turn();
         var check = new Feasibility(graph, Small(), _ => { clock += 0.25; return null; }) { GroundAt = _ => { clock += 0.02; return 0f; } };

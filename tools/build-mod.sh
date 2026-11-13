@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# Builds the Driven Rides mod package with the official SDK in Unity batch mode.
-# Usage: tools/build-mod.sh
-# Output: build/DrivenRides/ (the folder that goes into the game's ModsLocal).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-# A dedicated SDK clone, so other mods in a personal SDK project cannot break this build.
 SDK="${BA_SDK:-$REPO/build/sdk}"
 SDK_URL="https://github.com/hovgaardgames/bigambitions.git"
 SDK_COMMIT="1e03ddd5071b77a32cfd8bba89f0c130ba6c7d73"
@@ -25,17 +21,14 @@ if [ ! -d "$SDK/.git" ]; then
   git clone -q "$SDK_URL" "$SDK"
   git -C "$SDK" checkout -q "$SDK_COMMIT"
 fi
-# Refuse a clone at another commit or with edited SDK sources, rather than resetting it.
 [ "$(git -C "$SDK" rev-parse HEAD)" = "$SDK_COMMIT" ] || { echo "$SDK is not at the pinned SDK commit $SDK_COMMIT" >&2; exit 1; }
 SDK_INPUTS=(Assets/Editor Assets/Mods/Example-Vehicle "Assets/_BaDependencies/Vehicle Dependencies" Packages ProjectSettings)
 if [ -n "$(git -C "$SDK" status --porcelain --untracked-files=no -- "${SDK_INPUTS[@]}")" ]; then
   echo "$SDK has local changes in ${SDK_INPUTS[*]}; refusing to build" >&2; exit 1
 fi
-# The SDK compiles against the installed game's DLLs; copy only changed files to avoid reimports.
 rsync -a --checksum "$GAME_DLLS/" "$SDK/Assets/_BaDependencies/GameDlls/" --include='*.dll' --exclude='*'
 python3 "$REPO/tools/write-dll-metas.py" "$SDK/Assets/_BaDependencies/GameDlls"
 
-# Harmony, checksum-pinned. Never committed.
 if [ ! -f "$DEPS/0Harmony.dll" ]; then
   tmp="$(mktemp -d)"
   curl -fsSL "$HARMONY_URL" -o "$tmp/harmony.nupkg"
@@ -47,15 +40,12 @@ if [ ! -f "$DEPS/0Harmony.dll" ]; then
 fi
 echo "$HARMONY_DLL_SHA256  $DEPS/0Harmony.dll" | shasum -a 256 -c - >/dev/null || { echo "Cached 0Harmony.dll does not match the pinned hash; delete it and rebuild" >&2; exit 1; }
 
-# Core, compiled for netstandard2.1 and shipped next to the mod DLL.
 dotnet build "$REPO/Core/DrivenRides.Core.csproj" -c Release -nologo -v quiet
 cp "$REPO/Core/bin/Release/netstandard2.1/DrivenRides.Core.dll" "$DEPS/DrivenRides.Core.dll"
 
-# Every script needs a committed .meta with a stable GUID.
 python3 "$REPO/tools/write-script-metas.py" "$MOD_DIR" "$REPO/unity/BuildEditor"
 
-# Link the mod folder and the build helper into the SDK project.
-link() { # link <target> <link path>
+link() {
   if [ -L "$2" ]; then [ "$(readlink "$2")" = "$1" ] || { rm "$2"; ln -s "$1" "$2"; }
   elif [ -e "$2" ]; then echo "$2 exists and is not a symlink; refusing to replace it" >&2; exit 1
   else ln -s "$1" "$2"; fi
@@ -63,7 +53,7 @@ link() { # link <target> <link path>
 link "$MOD_DIR" "$SDK/Assets/Mods/DrivenRides"
 link "$REPO/unity/BuildEditor" "$SDK/Assets/Editor/DrivenRidesBuild"
 
-run_unity() { # run_unity <method> <log name>
+run_unity() {
   local log="$LOG_DIR/$2.log"
   if ! "$UNITY" -batchmode -nographics -projectPath "$SDK" -buildTarget Win64 \
       -executeMethod "$1" -modId DrivenRides -logFile "$log"; then

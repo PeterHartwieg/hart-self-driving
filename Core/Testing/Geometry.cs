@@ -26,7 +26,6 @@ namespace DrivenRides.Core.Testing
             dz = 1;
         }
 
-        // A fork is safe only when one branch continues the segment we arrived on.
         public static int Next(LaneGraph graph, int current, bool backwards, float dx, float dz)
         {
             var choices = backwards ? graph.Predecessors(current) : graph.Successors(current);

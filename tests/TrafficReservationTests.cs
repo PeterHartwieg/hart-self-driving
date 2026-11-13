@@ -35,7 +35,6 @@ public sealed class TrafficReservationTests
         Assert.True(stopped);
         Assert.InRange(car.Z + car.Length / 2, -13, -9.49f);
         Assert.True(float.IsFinite(Street.StopDistance(car, 0)));
-        // A frame with a normal Gley acceleration must still be held on the next check.
         car.Vz = 0.2f;
         Assert.Equal(0, TrafficReservation.BrakedSpeed(car.Speed, Street.StopDistance(car, 0), 0.1f));
     }
@@ -61,10 +60,10 @@ public sealed class TrafficReservationTests
     }
 
     [Theory]
-    [InlineData(3.5f, -15, 0, 0)] // Adjacent lane, same direction.
-    [InlineData(-3.5f, 15, MathF.PI, 0)] // Opposite lane.
-    [InlineData(0, -15, 0, 5)] // Bridge above.
-    [InlineData(0, 15, 0, 0)] // Already leaving.
+    [InlineData(3.5f, -15, 0, 0)]
+    [InlineData(-3.5f, 15, MathF.PI, 0)]
+    [InlineData(0, -15, 0, 5)]
+    [InlineData(0, 15, 0, 0)]
     public void UnrelatedTrafficContinues(float x, float z, float heading, float height)
     {
         Assert.True(float.IsPositiveInfinity(Street.StopDistance(Car(x, z, heading, 8), height)));

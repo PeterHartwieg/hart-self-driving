@@ -13,8 +13,6 @@ namespace DrivenRides.Core.Routing
         { From = from; To = to; Position = position; Heading = heading; Distance = distance; }
     }
 
-    // A parked heading is not a road direction. Project onto directed road segments, including long ones,
-    // then check each proposed entry with the separate local planner before moving the car.
     public static class DepartureEntryPicker
     {
         public static List<DepartureEntry> Pick(LaneGraph graph, Vec3 from, CarSpec car, int vehicleType,

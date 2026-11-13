@@ -116,7 +116,7 @@ public sealed class DestinationShortcutTests
     public void RebindingDisablingAndDuplicateBindingsAreHandled()
     {
         SaveGameManager.Current.customDestination = shop;
-        Options.PinnedKey = 4; // U
+        Options.PinnedKey = 4;
         Press(Key.J);
         Assert.Empty(taxi.Trips);
         Press(Key.U);
@@ -192,7 +192,7 @@ public sealed class DestinationShortcutTests
         VehicleHelper.Current = new();
         OwnCarTaxi.Refuse = change == "refused";
         Press(Key.J);
-        if (change != "refused") Press(Key.J); // Pending request cannot queue another trip.
+        if (change != "refused") Press(Key.J);
         Assert.Empty(taxi.Trips);
         switch (change)
         {
@@ -207,8 +207,6 @@ public sealed class DestinationShortcutTests
         Assert.Equal(1, OwnCarTaxi.Opens);
     }
 
-    // Real Life Overhaul 1.0.5's photo mode rolls its camera on L and J and picks the next filter on K
-    // (Core/Keys.cs, PhotoKeys); the game is paused under it.
     [Theory]
     [InlineData(Key.J)]
     [InlineData(Key.K)]

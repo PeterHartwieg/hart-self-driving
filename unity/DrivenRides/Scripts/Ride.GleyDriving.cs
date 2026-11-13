@@ -24,7 +24,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // GleyDriving operations. Fields remain in Ride.cs to preserve initialization order.
     internal sealed partial class Ride
     {
 
@@ -34,7 +33,6 @@ namespace DrivenRides
             if (!OwnsCar) { EndWith(Outcome.Vanilla, "the car was gone before departure"); return; }
             if (kind == Kind.Taxi) taxi!.DriveAway();
             owned.Clear();
-            // A loaded car sits on its spawn waypoint; the route starts there.
             for (var i = onFirstWaypoint ? 1 : 0; i < path.Count; i++) owned.Add(path[i]);
             car.presetPath = owned;
             departed = true;
@@ -43,8 +41,6 @@ namespace DrivenRides
             progress = new RouteProgress(Points(path));
             IndexRoute();
             watch = new RideWatch(unpausedSeconds, route.DriveSeconds);
-            // The car's own traffic music (AiCarMusic, a one-in-ten chance per car) played at full volume with the
-            // camera on the car (spike 18). Muted for the ride.
             foreach (var music in car.GetComponentsInChildren<AiCarMusic>(true))
                 if (music.musicPlayer != null && !music.musicPlayer.mute) { music.musicPlayer.mute = true; muted.Add(music.musicPlayer); }
             if (kind != Kind.Test)
@@ -68,13 +64,10 @@ namespace DrivenRides
             return points;
         }
 
-        // Puts each added turn's and U-turn's waypoints between its entry and exit (Core's PathExpander).
         private List<int> Expand(Route r)
         {
             var steering = carSteering;
             var graph = GleyGraph.Graph;
-            // A way on the planner has just checked (NwhTake) is taken as it is; otherwise the route's plan, checked
-            // as driven. One whose line fails leaves the steps blocked and the ride on the Gley expansion below.
             var plan = nwhTaken != null && nwhTaken.Path.Count > 0 && r.Waypoints.Count > 0 && nwhTaken.Path[0] == r.Waypoints[0] ? nwhTaken : null;
             nwhTaken = null;
             if (nwhPlanner != null && graph != null && plan == null)
@@ -111,7 +104,6 @@ namespace DrivenRides
             return expanded.Path;
         }
 
-        // Takes one action off the car and reapplies the AI's top action to the driving state.
         private void ClearAction(SpecialDriveActionTypes action)
         {
             var ai = DrivingAIField?.GetValue(TrafficManager.Instance);
@@ -142,7 +134,6 @@ namespace DrivenRides
             }
             if (CurrentActionField.GetValue(ai) is SpecialDriveActionTypes[] current && carIndex < current.Length)
             {
-                // A value the AI never picks, so ApplyAction sees a change and sends the driving state.
                 current[carIndex] = SpecialDriveActionTypes.Destroyed;
                 ApplyActionMethod.Invoke(ai, new object[] { carIndex });
             }
@@ -181,7 +172,6 @@ namespace DrivenRides
             else stopNowSeconds = 0f;
         }
 
-        // The WaypointRequested prefix: true while the ride car's target is a red stop line and lights are obeyed.
         public static bool HoldsAtRed(int vehicleIndex)
         {
             var ride = Active;
@@ -190,7 +180,6 @@ namespace DrivenRides
             return next != null && next.stop;
         }
 
-        // Changes the car's top speed in Gley when it differs from the last one set; Gley reads it at the next waypoint.
         private void ApplyTopSpeed(float speed)
         {
             if (Mathf.Approximately(speed, appliedTop)) return;
@@ -214,8 +203,6 @@ namespace DrivenRides
                 var top = TopSpeed;
                 SetMaxSpeedMethod.Invoke(ai, new object[] { carIndex, (float)top });
                 appliedTop = top;
-                // Gley sets the acceleration so a car reaches its rolled top speed in its model's accelerationTime
-                // (10 s by default): slow off the line. The ride car reaches its top speed in AccelerationSeconds.
                 if (PowerStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> power && carIndex < power.Length)
                     power[carIndex] = top / 3.6f / (AccelerationSeconds / Time.fixedDeltaTime);
                 if (SteeringStepField?.GetValue(TrafficManager.Instance) is NativeArray<float> steering && carIndex < steering.Length && steeringWas < 0f
@@ -225,8 +212,6 @@ namespace DrivenRides
                     steeringWas = steering[carIndex];
                     wheelDistanceWas = wheels[carIndex];
                     maxSteerWas = lockArray[carIndex];
-                    // The drivable car's wheelbase and lock (Steering), its wheel turned to full lock in a third of a
-                    // second or more (SteeringFactor), as TurnDrive models it.
                     wheels[carIndex] = carSteering.Shape.WheelDistance;
                     lockArray[carIndex] = carSteering.Shape.MaxSteerDegrees;
                     steering[carIndex] = carSteering.Shape.MaxSteerDegrees * Time.fixedDeltaTime * carSteering.SteeringFactor;
@@ -236,17 +221,12 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("Top speed: " + ex.Message); }
         }
 
-        // Each physics step, before Gley's drive job: while the front axle is on an arc turn, Gley's target for the car
-        // is the point ArcLookahead on along the arc. TrafficManager keeps the target positions in an array it only
-        // rewrites when the car's waypoint changes, and DriveJob steers the front axle at it. After the arc the real
-        // target goes back. Gley still pops the exit lane's waypoints as the car passes them.
         internal static void SteerArcs() => Active?.SteerArc();
 
         private void SteerArc()
         {
             if (!GleyDriven || !departed || finished || cancelled || arcAt >= arcs.Count || car == null || progress == null || !OwnsCar) return;
             var (entry, exit, line) = arcs[arcAt];
-            // Stopping at a light or giving way, Gley brakes by the distance to its real target.
             if (TrafficManager.Instance.GetCurrentDrivingState(carIndex).Item2 != SpecialDriveActionTypes.Forward)
             {
                 if (arcAlong >= 0f && !arcHeld) { arcHeld = true; RestoreTarget(); }
@@ -256,7 +236,6 @@ namespace DrivenRides
             var front = car.GetFrontAxle().position;
             if (arcAlong < 0f)
             {
-                // It starts with the front axle on the lead-in, by its lane, before Gley lets go of the entry.
                 if (!routeIndex.TryGetValue(entry, out var k) || k > progress.NextIndex + 2) return;
                 var start = line.At(0f);
                 var on = line.At(1f);
@@ -298,8 +277,6 @@ namespace DrivenRides
             var degrees = angles[carIndex];
             if (Mathf.Abs(degrees) < 0.0001f) return;
             var rb = car.rb;
-            // From the centre of mass to the origin, flat; rotating the origin about the centre of mass by the step's
-            // angle moves it by (R - 1) of that.
             var offset = rb.position - rb.worldCenterOfMass;
             offset.y = 0f;
             var moved = Quaternion.Euler(0f, degrees, 0f) * offset - offset;
@@ -339,13 +316,10 @@ namespace DrivenRides
                 if (!routeIndex.TryGetValue(w[k], out var at) || at < progress!.NextIndex - 1) continue;
                 if (Vector3.Distance(here, all[w[k]].position) > 80f) continue;
                 checkedNear.Add((w[k], w[k + 1]));
-                // The next few waypoints too, so an added turn aims where the ride's path aims (PathExpander).
                 var ahead = new List<int>();
                 for (var q = k; q < w.Count && q <= k + 4; q++) ahead.Add(w[q]);
                 var from = w[k];
                 var to = w[k + 1];
-                // The NWH check is asked afresh: the parked cars near the step are loaded now. A step still feasible in
-                // another form (vias now, not the arc) changes the line, so the route is expanded again (review round 1).
                 var before = nwhPlanner?.Check.Step(from, to);
                 nwhPlanner?.Check.Forget(from, to);
                 var blocked = (nwhPlanner != null ? nwhPlanner.BlockedSteps(graph, ahead, 0f) : FindBlockedSteps(graph, ahead, carSteering)).FindAll(b => b.From == from && b.To == to);
@@ -359,7 +333,6 @@ namespace DrivenRides
                     }
                     continue;
                 }
-                // A test drives its case as given and reports the block; the rides' blocked-step set stays as it was.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, $"replanned: step {w[k]} -> {w[k + 1]} blocked by '{blocked[0].What}'"); return false; }
                 if (nwhPlanner != null) nwhPlanner.Block(w[k], w[k + 1], NwhPlanner.CauseOf(graph, w[k], w[k + 1], blocked[0].What));
                 else GleyGraph.BlockStep(w[k], w[k + 1]);
@@ -386,8 +359,6 @@ namespace DrivenRides
             Event("Watchdog: restart (" + watch.LastReason + ").");
         }
 
-        // Gley signals a red light by "stop" on the target waypoint and StopInPoint, the car in front by
-        // StopInDistance. A waiting car isn't stuck, and a restart would clear those stops.
         private bool IsWaiting()
         {
             var traffic = TrafficManager.Instance;
@@ -397,7 +368,6 @@ namespace DrivenRides
                    state == SpecialDriveActionTypes.GiveWay || state == SpecialDriveActionTypes.StopInDistance;
         }
 
-        // Starts a replan; StepReplan advances it over the next frames.
         private void Replan()
         {
             if (kind == Kind.Test) { EndWith(Outcome.Vanilla, "replanned: watchdog, " + (watch?.LastReason ?? "")); return; }
@@ -432,8 +402,6 @@ namespace DrivenRides
             owned.AddRange(path);
             progress = new RouteProgress(Points(path));
             IndexRoute();
-            // Gley takes the new list at its next waypoint request. At a light or in a queue a restart would clear
-            // the stop, so it only happens when the car isn't waiting.
             if (IsWaiting()) watch!.Waiting(unpausedSeconds);
             else Restart();
             watch!.Replanned(unpausedSeconds);
@@ -459,7 +427,6 @@ namespace DrivenRides
             return ride.routeIndex.TryGetValue(waypointIndex, out var k) && k < ride.progress.NextIndex;
         }
 
-        // The ride car's centre of mass, as Gley measures from it; null for other cars.
         public static Vector3? CarCentre(int vehicleIndex)
         {
             var ride = Active;

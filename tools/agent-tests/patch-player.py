@@ -1,4 +1,3 @@
-"""Give the private player its own native Unity preferences, data and cache identity."""
 import hashlib
 import json
 import pathlib
@@ -26,7 +25,6 @@ def patch(src, dst, product=PRODUCT):
     check = UnityPy.load(str(dst))
     checked, = [o.read_typetree() for o in check.objects if o.type.name == "PlayerSettings"]
     assert checked == new
-    # Preserve every other serialized object byte-for-byte.
     before = {o.path_id: o.get_raw_data() for o in UnityPy.load(str(src)).objects if o.type.name != "PlayerSettings"}
     after = {o.path_id: o.get_raw_data() for o in check.objects if o.type.name != "PlayerSettings"}
     assert before == after

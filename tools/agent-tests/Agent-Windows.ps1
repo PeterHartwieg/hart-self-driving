@@ -54,7 +54,6 @@ function Check-Hash([string]$path,[string]$hash) {
     if ((Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant() -ne $hash) { throw "Source changed since patch preparation: $path" }
 }
 function Read-Entitlements([string]$output) {
-    # Steam IPC is scoped to the interactive Windows session, not the SSH session.
     $task='BigAmbitionsAgentEntitlements'
     if (Test-Path $output) { Remove-Item -LiteralPath $output }
     $user=[Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -115,12 +114,10 @@ switch ($Action) {
     }
     foreach ($entry in $manifest) {
         if ($entry.file -eq 'FoodTrucks.dll') {
-            # The private mod snapshot is independent of later normal-game deployments.
             $known=@($install.sources | Where-Object file -eq $entry.file)
             if ($known.Count -eq 1) {
                 if ($known[0].source_sha256 -ne $entry.source_sha256) { throw 'Different Food Trucks source: update the complete private mod package separately.' }
             } else {
-                # Migrate an older receipt only when reproducing its exact installed bridge.
                 Check-Hash (Join-Path $profile 'ModsLocal\FoodTrucks\FoodTrucks.dll') $entry.patched_sha256
             }
         } else {
@@ -130,7 +127,6 @@ switch ($Action) {
     }
     Check-Hash (Join-Path $overlay 'globalgamemanagers') $player.patched_sha256
     Read-Entitlements (Join-Path $overlay 'steam-entitlements.json')
-    # Include the newly patched game adapter and ownership snapshot in older installations.
     $gameDll=Join-Path $data 'Managed\BigAmbitions.dll'
     if (!($install.files | Where-Object path -eq $gameDll)) {
         $install.files+=@{path=$gameDll;sha256=(Get-FileHash -Algorithm SHA256 $gameDll).Hash.ToLowerInvariant()}
@@ -139,7 +135,6 @@ switch ($Action) {
     New-Item -ItemType Directory -Force $backup | Out-Null
     Copy-Item $markerPath (Join-Path $backup 'agent-install.json')
     foreach ($file in $install.files) { Copy-Item $file.path (Join-Path $backup ([IO.Path]::GetFileName($file.path))) }
-    # A failed partial update leaves hashes mismatched and therefore cannot be started.
     foreach ($file in $install.files) {
         $name=[IO.Path]::GetFileName($file.path)
         if ($name -ne 'app.info') { Copy-Item (Join-Path $overlay $name) $file.path }
@@ -210,7 +205,6 @@ switch ($Action) {
         $null=netsh http add urlacl url=http://127.0.0.1:18330/ "user=$user" listen=yes
         if ($LASTEXITCODE -ne 0) { throw 'Could not reserve the loopback agent bridge URL' }
     }
-    # Original game assets are copied, never hard-linked. Saves and normal preferences are not copied.
     Copy-Item $PSCommandPath (Join-Path $root 'Agent-Windows.ps1')
     @{product=$product;root=$root;profile=$profile;status='ready';files=$files;sources=@($manifest);created=[DateTime]::UtcNow.ToString('o');port=18330;test_only=$true} | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $markerPath
     'Agent-only installation ready.'
@@ -242,7 +236,6 @@ switch ($Action) {
         $arguments=@('-agent-tests','-disable-force-steam','-console','-foodtrucks-test','-drivenrides-test','-batchmode','-screen-fullscreen','0','-screen-width','960','-screen-height','540','-screen-quality','Low','-job-worker-count','4','-logFile',('"'+$root+'\Player-agent.log"'))
         if ($Mode -eq 'headless') { $arguments+='-nographics' }
         if ($Mode -eq 'windowed') {
-            # The full game in a 1920x1080 window at Unity's default quality (the normal game's), uncapped, still muted.
             $arguments=@('-agent-tests','-disable-force-steam','-console','-foodtrucks-test','-drivenrides-test','-screen-fullscreen','0','-screen-width','1920','-screen-height','1080','-logFile',('"'+$root+'\Player-agent.log"'))
             $prefs='HKCU:\Software\Hovgaard Games\'+$product
             (Get-Item $prefs -ErrorAction SilentlyContinue).GetValueNames() | Where-Object { $_ -like 'UnityGraphicsQuality_h*' } | ForEach-Object { Remove-ItemProperty -Path $prefs -Name $_ }

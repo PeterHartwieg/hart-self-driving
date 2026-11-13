@@ -4,9 +4,6 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Testing
 {
-    // One straight piece of a route's lane, with the boundaries a car on it keeps to: the midline to the nearest
-    // oncoming lane on either side (Left, Right; infinite where there is none) and the outermost lanes of its own
-    // direction (OwnLeft, OwnRight). The judge's intrusion check and the feasibility check's carriageway use it.
     internal sealed class LaneStretch
     {
         private readonly Vec3 start, end;
@@ -17,8 +14,6 @@ namespace DrivenRides.Core.Testing
         public float Left = float.NegativeInfinity, Right = float.PositiveInfinity;
         public readonly float OwnLeft, OwnRight;
 
-        // edges: read the lanes beside from every lane edge near (junction waypoints have no plain heading), for the
-        // feasibility check's carriageway through a junction; the judge reads plain waypoints only.
         public LaneStretch(LaneGraph graph, Vec3 start, Vec3 end, int index, bool edges = false)
         {
             this.start = start;
@@ -58,7 +53,6 @@ namespace DrivenRides.Core.Testing
             if (!float.IsPositiveInfinity(right)) Right = (right + ownRight) / 2;
         }
 
-        // The direction of a lane edge from w that runs along this stretch or against it, if any.
         private bool AlignedEdge(LaneGraph graph, int w, out float x, out float z)
         {
             x = z = 0;

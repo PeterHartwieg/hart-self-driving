@@ -29,8 +29,6 @@ namespace DrivenRides
             {
                 var box = lane.GetComponent<BoxCollider>();
                 if (box == null || !box.enabled || lane.isHandicapParking || !bounds.Intersects(box.bounds)) continue;
-                // A local aisle beside a legal parking strip. Rendered pavement is subtracted below;
-                // the extension alone never licenses crossing a sidewalk.
                 var scale = lane.transform.lossyScale;
                 var half = box.size/2 + new Vector3(10/Mathf.Abs(scale.x),0,10/Mathf.Abs(scale.z));
                 Vec3 Point(float x,float z) => GleyGraph.ToVec(lane.transform.TransformPoint(box.center + new Vector3(x,0,z)));

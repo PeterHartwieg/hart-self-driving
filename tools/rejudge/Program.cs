@@ -1,7 +1,3 @@
-// Judges turn test runs again from their recorded samples, with the current Core judge, so a rule can be fixed and
-// checked without the game (docs/turn-tests.md).
-// Usage: dotnet run --project tools/rejudge -- <lane-graph.json> <results-*.jsonl> [runs folder, default: beside the results]
-//        dotnet run --project tools/rejudge -- <lane-graph.json> feasible <car> [options]: T1, see Feasible.cs
 using System.Globalization;
 using System.Text.Json;
 using DrivenRides.Core.Routing;
@@ -10,7 +6,6 @@ using DrivenRides.Core.Testing;
 var graph = LoadGraph(args[0]);
 if (args[1] == "feasible")
 {
-    // T1 (docs/implementation-plan.md, "Tests"): every catalogue turn and U-turn simulated and judged for an NWH car.
     Feasible.Run(args[0], args.Skip(2).ToArray());
     return;
 }
@@ -21,15 +16,12 @@ if (args[1] == "stats")
 }
 if (args[1] == "carriageway")
 {
-    // carriageway x z [y]: whether a point counts as carriageway for the pavement rule (near a lane, nearer a junction's).
     var p = new Vec3(float.Parse(args[2], CultureInfo.InvariantCulture), args.Length > 4 ? float.Parse(args[4], CultureInfo.InvariantCulture) : 0f, float.Parse(args[3], CultureInfo.InvariantCulture));
     Console.WriteLine($"({p.X}, {p.Z}): carriageway {Pavement.OnALane(graph, p)}");
     return;
 }
 if (args[1] == "show")
 {
-    // show <entry> <exit> [next exit-lane waypoints...]: the turn's vias and where each exit waypoint lies along the
-    // exit lane, measured from the last via.
     int entry = int.Parse(args[2]), exit = int.Parse(args[3]);
     var vias = graph.TurnVias(entry, exit);
     string At(int w) => $"{w} ({graph.Position(w).X:0.0}, {graph.Position(w).Z:0.0})";
@@ -48,9 +40,6 @@ if (args[1] == "show")
 }
 if (args[1] == "drive")
 {
-    // drive <entry> <exit> <aim> [samples.csv]: the turn as the ride's world check models it (Core's TurnDrive, the
-    // 6.7 m Dash at turn speed), and how far each pose lies from the recorded track's middle.
-    // "u" for the exit or the aim: the entry's U-turn target.
     int entry = int.Parse(args[2]);
     int exit = args[3] == "u" ? graph.UTurn(entry) : int.Parse(args[3]), aim = args[4] == "u" ? graph.UTurn(entry) : int.Parse(args[4]);
     var targets = graph.TurnVias(entry, exit).Select(graph.Position).Append(graph.Position(aim)).ToList();
@@ -77,20 +66,15 @@ if (args[1] == "drive")
 }
 if (args[1] == "arcline")
 {
-    // arcline <entry> <exit>: the driver's arc for the 6.7 m Dash, one point per line.
     var line = DrivenRides.Core.Ride.TurnArc.Fit(graph, int.Parse(args[2]), int.Parse(args[3]), Env("MIN_RADIUS", 5.74f));
     if (line != null) foreach (var p in line.Points) Console.WriteLine(FormattableString.Invariant($"{p.X:0.00} {p.Z:0.00}"));
     return;
 }
 if (args[1] == "arcs")
 {
-    // arcs [lookahead] [entry exit]: which catalogue turns get a driver's arc for the 6.7 m Dash, and how closely
-    // the car follows it (front axle off the line, the middle of the car off it when it comes out).
     var look = args.Length > 2 ? float.Parse(args[2], CultureInfo.InvariantCulture) : 3f;
-    // CAR="wheel distance,max steer,front axle,centre up,centre ahead" for another car (from the game log).
     var shape = (Environment.GetEnvironmentVariable("CAR") ?? "4.02,35,2.4,0.6,0.39").Split(',').Select(v => float.Parse(v, CultureInfo.InvariantCulture)).ToArray();
     var dash = new DrivenRides.Core.Ride.CarShape(shape[0], shape[1], shape[2], shape[3], shape[4]);
-    // FRONT_LOOK: the lookahead counted from the front axle (the pivot's lookahead is front axle + this).
     if (Environment.GetEnvironmentVariable("FRONT_LOOK") is string fl) look = dash.FrontAxle + float.Parse(fl, CultureInfo.InvariantCulture);
     var fixtures = Catalogue.Build(graph).Where(f => f.Kind == CaseKind.Turn);
     if (args.Length > 4) fixtures = fixtures.Where(f => f.Id == $"turn-{args[3]}-{args[4]}");
@@ -121,12 +105,10 @@ if (args[1] == "arcs")
             }
             return best;
         }
-        // From where the rear axle passes the entry waypoint.
         var at = 0f;
         poses = poses.Where(p => (at = line.Project((float)(p.X - 1.62 * Math.Sin(p.Heading)), (float)(p.Z - 1.62 * Math.Cos(p.Heading)), at)) >= DrivenRides.Core.Ride.TurnArc.LeadIn).ToList();
         if (poses.Count == 0) continue;
         var worst = poses.Max(p => Off(p.X + 2.4 * Math.Sin(p.Heading), p.Z + 2.4 * Math.Cos(p.Heading)));
-        // The rear axle, 1.62 m behind the pivot: how far the back of the car cuts inside.
         var rear = poses.Max(p => Off(p.X - 1.62 * Math.Sin(p.Heading), p.Z - 1.62 * Math.Cos(p.Heading)));
         var middle = poses.Max(p => Off(p.X, p.Z));
         rearAll.Add(rear); middleAll.Add(middle); radii.Add(line.Radius);
@@ -152,10 +134,8 @@ if (args[1] == "arcs")
     return;
 }
 var resultsPath = args[1];
-// --parking <m>: the parking lane's width the pavement rule allows past the outermost lane (Pavement.ParkingLane).
 if (Array.IndexOf(args, "--left") > 0) Pavement.Left = true;
 if (Array.IndexOf(args, "--parking") is var pk && pk > 0 && pk + 1 < args.Length) Pavement.ParkingLane = float.Parse(args[pk + 1], CultureInfo.InvariantCulture);
-// --write <file>: also writes the results again with the new verdicts (for tools/tested-steps.py).
 var writeAt = Array.IndexOf(args, "--write");
 var writePath = writeAt > 0 && writeAt + 1 < args.Length ? args[writeAt + 1] : null;
 var folder = args.Length > 2 && !args[2].StartsWith("--") ? args[2] : Path.GetDirectoryName(Path.GetFullPath(resultsPath))!;
@@ -181,7 +161,6 @@ foreach (var line in File.ReadLines(resultsPath))
             case "C": judge.Contact(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "I": judge.Incident(int.Parse(f[1]), string.Join(",", f.Skip(2))); break;
             case "R": judge.Replanned(string.Join(",", f.Skip(1))); break;
-            // Recorded with the game's pavement (the pedestrians' NavMesh): its findings, and no kerb estimate.
             case "N": judge.PavementAt = _ => false; break;
             case "P":
             {
@@ -200,10 +179,8 @@ foreach (var line in File.ReadLines(resultsPath))
         }
     }
     var end = run.TryGetProperty("end", out var e) ? e.GetString() : "";
-    // A ride is judged on to its arrival.
     if (end == "arrived") judge.Arrive();
     var result = judge.Result(end == "time limit");
-    // T3's traffic invariants, as the rig applied them (older results: contactsMoving for contacts caused).
     if (run.TryGetProperty("contacts", out var contactsJ))
     {
         int Int(string name) => run.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
@@ -216,7 +193,6 @@ foreach (var line in File.ReadLines(resultsPath))
     verdicts[result.Verdict] = verdicts.GetValueOrDefault(result.Verdict) + 1;
     var differs = oldVerdict != result.Verdict || oldReasons != newReasons;
     var node = System.Text.Json.Nodes.JsonNode.Parse(line)!.AsObject();
-    // An "avoided" run stays avoided; otherwise the new verdict, and the old one kept beside it.
     if (oldVerdict != "avoided") { node["gameVerdict"] = oldVerdict; node["verdict"] = result.Verdict; node["judge"] = System.Text.Json.Nodes.JsonNode.Parse(result.ToJson()); }
     written.Add(node.ToJsonString());
     if (differs) changed++; else same++;

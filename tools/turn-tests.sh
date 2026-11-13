@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Drives the mod's turn test rig on the Windows game PC (docs/turn-tests.md).
-# Usage: tools/turn-tests.sh <ssh host> <action> [command words]   (or set BA_GAME_HOST and omit the host)
-#   send <command...>   e.g. send run kinds=turn,uturn limit=20     (also: cars, catalogue, rerun <results file>)
-#   stop                stops the running session after the current case
-#   status              prints status.json
-#   fetch               copies the tests folder to build/tests/<time>/ and summarises the latest results
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 if [ $# -ge 1 ] && [[ "$1" != send && "$1" != stop && "$1" != status && "$1" != fetch ]]; then HOST="$1"; shift; else HOST="${BA_GAME_HOST:?Pass the ssh host of the Windows game PC, or set BA_GAME_HOST}"; fi
@@ -14,7 +8,6 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 case "$ACTION" in
   send)
     [ $# -ge 1 ] || { echo "send needs a command" >&2; exit 1; }
-    # The mod waits for the closing "end" line, so a half-copied file is never read.
     printf '%s\nend\n' "$*" > "$TMP/command.txt"
     scp -q "$TMP/command.txt" "$HOST:$REMOTE/command.txt" < /dev/null
     echo "Sent: $*" ;;

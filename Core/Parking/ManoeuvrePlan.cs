@@ -4,7 +4,6 @@ using DrivenRides.Core.Drive;
 
 namespace DrivenRides.Core.Parking
 {
-    // Local, signed travel; deliberately independent of DrivePlan, lane offsets and road progress.
     public readonly struct ManoeuvrePoint
     {
         public readonly CarPose Pose;
@@ -35,7 +34,6 @@ namespace DrivenRides.Core.Parking
         }
     }
 
-    // A snapshot of local obstacles, with optional road/parking-area constraints. No Unity types or saved state.
     public sealed class ManoeuvreSpace
     {
         public readonly List<Box> Obstacles = new List<Box>();
@@ -44,7 +42,6 @@ namespace DrivenRides.Core.Parking
         public float MinX, MaxX, MinZ, MaxZ;
         public float Margin = 0.2f;
         private Dictionary<(int X,int Z),List<Box>>? cells;
-        // Freeze the broad phase for this search snapshot; rebuild after changing Obstacles.
         public void PrepareObstacles()
         {
             cells = new Dictionary<(int,int),List<Box>>();
@@ -61,7 +58,6 @@ namespace DrivenRides.Core.Parking
         {
             return Allowed?.Invoke(pose) != false && ClearBody(car, pose, Margin);
         }
-        // Execution may use the planning buffer to absorb tracking error while retaining the actual body check.
         public bool ClearBody(CarSpec car, CarPose pose, float margin = 0f)
         {
             if (pose.X < MinX || pose.X > MaxX || pose.Z < MinZ || pose.Z > MaxZ) return false;

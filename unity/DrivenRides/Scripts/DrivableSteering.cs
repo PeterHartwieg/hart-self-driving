@@ -16,13 +16,10 @@ namespace DrivenRides
     internal static class DrivableSteering
     {
         private static readonly System.Reflection.FieldInfo? TypesField = AccessTools.Field(typeof(VehicleTypeHelper), "VehicleTypes");
-        // Traffic prefab name to vehicle type name; built once.
         private static Dictionary<string, string>? typeOfTraffic;
         private static readonly Dictionary<string, (float Wheelbase, float MaxSteer, AnimationCurve? Curve)?> known =
             new Dictionary<string, (float, float, AnimationCurve?)?>();
 
-        // The wheelbase and the lock (degrees) at speedMs of the drivable version of the car whose traffic prefab
-        // this is; null for a car the player can't drive (the taxi) or one whose prefab doesn't load.
         public static (float Wheelbase, float Steer)? For(GameObject? trafficPrefab, float speedMs)
         {
             if (trafficPrefab == null) return null;
@@ -35,12 +32,10 @@ namespace DrivenRides
             }
             if (found == null) return null;
             var (wheelbase, maxSteer, curve) = found.Value;
-            // NWH: the lock is maximumSteerAngle times the curve at speed / 50 m/s.
             var factor = curve != null ? Mathf.Clamp01(curve.Evaluate(speedMs / 50f)) : 1f;
             return (wheelbase, maxSteer * factor);
         }
 
-        // The vehicle type whose traffic prefab this is (NwhPlanner too).
         internal static string? TypeOf(string trafficPrefabName)
         {
             if (typeOfTraffic == null)

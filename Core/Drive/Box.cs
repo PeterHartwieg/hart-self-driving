@@ -2,7 +2,6 @@ using System;
 
 namespace DrivenRides.Core.Drive
 {
-    // A rectangle on the ground: middle, heading (radians, as atan2(dx, dz)), half width and half length.
     public readonly struct Box
     {
         public readonly float X, Z, Sin, Cos, HalfWidth, HalfLength;
@@ -22,7 +21,6 @@ namespace DrivenRides.Core.Drive
             X = x; Z = z; Sin = sin; Cos = cos; HalfWidth = halfWidth; HalfLength = halfLength;
         }
 
-        // From a to b, `halfWidth` to either side.
         public static Box Along(float ax, float az, float bx, float bz, float halfWidth)
         {
             float dx = bx - ax, dz = bz - az;
@@ -34,13 +32,11 @@ namespace DrivenRides.Core.Drive
 
         public Box Grown(float sideways, float lengthways) => new Box(X, Z, Sin, Cos, HalfWidth + sideways, HalfLength + lengthways);
 
-        // Half the extent on the world axes, for a quick bounds test.
         public float ExtentX => Math.Abs(Sin) * HalfLength + Math.Abs(Cos) * HalfWidth;
         public float ExtentZ => Math.Abs(Cos) * HalfLength + Math.Abs(Sin) * HalfWidth;
 
         public bool BoundsOverlap(in Box o) => Math.Abs(X - o.X) <= ExtentX + o.ExtentX && Math.Abs(Z - o.Z) <= ExtentZ + o.ExtentZ;
 
-        // Separating axes: the two forward and the two right axes.
         public bool Overlaps(in Box o)
         {
             if (!BoundsOverlap(o)) return false;
@@ -55,10 +51,8 @@ namespace DrivenRides.Core.Drive
             return distance > RadiusOn(ax, az) + o.RadiusOn(ax, az);
         }
 
-        // Half the box's extent along a unit axis.
         public float RadiusOn(float ax, float az) => HalfLength * Math.Abs(Sin * ax + Cos * az) + HalfWidth * Math.Abs(Cos * ax - Sin * az);
 
-        // How far along this box's own length (from its back end, 0 to 2 × HalfLength) another box reaches.
         public (float From, float To) SpanOf(in Box o)
         {
             var middle = (o.X - X) * Sin + (o.Z - Z) * Cos;

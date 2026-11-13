@@ -10,9 +10,6 @@ namespace DrivenRides.Core.Ride
         private readonly double[] lengths;
         private readonly double maxAdvance;
 
-        // maxAdvanceMetres bounds how far one update may move the car along the route. A car covers a metre or two
-        // per frame, so a projection further ahead is a different part of the route passing nearby (a loop round a
-        // block), not progress.
         public RouteProgress(IReadOnlyList<Vec3> points, double maxAdvanceMetres = 25)
         {
             maxAdvance = maxAdvanceMetres;
@@ -57,8 +54,6 @@ namespace DrivenRides.Core.Ride
                 double raw = squared == 0 ? 1 : (((double)car.X - a.X) * dx + ((double)car.Y - a.Y) * dy + ((double)car.Z - a.Z) * dz) / squared;
                 double t = Math.Max(0, Math.Min(1, raw));
                 double segment = lengths[i + 1] - lengths[i];
-                // A projection past the reach is clamped to it, not dropped: after a hitch the car may really be
-                // further on, and clamping lets progress catch up by the limit each update.
                 if (segment > 0 && lengths[i] + t * segment > reach)
                 {
                     t = (reach - lengths[i]) / segment;
@@ -67,7 +62,6 @@ namespace DrivenRides.Core.Ride
                 double x = car.X - (a.X + t * dx), y = car.Y - (a.Y + t * dy), z = car.Z - (a.Z + t * dz);
                 double distance = x * x + y * y + z * z;
                 double along = lengths[i] + t * segment;
-                // On a tie the nearer part of the route wins, so a crossing never pulls progress forward.
                 if (distance > bestDistance || (distance == bestDistance && along >= bestAlong)) continue;
                 bestDistance = distance;
                 bestAlong = along;

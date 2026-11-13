@@ -9,9 +9,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 6. AA1: a hold short of a car's way makes the ride car stay outside it, which is not clearing through it:
-// no commitment comes of it. AA2: a remembered commitment never lowers the headway while the car can still stop short
-// of the car's way; going on with less than the headway is only for a car past that point.
 public sealed class ReviewRound6Tests
 {
     private readonly ITestOutputHelper output;
@@ -30,10 +27,6 @@ public sealed class ReviewRound6Tests
         public float CrossedAt = float.NaN, AWhenCrossed = float.NaN;
     }
 
-    // The ride car goes north along x = 0 (the line starts at z = -40: metres along it are z + 40); lane A runs east
-    // along z = 12, lane B west along z = 17 with a car far off. The planner holds the front at `holdZ` until
-    // `release` seconds, then lets it go. The ride car brakes for the stops it is given as the driver does (from when
-    // it needs more than Decel, at most HardDecel) and speeds up at 2 m/s² to `rideMs` otherwise.
     private Run Drive(bool bFirst, float holdZ, float holdFrom, float release, float ax0, float rideMs, float rearZ0, int steps)
     {
         var car = RideCar.Dash;
@@ -61,13 +54,11 @@ public sealed class ReviewRound6Tests
                 Target = laneB.Where(w => graph.Position(w).X < bx - 2.25f).DefaultIfEmpty(-1).First() };
             var cars = bFirst ? new List<OtherCar> { bc, a } : new List<OtherCar> { a, bc };
             float? hold = t >= holdFrom && t < release ? holdZ + 40f : (float?)null;
-            // The driver keeps up with the car, as on the road (the traffic driver looks for the car near it).
             driver.StartAt(0f, z);
             traffic.Decide(new TrafficSnapshot { Time = t, RearX = 0f, RearZ = z, Heading = 0f, Speed = v, Marks = Array.Empty<PathMark>(), Cars = cars, Flags = new NoFlags(), PlannerHoldAlong = hold }, d);
             var front = z + car.FrontAhead;
             if (step % 10 == 0) output.WriteLine($"{t:0.00} front {front:0.00} v {v:0.0} A {ax:0.0} hold {hold:0.0} yield {d.YieldAlong - 40f:0.0} {d.Why}");
             if (!run.Crossed && z - car.RearBehind > 13f) { run.Crossed = true; run.CrossedAt = t; run.AWhenCrossed = ax; }
-            // In A's lane (z 11 to 13) with car A's front at the body: a contact.
             if (front > 11f && z - car.RearBehind < 13f && ax + 2.25f > -car.HalfWidth && ax - 2.25f < car.HalfWidth)
                 run.Bad.Add($"{t:0.00} s: in A's way with A at {ax:0.0}");
             var target = Math.Min(Math.Min(d.YieldAlong ?? float.MaxValue, d.StopAlong ?? float.MaxValue), hold ?? float.MaxValue) - 40f;
@@ -82,18 +73,13 @@ public sealed class ReviewRound6Tests
         return run;
     }
 
-    // AA1: held short of lane A, the ride car stays outside A's way, which the cautious judgement finds clear without
-    // the car ever clearing through it. Released with car A coming, it must wait with the full headway: no commitment
-    // was made, so nothing lets it go on with less, whichever order the cars come in.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void StayingOutsideIsNotClearingThrough(bool bFirst)
     {
-        // Held 2.5 m short of A's lane until 4 s; car A (10 m/s) reaches the ride car's path at about 5.7 s.
         var run = Drive(bFirst, holdZ: 8.5f, holdFrom: 0f, release: 4f, ax0: -57f, rideMs: 8f, rearZ0: -25f, steps: 300);
         Assert.Empty(run.Bad);
-        // It went only after A had passed (A's rear past the ride car's side).
         Assert.True(run.Crossed);
         Assert.True(run.AWhenCrossed - 2.25f > RideCar.Dash.HalfWidth, $"crossed with A at {run.AWhenCrossed:0.0}");
     }

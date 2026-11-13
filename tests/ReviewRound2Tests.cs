@@ -9,12 +9,10 @@ using Xunit;
 
 namespace DrivenRides.Core.Tests;
 
-// The planner's fixes from review round 2 (build/review-nwh/fixes-r2.md, Q1 to Q9).
 public sealed class ReviewRound2Tests
 {
     private static CarSpec Small() => new("small", 2.5f, _ => 40f, new Vec3(0, 0.7f, 1.25f), new Vec3(0.9f, 0.7f, 2f), 50f, 1.5f);
 
-    // A post (a point the body box must not hold), named as the world callback names it.
     private static Func<BodyBox, string?> Post(float x, float z) => box =>
     {
         float s = (float)Math.Sin(box.Heading), c = (float)Math.Cos(box.Heading);
@@ -22,7 +20,6 @@ public sealed class ReviewRound2Tests
         return Math.Abs(dx * c - dz * s) <= box.Half.X && Math.Abs(dx * s + dz * c) <= box.Half.Z ? "post" : null;
     };
 
-    // A lane north along x = 0, every 10 m.
     private static (LaneGraph Graph, int[] Lane) North(int count = 13)
     {
         var b = new TurnTestGraph();
@@ -36,7 +33,6 @@ public sealed class ReviewRound2Tests
     {
         var points = Enumerable.Range(0, 11).Select(k => new Vec3(0, 0, 20 + k * 10)).ToList();
         var line = DriveLine.Build(points, Array.Empty<(int, Polyline)>());
-        // Straight behind the start: nothing to the side, 20 m off.
         Assert.False(line.Joins(0f, 0f, 0, out _));
         Assert.True(line.Joins(0.3f, 21f, 0, out _));
     }
@@ -48,15 +44,12 @@ public sealed class ReviewRound2Tests
         var clear = new Feasibility(graph, Small(), _ => null);
         var plan = DrivePlan.Build(graph, lane, Small(), clear.Arc, clear.Clear);
         var line = plan.Line(graph);
-        // Standing 1.4 m left of the line: it steers over and settles.
         var pose = new CarPose(-1.4f, 20f, 0f);
         Assert.Null(clear.Join(plan, line, pose));
-        // A post straight ahead of where it stands: met on the way over, though the line itself is clear.
         var posted = new Feasibility(graph, Small(), Post(-1.4f, 26f));
         Assert.StartsWith("joining the new line: post", posted.Join(plan, line, pose));
     }
 
-    // A lane north for 30 m, then turning 40 degrees to the right: a plain lane corner at lane[3].
     private static (LaneGraph Graph, int[] Lane) Corner()
     {
         var b = new TurnTestGraph();
@@ -69,9 +62,6 @@ public sealed class ReviewRound2Tests
         return (b.Build(), lane);
     }
 
-    // A rounded corner that fails is left sharp, and the sharp corner is swept too: one the car can't drive on its line
-    // blocks its step, so the route goes round it (T3 on 0.1.81: ride 16 drove a Hamptons gate's corner blind into
-    // its door).
     [Fact]
     public void Q3ACornerThatFailsRoundedAndSharpFailsItsStep()
     {
@@ -81,8 +71,6 @@ public sealed class ReviewRound2Tests
         Assert.Contains(3, plan.Fillets);
         Assert.Empty(clean.ValidateNow(plan));
         Assert.Contains(3, plan.Fillets);
-        // A post inside the corner, in both driven body sweeps. At the quicker corner speed the rounded car
-        // clears the old point at (0, 30); placing it half a metre into the turn still blocks both alternatives.
         var posted = new Feasibility(graph, Small(), Post(0.5f, 30f));
         var blocked = DrivePlan.Build(graph, lane, Small(), posted.Arc, posted.Clear);
         var failed = posted.ValidateNow(blocked);
@@ -90,9 +78,6 @@ public sealed class ReviewRound2Tests
         Assert.Contains(failed, f => f.From == lane[3] && f.To == lane[4] && f.What.Contains("rounded, sharp or at 10 km/h") && f.What.Contains("post"));
     }
 
-    // A narrow gap the lane goes through (T3 on 0.1.81, ride 16's Hamptons gate): a corner that fails rounded and
-    // sharp at the lane margin is driven slowly on the lane's line with the real body if that clears, and its step
-    // stays; a post the real body meets even then still blocks it.
     [Fact]
     public void ACornerThroughANarrowGapIsDrivenSlowly()
     {
@@ -109,8 +94,6 @@ public sealed class ReviewRound2Tests
         Assert.DoesNotContain(blocked.Slow, s => s.SpeedKmh == Feasibility.SqueezeKmh);
     }
 
-    // 0.1.100: a taxi standing by a kerb corner piece got its first step blocked ("'Corner2' at 0 m"), and with it every
-    // route. What the car's body touches where it stands is no reason to refuse the way on; ahead of it, it is.
     [Fact]
     public void WhereTheCarStandsIsNoObstacle()
     {
@@ -121,8 +104,6 @@ public sealed class ReviewRound2Tests
         Assert.StartsWith("post", new Feasibility(graph, Small(), Post(0.5f, 15f)).Sweep(plan, line, 0f, 20f));
     }
 
-    // Only corners a fillet rounds are swept: T3 on 0.1.80 swept each waypoint of a straight street as a "corner" (41 of
-    // ride 5's 44) and blocked the street when one sweep failed.
     [Fact]
     public void AStraightLanesWaypointsAreNoCorners()
     {
@@ -137,7 +118,6 @@ public sealed class ReviewRound2Tests
     public void Q3AFailedSidewaysMoveFailsItsStepWithNoCollector()
     {
         var (graph, lane) = North();
-        // The step 20 -> 30 m passed 1 m to the right, where a post stands.
         (float, float, float)? Shift(int from, int to) => from == lane[2] && to == lane[3] ? (2f, 8f, 1f) : null;
         var check = new Feasibility(graph, Small(), Post(1.0f, 25f));
         var plan = DrivePlan.Build(graph, lane, Small(), check.Arc, check.Clear, null, Shift);
@@ -163,9 +143,6 @@ public sealed class ReviewRound2Tests
         Assert.False(now.SameShape(vias));
     }
 
-    // T3 on 0.1.81, ride 13: the limo stood on its line in a median's crossing, a raised island 1 m beside its wheels,
-    // and the roll check (gone) read a 0.48 m lean from the ground sampled beside the lane. Standing or driving on its
-    // line beside an island is no kerb; a wheel going up onto it is.
     [Fact]
     public void Q6AnIslandBesideTheLaneIsNoKerbAWheelOnItIs()
     {
@@ -190,7 +167,6 @@ public sealed class ReviewRound2Tests
         var judge = new Judge(graph, CaseGeometry.Build(graph, f), f);
         var asked = 0;
         judge.PavementAt = _ => { asked++; return false; };
-        // Turning on the spot through 90 degrees: the centre stays, the corners swing about 3.6 m.
         for (var step = 0; step <= 50; step++)
         {
             var h = step / 50.0 * Math.PI / 2;
@@ -199,14 +175,12 @@ public sealed class ReviewRound2Tests
             judge.Add(new Sample { Step = step, Time = step * 0.02, Centre = new Vec3(0, 0, 20), FrontAxle = At(0, 1),
                 Footprint = new[] { At(-1, 2), At(1, 2), At(1, -2), At(-1, -2) } });
         }
-        // About seven checks of four corners; by the centre's travel there was one.
         Assert.InRange(asked, 20, 40);
     }
 
     [Fact]
     public void Q5APlanningJobRunsInSlicesAndSaysWhereToHoldFirst()
     {
-        // A clock of its own, 2 ms a piece of work (review round 3: slept, the test depended on the scheduler).
         var now = 0.0;
         IEnumerable<object?> Work(WayOnJob job)
         {

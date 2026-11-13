@@ -2,8 +2,6 @@ using System;
 
 namespace DrivenRides.Core.Drive
 {
-    // The last Capacity samples of a per-step cost (microseconds, cars read), for percentiles at the end of a run.
-    // Fixed buffers: adding a sample makes no garbage (review round 1, O7).
     public sealed class CostSamples
     {
         public const int Capacity = 32768;
@@ -11,7 +9,6 @@ namespace DrivenRides.Core.Drive
         private readonly float[] sorted = new float[Capacity];
         private int next;
 
-        // Samples added in all, also those the ring has dropped.
         public int Total { get; private set; }
         public int Count => Math.Min(Total, Capacity);
         public float Max { get; private set; }
@@ -26,7 +23,6 @@ namespace DrivenRides.Core.Drive
 
         public void Clear() { next = 0; Total = 0; Max = 0f; }
 
-        // The p-th percentile (0 to 100) of the samples kept, nearest rank; 0 with none.
         public float Percentile(float p)
         {
             var n = Count;

@@ -5,8 +5,6 @@ using UI;
 
 namespace DrivenRides
 {
-    // Passenger rides never enter a saved player vehicle. Borrow only the game's radio and phone controls,
-    // without firing vehicle-entry events (which also change unrelated game state).
     internal sealed class RideRadio
     {
         private static RideRadio? active;
@@ -34,7 +32,6 @@ namespace DrivenRides
             var session = new RideRadio(manager, save, manager.radioPlayer,
                 InstanceBehavior<UIs>.Instance?.smartphoneUI?.radioControls);
             active = session;
-            // Do not restart the song, select a station or change volume. These stay the player's settings.
             session.Try(() => session.radio.ToggleMute(false), "start");
             session.Try(() => session.controls?.EnableUI(), "show controls");
             session.Try(() => session.radio.onRadioToggle.Invoke(true), "enable controls");
@@ -53,12 +50,9 @@ namespace DrivenRides
             ended = true;
             if (active != this) return;
             active = null;
-            // A replaced save or manager owns its own audio. Never apply an old ride's cleanup to it.
             if (!IsCurrent) return;
             try
             {
-                // As when leaving a normal car: headphones keep playing. Also leave a real vehicle's radio
-                // alone if another game flow has already seated the player there.
                 var vehicle = VehicleHelper.GetCurrentVehicleBase();
                 if (PlayerHelper.IsWearingHeadset() || (vehicle != null && vehicle.vehicleType != null &&
                     !vehicle.vehicleType.spawnInPlayerObject && vehicle.vehicleType.hasRadio)) return;

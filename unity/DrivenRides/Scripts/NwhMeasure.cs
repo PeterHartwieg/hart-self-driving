@@ -13,9 +13,6 @@ using UnityEngine.AI;
 
 namespace DrivenRides
 {
-    // Phase 1 of NWH driving (docs/implementation-plan.md, "Phases"): the five things the traffic layers rely on,
-    // measured in one go with the rig's `measure` command, one log line each. Nothing here changes the game for longer
-    // than the light test, which counts a car with index -1 in one intersection and takes it out again.
     internal static class NwhMeasure
     {
         private static readonly FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
@@ -46,10 +43,6 @@ namespace DrivenRides
             Log.Info("NWH measure: done.");
         }
 
-        // `measure ground [x= z=]`: what tells pavement from road at a place (Peter, turn test 0.1.55: the limo ended
-        // U-turns on the pavement, which here is flush with the road and has no collider of its own). From the lane
-        // waypoint nearest (x, z), points every 0.5 m across the street, 15 m each way: the NavMesh area under each
-        // (all areas, and the filter the game's pedestrians walk with) and the ground collider a ray down hits.
         public static void Ground(Vector3 near)
         {
             var all = GleyGraph.Waypoints;
@@ -68,7 +61,6 @@ namespace DrivenRides
             along.y = 0f;
             along.Normalize();
             var across = new Vector3(along.z, 0f, -along.x);
-            // The game's pedestrian filter (Helpers.NavMeshHelper.NpcNavMeshFilter), found by name.
             NavMeshQueryFilter? npc = null;
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
@@ -113,7 +105,6 @@ namespace DrivenRides
         private static List<VehicleComponent> Pool() =>
             (TrafficVehiclesField?.GetValue(TrafficManager.Instance) as TrafficVehicles)?.GetVehicleList() ?? new List<VehicleComponent>();
 
-        // 1. Which of the layers that matter collide with each other (Physics.GetIgnoreLayerCollision).
         private static void Layers()
         {
             var gley = Pool().FirstOrDefault(v => v != null)?.gameObject.layer ?? -1;
@@ -132,7 +123,6 @@ namespace DrivenRides
 
         private static IIntersection? IntersectionOf(Waypoint w) => AssociatedField?.GetValue(w) as IIntersection;
 
-        // 2. Give-way waypoints: whether CanChange() answers from outside Gley, on the nearest few.
         private static void GiveWay(Vector3 near)
         {
             var all = GleyGraph.Waypoints;
@@ -149,7 +139,6 @@ namespace DrivenRides
             Log.Info($"NWH measure, give way: {all.Count(w => w != null && w.giveWay)} give-way waypoints, {all.Count(w => w != null && w.giveWay && IntersectionOf(w) != null)} in an intersection; nearest: {string.Join("; ", parts)}.");
         }
 
-        // 3. Whether a Gley car's obstacleList (what its front trigger holds) is readable, and what is in them now.
         private static void ObstacleLists()
         {
             var active = Pool().Where(v => v != null && v.gameObject.activeInHierarchy).ToList();
@@ -165,8 +154,6 @@ namespace DrivenRides
             Log.Info($"NWH measure, obstacle lists: {withList} of {active.Count} active cars readable; holding something: {(samples.Count > 0 ? string.Join("; ", samples) : "none")}.");
         }
 
-        // 4. The cost of reading every active Gley car within 60 m each physics step: position, velocity, target, action,
-        // obstacle list. 250 steps.
         private static IEnumerator Cost()
         {
             var times = new List<double>();
@@ -204,7 +191,6 @@ namespace DrivenRides
             Log.Info($"NWH measure, cost per physics step: median {times[times.Count / 2]:0} µs, 95% {times[times.Count * 95 / 100]:0} µs, max {times[times.Count - 1]:0} µs, for {counts.Average():0.0} cars within 60 m (of {Pool().Count(v => v != null && v.gameObject.activeInHierarchy)} active).");
         }
 
-        // Two lights, each with nobody counted inside when the test starts, so the hold can only be the -1.
         private static IEnumerator Lights(Vector3 near)
         {
             var done = new HashSet<TrafficLightsIntersection>();
@@ -215,8 +201,6 @@ namespace DrivenRides
             }
         }
 
-        // 5. Whether counting a car with index -1 in the nearest active traffic light holds it on yellow, and whether
-        // taking it out lets the light go on.
         private static IEnumerator Light(Vector3 near, HashSet<TrafficLightsIntersection> done)
         {
             var manager = IntersectionManagerField?.GetValue(TrafficManager.Instance);

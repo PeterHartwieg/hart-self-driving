@@ -7,10 +7,8 @@ using Xunit;
 
 namespace DrivenRides.Core.Tests;
 
-// The own car's start check says which of the join conditions failed (DriveLine.JoinMiss).
 public sealed class JoinMissTests
 {
-    // A line north along x = 0 from z = 0 to z = 100.
     private static DriveLine North() =>
         DriveLine.Build(Enumerable.Range(0, 11).Select(k => new Vec3(0, 0, k * 10)).ToList(), Array.Empty<(int, Polyline)>());
 

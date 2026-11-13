@@ -27,8 +27,6 @@ public sealed class TrafficTests
     [InlineData("pullaway")]
     public void Soak(string template)
     {
-        // Plain `dotnet test` runs PlainSeeds a template with the hard invariants; DR_TRAFFIC_SEEDS=500 (run by
-        // tools/install-remote.sh before installing) adds the ratchet (review round 9, DD6).
         var seeds = Seeds;
         var full = Full;
         var failures = new ConcurrentBag<(int Seed, string Why)>();
@@ -52,7 +50,6 @@ public sealed class TrafficTests
         var queue = new ConcurrentBag<float>();
         var queueWhy = new ConcurrentBag<string>();
         var dips = new ConcurrentBag<(int Seed, float Time, int Car, float Drop, float Lasted, string Kind)>();
-        // DR_SOAK_SERIAL=1 runs the seeds one after another (to check the parallel run gives the same results).
         var parallel = new ParallelOptions { MaxDegreeOfParallelism = Environment.GetEnvironmentVariable("DR_SOAK_SERIAL") == "1" ? 1 : -1 };
         Parallel.For(0, seeds, parallel, seed =>
         {
@@ -123,21 +120,16 @@ public sealed class TrafficTests
 
     public const int PlainSeeds = 100, FullSeeds = 500;
     public const float SimOnlyShare = 0.06f, DecisionStepMetres = 0.1f;
-    // The seeds a soak runs (DR_TRAFFIC_SEEDS, else PlainSeeds), and whether that is the full run: the other sweeps
-    // take their full grids then too, coarser ones in a plain run (review round 9, DD6).
     internal static int Seeds => int.TryParse(Environment.GetEnvironmentVariable("DR_TRAFFIC_SEEDS"), out var n) ? n : PlainSeeds;
     internal static bool Full => Seeds >= FullSeeds;
 
 
-    // 500 fixed seeds, 21 October: braking/flicker counts for the new policy; arrival ceilings rounded up from the
-    // previous policy's measured means. CHECKS.md records both policies, including simulation-only failures.
     private static readonly Dictionary<string, (int OptionLost, int Again, float ArrivalSeconds)> Ratchet = new()
     {
         ["lights"] = (40, 64, 28.70f), ["priority"] = (9, 136, 15.86f), ["merge"] = (1, 1, 13.27f),
         ["uturn"] = (0, 8, 17.18f), ["headon"] = (0, 0, 14.70f), ["pullaway"] = (32, 1, 13.92f),
     };
 
-    // FT_TRAFFIC_TRACE=lights:12 prints one seed's run, every half second; FT_TRAFFIC_TRACE=file:<name>.json a dump's.
     [Fact]
     public void TraceOneSeed()
     {
@@ -153,7 +145,6 @@ public sealed class TrafficTests
         output.WriteLine(r.Trace.ToString());
     }
 
-    // The NWH spike's three traffic failures (docs/nwh-drive-spike.md, "Traffic on").
 
     [Fact]
     public void SpikeUTurnAcrossOncomingOnASharedGreen()
@@ -161,9 +152,6 @@ public sealed class TrafficTests
         var r = Run(TrafficTemplates.SpikeUTurnSharedGreen());
         Assert.True(r.Failure == null, r.Failure);
         Assert.True(r.Arrived);
-        // It never turned in front of an oncoming car: it gave way to one. Since review round 9 it lets car 1 through
-        // the box and joins the avenue behind it (it is ahead by then, and the ride car comes in on along its way:
-        // JoinsBehind), giving way to car 2, 2 s behind it.
         Assert.True(r.GaveWayTo.Contains(1) || r.GaveWayTo.Contains(2), "it gave way to neither oncoming car");
     }
 
@@ -172,7 +160,6 @@ public sealed class TrafficTests
     {
         var r = Run(TrafficTemplates.SpikeWaitAfterOncoming());
         Assert.True(r.Failure == null, r.Failure);
-        // The last oncoming car is past the turn at about 11 s; the turn and 50 m on take under 8 s more.
         Assert.True(r.Time < 20f, $"arrived at {r.Time:0.0} s");
     }
 
@@ -184,7 +171,6 @@ public sealed class TrafficTests
         Assert.True(r.BackOffs >= 1);
     }
 
-    // A scenario survives the JSON round trip unchanged: it runs to the same end.
     [Fact]
     public void ScenarioJsonRoundTrip()
     {
@@ -195,15 +181,11 @@ public sealed class TrafficTests
             Assert.Equal(s.Cars.Count, again.Cars.Count);
             var a = Run(s);
             var b = Run(again);
-            // Written at round-trip precision: the very same run.
             Assert.Equal(a.ToString(), b.ToString());
             Assert.Equal(a.Time, b.Time);
         }
     }
 
-    // Every scenario in tests/traffic-scenarios/ (dumps from the game's failed traffic runs, turned into tests): no
-    // contact, no red run, no standstill over 30 s, and resolved: the ride car arrives, leaves the recorded area, or
-    // finds its way blocked by a car that won't move (the planner's to go round). No exemptions (review round 1).
     [Fact]
     public void DumpedScenarios()
     {
@@ -258,22 +240,16 @@ public sealed class TrafficTests
             Assert.True(car.Id == id, $"frame {i}: gives way to car {id}, which isn't there");
             var speed = Math.Sqrt(car.Vx * car.Vx + car.Vz * car.Vz);
             Assert.True(speed > DrivenRides.Core.Drive.TrafficDriver.StandingMs, $"frame {i}: gives way to car {id} standing ({speed:0.0} m/s): {lines[i]}");
-            // Coming at the merge (review round 3, V5): the ride car's front, where it waits, is ahead of the car's rear
-            // along the way the car is going, so the car has yet to pass it.
             var f = s.History[i];
             double fx = f.RideX + Math.Sin(f.RideHeading) * s.Ride.FrontAhead, fz = f.RideZ + Math.Cos(f.RideHeading) * s.Ride.FrontAhead;
             var length = s.Cars.First(c => c.Id == id).Length;
             double rx = car.X - Math.Sin(car.Heading) * length / 2, rz = car.Z - Math.Cos(car.Heading) * length / 2;
             var coming = ((fx - rx) * car.Vx + (fz - rz) * car.Vz) / speed;
-            // Give or take half a sweep step: the sweep counts the body between two poses too (review round 7), so a
-            // car whose rear has just gone past the front is still in the way of the half step ahead of it.
             Assert.True(coming > -DrivenRides.Core.Drive.TrafficDriver.SweepStep / 2f, $"frame {i}: gives way to car {id}, past the merge by {-coming:0.0} m: {lines[i]}");
         }
         Assert.True(waits > lines.Count / 2, $"gives way in only {waits} of {lines.Count} frames");
     }
 
-    // Review round 2 (U4): nosing in resolves a merge into a crawling stream: the ride car gets in front of a car that
-    // stops for it in its trigger, without a contact, where waiting for a gap would stall.
     [Fact]
     public void NosesIntoACrawlingStream()
     {
@@ -292,8 +268,6 @@ public sealed class TrafficTests
         Assert.True(nosed >= seeds * 3 / 4, $"only {nosed} of {seeds} nosed in");
     }
 
-    // A dump's recorded frames fed to TrafficDriver as they were seen in the game (no simulation): what it decided
-    // at each frame. FT_TRAFFIC_REPLAY=<file>.json prints it.
     internal static List<string> ReplayDecisions(TrafficScenario s)
     {
         var graph = s.BuildGraph();
@@ -339,11 +313,6 @@ public sealed class TrafficTests
         foreach (var l in ReplayDecisions(TrafficScenarioJson.Load(System.IO.File.ReadAllText(System.IO.Path.Combine(TrafficScenarioJson.Folder()!, file))))) output.WriteLine(l);
     }
 
-    // T3 20261013-211205, ride 9: a truck (11 m) coming up on the ride car's left as it turned left across its lane.
-    // Fed the recorded frames, the ride car must give way to it from the first frame it does until the contact (where
-    // the recorded car drove on past the stop it was given, a replay doesn't obey the decisions, the stop is the
-    // emergency rule's). Since 0.1.110 a frame without may come while the truck is still far enough back to stop in
-    // its trigger (TrafficDriver.StopsForUs), never in the last LastSeconds before the contact.
     [Fact]
     public void Ride9KeepsGivingWayToTheTruck()
     {
@@ -358,9 +327,6 @@ public sealed class TrafficTests
         Assert.True(dropped.Count == 0, $"dropped car 0 at:\n{string.Join("\n", dropped.Take(5))}");
     }
 
-    // T3 20261013-211205, ride 18: a car in the lane beside, following a slower car, overtook into the ride car's
-    // lane while alongside (Gley's lane change checks only its own cars' targets). From when it starts to overtake
-    // (Overtake, 1 s before it moves over) to the contact, the ride car must be giving way to it.
     [Fact]
     public void Ride18GivesWayToACarOvertakingIntoItsLane()
     {
@@ -383,15 +349,12 @@ public sealed class TrafficTests
     }
 
 
-    // Review round 1 (S10): a dump carries the calibrated car and the line as driven, and the simulation and the
-    // replay use them rather than a bicycle on a line rebuilt from the waypoints.
     [Fact]
     public void ScenarioCarriesTheCarAndTheDrivenLine()
     {
         var s = TrafficTemplates.Build("uturn", 3);
         var graph = s.BuildGraph();
         var built = s.Ride.BuildLine(graph, out var along);
-        // A line moved 0.6 m to the side: as a shifted line would be.
         s.Ride.Line = built.Line.Points.Select(p => new Vec3(p.X + 0.6f, p.Y, p.Z)).ToList();
         s.Ride.LineAlong = along.ToArray();
         s.Ride.LockCurve = new() { (0f, 40f), (10f, 30f), (20f, 20f) };
@@ -409,7 +372,6 @@ public sealed class TrafficTests
         Assert.Equal(-12.0, car.Steer, 3);
         Assert.Equal(0.97f, car.YawFactor, 3);
         Assert.Equal(1.6f, car.TrackWidth, 3);
-        // The line used is the driven one (0.6 m over), not the waypoints'.
         var line = again.BuildLine(graph, out var lineAlong);
         Assert.Equal(again.LineAlong, lineAlong);
         Assert.InRange(line.Line.Points[0].X - built.Line.Points[0].X, 0.59f, 0.61f);

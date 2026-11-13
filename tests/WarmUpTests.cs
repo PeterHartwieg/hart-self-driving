@@ -5,8 +5,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 11: the first ride of every T3 session had one decision of 13 to 18 ms, the first calls of the traffic
-// code being compiled in a physics step. The warm-up runs those calls once at load; it must run clean on its own.
 [Collection(nameof(DecideCostTests))]
 public sealed class WarmUpTests
 {

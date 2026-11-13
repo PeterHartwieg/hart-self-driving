@@ -142,7 +142,6 @@ public sealed class RoutingTests
     [Fact]
     public void DisallowedWaypointsAreAPenaltyNotAWall()
     {
-        // Only a lane not allowed for the vehicle leads on: Gley would drive it, so the planner must too.
         Vec3[] chain = { new(0, 0, 0), new(10, 0, 0), new(20, 0, 0) };
         var graph = Graph(chain, new[] { new[] { 1 }, new[] { 2 }, Array.Empty<int>() }, masks: new[] { 1, 2, 1 });
         var request = Request(0, new Goal(2, 0));
@@ -339,8 +338,6 @@ public sealed class RoutingTests
     [Fact]
     public void LaneChangeLeavesADeadEndLaneButCostsAPenalty()
     {
-        // A pull-over lane (0 -> 1) ends; its only way on is a lane change to the road beside it (2 -> 3). The change
-        // goes diagonally from 1 to 3, the waypoint after the one beside 1.
         Vec3[] points = { new(0, 0, 0), new(10, 0, 0), new(10, 0, 3), new(30, 0, 3) };
         int[][] edges = { new[] { 1 }, Array.Empty<int>(), new[] { 3 }, Array.Empty<int>() };
         int[][] lanes = { Array.Empty<int>(), new[] { 2 }, Array.Empty<int>(), Array.Empty<int>() };
@@ -356,8 +353,6 @@ public sealed class RoutingTests
     [Fact]
     public void ChangesLanesBeforeATurnInsteadOfDetouring()
     {
-        // Two parallel lanes; only the left lane (10 -> 11) has the turn to the goal (12). The car starts in the right
-        // lane (0 -> 1 -> 2), whose way on is a 1 km loop (2 -> 3 -> 12).
         var points = new Vec3[13];
         for (var i = 0; i < 3; i++) points[i] = new Vec3(i * 20, 0, 0);
         points[3] = new Vec3(500, 0, 500);
@@ -379,7 +374,6 @@ public sealed class RoutingTests
     [Fact]
     public void InfersParallelLanesWhereGleyHasNone()
     {
-        // Two one-way lanes 3.5 m apart heading +z, plus an opposite lane 7 m away that must not count.
         var points = new List<Vec3>();
         var edges = new List<int[]>();
         void Lane(float x, int count, int dir)
@@ -399,11 +393,8 @@ public sealed class RoutingTests
         Assert.True(graph.SideOf(1, 6) > 0);
         Assert.True(graph.InferredLaneChanges > 0);
         var kerb = GoalPicker.Pick(graph, new Vec3(1.75f, 0, 20), 0, new GoalOptions { KerbLane = true, MinStraightMetres = 10 });
-        // The inner +z lane (0..4) has a lane to its right; the outer +z lane and the opposite lane are both at a kerb.
         Assert.NotEmpty(kerb);
         Assert.DoesNotContain(kerb, goal => goal.Waypoint < 5);
-        // A destination east of the street (x > 3.5): only the +z lanes have it on their right, so the kerb goal is
-        // the outer +z lane, never the opposite lane across the street.
         var sameSide = GoalPicker.Pick(graph, new Vec3(8, 0, 20), 0, new GoalOptions { KerbLane = true, TargetOnRight = true, MinStraightMetres = 10 });
         Assert.NotEmpty(sameSide);
         Assert.All(sameSide, goal => Assert.InRange(goal.Waypoint, 5, 9));
@@ -412,8 +403,6 @@ public sealed class RoutingTests
     [Fact]
     public void AddsAMissingRightTurnFromTheOutermostLaneOnly()
     {
-        // A junction whose data only goes straight on. Northbound lanes at x = 2 (right) and x = -2 (left); an
-        // eastbound street with lanes at z = -2 (right) and z = 2 (left) leaving the junction at x = 10.
         var points = new List<Vec3>();
         var edges = new List<int[]>();
         var junction = new List<bool>();
@@ -440,8 +429,6 @@ public sealed class RoutingTests
     [Fact]
     public void UTurnsAtAJunctionIntoTheOtherCarriageway()
     {
-        // A divided street: eastbound lanes at z = 0 (left, by the median) and z = -4; westbound at z = 15 with its
-        // junction waypoints at x = 20, 10, 0, -10 and its exit at x = -15. The eastbound junction only goes on east.
         var points = new List<Vec3>();
         var edges = new List<int[]>();
         var junction = new List<bool>();
@@ -457,8 +444,6 @@ public sealed class RoutingTests
         Assert.Equal(-1, graph.UTurn(outer[1]));
         var route = Found(graph, Request(left[0], new Goal(wend, 0)));
         Assert.Equal(new[] { left[0], left[1], wj1, wj2, wj3, wj4, wexit, wend }, route.Waypoints);
-        // The turn starts well inside the junction, at the eastbound junction waypoint 17 m past the entry.
-        // ... after every junction waypoint on the straight way in (5 m, then 17 m).
         Assert.Equal(new[] { left[1] + 1, left[1] + 2 }, graph.TurnVias(left[1], wj1).Take(2).ToArray());
         var noUTurns = Request(left[0], new Goal(wend, 0));
         noUTurns.UTurnPenaltySeconds = float.PositiveInfinity;
@@ -468,7 +453,6 @@ public sealed class RoutingTests
     [Fact]
     public void ARestrictedLaneCostsItsPenaltyOnceNotPerWaypoint()
     {
-        // A driveway of ten restricted waypoints (mask 2) off a street (mask 1): one 20 s penalty, not ten.
         var points = Enumerable.Range(0, 12).Select(i => new Vec3(i * 5, 0, 0)).ToArray();
         var edges = Enumerable.Range(0, 12).Select(i => i == 11 ? Array.Empty<int>() : new[] { i + 1 }).ToArray();
         var masks = Enumerable.Range(0, 12).Select(i => i < 2 ? 1 : 2).ToArray();

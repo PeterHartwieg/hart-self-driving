@@ -1,8 +1,6 @@
 using System.Text.Json;
 using DrivenRides.Core.Routing;
 
-// The lane graph the game writes (GleyGraph.Dump): positions, successors, other lanes, vehicle types, junction flag
-// and the road's limit (km/h, 0 for none).
 static class GraphFile
 {
     public static LaneGraph Load(string path, out float[] limitsKmh)

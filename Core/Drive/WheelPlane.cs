@@ -12,15 +12,12 @@ namespace DrivenRides.Core.Drive
     // median's crossing; the planner refused a U-turn for a 0.89 m one). A car run onto a kerb lifts one wheel first.
     public static class WheelPlane
     {
-        // wheels: four points (where each wheel meets the ground). The rise of wheel i, or null when the other three
-        // don't make a plane.
         public static float? Rise(IReadOnlyList<Vec3> wheels, int i)
         {
             var others = new List<Vec3>(3);
             for (var j = 0; j < wheels.Count && others.Count < 3; j++) if (j != i) others.Add(wheels[j]);
             if (others.Count < 3) return null;
             Vec3 a = others[1] - others[0], b = others[2] - others[0];
-            // Cross product a x b.
             double nx = a.Y * b.Z - a.Z * b.Y, ny = a.Z * b.X - a.X * b.Z, nz = a.X * b.Y - a.Y * b.X;
             var length = Math.Sqrt(nx * nx + ny * ny + nz * nz);
             if (length < 1e-6) return null;

@@ -88,8 +88,6 @@ public class RouteLinePathTests
 
 public class RouteLineFollowTests
 {
-    // Round a 100 x 70 m block back to the start, then on down the street: the car is 345 m along, 5 m past the
-    // point where the line began.
     private static readonly Vec3[] Loop =
     {
         new Vec3(0, 0, 0), new Vec3(100, 0, 0), new Vec3(100, 0, 70), new Vec3(0, 0, 70), new Vec3(0, 0, 0), new Vec3(0, 0, -50),
@@ -101,22 +99,18 @@ public class RouteLineFollowTests
         var line = DriveLine.Build(Loop, Array.Empty<(int, Polyline)>());
         var progress = new RouteProgress(Loop);
         var car = new Vec3(0, 0, 0);
-        // The ride's progress runs every frame; the display's value stays at 0 while the option is off.
         for (var along = 1f; along <= 345f; along += 1f)
         {
             car = line.Line.At(along);
             progress.Update(car);
         }
         Assert.Equal(345.0, progress.AlongMetres, 1);
-        // The old local projection, from the stale value, never leaves the first pass.
         var stale = 0f;
         for (var i = 0; i < 1000; i++) stale = line.Line.Project(car.X, car.Z, stale);
         Assert.True(stale < 10f, $"projection unexpectedly recovered to {stale}");
-        // Switched on: the first update already starts at the car.
         Assert.Equal(345f, line.Follow(car.X, car.Z, 0f, progress.NextIndex), 2);
         var head = RouteLinePath.Head(line.Line, line.Follow(car.X, car.Z, 0f, progress.NextIndex), car);
         Assert.Equal(0f, Vec3.HorizontalDistance(car, head));
-        // And it keeps up once tracked.
         var shown = line.Follow(car.X, car.Z, 0f, progress.NextIndex);
         car = line.Line.At(350f);
         progress.Update(car);
@@ -136,8 +130,6 @@ public class RouteLineFollowTests
     [Fact]
     public void NativeUTurnStartsAtTheCarEvenWhenItRunsWideOfTheOutgoingLane()
     {
-        // Reduced S1 rig geometry: the path doubles back onto a parallel lane, but native Gley runs
-        // 7.792 m wide of that lane after turning (no fitted steering arc). The option was off.
         var points = new[]
         {
             new Vec3(20, 0, 12), new Vec3(0, 0, 12), new Vec3(-4, 0, 10),
@@ -156,17 +148,16 @@ public class RouteLineFollowTests
         samples.Reset(line.Line);
         var next = samples.Point(samples.FirstAfter(along));
         Assert.True(next.X > car.X);
-        Assert.Equal(0f, next.Z); // Only the outgoing suffix remains, not the approach or the U-turn.
+        Assert.Equal(0f, next.Z);
         var head = RouteLinePath.Head(line.Line, along, car);
         Assert.Equal(0f, Vec3.HorizontalDistance(car, head));
-        Assert.Equal(0f, head.Y); // Probe from the planned road height, not the body pivot height.
+        Assert.Equal(0f, head.Y);
     }
 
     [Fact]
     public void PhysicsHeadStaysOnTheRearAxlePlanWithAForwardFirstSegment()
     {
         var line = new Polyline(new[] { new Vec3(0, 0, 0), new Vec3(20, 0, 0) }.ToList());
-        // The body pivot is already past the next sample; using it would reverse the first segment.
         var body = new Vec3(10.3f, 1, 0);
         var head = RouteLinePath.Head(line, 9f);
         var samples = new RouteLinePath();

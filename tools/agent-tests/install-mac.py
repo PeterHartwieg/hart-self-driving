@@ -1,4 +1,3 @@
-"""Install a separate APFS-cloned Mac test player. Never modifies the Steam app or normal profile."""
 import hashlib
 import json
 import plistlib
@@ -21,7 +20,6 @@ if __name__=='__main__':
     with lifecycle():
         subprocess.run([sys.executable,str(HERE/'read-steam-mac.py'),str(SOURCE/'Contents/PlugIns/libsteam_api.dylib'),str(OUT/'steam-entitlements.json')],check=True,timeout=30,stdout=subprocess.DEVNULL)
         ROOT.mkdir(parents=True)
-        # clonefile copies share only unmodified APFS blocks; writes are isolated, unlike hard links.
         subprocess.run(['/bin/cp','-cR',str(SOURCE),str(APP)],check=True)
         contents=APP/'Contents';data=contents/'Resources/Data'
         (contents/'MacOS/Big Ambitions').rename(EXE)

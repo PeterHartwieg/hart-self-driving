@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-// Shared game API surface for the linked adapters. No game binaries are needed by dotnet test.
 public static class InstanceBehavior<T> { public static T Instance = default!; }
 public sealed class GameInstance { public Address? customDestination; }
 public static class SaveGameManager { public static GameInstance Current = new(); }
