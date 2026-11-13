@@ -7,7 +7,10 @@ using System.Text.RegularExpressions;
 
 namespace DrivenRides.Core.Tests;
 
-public sealed record CommentUnit(string Path, int Line, string Text, bool Directive);
+public sealed record CommentUnit(string Path, int Line, string Text, bool Directive, int EndLine)
+{
+    public string Key => EndLine > Line ? $"{Path}:{Line}-{EndLine}" : $"{Path}:{Line}";
+}
 
 public static class CommentBan
 {
@@ -44,7 +47,7 @@ public static class CommentBan
     public static HashSet<string> Allowlist(string markdown)
     {
         var set = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match m in Regex.Matches(markdown, @"(?m)^- `([^`\s]+:\d+)`"))
+        foreach (Match m in Regex.Matches(markdown, @"(?m)^- `([^`\s]+:\d+(?:-\d+)?)`"))
             set.Add(m.Groups[1].Value);
         return set;
     }
@@ -58,12 +61,12 @@ public static class CommentBan
             foreach (CommentUnit unit in Units(path, File.ReadAllText(System.IO.Path.Combine(root, path))))
             {
                 if (unit.Directive) continue;
-                string key = $"{unit.Path}:{unit.Line}";
+                string key = unit.Key;
                 found.Add(key);
                 if (!allow.Contains(key)) problems.Add($"{key}: comment not allowed: {First(unit.Text)}");
             }
         foreach (string key in allow.Where(k => !found.Contains(k)).OrderBy(k => k, StringComparer.Ordinal))
-            problems.Add($"{key}: listed in {ExcusesFile} but no comment starts there");
+            problems.Add($"{key}: listed in {ExcusesFile} but no comment spans exactly these lines");
         return problems;
     }
 
@@ -88,6 +91,7 @@ public static class CommentBan
         {
             string body = text[start..end].TrimEnd('\r');
             int line = LineOf(text, start);
+            int endLine = LineOf(text, Math.Max(start, end - 1));
             int lineStart = text.LastIndexOf('\n', Math.Max(0, start - 1)) + 1;
             if (start == 0) lineStart = 0;
             bool ownLine = text[lineStart..start].Trim().Length == 0;
@@ -96,10 +100,10 @@ public static class CommentBan
             if (groupable && lastGroupable && line == lastEndLine + 1)
             {
                 CommentUnit last = units[^1];
-                units[^1] = last with { Text = last.Text + "\n" + body.Trim() };
+                units[^1] = last with { Text = last.Text + "\n" + body.Trim(), EndLine = endLine };
             }
-            else units.Add(new CommentUnit(path, line, body.Trim(), directive));
-            lastEndLine = LineOf(text, Math.Max(start, end - 1));
+            else units.Add(new CommentUnit(path, line, body.Trim(), directive, endLine));
+            lastEndLine = endLine;
             lastGroupable = groupable;
         }
         return units;

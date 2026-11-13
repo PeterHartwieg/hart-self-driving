@@ -48,8 +48,8 @@ public sealed class CommentBanTests
     [Fact]
     public void AllowlistReadsOnlyListedPathLines()
     {
-        var allow = CommentBan.Allowlist("# Title\n\n- `Core/X.cs:4` workaround\nnot `Core/Y.cs:9`\n");
-        Assert.Equal(new[] { "Core/X.cs:4" }, allow);
+        var allow = CommentBan.Allowlist("# Title\n\n- `Core/X.cs:4` workaround\n- `Core/Z.cs:2-3` todo\nnot `Core/Y.cs:9`\n");
+        Assert.Equal(new[] { "Core/X.cs:4", "Core/Z.cs:2-3" }, allow);
     }
 
     [Fact]
@@ -69,6 +69,10 @@ public sealed class CommentBanTests
             File.AppendAllText(Path.Combine(root, "Core/X.cs"), "// explains a\n");
             var problems = CommentBan.Violations(root);
             Assert.Equal("Core/X.cs:4", Assert.Single(problems).Split(": ")[0]);
+
+            File.WriteAllText(Path.Combine(root, "Core/X.cs"), "#pragma warning disable CS0168\n// excuse: for now\n// new plain explanation\nint a;\n");
+            problems = CommentBan.Violations(root);
+            Assert.Equal(new[] { "Core/X.cs:2-3", "Core/X.cs:2" }, problems.Select(p => p.Split(": ")[0]));
 
             File.WriteAllText(Path.Combine(root, "Core/X.cs"), "int a;\n");
             Assert.Contains("listed in", Assert.Single(CommentBan.Violations(root)));
