@@ -1,72 +1,55 @@
-# Driven rides: implementation plan
+# Decisions in force
 
-This is the dated design history, including the original Gley implementation and later NWH changes.
-The current repository is `hart-self-driving`; its player-facing name is **HART. Self Driving** and its
-mod ID remains `DrivenRides`. Use [code-layout.md](code-layout.md) for current source locations,
-[../README.md](../README.md) for supported behavior and [../CHECKS.md](../CHECKS.md) for evidence.
-Statements below about planned work or an untested spike apply to their recorded date.
+Peter's decisions that still hold, the game facts they rest on, and the approaches that were tried and dropped.
+Supported behaviour is in [../README.md](../README.md); in-game evidence is in [../CHECKS.md](../CHECKS.md).
+The repository is `hart-self-driving`, the player-facing name **HART. Self Driving**, and the mod ID, assembly
+and namespace `DrivenRides`.
 
-A separate Workshop mod for Big Ambitions, in its own repo (`~/Coding_Projects/big-ambitions-driven-rides`). Taxi and private-driver rides drive through the city instead of fading to black. You sit in the car, the camera follows it, and you get out at the destination. Written 11 October 2026, revised the same day over five rounds of reviews (Fable 5.1, GPT 6 Astra) until both said "ready to build the spike". The reviews are in the Food Trucks checkout's `build/review-rides/` (not committed). Name: **Driven Rides** (Peter, 11 October 2026).
+## Decisions
 
-**Peter's decisions, 11 October 2026:** own repo; normal world speed by default with the clock at a third of its speed during a ride, and buttons on the ride panel for 2×, 3× and Skip (this replaced the first choice, 3× by default with the clock held to vanilla's cost, after the first test rides); the private driver is dismissed after a ride as in vanilla, so it has to be called again, and the mod adds a shortcut for calling it (see [Driver shortcut](#driver-shortcut)).
+| Date | Decision |
+| --- | --- |
+| 11 Oct 2026 | Own repository and Workshop mod. Taxi (hailed and stand), private-driver rides drive through the city, Manhattan and the Hamptons (one lane network across the bridge). |
+| 11 Oct 2026 | World at normal speed during a ride, clock at a third of its speed. Ride panel buttons 1×, 2×, 3× and Skip. Skip and every vanilla finish charge vanilla's time (0.04 game minutes per metre of straight line from the car to the destination); an arrival charges nothing more. |
+| 11 Oct 2026 | Prices, achievements, events, happiness modifiers and the limo's energy and food bonus stay vanilla. Nothing is charged twice. |
+| 11 Oct 2026 | When the mod can't drive a ride it is vanilla from the start. A driven ride that fails midway finishes the vanilla way. When something else takes over (hospital, game load) the ride is cancelled cleanly, with no completion. |
+| 11 Oct 2026 | The private driver is dismissed after a ride, as in vanilla. Key **L** calls the driver (last vehicle this session, else the first owned) through the phone's own code; with a driver waiting, L walks the player to it and opens the map. |
+| 11 Oct 2026 | Rides are never saved; the mod adds nothing to the save. A save during a ride stores the pickup position. |
+| 12 Oct 2026 | Workshop name **HART. Self Driving**; the player's own car driving itself is in the first release. Every car works, modded cars included. |
+| 12 Oct 2026 | L in the driver's seat of the own car opens the destination map; elsewhere L calls the driver. |
+| 12 Oct 2026 | Autopark is three-way: park yourself, autopark cars that have it (`autoParkSupported`, default), autopark every car. No free spot means park yourself. After autopark the player stays in the parked car. |
+| 12 Oct 2026 | Clock rate and ride speed are options; the panel's last choice is written back and becomes the next ride's start value. |
+| 13 Oct 2026 | Rides drive with the player car's physics (NWH Vehicle Physics 2) by default. Peter judged NWH "like a car I drive". The Gley ride stays as the supported fallback: the "Real car physics" option off, or a taxi or driver car NWH can't drive, makes it a Gley traffic car steered along the route. The own car always drives on NWH. The route planner and turn rig stay. |
+| 13 Oct 2026 | No case lists: what the car can't drive comes from the feasibility check, what it must wait for from the conflict test. `TestedSteps` is a regression record, not a mechanism. One kinematic car model is shared by planner, tests and rig judge; when it disagrees with the game, fix the model. Every in-game failure becomes an offline test. |
+| 13 Oct 2026 | U-turns a car can't make cleanly go round the block (few drivers would U-turn a big car). |
+| 14 Oct 2026 | Fix only what rides show; this is a quality-of-life mod. Traffic margins stay low (headway about 1.0 s). |
+| 17 Oct 2026 | The own car unparks and parks visibly (parallel parking). The local manoeuvre planner stays separate from the road planner. Navigation accounts for parking strips before arrival. A manoeuvre reserves its swept area: traffic inside clears, approaching Gley cars wait outside, overlapping spawns are refused. The checked teleport stays the parking fallback. |
+| 21 Oct 2026 | Lot and bay departures use a separate local departure to a directed road entry, then the normal road join check. A failure returns control in place. |
+| 21 Oct 2026 | Prioritise shorter trips and assertive driving; an occasional crash is acceptable. Judge tuning by completion, journey time and unnecessary waiting, and record contacts and recovery cost alongside. Preferred sideways acceleration 6 m/s²; arc sizing stays at 4 m/s². |
+| 22 Oct 2026 | Taxi and private-driver passengers hear the existing radio; own-car rides keep vanilla radio. No vehicle-entry events are faked. |
+| 22 Oct 2026 | Quick destinations: **J** for the pinned building, **K** for the last residential building entered; configurable among Disabled / G / J / K / U / V / X, duplicates refused. They never summon a driver. Home is not saved. |
 
-**Peter's decision, 13 October 2026:** every ride is driven with the player car's physics (NWH) instead of as a Gley traffic car. The plan for that is [NWH driving](#nwh-driving-from-13-october-2026); the sections before it still describe the Gley ride, whose lifecycle carries over.
+**Why L, J and K.** the game's bindings ignore modifiers and use W A S D F Q E P O T I N M B C H R (plus Z, Y and digits in the interior designer). G, J, K, L, U, V and X are unbound and sit in the same place on QWERTY and QWERTZ (Food Trucks' key research, its `docs/implementation-plan.md`). Food Trucks uses Ctrl and Ctrl+Alt with those letters, and Peter's other mods use Ctrl+Shift+G, J and K. Plain L clashes with none of them.
 
-**Peter's decision, 21 October 2026:** prioritise shorter trips and assertive driving. This is a game; an occasional
-crash is an acceptable trade for reduced travel time. Judge tuning by completion, journey time and unnecessary
-waiting, and record contacts and recovery costs alongside them. The historical zero-contact milestones below
-describe earlier acceptance targets. The first tuning pass shortens moving following gaps and junction headways,
-permits firmer braking by traffic we merge ahead of, and raises the pace past waiting cars. Measured physical
-limits and ride cleanup remain part of the implementation; evidence and the before/after comparison are in `CHECKS.md`.
+**Options.**
+The ModAPI has an options page per mod (`BigAmbitions.Mods.OptionsService.Register(modId, new ModOptions()...)`, the SDK's `Example-Options`). The game stores each value in `PlayerPrefs` under `m:<modId>:<optionId>` (`ModOptionPrefs.cs`) and calls the option's callback only when the options page builds its controls or the player changes one. So the mod reads `PlayerPrefs` with the same keys at load, and takes callbacks for changes after that. Options are player preferences, not save data.
 
-**Corner-speed follow-up, 21 October 2026:** raise the preferred sideways acceleration from 4 to 6 m/s²,
-about 22% more speed on an otherwise identical curve. Keep candidate arc sizing at its established 4 m/s²
-reference pace: the car can take a tight turn slower instead of rejecting it because its steering lock narrows
-at the new preferred speed. The existing per-arc lock reserve sets that slower speed; feasibility still drives
-the actual speed plan and checks body/tyre clearance. Tracking precision is a measured tradeoff, with regression
-bounds and in-game limitations recorded in `CHECKS.md`.
 
-## Goal and scope
+## Rejected approaches
 
-22 October 2026 addition: taxi, taxi-stand and private-driver passengers use the existing `RadioPlayer` and
-phone radio controls. Boarding unmutes the current station without restarting it or changing volume. Every
-ride exit releases that session; headphones or a subsequently entered real car retain their radio. Captured
-save/manager/radio identity prevents old cleanup from affecting a replacement world. Only the radio's two
-headphone-change handlers are skipped while this passenger session owns it, since vanilla otherwise treats
-the passenger as being on foot. Own-car rides retain vanilla radio behavior. No vehicle-entry events are faked.
+- **Gley as the default ride** (to 0.1.51): about fifteen builds of per-case fixes (turn lines, U-turns, pivots, wiggle), and three traffic runs hit three different junction failures. Gley rides remain only as the fallback above.
+- **A hidden Gley "ghost" car the NWH car follows**: a preset-path car skips Gley's junction logic, its jam escapes leave the line, and the bodies drift apart in turns.
+- **The NWH car inside Gley's arrays**: Gley sizes every array once at `TrafficManager.Initialize`, and its jobs move the bodies.
+- **Every road car on NWH**: feasible but about 100 times Gley's cost per car, and it needs reservations and a rebuilt spawn system. 4 to 6 NWH cars near the camera stays possible.
+- **Own car as a Gley stand-in** (hidden real car, pooled or reskinned stand-in, swap back): replaced once every ride drove on NWH. The player's car now drives itself.
+- **Adding cars to Gley's pool**: nothing can be added after init; a pool-clone prefix covers only types known at city load, and modded cars would need a hand-built AI prefab.
+- **Holding the ride to vanilla's time with a clock budget**: in play the clock looked stopped.
+- **Kerb pull-out through `DrivePlan.Shifts`**: obstacle shifts shared that state; replaced by the local manoeuvre planner.
+- **The overnight review loop** (0.1.75 to 0.1.80): patched cases nobody had seen; T3 fell from 37 of 38 to 18. Overnight planner checks were the main regression.
 
-17 October 2026 addition: implement unparking, followed by visible parallel parking for the own car. The local
-manoeuvre planner stays separate from the road planner. See `docs/own-car-self-drive.md` and `CHECKS.md` for the design
-and current validation status. The historical version-1 scope below is retained for context.
+## Game facts
 
-21 October 2026 addition: legal bays and dedicated lots need a separate local departure, independent of the
-parked heading and nearest road waypoint. Use the parking aisle and driveway to reach a directed road entry,
-then validate the measured pose before handing over to the existing road driver. Add seeded free legal-space
-fixtures and record actual departures, failed exits and cleanup. See `docs/turn-tests.md` for the runner.
-
-Navigation must account for the street's parking strips before arrival: choose a compatible adjacent lane and
-approach direction as road goals, then select a currently free space and hand off to the separate manoeuvre planner.
-Parking/unparking temporarily reserves its local swept area: existing traffic clears it, approaching Gley cars
-wait outside, and overlapping spawns are refused until the manoeuvre ends. This is local manoeuvre policy, not
-a road-planner closure or a change to traffic-light state.
-
-Original version-1 scope (superseded by the dated additions above):
-
-- Rides with the **private driver** and the **taxis** (a taxi hailed from traffic and a taxi stand) drive the real route when both ends are in Manhattan.
-- During a ride the clock runs at a third of its speed. Skip charges vanilla's time for the rest of the way.
-- A **Skip** button finishes a ride the vanilla way at any moment.
-- When the mod can't drive a ride (no route, a parked private driver), the ride is vanilla from the start. The Hamptons are driven too, across the bridge (Peter, 11 October 2026; the lane graph is one network from Manhattan to x -3,380). When a driven ride fails midway (stuck car, car removed), it finishes the vanilla way. When something else takes over (the hospital, a game load), the ride is cancelled cleanly without a completion.
-- Prices, achievements, events, happiness modifiers and the limo's energy and food bonus stay as in vanilla.
-- A **driver shortcut**: one key calls the private driver, and once it waits, the same key walks you to it and opens the destination map. Vanilla needs the phone, the driver app and a vehicle each time.
-
-The first draft excluded the Hamptons and own-car driving; both were subsequently implemented.
-A passenger-seat camera and crew driving remain future work. The original door-placement design also
-changed: current passenger arrivals can place the player beside the car; vanilla fallback places them
-at the destination. See `Ride.PlacePlayer`.
-
-## What the game does (code facts)
-
-All from the 1.0 decompile (23 September 2026) and Gley in `ExternalPlugins.dll`. Paths are relative to the decompile's `BigAmbitions/` and to `GleyTrafficSystem/`.
+From the 1.0 decompile (23 September 2026) and Gley in `ExternalPlugins.dll`; re-check after a game update. Paths are relative to the decompile's `BigAmbitions/` and to `GleyTrafficSystem/`.
 
 **The vanilla ride.** `TaxiSystem.TravelTo(target)` returns at once if `_travelCoroutine != null`, checks the Hamptons private fence, charges `distance × 0.15` for a taxi (free for the private driver) and starts `_travelCoroutine = StartCoroutine(TravelCoroutine(target, minutes))`, where `distance` is a straight line to `target.GetNavMeshTargetPosition()` and `minutes = distance × 0.04 × GameSpeed × taxi.GetTimeMultiplier()` (0.85 for the private driver) (`TaxiSystem.cs:38-68`). The only caller is `BuildingResume.cs:583`, with the city map open in taxi mode.
 
@@ -99,178 +82,7 @@ All from the 1.0 decompile (23 September 2026) and Gley in `ExternalPlugins.dll`
 
 **Neighbourhoods.** `Building.Neighbourhood` and `TaxiDestinationData.neighbourhood` (`ba:neighborhood_thehamptons`); the player's side via `ClosestBuildingFromPlayer.Get()`.
 
-## How the mod hooks in
-
-**One Harmony prefix on `TaxiSystem.TravelCoroutine(target, minutes)`**, the method that builds the iterator, not the iterator body. Vanilla's `TravelTo` has already run its busy check, fence check and payment, and the city map is still open and covers the screen. The whole prefix body sits in try/catch. Until a stand's car is loaded it changes nothing; after that, the catch removes that car (`TrafficManager.RemoveVehicle`) before returning true, so vanilla runs with nothing left behind. The ride's static state (context, clock cap, owned car) is committed only as the very last step, so a failed prefix can't leave a cap or a borrowed car. It:
-
-1. Reads `cityMap.Taxi` now, before anything closes the map, and captures the ride context in plain fields: the taxi, target, `minutes`, start time, the owners it belongs to (`SaveGameManager.Current`, the `PlayerController`, the `GameManager`), the happiness modifier name, and for the private driver its vehicle type name (for the limo bonus if the component is gone by the end).
-2. Decides **driven** if all hold: the taxi is a `MonoBehaviour` with a `VehicleComponent` whose index is ≥ 0 (so not a parked private driver), no activity panel is open (`PlayerActivityUI.IsPanelOpen`), the player and the destination are in Manhattan, and the route planner returns a route within 100 ms. For a stand, the start is `GetClosestWaypoint(stand, 50, filter, checkFreeFor: prefab)`, which only returns a free waypoint.
-3. Stand only, as the last step: `LoadVehicle(vehiclePrefab, spawnWaypoint)` now, with no yield between the free-waypoint check and the load, the car turned to face `path[0]`, and hard-stopped at once (`TriggerChangeDrivingStateEvent(index, StopNow, 0)`, as vanilla's summon does) so it waits for Depart. The prefix first checks that an inactive pooled car of that prefab exists, comparing `vehicle.prefab` with `vehiclePrefab.gameObject` as `LoadVehicle` does (`TrafficManager.cs:531`), so `LoadVehicle` doesn't fall back to an active one. A null result returns true: vanilla, nothing to undo. The map hides the car appearing.
-4. If driven: sets `__result` to the mod's ride iterator with the context and returns false. `TravelTo` stores it in `_travelCoroutine`, so `TaxiSystem.IsTraveling` is true for every vanilla check. The mod clears the field through an AccessTools field reference, and only while its own ride is the one running.
-5. Otherwise returns true and vanilla runs unchanged.
-
-Nothing is charged twice, nothing calls vanilla's private coroutine, and a failed plan costs nothing extra.
-
-Other patches:
-
-- `PrivateDriverVehicle.Update` prefix: skip while the mod owns that car.
-- `GameManager.RunMainGameTick` prefix: while a ride owns the clock, cap the tick (see [Clock](#clock)). It checks `SaveGameManager.Current` against the ride's save on every call, and on a mismatch passes the tick through and drops the cap.
-- `PlayerActivityUI.CanStartActivity` prefix: false while a ride owns the player (so reading cargo, and with it FastForward and the activity time machine, can't start). Skipping the method also skips vanilla's notice, so the prefix shows a one-line "Not during a ride" notice when `showNotification` is true; otherwise the click looks dead.
-- `TimeMachine.StartTimeMachine` prefix, on the five-argument overload that the one-argument one forwards to (`TimeMachine.cs:170-175`): a time machine the ride didn't start runs `Cancel` first, so the cap never holds back someone else's time machine.
-- `PlayerHelper.SaveCurrentPosition` postfix: the save position during a ride (see [Saves and loads](#saves-and-loads)).
-
-No FastForward patch: with activities blocked it can't be reached. If traffic is paused anyway, the watchdog sees no progress and the ride finishes the vanilla way.
-
-Each patch logs one `Active` or `Not active` line at startup with the method name.
-
-## The ride
-
-One iterator (`RideRunner`). Its body sits in try/finally for exceptions and normal exits. A game unload is the case the finally doesn't cover, so the unload handler does its own full cleanup (see the exits below). After every yield the iterator first checks the ride's cancelled flag and returns if set. The context has its own fields; nothing needed for finishing lives only on a pooled component.
-
-1. **Board.** `ResetNavigation()` (drops the goal the player walked with), close the map as vanilla does. Create a mod-owned **anchor** object at the car. `AttachToObject(anchor, NavigationBlocker.Taxi)` (this also sets the blocker), hide the character. The anchor copies the car's pose in `Update` and again in `LateUpdate`. Parenting to the anchor, not the car, means a pooled car that Gley deactivates or reuses never takes the player with it.
-2. **Get the car.**
-   - `TaxiController`: the clicked car. `taxi.DriveAway()` restores its recorded state.
-   - `PrivateDriverVehicle`: the summoned car. The `Update` prefix now leaves it alone.
-   - `PermanentTaxiController`: the car the prefix loaded and hard-stopped.
-3. **Depart.** Give Gley a mutable copy of the route as `presetPath`; keep the immutable route in the context for progress. `ForceSetVehicleActiveAction(car, Forward)` to clear any `StopNow`, then `VehicleUpdateWaypoint(car)`. Once `GlobalEvents.onCityMapClosed` has fired, switch the camera (see [Camera](#camera)).
-4. **Drive.** Each frame: the watchdog, ride speed, and a small panel (distance left, 1×/2×/3× and **Skip**). The car is **ours** while its `VehicleComponent` is active, its index is the one captured, and its `presetPath` is the very list the mod gave it. Every release, removal or path change first checks that. If it stops being ours, give up.
-5. **Arrive.** When one route waypoint is left, `SetVehicleAction(car, StopInPoint, true)` (the vanilla summon's stop) and clear the owned list in place, so `presetPath` stays the same non-null list and the car stays protected from removal. If the list ran out first, Gley has already picked an ordinary next waypoint and the car stops one waypoint further on; the warp to the door covers that.
-6. **Finish.** See `Complete` below.
-
-**Shared bookkeeping**, in vanilla's order (`TaxiSystem.cs:86-105`), used by both `Complete` and `FinishVanilla`:
-
-1. For Skip and the vanilla finish, run the time machine for vanilla's charge for the rest of the way, then wait for `GlobalEvents.onTimeMachineEnded` (not just `isRunning == false`, since teardown takes another second).
-2. Achievement counter for the taxi type, `GameEvent.Invoke("")`.
-3. Place the player: move the transform to the target's NavMesh position (`NavMesh.SamplePosition`; fallback, the pickup position), `DeattachFromObject(Taxi)`, `WarpSafely` there, check the agent is on the NavMesh, show, `Character.Reset()`.
-4. `ba:gameevent_completedtaxiride`.
-5. `taxi.OnTravelFinished()` if the component is alive; for a private driver whose component is gone, the captured limo check (`HappinessHelper.AddModifier("ba:happinessmodifier_limo")`, `EnergyHelper.GenerateEnergy(5)`, `ChangeHunger(10)`) instead. Then the captured happiness modifier.
-
-**Vehicle release**, exactly one operation per exit:
-
-- `Complete`, taxis: if the car is ours, `SetVehicleAction(car, Forward, clearOthers: true)` (clears `StopInPoint`, without which `WaypointRequested` issues nothing), `presetPath = null`, `VehicleUpdateWaypoint`. It rejoins traffic.
-- `Complete`, private driver: `DismissPrivateDriver(force: true)`, non-instant, so the car drives off and the driver leaves the phone, as after a vanilla ride (Peter: the driver has to be called again; the shortcut makes that one key).
-- `FinishVanilla`: vanilla's own release, with the mod's car accounted for. A copy of `IsValidWaypointForLeaving` (allowed cars not empty, `WithinHeight(5)`, `IsNotIntersection`) picks a waypoint within 50 m of the destination.
-  - `TaxiController` or private driver, car still ours: `taxi.InstantiateVehicle(waypoint)`. It removes or dismisses the ride car first, so the load reuses that same, now inactive, car.
-  - Stand, car still ours: release the borrowed car first (`SetVehicleAction(Forward, clearOthers: true)`, `presetPath = null`, so it is removable again), then `InstantiateVehicle(waypoint)` only if an inactive pooled car of that prefab exists.
-  - Car no longer ours (Gley reused it): no respawn. The passenger part of the ride finishes; another car would only risk taking an active slot.
-  - No waypoint: the private driver is dismissed (`DismissPrivateDriver(force: true, null, instantRemove: true)`); a taxi or stand car that is still ours is released as above.
-
-**Three exits**, each written once and idempotent; a finished ride ignores later triggers:
-
-- `Complete` (arrival): fade, shared bookkeeping, release, then restore the camera and the time scale, unfade, and hand the clock back.
-- `FinishVanilla` (Skip, watchdog give-up, car no longer ours): fade, shared bookkeeping, vanilla release, restore, unfade, hand the clock back.
-- `Cancel` (hospital, unload, another time machine): drop the mod's own state only, synchronously inside the event handler or prefix, before the interrupting system goes on, while the ride's player and managers are still valid. Stop the anchor, move the transform to the nearest NavMesh point, `DeattachFromObject(Taxi)`, show the character, switch to the pedestrian camera, clear the `Update` prefix flag, release the clock cap, set `Time.timeScale` back if the mod changed it and the game is unpaused, clear `presetPath` and the arrival action if the car is still ours, destroy the anchor, clear `_travelCoroutine`. No time machine, no warp to the destination, no completion. The mod never touches the camera again afterwards, so the hospital's own camera change wins. The iterator sees the cancelled flag on its next step and returns.
-- `Dispose` (the save changed under the ride, without an unload event): a new save doesn't prove the old objects are gone, and destroying the anchor would destroy any child still parented to it. So: if the captured player still exists and its owners (the captured `PlayerController` and `GameManager`) are alive, run the `Cancel` steps through those captured references only, including putting `Time.timeScale` back if the mod changed it (it is global, and nothing resets it without a scene load). Otherwise, unparent whatever is still under the anchor (`SetParent(null, true)`) before destroying it, and leave the camera, time scale and `_travelCoroutine` alone. Clear the mod's static state either way. The game replaces the save without an unload only at an editor or dev start (`GameManager.cs:422-426`); every in-game load fires `onGameUnloaded` first (`LoadScene.cs:27-31`), so `Dispose` is a guard and the spike expects `Cancel` in the log.
-
-Cancel triggers: `GlobalEvents.onHospitalRespawnStarts`, `GlobalEvents.onGameUnloaded` (it fires before the city scene goes, `LoadScene.cs:27-31`, so the owners still exist), and a time machine the ride didn't start. `Dispose` trigger: `SaveGameManager.Current` is no longer the ride's save, checked each frame and in the tick prefix.
-
-## Route planner
-
-Pure C# in Core, with tests. The adapter builds a **topology snapshot** from Gley once per city load: for each waypoint its position, neighbours, `otherLanes`, allowed vehicle types, intersection flag and `maxSpeed` (converted to m/s). Flat arrays plus a grid index for nearest-waypoint queries. Live state, `temporaryDisabled`, is read through a callback during each search, so a snapshot never goes stale.
-
-- **A\*** over the directed lane graph (`neighbors` only). Edge cost is travel time (length ÷ `maxSpeed`). A penalty per intersection entry makes routes prefer avenues. The heuristic is straight-line distance ÷ the top speed in the graph. No `otherLanes` edges: on a preset path Gley jumps to the next waypoint without its lane-change checks (`DrivingAI.cs:480-484, 506-526`), so a lane change would need its own checked adapter. Not needed while drop-off is at the door.
-- **Filter** by the car's Gley vehicle type (`allowedCars`) and by `temporaryDisabled`.
-- **Start.** A live car: `GetTargetWaypoint(car index)`, the waypoint Gley already drives to. A stand: a neighbour of the spawn waypoint, with the car rotated to face it.
-- **Goals.** Waypoints within 60 m of the destination's NavMesh target, outside intersections, within 3 m height, on a straight stretch of at least 15 m, any lane. Each goal links to one virtual terminal node with its walking time (distance ÷ 1.4 m/s) as cost, so A* minimises driving plus walking in the same unit. The pavement-side lane comes back with curb drop-off, after version 1.
-- **Budget.** 100 ms in the prefix, synchronous, because the prefix must decide at once. Over budget, the ride is vanilla. Replans during the ride get the same budget, spread over frames.
-
-## Watchdog
-
-Core's `RideWatch` gets the car's progress along the immutable route, the time (unscaled, excluding pauses) and events; it returns `Ok`, `Restart`, `Replan` or `GiveUp`. Every limit is hard.
-
-- **After a bump or a long stop:** no 2 m of progress for 15 s → `Restart` (`ForceSetVehicleActiveAction(Forward)` and `VehicleUpdateWaypoint`).
-- **Still stuck:** no 5 m of progress for 30 s, red lights included → `Replan` from the car's target waypoint. The spike logs the light cycle (`greenLightTime`) and these limits are set from it so two red phases at a busy light don't end a ride.
-- **After a replan:** no 5 m of progress in the next 30 s → `GiveUp`.
-- **Ride deadline:** three times the expected driving time from the plan, plus 60 s → `GiveUp`.
-- **Car gone or reused** → `GiveUp`.
-
-So the player sits in a stuck car for at most about 75 s before the vanilla finish.
-
-## Clock and ride speed
-
-Peter, 11 October 2026, after the first test rides: the world runs at normal speed and the clock at a third of its speed while you ride. Buttons on the ride panel set 1×, 2× or 3× (`Time.timeScale`, applied only while the game is unpaused and its own time-scale tween has finished; `fixedDeltaTime` is never changed), and **Skip** finishes the ride the vanilla way. The options page sets the speed a ride starts at (default 1×).
-
-- The `RunMainGameTick` prefix multiplies each tick by ⅓ while a ride owns the clock. Ticks are game minutes from scaled time, so at 3× the clock runs at its normal rate. The ride's own time machine is left alone.
-- A ride's game time is its driving time at a third of the clock's rate, usually more than vanilla's teleport. Vanilla charges 0.04 game minutes per metre of straight line, which the first test showed is very cheap: 6.6 game minutes for a 964 m drive.
-- Skip and the vanilla finish run the time machine for vanilla's charge for the straight line from the car to the destination. An arrival charges nothing more.
-- The first design held the ride to vanilla's cost with a clock budget; in play the clock looked stopped, so it was dropped.
-
-## Camera
-
-- The spike first logs `vehicleCamera.Follow` and `LookAt`. With the player attached to the anchor, the vehicle camera may follow the car with no change, as it does when the player drives.
-- If it does: `SetCameraRoutine(vehicleCamera)`. If not: the pedestrian camera, which follows the carried player.
-- Every exit switches back to the pedestrian camera (`Cancel` does it at once, inside the handler).
-- Both the anchor copy and the Cinemachine brain run in `LateUpdate` in no fixed order, which can show as jitter at 2× and 3×. The anchor also copies in `Update`; if the spike still sees jitter, point `Follow` at the car for the ride.
-
-## Options
-
-The ModAPI has an options page per mod (`BigAmbitions.Mods.OptionsService.Register(modId, new ModOptions()...)`, the SDK's `Example-Options`). The game stores each value in `PlayerPrefs` under `m:<modId>:<optionId>` (`ModOptionPrefs.cs`) and calls the option's callback only when the options page builds its controls or the player changes one. So the mod reads `PlayerPrefs` with the same keys at load, and takes callbacks for changes after that. Options are player preferences, not save data.
-
-- **Driven taxis** (toggle, `taxis`, default on) and **driven private driver** (toggle, `driver`, default on): off makes those rides vanilla. Hailed taxis and taxi stands share the first.
-- **Ride speed** (dropdown, `startspeed`, 1× / 2× / 3×, default 1×). The panel's buttons change it during a ride and write it back, so the next ride starts at the last choice (Peter, 12 October 2026).
-- **Clock during rides** (slider, `clockpercent`, 0 to 100 %, default 33 %): 0 stops the clock, 100 is normal speed. The panel has the same slider and writes it back the same way.
-- **Stop at red lights** (toggle, `lights`, default on).
-- **Driver shortcut** (toggle, `shortcut`, default on).
-
-## Driver shortcut
-
-22 October 2026 addition: configurable quick destinations, default **J** for vanilla's
-`GameInstance.customDestination` (the pinned building) and **K** for the last residential building entered.
-Both act in a stopped own car or an already-open taxi/private-driver destination map, through `TaxiSystem.TravelTo`.
-They do not summon a driver. Options offer Disabled / G / J / K / U / V / X; duplicate assignments refuse with a notice.
-Home is observed through the city-scoped `onEnterBuilding` event, seeded from an indoor load, and belongs only
-to the current save object. Businesses do not replace it. Loading or unloading clears it; no custom save data is
-written. Missing destinations leave the current map/car alone. Input is blocked during typing, modifiers,
-menus, activities, loading, hospital, other travel and active rides. Automated/API verification and the pending
-in-game matrix are recorded in `CHECKS.md`.
-
-Vanilla calls the private driver through the phone: open it, open the driver app, pick a vehicle. The mod adds one key, **L**:
-
-- **No driver called:** calls the vehicle called last in this session, else the first in `SaveGameManager.Current.privateDriverVehicleInstances`, through the phone's own `SmartphonePrivateDriverUI.OnClickVehicle(vehicleInstance)`. That keeps vanilla's contract payment, the subway check, the indoor summon and the "unreachable" notice. With no driver vehicles, the key shows vanilla's empty-view text as a notice.
-- **Driver waiting:** `PrivateDriverVehicle.OnClickToSetDestination()`, the same as clicking the car: the player walks to it and the destination map opens. Outdoors only.
-- **During a ride, with a text field focused, or with any modifier held:** nothing.
-- The vehicle called last is remembered for the session only, not in the save. The phone stays the way to pick a different vehicle.
-
-Why L: the game's bindings ignore modifiers and use W A S D F Q E P O T I N M B C H R (plus Z, Y and digits in the interior designer). G, J, K, L, U, V and X are unbound and sit in the same place on QWERTY and QWERTZ (Food Trucks' key research, its `docs/implementation-plan.md`). Food Trucks uses Ctrl and Ctrl+Alt with those letters, and Peter's other mods use Ctrl+Shift+G, J and K. Plain L clashes with none of them. Other Workshop mods may use L; a later version can offer the free letters as a dropdown on the options page.
-
-## Saves and loads
-
-Rides are never saved. Nothing is added to the save file, so there's no schema.
-
-- A save during a ride (the Esc menu stays open to the player) writes the **pickup position**: where the player stood when they got in, a known NavMesh point. It is captured at boarding, with the player's rotation, and the `SaveCurrentPosition` postfix writes both while a ride runs. Loading that save puts the player back on foot where they got in, with the fare spent and the game time so far passed. This is an interrupted ride, not a finished one.
-- On unload, `Cancel` runs inside the `onGameUnloaded` handler and does the whole cleanup itself, because Unity drops the iterator without running its finally block. The game resets `Time.timeScale` on load (`LoadingScreen.cs:118`). If the save changes without that event, `Dispose` drops only the mod's own state and never touches the new game.
-
-## Original layout proposal
-
-Historical proposal; the current layout is in [code-layout.md](code-layout.md):
-
-```
-big-ambitions-driven-rides/
-  Core/      LaneGraph, RoutePlanner, GoalPicker, RouteProgress, RideWatch (netstandard2.1, no Unity)
-  tests/     xUnit
-  unity/DrivenRides/
-    Scripts/ DrivenRidesMod, Options, Patches, GleyGraph adapter, RideRunner, RideAnchor,
-             RideCamera, RidePanel, DriverShortcut, DebugKeys
-  tools/     build-mod.sh, fetch-game-dlls.sh, install-remote.sh, park-remote.sh (from Food Trucks)
-  CHECKS.md  in-game checklist for the current milestone
-```
-
-`LaneGraph` and `RoutePlanner` are written so Food Trucks can copy them later for its crew trucks.
-
-## NWH driving (from 13 October 2026)
-
-Peter, 13 October 2026, after the spike (`docs/nwh-drive-spike.md`): every ride is driven by the car physics the player's own car uses (NWH Vehicle Physics 2), not as a Gley traffic car. The route planner, the arcs, the ride lifecycle above and the turn rig stay. His goal for this part: "a scalable and robust implementation that does not need a lot of individual fixes for niche situations". The Gley version took about fifteen builds of per-case fixes (turn lines, U-turns, the pivot, the wiggle), and the spike's three traffic runs hit three different junction failures. This plan is built so that traffic doesn't turn into another chain like that. Fable 5.1 gave input on the architecture (13 October 2026); its Gley claims below were checked against the decompile.
-
-### Rules for the work
-
-- **No case lists.** No list of junctions, waypoints or cars that are avoided or treated specially. What a car can't do comes out of the feasibility check; what it must wait for comes out of the conflict test. `TestedSteps` stays a regression record, not a mechanism.
-- **One car model.** One kinematic model of the NWH car in Core, calibrated from rig traces, is used by the planner, by the Core tests and by the rig's judge. When the planner and the game disagree, the model is wrong, and the fix goes into the model.
-- **Gley's data, not guesses.** Rights of way come from Gley's own waypoints and intersections. The mod predicts other cars only where Gley has no answer.
-- **Every in-game failure becomes an offline test.** A failed traffic run dumps the state of every Gley car near the ride car, and that dump becomes a Core scenario. A fix is shown to pass offline before the next session at the game PC.
-
-### What Gley does at junctions
-
-From the Gley decompile in `build/decompiled-external/GleyTrafficSystem/`:
+**Gley at junctions.**
 
 - Traffic lights are a `stop` flag per waypoint. A light holds yellow while its intersection's `carsInIntersection` is not empty (`TrafficLightsIntersection.cs:102`). `Waypoint.Passed` fills that list at `enter` waypoints and empties it at `exit` ones (`Waypoint.cs:65-75`).
 - Priority junctions are `PriorityIntersection.IsPathFree`: round robin by road, at most three cars inside (`PriorityIntersection.cs:95-102`). A car asks through the public `Waypoint.CanChange()` (`Waypoint.cs:55`).
@@ -278,149 +90,29 @@ From the Gley decompile in `build/decompiled-external/GleyTrafficSystem/`:
 - A car with a `presetPath` skips Gley's junction logic: `WaypointRequested` returns after `SetNextWaypoint` while the path has entries (`DrivingAI.cs:466-484`).
 - Gley cars treat a car on the `Vehicles` layer as the player and stop for it when it is in their front trigger (`VehicleComponent.cs:529-534`). That trigger is short, so a Gley car that cuts in at speed hits it, as it hits the player.
 
-### Options weighed
+**Autopark.**
 
-- **The mod's own defensive driver** (the spike's way): prediction, gaps, timeouts. Each junction type needs its own rule; that is how the spike got three different failures in three runs.
-- **A hidden Gley "ghost" car on the same path that the NWH car follows on a leash.** Rejected. A ghost on a preset path skips Gley's junction logic like any preset-path car. Its own ways out of a jam (`AvoidForward`, reverse) leave the line, so the leash breaks exactly in the jams. In every added turn it pivots on the vias while the NWH car drives the arc, and the two bodies drift metres apart.
-- **The NWH car in Gley's arrays.** Rejected. Gley sizes every array once at `TrafficManager.Initialize` and its jobs move the body themselves.
-- **Chosen:** rights of way from Gley's data, the ride car counted in Gley's intersections, conflicts from other cars' intent, and one priority rule. Four layers, below.
+- Each vehicle type has an `autoParkSupported` flag (`Vehicles.VehicleTypes/VehicleType.cs:44`). Which models set it is asset data. `AutoParkSettings.cs` only holds gap and padding sizes.
+- A key (`PlayerAction 3`, `GameManager.cs:1115-1120`) or the HUD button (`UI.ItemPanel/ItemPanelUI.cs:336`) calls `ClickAutoPark()` (`ItemPanelUI.cs:467-477`). It requires the car to be `selectedVehicle`, no activity panel open and vehicle navigation not blocked, then starts `VehicleParkingHelper.ParkInClosestSpot()`.
+- `ParkingLaneGenerator` builds `AutoParkSpot` triggers in the gaps between parked cars (`ParkingLaneGenerator.cs:912-1199`). They are rebuilt near a car on enter, exit and teleport (`VehicleController.cs:418, 475`; `Helpers/VehicleHelper.cs:718-719`).
+- `VehicleParkingHelper.Update` searches only while `controlledByPlayer` is true and the speed is under 10 (`VehicleParkingHelper.cs:196-213`), and picks the nearest free spot long enough for the car (`:72-109`, private `FindNearestFreeSpot`).
+- `ParkInClosestSpot` (`:158-194`) needs the public field `availableAutoParkSpot` set and the car not fully broken. It fades, calls `TeleportVehicleToGround` (`VehicleHelper.cs:722`), sets `parkingState = Legal` and calls `UpdateParkingZone`. **It never checks `autoParkSupported` or whether the player is in the car.** A mod can run it on any car that has a `VehicleParkingHelper`: set `availableAutoParkSpot` (search through reflection on `FindNearestFreeSpot`, or a copy of it), then `StartCoroutine(helper.ParkInClosestSpot())`.
 
-### The four layers
+No vanilla code drives a player-owned car without input. `SkipBridgeHelper.SkipBridge` (`Vehicles/SkipBridgeHelper.cs:69-91`) and autopark both teleport, then call `SavePosition`.
 
-**Layer 0, physics.** The NWH car stays on the `Vehicles` layer. Gley cars treat it as they treat the player. Nothing to tune.
+**The player's car.**
 
-**Layer 1, rights of way from Gley's data.** On the path's waypoints: `stop` (the spike has this), `giveWay` with `CanChange()` at `enter` waypoints, and membership: `IIntersection.VehicleEnter(-1)` when the car's front passes an `enter` waypoint and `VehicleLeft(-1)` at the `exit` one. `IIntersection` is public, `associatedIntersection` is private (AccessTools), and `carsInIntersection` is only counted and removed from (`GenericIntersection.cs:40-48`), so `-1` as the ride car's index is safe; there is one ride at a time. Effect: lights hold yellow while the ride car is in the box, and priority junctions count it. `VehicleLeft(-1)` also runs in every exit, after any teleport and 20 s after entering at the latest, so a junction can't stick on yellow.
+- `CarController` (subclass of `VehicleController`, wrapping the NWH physics car) drives it. `EnterVehicle` parents the character into the car, sets `ActiveVehicleId` and starts the engine (`CarController.cs:555-583`; `VehicleController.cs:343-419`).
+- Saved state is all on `VehicleInstance`: id, type, position, rotation, street, cargo, `parkingState`, tickets, fuel, damage (`VehicleInstance.cs:22-56`), in `SaveGameManager.Current.VehicleInstances`.
+- Player cars spawn from `Vehicles/PlayerVehicles/<id>` (`GameManager.cs:1748-1803`; `VehicleHelper.cs:250-295`). The AI twin is `Vehicles/<id>` via `PrivateDriverHelpers.GetAiVehiclePrefab` (`Helpers/PrivateDriverHelpers.cs:64-80`); the private driver already uses it for a car dropped off at a gas station (`UI.Overlays/GasStationOverlay.cs:119`). Mod vehicles have no AI twin.
+- `TrafficManager.LoadVehicle` only finds prefabs in the Gley pool; otherwise it logs an error and returns null (`TrafficManager.cs:531-540`). The pool's contents are asset data; `DebugKeys` G logs them.
 
-**Layer 2, conflicts from intent.** Each physics step, Core gets every active Gley car within 60 m: position, velocity and its target waypoint (`GetTargetWaypoint`). From the lane graph that gives the car's corridor: the lane to its target and, before it has chosen at a junction, every successor. Core sweeps the ride car's body (not its line) along the next 40 m of its line at the planned speeds and finds the first place where the body enters a corridor that another car will occupy before the ride car has cleared it. That place is the yield point. One test covers oncoming cars on left turns and U-turns, merges, the right turn onto Broadway and cross traffic on a shared green. Because it sweeps the body, a U-turn yields where the body reaches the oncoming lane, well before the line crosses it (the spike's U-turn crash). The box cast ahead stays, for parked cars and people only.
+**Player-car state.** Recorded for the superseded stand-in swap; still true of the game.
 
-**Layer 3, one priority rule.** A standing Gley car that stands because of the ride car is not a conflict. That is readable: `GetCurrentAction()` is public, and the car's `obstacleList` (private) says whether the ride car's collider is what it stopped for. So: a moving car, the ride car yields; a car stopped for the ride car, the ride car goes at creep speed, with the gap check; both stopped head-on in one lane, the ride car backs off along its line (nwh7). This replaces the spike's timers.
-
-**Parked cars in lanes** belong to the planner, not the driver. The car's footprint is swept along each planned lane step against the static layers, parked cars included; a blocked step is blocked for the session (`GleyGraph.BlockStep`) and the route is planned round it. The first 200 m are checked when the ride is planned, the rest ahead of the car as it drives. Parked cars don't move within a session, so the cache holds.
-
-### What the car can drive
-
-One check: simulate `PursuitDriver` on the ride's `DriveLine` with the Core car model, and judge the track with the rig's own `Core.Testing.Judge` (lane, far side early, contact by sweeping the body box against the world). The planner asks the question the rig asks: would this manoeuvre fail?
-
-- **The model.** The kinematic car in `PursuitDriverTests` becomes `Core.Drive.CarModel`: bicycle model, NWH's steering smoothing and its 180°/s rate, the lock at speed, NWH's Ackermann (the front track: the limo turns 0.76 as sharply as a bicycle with the same wheel angle, which is why the spike's driver ran wide on every arc), the planned speed profile. Calibrated per car from the rig's `-nwh.csv` traces; the measured error becomes the margin. `TurnDrive` (the Gley model) goes when the Gley path goes.
-- **Arcs.** `TurnArc.Fit` with the car's smallest radius at corner speed, then simulated and judged.
-- **U-turns.** No via tuning. A U-turn is feasible if the simulated one at 12 to 15 km/h stays inside the far carriageway and clear of the world; otherwise that step is removed for this car and the route goes round the block. Cached per car and junction for the session. Long cars will rarely pass, as Peter wants.
-
-### Tests
-
-- **T0, Core, milliseconds.** Scenarios: a lane-graph fixture, scripted Gley cars with targets and speeds, the ride car. Templates for a four-way light, a priority T, a merge, a U-turn with oncoming cars, head-on in one lane. 500 seeds per template on every `dotnet test`, as Food Trucks' soak. Invariants: no body overlap, no stall over 30 s except at a red, never past a `stop` while it is set. The spike's three failures are the first three scenarios.
-- **T1, Mac, seconds.** Every case in the catalogue simulated and judged against the dumped lane graph (`tools/rejudge`). The diff between two builds is the regression gate.
-- **T2, game, traffic off.** The 30 turns and 33 U-turns of `q4`, two cars, `speed=auto`, about 10 minutes. It measures the model against NWH physics, not behaviour.
-- **T3, game, traffic on.** 20 recorded rides, plus junction scenarios built by loading Gley cars with a `presetPath` timed to meet the ride car. Judged on: contact with a traffic car (and which one was moving), stalls, red runs (the front passes a `stop` waypoint while it is set), and ride time against free-flow time. About 40 runs, 40 minutes, unattended over ssh. On a failure it writes the T0 scenario dump.
-
-Peter's time goes to T2 and T3 starts and to judging the look; the regressions are caught by T0 and T1.
-
-### Phases
-
-1. **Measure (one rig run).** The layer collision matrix for `Vehicles` against Gley's and the parked cars' layers; `VehicleEnter(-1)` holds a light and `VehicleLeft(-1)` releases it; `CanChange()` callable from outside; `obstacleList` readable; the cost of reading every Gley car's target per physics step. Exit: those five answers in the log.
-   Done 13 October 2026 (0.1.54, `measure`, log `build/logs/game/measure2-*`). The ride car's layer, `Vehicles`, collides with Gley's cars (`AiVehicles`), parked cars, `Default` and `Roads`, and ignores `Human`: it drives through people physically, so people stay in the box cast. Gley's cars ignore parked cars. Manhattan has no priority junctions: the 25 give-way waypoints that belong to an intersection are all in the Hamptons; 68 more have none (merges). `CanChange()` answers from outside. Every active Gley car's `obstacleList` is readable. Reading every Gley car within 60 m costs 30 µs a physics step (median, 257 µs at most). `VehicleEnter(-1)` held two lights on yellow for 19 s each, and `VehicleLeft(-1)` let them change 0.3 s later. Lights run 8 s green, 1 s yellow. A newly active intersection is reset by Gley, which clears the count.
-2. **Core traffic model and T0.** Layers 1 to 3 in Core, the scenario format, the five templates. Exit: 500 seeds clean on every template, the spike's three scenarios pass.
-3. **Feasibility planner.** `CarModel`, the simulate-and-judge check, parked cars in the planner. Exit: T1 plans only what T2 passes, and T2 is at or above the Gley numbers of turn test `t13` on the cases it drives.
-4. **Traffic in game (T3).** Exit: 20 rides with no contact with a traffic car the ride car caused, no red run, ride time at most twice free-flow, junction scenarios 95% or better. **Decision point.** If two fix rounds don't get there, fall back to the hybrid: NWH for the own car, Gley with the 0.1.51 patches for the rest. Nothing is wired into real rides before this, so the fallback costs no rework, and phases 2 and 3 improve the Gley path's planner as well.
-5. **Rides.** The own car first: the player's real car with `autoSetInput = false`, no `StandIn` and no swap (`docs/own-car-self-drive.md` shrinks to autopark, fuel, parking charges and the map marker). Then the private driver: its summoned Gley car swapped for an NWH car of the same type at boarding, while the map covers the screen. Then the watchdog on NWH progress, Skip, the bridge skip as a teleport of the NWH car, and 2× and 3× (the rig has only run NWH at about 4.7× with no traffic).
-   Built 14 October 2026 on branch `nwh-rides` (0.1.90-rides5), not yet seen in game: taxis, stands and the private driver drive on NWH through the rig's code (`NwhRides`, `NwhPlanner.PlanRoute`, `NwhDrive.Begin(plan, spec)`). The NWH car is spawned where the traffic car stands while the map is open, and the traffic car goes back to Gley's pool at boarding. The private driver leaves the phone then. At the end a traffic car of the same model takes the NWH car's place. The watchdog gives up the step ahead after 20 s without progress and ends the ride the vanilla way 30 s later. The bridge skip teleports the NWH car. The planner's jobs share 3 ms per frame, and each ride logs its decision cost per frame. The options page's car physics switch and the rig's `ridemode` go back to the Gley rides. `NwhRideCar` is the seam for the own car (`PlayerInside`, `Owned`, `End`, `Arrive`). The rig's `ride` command starts real rides unattended.
-6. **Per-car calibration.** The 15 drivable models through T2. A car that can't do a manoeuvre is left out of it by the feasibility check, never by a hand list.
-
-**Taxis** (Peter, 13 October 2026): a drivable taxi, built as a re-skin. The taxi has no drivable prefab, so the mod spawns the drivable car closest in size, hides its renderers and puts the taxi traffic model's meshes on it (body, lights and the wheels on NWH's wheel visuals): the reverse of `StandIn`'s dress. It runs beside phases 1 to 4 and is checked in the rig like any other car (T2, then T3).
-
-### Risks
-
-| Risk | What happens | Answer |
-|---|---|---|
-| Gley cars cut in at speed (their trigger is short) | Contacts the ride car didn't cause | T3 logs who was moving; yield margins grow if these dominate |
-| The `-1` membership sticks | A light stays yellow | `VehicleLeft` on every exit and a 20 s limit; phase 1 checks it |
-| Layer assumptions are wrong | Gley cars ignore or hit the ride car | Phase 1's collision matrix |
-| The model is off at speed or on slopes | The planner allows what the car can't drive | T2 traces; over 0.5 m, wider margins, not more model |
-| Gley's `AvoidForward` swings a car into the ride car's lane | Head-on stops | Counted in T3; the back-off rule covers it |
-| Reading every car each physics step is slow | Frame rate drops | Phase 1 measures it; only cars within 60 m |
-| NWH at 2× and 3× | Physics at a larger time step | Phase 5 rides at each speed; physics step stays fixed |
-
-### State, 13 October 2026 (end of day)
-
-Main is 0.1.70 (13bf947), installed on homepc. Built by subagents on branches `nwh-traffic` (traffic rules), `nwh-feasible` (planner, judge) and `nwh-taxi` (dressed taxi), merged into main after each round. Rig results are in `build/tests/` (not committed).
-
-- **Phase 1** done (see above).
-- **Phase 2** done: `JunctionRules`, `TrafficDriver` and `Corridor` in Core, T0 templates at 500 seeds plus every in-game failure dump as a scenario (`tests/traffic-scenarios/`), and replay tests of recorded frames where the simulation can't reproduce a failure. Rules added from T3: following at the leader's speed (about 1.3 s behind), a car counts as ahead only once its rear has passed, conflicts held 1 s, lane changes of following or overtaking Gley cars predicted, back-off from any car that stopped for the ride car, a car standing for good at a lane end reported as a blocked way, a red stoppable at first sight is never dropped.
-- **Phase 3** done: T2 on 0.1.65, 402 runs (63 cases plus 72 wide U-turn pairs, limo, Dash, taxi): 0 failures. The planner leaves out what the car can't drive cleanly. Turns are fitted arcs; U-turns are one fitted curve as wide as the lanes are apart (no curve when the lanes are closer than 1.15 x the car's circle: the car goes round the block, Peter's wish for big cars; the limo makes far fewer U-turns than before). Pavement is the game's pedestrian NavMesh (`NavMeshHelper.NpcNavMeshFilter`), off the carriageway and junction boxes; the ground is one flat collider, so nothing else sees it. Parked cars partly in a lane are passed by moving over in the lane or changing lanes. A blocked way replans and drives on. Car model: bicycle with NWH's Ackermann (front track), yaw factor 0.97, margin 0.5 m (worst measured 0.43 m).
-- **Phase 4** passed in substance: T3 on 0.1.70 (18 recorded rides, 38 legs, limo, traffic on, auto speed): 37 pass, 0 contacts, 0 red runs. Open: one 'intrusion' at a sharp lane kink round a Hamptons gate pillar (judge at kinks; smoothing plain-lane kinks), and two 30 s waits in passing legs (dumps under review). T2 on 0.1.70 was stopped after 7 runs; rerun it.
-- **Taxi:** the dressed taxi (vordtiaravic under the taxi's meshes and engine sound) drives the rig like the others; checked in game by screenshots through the Food Trucks bridge.
-- **Testing:** the game is driven from the Mac through the Food Trucks test bridge (`tools/run-remote.sh`, `tools/ft`) and the rig; sessions share homepc through `C:\Users\Peter\game-lock.txt` (`BA_LOCK_OWNER="Driven Rides session"`).
-- **Next:** finish phase 4's two open items and rerun T2 and T3, then phase 5 (tell the own-car session to start the own car on NWH), then the private driver and taxis on NWH, watchdog, Skip, bridge skip, 2x and 3x.
-
-### State, 14 October 2026
-
-Main is 0.1.92 (e962f38), installed on homepc. Real taxi rides and the player's own car drive with NWH; the private driver and the taxi stand are built but not yet seen in game.
-
-- **Review loop stopped.** Rounds 4 to 9 overnight (0.1.75 to 0.1.80) patched cases nobody had seen in game, and T3 got worse: 29 and 18 of 38 against 0.1.70's 37. Peter: fix only what rides show, this is a quality-of-life mod. The overnight planner checks were the main regression (junction boxes narrowed, every waypoint a corner, a roll check misreading islands, blocks kept for the whole session); 0.1.81 to 0.1.84 put them back in line with T3.
-- **Traffic:** the near field is predicted with CarModel and PursuitDriver from the car's real pose and steering; every margin is in `TrafficMargins`, lowered at Peter's request (headway about 1.0 s, gaps about a third shorter); five round-4-to-8 rules deleted (margin floor, latch and Marginal, forced continuation, stopping reserve, most final-pass rounds); a car whose target is in our lane counts as coming in; a stand-off with a turning car resolves by backing off; the judge excuses a Gley car moving sideways into a car that kept its line. Decide cost in game: p99 about 1 to 2 ms per step, max under 3 ms once the code is warmed up at load (`TrafficWarmUp`).
-- **Planner:** narrow gaps the lane goes through are driven at 10 km/h; low props are seen; gates (`Gates.cs`) open for the ride car when the player owns a building in that gated community, otherwise the route ends before them (the game's taxi refuses those rides anyway); bridge skips are left out of the checks (`Bridges.cs`); road surfaces aren't obstacles; kerbs are kerb-high; a start at a lane end may change lanes.
-- **Phase 4** done: T3 on 0.1.83 37 of 38 (no contacts, no stalls), 0.1.84 and 0.1.85 34 to 35 with the failures at three repeating places (an avenue contact, two dense-merge stalls), left in `tests/traffic-scenarios/pending/` until real rides show them. T2 on 0.1.81: 102 of 104 driven cases (the two are a red-run judged with traffic off); U-turns on narrow streets are left out by design.
-- **Phase 5:** taxi rides (0.1.90, `NwhRides.cs`): six real rides on 0.1.91 arrived (1x, 2x, 3x, a Hamptons ride over the bridge skip). Watchdog, Skip, bridge skip, a switch back to Gley in the options. Own car (0.1.92, the own-car session): arrivals clean, autopark, Skip and getting out checked in game. Not yet in game: the private driver (the test character has none) and the taxi stand (none near the save's start).
-- **Not doing:** every road car on NWH. An audit found it feasible but not worth it (roughly 100 times Gley's cost per car, symmetric rules would need reservations, Gley's spawn and rescue systems to rebuild); a middle option of 4 to 6 NWH cars near the camera stays possible later.
-- **Next:** the private driver and the taxi stand in game, then phase 6 (the other drivable models through T2) and Peter riding along to judge the feel.
-
-### Who does what
-
-One session (this one) takes phases 1 to 4 and the drivable taxi, with subagents in their own worktrees. The own-car session (branch `self-driving`) has paused the stand-in and takes the own-car part of phase 5 once phase 4 passes.
-
-## Milestones
-
-Each ends in one in-game session on homepc with a disposable save, Food Trucks parked and other gameplay mods off.
-
-### Milestone 0: spike (one session)
-
-The real ride path for the **private driver** only, at 1×, with the minimum around it: the `TravelCoroutine` prefix, the `Update` prefix, anchor and attachment, the route planner, `presetPath` handoff, `StopInPoint` arrival, vanilla placement, the ⅓ clock, Skip, the watchdog, the three exits, and log lines for every step. Plus debug keys:
-
-Debug keys on Ctrl+Alt+Shift with the unbound letters, so they clash with nothing (see [Driver shortcut](#driver-shortcut)):
-
-- **G**: graph stats (waypoint count, vehicle types in the pool, connected components, whether the Hamptons side connects, the light cycle) and planning time for ten fixed routes.
-- **X**: force-clear the ride state (if a bug leaves `IsTraveling` stuck).
-- **K**: remove the ride car mid-ride (tests the give-up path).
-- **V**: drain energy to send the player to the hospital mid-ride (tests `Cancel`).
-- **U**: throw an exception inside the ride iterator (tests the finally block).
-- **J**: make the ride's captured save differ from `SaveGameManager.Current` without an unload, with the player still attached (tests `Dispose`: it must run, and the player must survive, detach and get controls back).
-
-Ride speed is set on the options page.
-
-In order:
-
-1. **Lifecycle.** One short private-driver ride. Then Skip mid-ride, pause and unpause mid-ride, a save mid-ride and its load, the car removed mid-ride, the hospital mid-ride, reading a cargo item mid-ride (must be refused), an exception mid-ride, quitting to the main menu mid-ride and loading again, loading another save from the menu mid-ride (expect `Cancel` in the log, not `Dispose`), and a second ride straight after. Each must end with the player on foot, visible, controllable, the clock and time scale normal, the game time spent no more than vanilla's, and taxis usable again.
-2. **Routes.** Ten rides of 1 to 4 km across Manhattan. Log arrival, time, replans, the clock multiplier, and where `StopInPoint` left the car.
-3. **Speed.** The ten routes run at the 3× default; three of them again at 1× and 2× to compare frame rate and arrivals.
-4. **Camera.** Which camera follows; whether it is smooth.
-5. **Shortcut.** L calls the driver outdoors and indoors, L again walks to it and opens the map, L does nothing while typing and during a ride.
-
-Pass: lifecycle all clean, at least 9 of 10 routes arrive, and every failed route ends safely through `FinishVanilla`. Anything less stops the milestone; I report to Peter with the logs before building more.
-
-### Milestone 1: private driver, finished
-
-The panel's polish, locale strings, the README evidence rows.
-
-### Milestone 2: taxis
-
-`TaxiController` and `PermanentTaxiController`, with the per-type boarding and release above. Price, achievements and events checked against vanilla. `FinishVanilla` for a stand ride (the borrowed car released, no second car stolen), and a reused taxi car (a debug key that removes the ride car and spawns traffic until its slot is taken).
-
-### Later (not version 1)
-
-Getting out at the curb and walking to the door (needs the pavement-side lane, a checked lane-change adapter, and Food Trucks' ground probe for a safe pavement point), the Hamptons (the bridge skip expects a player `VehicleController`, so it needs its own handling), a passenger-seat camera, Food Trucks crews driving.
-
-## Risks
-
-| Risk | What happens | Answer |
-|---|---|---|
-| Gley stalls or wanders on long routes | Rides give up often | Spike target 9/10; restart, replan, `FinishVanilla` |
-| Something else touches the ride car (private driver `Update`, crash freeze, pool reuse) | Car stops or vanishes | `Update` prefix, forced `Forward` on depart and restart, reuse check each frame |
-| The player rides on a deactivated object | Player vanishes | Mod-owned anchor, never the pooled car |
-| Hospital or load mid-ride | Two systems move the player | `Cancel` synchronously in the event handler, save identity check |
-| Time scale fights the game's tween | Unpaused by accident, stuck at 3× | Apply only when unpaused; restore only when unpaused |
-| A bug leaves `_travelCoroutine` set | No more taxis until reload | try/finally, unload handler, debug key |
-| Graph dead ends or one-way traps | No route | Vanilla ride, logged with waypoint indices |
-| A game update changes `TaxiSystem` | Prefix fails | Logged `Not active`; vanilla rides keep working |
-
-## Open questions for Peter
-
-None right now. The decisions so far are at the top.
+- **Keep the real car active.** `OnDisable` unregisters it from `AllPlayerVehicles` (`VehicleController.cs:269-275`), and it only registers in `Awake` (`:164`). Hide its renderers and colliders and freeze it (`SetFreeze`, `:587`).
+- **Save position.** Every live `VehicleController` writes its transform on `onSaveGame` (`VehicleController.cs:216, 491-508`); `CarController.SavePosition` also writes fuel (`CarController.cs:730-736`). A save mid-ride stores the car at the start.
+- **Map marker** follows the car's transform (`GameManager.cs:1790-1800`), so it stays at the start until the real car moves.
+- **Parking.** `SetParkingData` writes the state on exit from the HUD's value (`VehicleController.cs:479-489`), which comes from `UpdateParkingZone` (`CarController.cs:696-728`). Hourly tickets and fees hit every car except the active one (`Helpers/ParkingSimulator.cs:124-180`), so the hidden car is charged during the ride unless the mod prevents it.
+- **Cargo** stays on `VehicleInstance` as long as the real car object lives.
+- **Fuel.** Charge it as the bridge skip does (`SkipBridgeHelper.cs:97-120`).
+- `OnExitBuilding` destroys a car whose address matches the building being left (`VehicleController.cs:223-240`); a street-parked car shouldn't trigger it.

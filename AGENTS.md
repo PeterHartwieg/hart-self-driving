@@ -1,6 +1,6 @@
 # HART. Self Driving mod for Big Ambitions
 
-A Workshop mod that makes taxi, private-driver and own-car rides drive through the city instead of fading to black. Read `docs/implementation-plan.md` first, then `docs/code-layout.md` for current source responsibilities. `CLAUDE.local.md`, if present, has the machine setup and is never committed. The assembly, namespace and mod ID remain `DrivenRides`.
+A Workshop mod that makes taxi, private-driver and own-car rides drive through the city instead of fading to black. Read `docs/implementation-plan.md` first: it lists the decisions in force, the game facts behind them and the approaches that failed. `CLAUDE.local.md`, if present, has the machine setup and is never committed. The assembly, namespace and mod ID remain `DrivenRides`.
 
 ## Layout
 

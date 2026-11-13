@@ -1,7 +1,7 @@
 ## Route line candidate, 23 October 2026
 
 **In-game acceptance pending.** This branch adds the default-on “Show the planned route on the road” option.
-Offline results and implementation constraints are in `docs/route-line.md`. No normal installation,
+The 0.4.2 rig follow-up and its raw proof are in `docs/reviews/rig/2026-11-01-0.4.2-fix/README.md`. No normal installation,
 Windows/Home PC access or native game run is part of this change.
 
 Peter's checks on a disposable save, with only the reviewed candidate enabled:
