@@ -80,7 +80,7 @@ namespace DrivenRides
             GameManager.ShouldBlockKeyboardShortcuts() || MiniMenu.IsOpen || FullMenu.IsOpen ||
             TurnTests.Running || TaxiSystem.IsTraveling || Ride.Active != null || PlayerActivityUI.IsPanelOpen ||
             SubwaySystem.IsRiding || EnergyHelper.goingToHospital || InstanceBehavior<GameManager>.Instance.playerController.awaitingRepositioning ||
-            InstanceBehavior<UIs>.Instance.timeMachine.isBlockingUi || !CityMap.CanOpenMap();
+            InstanceBehavior<UIs>.Instance.timeMachine.isBlockingUi || !CityMap.CanOpenMap() || OtherMods.PhotoMode;
 
         private static void Travel(CityBuildingController target)
         {

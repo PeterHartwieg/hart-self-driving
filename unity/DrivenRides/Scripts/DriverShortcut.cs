@@ -25,6 +25,8 @@ namespace DrivenRides
             if (keyboard == null || !keyboard.lKey.wasPressedThisFrame) return;
             if (keyboard.ctrlKey.isPressed || keyboard.altKey.isPressed || keyboard.shiftKey.isPressed) return;
             if (SaveGameManager.Current == null || GameManager.ShouldBlockKeyboardShortcuts()) return;
+            // Real Life Overhaul's photo mode rolls its camera on L.
+            if (OtherMods.PhotoMode) return;
             // In the car, L is the own car's own switch; elsewhere the shortcut option's.
             if (!(VehicleHelper.IsInsideVehicle() ? Options.OwnCar : Options.Shortcut)) return;
             try { Press(); }

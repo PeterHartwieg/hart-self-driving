@@ -154,6 +154,7 @@ namespace DrivenRides
                 var vehicleType = (int)(car != null ? car.vehicleType : prefab.vehicleType);
 
                 Waypoint? spawn = null;
+                Waypoint? heldStart = null;
                 int start;
                 if (kind == Kind.Stand)
                 {
@@ -196,9 +197,22 @@ namespace DrivenRides
                 }
                 else
                 {
-                    var next = manager.GetTargetWaypoint(car!.GetIndex());
-                    if (next == null) return Vanilla("the taxi has no target waypoint");
-                    start = next.listIndex;
+                    switch (TaxiStart.Choose(manager.IsVehicleIgnored(car!.GetIndex()), planNwh != null))
+                    {
+                        case TaxiStartKind.Vanilla:
+                            return Vanilla("the taxi is driven by another mod, and a Gley ride can't take it over");
+                        case TaxiStartKind.AheadOfCab:
+                            heldStart = StartAheadOfCab(manager, car.transform, prefab);
+                            if (heldStart == null) return Vanilla("no free lane waypoint ahead of the taxi another mod drove here");
+                            start = heldStart.listIndex;
+                            Log.Trace($"Taxi held by another mod: the ride car starts at waypoint {start}, {Vector3.Distance(heldStart.position, car.transform.position):0.0} m from the cab.");
+                            break;
+                        default:
+                            var next = manager.GetTargetWaypoint(car.GetIndex());
+                            if (next == null) return Vanilla("the taxi has no target waypoint");
+                            start = next.listIndex;
+                            break;
+                    }
                 }
 
                 var destination = target.GetNavMeshTargetPosition();
@@ -274,8 +288,9 @@ namespace DrivenRides
                         // for these same close goals before widening the destination search: a wider search can
                         // otherwise accept the pocket itself as a drop-off and never try the road out.
                         // Not for the own car: it starts where it stands, so a route from another lane is one the start
-                        // check refuses (StartRefusal). It tries the wider goals from its own lane instead.
-                        if (route == null && origin != null && ownCar == null)
+                        // check refuses (StartRefusal). It tries the wider goals from its own lane instead. Nor for a taxi
+                        // another mod held: its ride car is placed on its start waypoint, so the route must leave from there.
+                        if (route == null && origin != null && ownCar == null && heldStart == null)
                             route = PlanFromNearby(graph, origin, start, goals, vehicleType, ref planMs);
                         if (route != null) break;
                     }
@@ -381,6 +396,15 @@ namespace DrivenRides
                     var middle = gleyT.TransformPoint(gleyCentre);
                     var ground = NwhPlanner.GroundBelow(GleyGraph.ToVec(middle), gleyT) ?? gleyT.position.y;
                     var facing = Quaternion.Euler(0f, gleyT.eulerAngles.y, 0f);
+                    if (heldStart != null)
+                    {
+                        // A taxi another mod held: on its lane waypoint, facing the route's way.
+                        middle = heldStart.position;
+                        ground = NwhPlanner.GroundBelow(GleyGraph.ToVec(middle), gleyT) ?? heldStart.position.y;
+                        var way = route.Waypoints.Count > 1 ? GleyGraph.Waypoints![route.Waypoints[1]].position - heldStart.position : gleyT.forward;
+                        way.y = 0f;
+                        if (way.sqrMagnitude > 0.01f) facing = Quaternion.LookRotation(way);
+                    }
                     spawnedNwh = NwhRides.Spawn(driverType, prefab.gameObject, middle, facing, out var nwhWhy);
                     if (spawnedNwh == null) throw new InvalidOperationException("no NWH car: " + nwhWhy);
                     NwhRides.PlaceBody(spawnedNwh, middle, ground, facing);
@@ -659,6 +683,19 @@ namespace DrivenRides
             return WithCollidersOff(parkedCar, () =>
                 manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y) && Vector3.Dot(manager.GetWaypointOrientation(w) * Vector3.forward, forward) > 0.5f, prefab)
                 ?? manager.GetClosestWaypoint(parkedCar.position, 30f, w => IsGoodStart(w, y), prefab));
+        }
+
+        // A taxi another mod drove here outside Gley (TaxiStart): a free lane waypoint just ahead of it, running its way.
+        // The cab often stands at the kerb, 1 to 2 m off the lane.
+        private static Waypoint? StartAheadOfCab(TrafficManager manager, Transform cab, VehicleComponent prefab)
+        {
+            var y = cab.position.y;
+            var at = GleyGraph.ToVec(cab.position);
+            var forward = GleyGraph.ToVec(cab.forward);
+            return WithCollidersOff(cab, () => manager.GetClosestWaypoint(cab.position + cab.forward * TaxiStart.SearchAheadMetres,
+                TaxiStart.SearchRadiusMetres, w => IsGoodStart(w, y)
+                    && TaxiStart.IsAhead(at, forward, GleyGraph.ToVec(w.position), GleyGraph.ToVec(manager.GetWaypointOrientation(w) * Vector3.forward)),
+                prefab));
         }
 
         // Gley's free check sees every collider; a car's own must not make its lane look taken.

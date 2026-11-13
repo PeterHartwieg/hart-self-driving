@@ -74,6 +74,7 @@ The panel's speed buttons and clock slider change the same settings, so the next
 
 - Big Ambitions 1.0, Windows. A game update can change what the mod hooks into. Each hook logs `Patch <method>: Active` or `Not active` in `Player.log` at startup. A hook that is not active leaves that part to the base game.
 - Mods that also change taxi rides, the private driver or the game's taxi system may clash with this one.
+- Real Life Overhaul 1.0.5: pending in game. Its source was checked against this mod (`docs/rlo-1.0.5-compatibility.md`). A taxi called through its City Cabs starts its ride at the cab, and its photo mode keeps L, J and K.
 - Fares, achievements, events and the limo's energy and food bonus stay as in the base game.
 
 ## Removing the mod
