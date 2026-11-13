@@ -143,10 +143,10 @@ Categories: workaround, known-gap, todo, temporary, skipped, imperfect-choice.
 - `unity/DrivenRides/Scripts/Ride.GleyDriving.cs:159-160` workaround
 - `unity/DrivenRides/Scripts/Ride.GleyDriving.cs:348` workaround
 - `unity/DrivenRides/Scripts/Ride.GleyDriving.cs:417-421` workaround
-- `unity/DrivenRides/Scripts/Ride.Planning.cs:557` workaround
-- `unity/DrivenRides/Scripts/Ride.Planning.cs:570-572` workaround
-- `unity/DrivenRides/Scripts/Ride.Planning.cs:582` workaround
-- `unity/DrivenRides/Scripts/Ride.Planning.cs:595-596` workaround
+- `unity/DrivenRides/Scripts/Ride.Planning.cs:579` workaround
+- `unity/DrivenRides/Scripts/Ride.Planning.cs:592-594` workaround
+- `unity/DrivenRides/Scripts/Ride.Planning.cs:615` workaround
+- `unity/DrivenRides/Scripts/Ride.Planning.cs:628-629` workaround
 - `unity/DrivenRides/Scripts/Ride.cs:336-337` workaround
 - `unity/DrivenRides/Scripts/Ride.cs:344-345` workaround
 - `unity/DrivenRides/Scripts/Ride.cs:459-460` workaround

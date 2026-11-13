@@ -10,6 +10,7 @@
     <Compile Include="../unity/DrivenRides/Scripts/RideRadio.cs" Link="Adapter/RideRadio.cs" />
     <Compile Include="../unity/DrivenRides/Scripts/DestinationTargets.cs" Link="Adapter/DestinationTargets.cs" />
     <Compile Include="../unity/DrivenRides/Scripts/DestinationShortcut.cs" Link="Adapter/DestinationShortcut.cs" />
+    <Compile Include="../unity/DrivenRides/Scripts/OtherMods.cs" Link="Adapter/OtherMods.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />

@@ -45,6 +45,7 @@ public sealed class DestinationShortcutTests
         OwnCarTaxi.Refuse = false;
         OwnCarTaxi.Opens = 0;
         Notice.Last = null;
+        RealLifeOverhaul.Leisure.PhotoMode.Active = false;
     }
 
     private void Press(Key key)
@@ -147,6 +148,7 @@ public sealed class DestinationShortcutTests
     [InlineData("normal map")]
     [InlineData("on foot")]
     [InlineData("modifier")]
+    [InlineData("rlo photo mode")]
     public void UnsafeOrUnrelatedContextsDoNotDispatch(string context)
     {
         SaveGameManager.Current.customDestination = shop;
@@ -167,6 +169,7 @@ public sealed class DestinationShortcutTests
             case "normal map": city.cityMap.Taxi = null; break;
             case "on foot": CityMap.IsOpen = false; break;
             case "modifier": Keyboard.current!.ctrlKey.isPressed = true; break;
+            case "rlo photo mode": RealLifeOverhaul.Leisure.PhotoMode.Active = true; break;
         }
         Press(Key.J);
         Assert.Empty(taxi.Trips);
@@ -201,6 +204,25 @@ public sealed class DestinationShortcutTests
         }
         shortcut.NextFrame();
         Assert.Equal(trips, taxi.Trips.Count);
+        Assert.Equal(1, OwnCarTaxi.Opens);
+    }
+
+    [Theory]
+    [InlineData(Key.J)]
+    [InlineData(Key.K)]
+    public void RealLifeOverhaulPhotoModeKeepsItsKeysInTheCar(Key key)
+    {
+        SaveGameManager.Current.customDestination = shop;
+        DestinationTargets.Entered(first);
+        CityMap.IsOpen = false;
+        city.cityMap.Taxi = null;
+        VehicleHelper.Current = new();
+        RealLifeOverhaul.Leisure.PhotoMode.Active = true;
+        Press(key);
+        Assert.Equal(0, OwnCarTaxi.Opens);
+        Assert.Null(Notice.Last);
+        RealLifeOverhaul.Leisure.PhotoMode.Active = false;
+        Press(key);
         Assert.Equal(1, OwnCarTaxi.Opens);
     }
 }
