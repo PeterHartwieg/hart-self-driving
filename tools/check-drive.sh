@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Check the built physics failure path in Unity, without a running game or save.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${BA_SDK:-$REPO/build/sdk}"

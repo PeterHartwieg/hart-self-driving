@@ -25,15 +25,12 @@ namespace DrivenRides
             if (!world.Ready) { result.Reason="too many nearby obstacles"; yield break; }
             var surface = world.ReadSurface(start);
             while (surface.MoveNext()) { if (stop()) yield break; yield return surface.Current; }
-            // Filter by the actual aisle connection before spending the pose-search budget. Euclidean proximity
-            // otherwise fills the candidate limit with lanes behind the same curb or across an intersection.
             var reachable = entries.Select(e => (Entry:e, Pose:new CarPose(e.Position.X,e.Position.Z,e.Heading)))
                 .Select(e => (e.Entry,e.Pose,Distance:world.Space.Estimate?.Invoke(e.Pose) ?? float.PositiveInfinity))
                 .Where(e => !float.IsPositiveInfinity(e.Distance) && world.Space.Clear(planner.Car,e.Pose))
                 .OrderBy(e => {
                     var before=new CarPose(e.Pose.X-Mathf.Sin(e.Pose.Heading)*4,e.Pose.Z-Mathf.Cos(e.Pose.Heading)*4,e.Pose.Heading);
                     var approach=world.Space.Estimate?.Invoke(before) ?? float.PositiveInfinity;
-                    // Prefer a forward arrival from the driveway over backing along a lane to a closer point.
                     return e.Distance+Mathf.Max(0,approach-e.Distance)*4;
                 }).Select(e => e.Entry).ToList();
             Log.Trace($"Parking departure: {reachable.Count} of {entries.Count} entries connected through the local surface.");
@@ -52,7 +49,6 @@ namespace DrivenRides
                 }
                 if (stop()) yield break;
                 if (road.Route == null || road.Plan == null) continue;
-                // The road may leave this segment in a different direction; never hand over to such a route.
                 if (road.Plan.Line(graph).JoinMiss(entry.Position.X, entry.Position.Z, entry.Heading, out _) != null) continue;
                 attempted++;
                 Log.Trace($"Parking departure: entry {entry.From}->{entry.To}, {entry.Distance:0.0} m away at {entry.Position}.");
@@ -64,7 +60,6 @@ namespace DrivenRides
                 Log.Trace($"Parking departure: entry {entry.From}, {attempt.Reason}.");
                 if (stop()) yield break;
                 if (attempt.Success) { install(road.Route, road.Plan); result.Success = true; yield break; }
-                // Geometry and origin cease to be valid after movement. Fail in place rather than trying an old plan.
                 if (ManoeuvrePlan.Distance(start, NwhManoeuvre.Pose(car)) > 0.25f
                     || Mathf.Abs(ManoeuvrePlan.Angle(start.Heading - NwhManoeuvre.Pose(car).Heading)) > 0.05f) yield break;
             }
@@ -95,7 +90,6 @@ namespace DrivenRides
             var pose = NwhManoeuvre.Pose(car);
             var along = line.Line.Project(pose.X, pose.Z, 0);
             var limit = line.Line.Length - spec.FrontAhead - 2f;
-            // The local manoeuvre ends before any junction. Intersections, gates and lane changes belong to the road driver.
             for (var i = 0; i < road.Path.Count; i++)
                 if (graph.IsIntersection(road.Path[i]) && line.AlongOf[i] > along) { limit = Mathf.Min(limit, line.AlongOf[i] - spec.FrontAhead - 2); break; }
             for (var advance = 6f; advance <= 15f; advance += 3f)
@@ -111,7 +105,6 @@ namespace DrivenRides
                 while (move.MoveNext()) yield return move.Current;
                 result.Reason = attempt.Reason;
                 if (attempt.Success) { result.Success = true; yield break; }
-                // Once a manoeuvre moved, returning control is safer than planning another departure from stale geometry.
                 if (ManoeuvrePlan.Distance(pose, NwhManoeuvre.Pose(car)) > 0.25f) yield break;
             }
             if (result.Reason == "cancelled") result.Reason = "not enough clear straight road to pull out";
@@ -130,12 +123,9 @@ namespace DrivenRides
             var side = dx * Mathf.Cos(goal.Heading) - dz * Mathf.Sin(goal.Heading);
             var ahead = dx * forward.x + dz * forward.z;
             Log.Trace($"Parking pose: rear ({pose.X:0.00}, {pose.Z:0.00}), heading {pose.Heading:0.000}; goal ({goal.X:0.00}, {goal.Z:0.00}), heading {goal.Heading:0.000}; ahead {ahead:0.00}, side {side:0.00}.");
-            // Already beside the space on the correct approach: the local planner can start here.
             var nearby = ParkingNavigation.BesideSpace(car, planner.Car, position, rotation);
             if (!nearby)
             {
-                // Find a road waypoint beyond the space, facing the same way. The route must be directed: proximity
-                // across a one-way street is not permission to cross it. The road driver handles the whole approach.
                 var prefab = OwnCarTaxi.PlanPrefab(owner, out _);
                 if (prefab == null) { result.Reason = "no vehicle type for the parking approach"; yield break; }
                 var approaches = ParkingNavigation.SpaceGoals(car, planner.Car, position, rotation, (int)prefab.vehicleType);

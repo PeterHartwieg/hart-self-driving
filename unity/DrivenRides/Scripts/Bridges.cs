@@ -6,12 +6,6 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // The stretches of lane a ride never drives: the bridge skip (Ride.OnBridge, as the game's SkipBridgeHelper) moves
-    // the car from a bridge trigger to the trigger's far-side target facing its way. The planner leaves their steps
-    // unchecked (0.1.90: a 1.6 km taxi ride across the bridge got no plan, its bridge lanes blocked on
-    // 'BridgeMiddleRoadHiderColliders', solid colliders across the bridge's middle that the skip jumps). Worked out from
-    // the same triggers and targets the ride uses: from each lane waypoint inside a trigger along the lane to the first
-    // waypoint within LandWithin of a target facing the lane's way, at least MinSkipMetres on (Ride's own limits).
     internal static class Bridges
     {
         private static readonly System.Reflection.FieldInfo? SkipTargetsField = AccessTools.Field(typeof(Streets.BridgeTriggerController), "skipTargets");
@@ -21,7 +15,6 @@ namespace DrivenRides
         private static HashSet<int>? skipped;
         private static object? builtFor;
 
-        // Whether the step from this waypoint on is jumped by a bridge skip.
         public static bool Skips(int waypoint) => Skipped().Contains(waypoint);
 
         private static HashSet<int> Skipped()
@@ -47,7 +40,6 @@ namespace DrivenRides
             return skipped;
         }
 
-        // Along the lane from an entry waypoint (the first successor each time) to where the skip lands.
         private static void Follow(LaneGraph graph, int entry, Transform[] targets)
         {
             var chain = new List<int> { entry };

@@ -9,17 +9,11 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 9 (DD1: the near field swept where the model foresees the body).
 public sealed class ReviewRound9Tests
 {
     private readonly ITestOutputHelper output;
     public ReviewRound9Tests(ITestOutputHelper output) => this.output = output;
 
-    // DD1. The runs that lost the stopping option avoidably before the near field was swept where the model foresees
-    // the body (0.1.80: priority 50, lights 16, all in junction turns), each run again from nearby start poses, with
-    // the wheel turned a little either way at the start, and with the decisions on the other physics step: no contact,
-    // no stall, no unmakeable stop outside the emergency rule. The stopping option lost for a car without news of it,
-    // by more than the decisions' discretization, is printed (not a hard invariant).
     private static readonly int[] PriorityLost = { 3, 5, 8, 56, 73, 81, 89, 101, 111, 121, 124, 144, 146, 156, 161, 176, 181, 182, 186, 206, 209, 234, 237, 257, 264, 269, 270, 280, 282, 284, 287, 290, 295, 334, 335, 345, 352, 357, 362, 382, 383, 400, 435, 448, 458, 460, 471, 481, 483, 496 };
     private static readonly int[] LightsLost = { 32, 44, 55, 96, 142, 154, 166, 176, 236, 266, 287, 377, 389, 393, 469, 477 };
 

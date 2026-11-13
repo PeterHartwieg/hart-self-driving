@@ -24,8 +24,6 @@ namespace DrivenRides.Core.Testing
         public List<string> Incidents = new List<string>();
         public float EntrySpeed, MaxIntrusion, NearMiss, PlainDeviationMax, LastGateLateral, LastGateHeadingError;
         public string? IntrusionDetail;
-        // The farthest a corner on pedestrian ground went from every lane where a junction's box made it carriageway
-        // (Pavement.CornerOnPavement): not a failure, the evidence for whether a box holds real pavement.
         public string? JunctionPavement;
         public float JunctionPavementMetres;
 

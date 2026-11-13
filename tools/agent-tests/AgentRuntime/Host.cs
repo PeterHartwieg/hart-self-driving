@@ -9,7 +9,6 @@ using UnityEngine;
 
 namespace AgentTests
 {
-    // This assembly is injected only into the private test copy. Never install it as a Workshop mod.
     public static class Host
     {
 #if AGENT_MAC
@@ -41,7 +40,6 @@ namespace AgentTests
             cachePath = Path.GetFullPath(Application.temporaryCachePath);
             executable = Process.GetCurrentProcess().MainModule.FileName;
             pid = Process.GetCurrentProcess().Id;
-            // headless: -nographics; background: batch mode with graphics, no window; windowed: the full game in a window.
             mode = args.Contains("-nographics") ? "headless" : args.Contains("-batchmode") ? "background" : "windowed";
 #if AGENT_MAC
             var expectedProfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library/Application Support", BundleId);
@@ -83,7 +81,6 @@ namespace AgentTests
             audioVolume = AudioListener.volume;
         }
 
-        // Runs in the existing bridge pump, whose lifetime already follows scene transitions.
         public static void Tick()
         {
             if (IsHeadless)
@@ -97,14 +94,12 @@ namespace AgentTests
                 lastFrame = Stopwatch.GetTimestamp();
             }
             MuteAudio();
-            // The windowed mode is for rendered-game checks (performance mods among them): the game's own frame settings.
             if (mode == "windowed") { pumpFrame = Time.frameCount; return; }
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 30;
             pumpFrame = Time.frameCount;
         }
 
-        // Called by the bridge's HTTP thread. All Unity-derived values were cached on the main thread.
         public static JObject Health(JObject result)
         {
             result["agent_instance"] = Describe();

@@ -9,10 +9,6 @@ using UnityEngine.InputSystem;
 
 namespace DrivenRides
 {
-    // L calls the private driver; once it waits, L walks the player to it and opens the destination map. In the
-    // driver's seat of the player's own car, L opens the destination map for the car to drive itself.
-    // Vanilla needs the phone, the driver app and a vehicle each time. The game's bindings ignore modifiers and
-    // leave L unbound; with any modifier held the key does nothing, so Ctrl+L and the like stay free.
     internal sealed class DriverShortcut : MonoBehaviour
     {
         private static VehicleInstance? lastCalled;
@@ -25,7 +21,6 @@ namespace DrivenRides
             if (keyboard == null || !keyboard.lKey.wasPressedThisFrame) return;
             if (keyboard.ctrlKey.isPressed || keyboard.altKey.isPressed || keyboard.shiftKey.isPressed) return;
             if (SaveGameManager.Current == null || GameManager.ShouldBlockKeyboardShortcuts()) return;
-            // In the car, L is the own car's own switch; elsewhere the shortcut option's.
             if (!(VehicleHelper.IsInsideVehicle() ? Options.OwnCar : Options.Shortcut)) return;
             try { Press(); }
             catch (Exception ex) { Log.Error("Driver shortcut: " + ex); }
@@ -47,7 +42,6 @@ namespace DrivenRides
             if (vehicles == null || vehicles.Count == 0) { Notice.Text("drivenrides:notice_no_driver"); return; }
             var vehicle = lastCalled != null && vehicles.Contains(lastCalled) ? lastCalled : vehicles[0];
             Log.Trace($"Driver shortcut: calling {vehicle.vehicleTypeName}.");
-            // The phone's own handler: contract payment, the subway check, the indoor summon and its notices.
             InstanceBehavior<UIs>.Instance.smartphoneUI.privateDriverUI.OnClickVehicle(vehicle);
         }
     }

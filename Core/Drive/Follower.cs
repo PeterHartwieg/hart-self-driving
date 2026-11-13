@@ -2,20 +2,11 @@ using System;
 
 namespace DrivenRides.Core.Drive
 {
-    // A Gley car coming up behind the ride car's body in its lane (or towards it standing), followed through in time
-    // (TrafficDriver.StaysBehind). Pure, for its own tests (review round 5, Y4).
     public static class Follower
     {
         public const float Step = 0.05f, Contact = 0.5f;
-        // How long it is followed at most: with no answer by then, it doesn't count as staying behind.
         public const int MaxSteps = 600;
 
-        // their: its speed at t0; cruise: the most it goes; gap: metres from its front to the body at t0. The ride
-        // car from pose k on at the given times and speeds (count poses; held at the last pose's speed past them; with
-        // no times, standing). The car keeps going until the body is in its trigger, then runs on its reaction time
-        // and stops, in TrafficDriver.TriggerStopMetres (quick) or at TrafficDriver.TriggerBrake. Safe only if it
-        // stops half a metre short, judged to the end: once it stands, or once the ride car is past its known times and
-        // at least as fast as the car can go. Neither within MaxSteps: not safe.
         public static bool StaysBehind(float their, float cruise, float accel, float trigger, float gap, float t0,
             float[]? times, float[]? speeds, int count, int k, bool quick)
         {
@@ -48,7 +39,6 @@ namespace DrivenRides.Core.Drive
                     {
                         their = Math.Max(0f, their - their * their / (2f * Math.Max(0.05f, stopLeft)) * Step);
                         stopLeft = Math.Max(0f, stopLeft - their * Step);
-                        // Gley's StopNow once the distance is used up.
                         if (stopLeft <= 0.05f) their = 0f;
                     }
                     else their = Math.Max(0f, their - TrafficDriver.TriggerBrake * Step);
@@ -63,8 +53,6 @@ namespace DrivenRides.Core.Drive
             return false;
         }
 
-        // The ride car's speed at time t from its poses' times and speeds (the last one's past them; with no times,
-        // standing). j: the pose to search from, kept between calls.
         public static float SpeedAt(float t, float[]? times, float[]? speeds, int count, ref int j)
         {
             if (times == null || speeds == null) return 0f;

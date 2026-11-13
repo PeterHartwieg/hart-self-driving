@@ -4,7 +4,6 @@ using DrivenRides.Core.Drive;
 
 namespace DrivenRides.Core.Routing
 {
-    // Persistent street geometry, not a reservation or a generated free parking space.
     public readonly struct ParkingStrip
     {
         public readonly Vec3 Centre;
@@ -13,7 +12,6 @@ namespace DrivenRides.Core.Routing
         { Centre = centre; Heading = heading; HalfWidth = halfWidth; HalfLength = halfLength; }
     }
 
-    // Chooses road endpoints beside parallel parking. No manoeuvre search, steering or DrivePlan mutations here.
     public static class ParkingGoalPicker
     {
         public static List<Goal> Pick(LaneGraph graph, IReadOnlyList<ParkingStrip> strips, Vec3 door, CarSpec car, int vehicleType,
@@ -25,7 +23,6 @@ namespace DrivenRides.Core.Routing
                 if (strip.HalfLength < car.Length / 2 + 0.5f || strip.HalfWidth < car.BodyHalf.X + 0.1f
                     || Math.Abs(strip.Centre.Y - door.Y) > 3f) continue;
                 var s = (float)Math.Sin(strip.Heading); var c = (float)Math.Cos(strip.Heading);
-                // A road endpoint is ahead of a possible parked body centre, ready for the local reverse entry.
                 var staging = car.BodyHalf.Z + 3f;
                 foreach (var w in graph.Near(door, radius + staging + 5f))
                 {
@@ -43,7 +40,6 @@ namespace DrivenRides.Core.Routing
             return Goals(costs);
         }
 
-        // Once occupancy is known, use the same lane-side and direction checks for the actual space.
         public static List<Goal> ForSpace(LaneGraph graph, Vec3 rear, float heading, CarSpec car, int vehicleType)
         {
             var s = (float)Math.Sin(heading); var c = (float)Math.Cos(heading);
@@ -63,8 +59,6 @@ namespace DrivenRides.Core.Routing
             return Goals(costs);
         }
 
-        // The parking-facing lane must be the closest parallel lane to the strip, on this level. Both left and
-        // right parking strips are valid; an inner lane cannot reach across another traffic lane to park.
         public static bool Adjacent(LaneGraph graph, ParkingStrip strip, Vec3 lane)
         {
             if (Math.Abs(lane.Y - strip.Centre.Y) > 1.5f) return false;
@@ -100,7 +94,6 @@ namespace DrivenRides.Core.Routing
                     var distance = Vec3.HorizontalDistance(a, b);
                     if (distance < 0.1f || ((b.X - a.X) * sx + (b.Z - a.Z) * sz) / distance < 0.98f) return false;
                     remaining -= distance;
-                    // Leave the local motion entirely outside the junction, including the front overhang.
                     if (graph.IsIntersection(to)) { if (remaining >= -1f) return false; break; }
                     at = to;
                 }

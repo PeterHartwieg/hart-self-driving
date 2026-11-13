@@ -1,5 +1,3 @@
-// The NWH cars measured in game so far, for the tools (CarSpec.Parse): the game log's "NWH shape" lines (0.1.55, turn
-// rig session 20261013-182118), read from the drivable prefabs; the wheel turns at 140°/s on all of them. The taxi is the dressed vordtiaravic.
 static class Cars
 {
     public static readonly Dictionary<string, string> Measured = new()
@@ -10,7 +8,6 @@ static class Cars
         ["taxi"] = "taxi;2.665;0;0,0.782,1.199;0.897,0.578,2.461;0=35,10=33.28,25=26.39,50=14.73;1.504;140",
     };
 
-    // A measured car by name (or the end of a vehicle type name), or a spec.
     public static DrivenRides.Core.Drive.CarSpec? Get(string nameOrSpec)
     {
         foreach (var (name, spec) in Measured)

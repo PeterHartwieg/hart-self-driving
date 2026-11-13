@@ -13,7 +13,6 @@ namespace DrivenRides.Core.Routing
     public sealed class JunctionBoxes
     {
         private readonly List<(List<(float X, float Z)> Hull, float Y)> boxes = new List<(List<(float, float)>, float)>();
-        // The middle of each junction: of the box round its own waypoints.
         private readonly List<Vec3> centres = new List<Vec3>();
         private readonly Dictionary<(int, int), List<int>> grid = new Dictionary<(int, int), List<int>>();
         private const float Cell = 50f;
@@ -87,10 +86,8 @@ namespace DrivenRides.Core.Routing
 
         public int Count => boxes.Count;
 
-        // Whether a point lies in a junction's box (and level with it).
         public bool Contains(Vec3 p) => IndexOf(p) >= 0;
 
-        // The middle of the junction whose box holds a point (the middle of the box round its waypoints), or null.
         public Vec3? CentreOf(Vec3 p) => IndexOf(p) is var i && i >= 0 ? centres[i] : (Vec3?)null;
 
         private int IndexOf(Vec3 p)
@@ -105,7 +102,6 @@ namespace DrivenRides.Core.Routing
                 {
                     var (ax, az) = hull[k];
                     var (bx, bz) = hull[(k + 1) % hull.Count];
-                    // Counter-clockwise hull: inside is on the left of every edge.
                     if ((bx - ax) * (p.Z - az) - (bz - az) * (p.X - ax) < 0f) inside = false;
                 }
                 if (inside) return index;
@@ -113,7 +109,6 @@ namespace DrivenRides.Core.Routing
             return -1;
         }
 
-        // Andrew's monotone chain, counter-clockwise.
         private static List<(float X, float Z)> Hull(List<(float X, float Z)> points)
         {
             points.Sort((a, b) => a.X != b.X ? a.X.CompareTo(b.X) : a.Z.CompareTo(b.Z));

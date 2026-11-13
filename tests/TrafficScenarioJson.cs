@@ -8,8 +8,6 @@ using DrivenRides.Core.Testing;
 
 namespace DrivenRides.Core.Tests;
 
-// Reads a T0 scenario written by TrafficScenario.ToJson: a template's, or one the game dumped when a traffic run
-// failed (NwhDrive). Drop a dump into tests/traffic-scenarios/ and it runs in every `dotnet test`.
 internal static class TrafficScenarioJson
 {
     public static TrafficScenario Load(string json)
@@ -57,7 +55,6 @@ internal static class TrafficScenarioJson
             }).ToList(),
             Slow = ride.GetProperty("slow").EnumerateArray().Select(q => (q[0].GetSingle(), q[1].GetSingle(), q[2].GetSingle())).ToList(),
         };
-        // The calibrated car and the driven line (newer dumps).
         if (ride.TryGetProperty("lockCurve", out var curve)) s.Ride.LockCurve = curve.EnumerateArray().Select(q => (q[0].GetSingle(), q[1].GetSingle())).ToList();
         if (ride.TryGetProperty("track", out var track)) s.Ride.TrackWidth = track.GetSingle();
         if (ride.TryGetProperty("yawFactor", out var yaw)) s.Ride.YawFactor = yaw.GetSingle();
@@ -94,8 +91,6 @@ internal static class TrafficScenarioJson
                 line.Stop.AddRange(t.GetProperty("stop").EnumerateArray().Select(e => e.GetInt32() == 1));
                 s.Timelines.Add(line);
             }
-        // The history: for replaying decisions frame by frame (TrafficTests.ReplayDecisions); the simulation starts
-        // from the cars' poses.
         if (root.TryGetProperty("history", out var history))
             foreach (var h in history.EnumerateArray())
             {

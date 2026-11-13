@@ -1,7 +1,5 @@
 param([Parameter(Mandatory=$true)][string]$OutputPath)
 $ErrorActionPreference='Stop'
-# This short-lived installer helper is the only process that connects to Steam.
-# The test player never initializes Steam or claims to own unverified DLC.
 $library='C:\Program Files (x86)\Steam\steamapps\common\Big Ambitions\Big Ambitions_Data\Plugins\x86_64\steam_api64.dll'
 $env:SteamAppId='1331550'
 $env:SteamGameId='1331550'

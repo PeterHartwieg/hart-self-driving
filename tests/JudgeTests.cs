@@ -64,7 +64,6 @@ public sealed class JudgeTests
     public void MissingEntryGateFailsWhenExitCrosses()
     {
         var (graph, f) = Straight(); var judge = Make(graph, f);
-        // Round the gate on the left: 5 m to the right would be on the pavement first.
         judge.Add(At(0, -5, 8)); judge.Add(At(1, -5, 12)); judge.Add(At(2, 0, 18)); judge.Add(At(3, 0, 21));
         Assert.Contains("missed-gate:entry", judge.Result(false).Reasons);
         Assert.Equal(3, judge.FailedStep);
@@ -73,8 +72,6 @@ public sealed class JudgeTests
     [Fact]
     public void AFootprintPastTheKerbIsOnThePavement()
     {
-        // A lone lane: its kerb is half a lane and a parking lane (4.5 m) to the right; 5 m and the car's 1 m half
-        // width put it 1.5 m onto the pavement. On the left, a U-turn's side, nothing is judged.
         var (graph, f) = Straight(); var judge = Make(graph, f);
         judge.Add(At(0, 0, 0)); judge.Add(At(1, 0, 11)); judge.Add(At(2, 5, 25));
         var result = judge.Result(false);
@@ -87,19 +84,14 @@ public sealed class JudgeTests
     [Fact]
     public void ARideArrivesAtItsEndInItsLane()
     {
-        // A ride ends at its exit: its exit and last gates lie 16 m and 8 m before the end, crossed in that order by a
-        // car that drives on in its lane and stops short of the end (T3: the exit gate on the last waypoint made a
-        // clean NWH arrival fail missed-gate:exit).
         var (graph, f) = Straight();
         f.EntryIndex = 0; f.ExitIndex = f.Route.Count - 1;
         var judge = Make(graph, f);
         for (var z = 0; z <= 68; z += 4) judge.Add(At(z, 0, z));
-        // Through its gates it goes on; it passes once it has arrived, in its lane.
         Assert.False(judge.Finished);
         judge.Arrive();
         Assert.True(judge.Finished);
         Assert.Equal("pass", judge.Result(false).Verdict);
-        // Arriving across the lane's end at an angle fails.
         var (graph2, f2) = Straight();
         f2.EntryIndex = 0; f2.ExitIndex = f2.Route.Count - 1;
         var angled = Make(graph2, f2);
@@ -112,7 +104,6 @@ public sealed class JudgeTests
     [Fact]
     public void ARideReplannedOnTheWayIsJudgedOnItsNewRoute()
     {
-        // A ride planned again at 40 m (a blocked step): its gates move to the new route's end; what was passed stays.
         var b = new TurnTestGraph();
         int[] lane = Enumerable.Range(0, 16).Select(i => b.Add(0, i * 10)).ToArray(); b.Link(lane);
         var graph = b.Build();
@@ -134,8 +125,6 @@ public sealed class JudgeTests
     [Fact]
     public void AJunctionsCrossingsAreCarriagewayItsCornersAreNot()
     {
-        // A zebra crossing in a junction's mouth, beside the lane into it, is carriageway; a pavement corner between
-        // the two roads, 5 m off every lane, is not (review round 1: the junction's hull held it).
         var (graph, _, _) = TurnTestGraph.Turn();
         Assert.True(DrivenRides.Core.Testing.Pavement.OnALane(graph, new Vec3(2.6f, 0, -7)));
         Assert.False(DrivenRides.Core.Testing.Pavement.OnALane(graph, new Vec3(5.5f, 0, -8)));
@@ -144,9 +133,6 @@ public sealed class JudgeTests
     [Fact]
     public void ABodyRoundAWaypointCornerIsNoIntrusion()
     {
-        // A lane east that jogs 35 degrees right for a segment and back (T3's Hamptons drive), with a lane west 2.6 m
-        // to the right of the jog. The car's body, still square to the first segment as it reaches the corner, lies
-        // across the jog's boundary; it is within the lane it is finishing.
         var b = new TurnTestGraph();
         int[] lane = { b.Add(-20, 0), b.Add(-10, 0), b.Add(0, 0), b.Add(5.7f, -4f), b.Add(15.7f, -4f), b.Add(25.7f, -4f), b.Add(35.7f, -4f), b.Add(45.7f, -4f) };
         b.Link(lane);
@@ -161,8 +147,6 @@ public sealed class JudgeTests
             sample.Footprint = new[] { new Vec3(x + 3, 0, 1), new Vec3(x + 3, 0, -1), new Vec3(x - 3, 0, -1), new Vec3(x - 3, 0, 1) };
             judge.Add(sample);
         }
-        // 3.6 m into the jog (heading 125 degrees), the body still turned only to 100: its rear right corner lies
-        // 2 m right of the jog's line, inside the lane it is finishing.
         float jx = 5.7f / 6.96f, jz = -4f / 6.96f;
         var centre = new Vec3(jx * 3.6f, 0, jz * 3.6f);
         var h = 100 * Math.PI / 180;
@@ -177,8 +161,6 @@ public sealed class JudgeTests
     [Fact]
     public void ThePedestriansGroundIsThePavementWhereTheGameGivesIt()
     {
-        // Pedestrian ground from 3 m right of the lane: a corner there (pulled 0.3 m in) is on the pavement; the
-        // kerb estimate (4.5 m) would not have seen it.
         var (graph, f) = Straight(); var judge = Make(graph, f);
         judge.PavementAt = p => p.X > 3f;
         string? found = null;
@@ -186,7 +168,6 @@ public sealed class JudgeTests
         judge.Add(At(0, 0, 0)); judge.Add(At(1, 0, 11)); judge.Add(At(2, 3f, 25));
         Assert.Contains("pavement", judge.Result(false).Reasons);
         Assert.Contains("pedestrian ground", found);
-        // Pedestrian ground on the lane itself (a crosswalk, a promenade by the lane) is no pavement.
         (graph, f) = Straight(); judge = Make(graph, f);
         judge.PavementAt = _ => true;
         Finish(judge);
@@ -244,13 +225,11 @@ public sealed class JudgeTests
         int[] oncoming = Enumerable.Range(0, 9).Select(i => b.Add(-70 + i * 10, 4)).ToArray();
         b.Link(run, entry, plain); b.Link(exit); b.Link(oncoming);
         var f = new Fixture { Route = new[] { run, entry }.Concat(exit).ToList(), Kind = CaseKind.Turn, Manoeuvre = CaseKind.Turn, EntryIndex = 1, ExitIndex = 2 };
-        // Past the mouth (5 m into the road turned into), 2 m over the midline towards the oncoming lane.
         var judge = Make(b.Build(), f);
         judge.Add(At(0, 0, -1)); Assert.False(judge.Failed);
         var sample = At(1, 0, 1); sample.Footprint = new[] { new Vec3(-15, 0, 5) }; judge.Add(sample);
         Assert.Contains("intrusion", judge.Result(false).Reasons);
         Assert.Equal(2, judge.Result(false).MaxIntrusion, 4);
-        // Inside the junction a left turn sweeps across those lanes: not counted.
         judge = Make(b.Build(), f); judge.Add(At(0, 0, -1));
         sample.Footprint = new[] { new Vec3(-5, 0, 5) }; judge.Add(sample);
         Assert.DoesNotContain("intrusion", judge.Result(false).Reasons);

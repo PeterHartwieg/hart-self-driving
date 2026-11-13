@@ -5,37 +5,24 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Drive
 {
-    // How a car driven by its own physics drives a route (the rig's driver=nwh, and the feasibility check): the
-    // planner's expansion with each added turn on its driver's arc or through its vias, and the stretches driven
-    // slowly. One place, so the check simulates what the car will drive.
     public sealed class DrivePlan
     {
         public ExpandedPath Expanded { get; }
         public List<int> Path => Expanded.Path;
-        // The arc turns: path position of the entry (the exit is the next position) and the arc.
         public List<(int Entry, Polyline Arc)> Arcs { get; } = new List<(int, Polyline)>();
-        // Path positions driven at no more than a speed: the roads' limits.
         public List<(int Position, float SpeedKmh)> Slow { get; } = new List<(int, float)>();
         public float TopKmh { get; }
-        // Lane steps passed with the line moved sideways (DriveLine.Shifted): path position, metres along the step
-        // where the obstacle begins and ends, the offset (right positive).
         public List<(int Position, float From, float To, float Offset)> Shifts { get; } = new List<(int, float, float, float)>();
-        // Path positions of plain lane corners, rounded off on the line (DriveLine.Fillet): both steps are lane steps.
         public HashSet<int> Fillets { get; } = new HashSet<int>();
 
         private DrivePlan(ExpandedPath expanded, float topKmh) { Expanded = expanded; TopKmh = topKmh; }
 
-        // arc(entry, exit): the arc an added turn is driven along, or null for its vias. clear(entry, exit, aim): as
-        // PathExpander's. limitKmh(waypoint): the road's limit there, 0 for none.
-        // shift(from, to): a lane step's sideways move past a car parked partly in it, or null.
         public static DrivePlan Build(LaneGraph graph, IReadOnlyList<int> route, CarSpec car, Func<int, int, Polyline?> arc,
             Func<int, int, int, bool>? clear = null, Func<int, float>? limitKmh = null, Func<int, int, (float From, float To, float Offset)?>? shift = null)
         {
             var expanded = PathExpander.Expand(graph, route, clear, (e, x) => arc(e, x) != null);
             var plan = new DrivePlan(expanded, car.TopKmh);
             var path = expanded.Path;
-            // Only corners a fillet rounds (DriveLine.Fillet): T3 on 0.1.80 swept every waypoint of a straight lane as a
-            // "corner" (41 of ride 5's 44), and a sweep failing on one blocked the street.
             for (var k = 1; k + 1 < path.Count; k++)
                 if (Has(graph.Successors(path[k - 1]), path[k]) && Has(graph.Successors(path[k]), path[k + 1])
                     && DriveLine.Fillet(graph.Position(path[k - 1]), graph.Position(path[k]), graph.Position(path[k + 1])) != null)
@@ -50,8 +37,6 @@ namespace DrivenRides.Core.Drive
                 var line = at >= 0 ? arc(entry, exit) : null;
                 if (line != null) plan.Arcs.Add((at, line));
             }
-            // Each arc no faster than the car still has a sixth of its lock to spare on it (the lock narrows with speed):
-            // on a U-turn curve at its smallest radius the wheel sat at lock and the car ran wide out of it.
             foreach (var (at, line) in plan.Arcs)
             {
                 if (line.Radius <= 0f) continue;
@@ -61,12 +46,6 @@ namespace DrivenRides.Core.Drive
                     else break;
                 if (fastest > 0f && fastest * 3.6f < car.TopKmh) plan.Slow.Add((at, fastest * 3.6f));
             }
-            // No flat speed for added turns or U-turns: the corner speed comes from the line's curvature (never under
-            // PursuitDriver.MinCornerMs), so a wide turn is driven faster than a tight one (Peter, NWH spike). The
-            // Gley-era 15 km/h for a long car's U-turn covered the whole straight way into the junction too, and held
-            // the car at a crawl before the turn began (T3 20261013-185723, ride 8: "taking a turn super slow").
-            // Gley caps every car at the road's limit (its own pace up to 10 % over); this driver at LimitFactor of it,
-            // as a confident player drives (Peter, 14 October: "it is very slow"), never past the car's top speed.
             if (limitKmh != null)
                 for (var k = 0; k < path.Count; k++)
                 {
@@ -78,7 +57,6 @@ namespace DrivenRides.Core.Drive
 
         public const float LimitFactor = 1.2f;
 
-        // The path as given (the rig's controls): no arcs, the slow positions at the rig's 25 km/h.
         public static DrivePlan Fixed(List<int> path, IEnumerable<int>? slow, float topKmh)
         {
             var expanded = new ExpandedPath();
@@ -101,7 +79,6 @@ namespace DrivenRides.Core.Drive
             return false;
         }
 
-        // The driver for this plan's line: a slow position covers the stretch from it to the next position.
         public PursuitDriver Driver(DriveLine line, float wheelbase, float frontAhead, float trackWidth)
         {
             var driver = new PursuitDriver(line, wheelbase, frontAhead, TopKmh / 3.6f, trackWidth);

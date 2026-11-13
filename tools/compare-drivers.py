@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Compares two turn test results files case by case (docs/nwh-drive-spike.md): typically an NWH drive
-(driver=nwh) against a Gley one. Usage: compare-drivers.py <results A> <results B> [kinds, e.g. Turn,UTurn]"""
 import collections
 import json
 import sys

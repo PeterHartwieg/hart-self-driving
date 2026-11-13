@@ -53,7 +53,6 @@ public sealed class OfflineCatalogueTests
     public void OceanCrestPocketNeedsANearbyStartBeforeWideningTheDestination()
     {
         var graph = LoadGraph();
-        // Coordinates and start from the rc4 failure log, 15 October 2026, at 6 Ocean Crest Road.
         var target = new Vec3(-3021.61f, 1.02f, -1049.14f);
         const int pocket = 9314;
         var close = GoalPicker.Pick(graph, target, 0);
@@ -67,7 +66,6 @@ public sealed class OfflineCatalogueTests
         Assert.Single(early.Result!.Waypoints);
         Assert.True(early.Result.WalkSeconds > 80f);
 
-        // The real connected lane is only five metres from the pocket. It reaches the original nearby goals.
         const int lane = 15533;
         Assert.InRange(Vec3.HorizontalDistance(graph.Position(pocket), graph.Position(lane)), 0f, 6f);
         var fromLane = RoutePlanner.Plan(graph, new RouteRequest { Start = lane, Goals = close, WideUTurns = true }, int.MaxValue);

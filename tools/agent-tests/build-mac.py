@@ -1,4 +1,3 @@
-"""Build the private Mac overlay from the installed Mac player. No PC or network access."""
 import os
 from pathlib import Path
 import shutil

@@ -6,10 +6,6 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Testing
 {
-    // A T0 traffic scenario (docs/implementation-plan.md, "Tests"): a piece of lane graph with Gley's flags and
-    // junctions, the ride car with its path, and traffic cars with their routes. The Core tests build them from
-    // templates and run them in a kinematic simulation; the game writes one (NwhDrive) when a traffic run fails, with
-    // the last seconds of the cars near the ride car, so the failure can be run offline (tests/traffic-scenarios/).
     public sealed class TrafficScenario
     {
         public string Name = "";
@@ -19,9 +15,7 @@ namespace DrivenRides.Core.Testing
         public readonly List<ScenarioJunction> Junctions = new List<ScenarioJunction>();
         public ScenarioRide Ride = new ScenarioRide();
         public readonly List<ScenarioCar> Cars = new List<ScenarioCar>();
-        // Stop flags over time, from the game, for waypoints whose junction has no simulated cycle.
         public readonly List<ScenarioTimeline> Timelines = new List<ScenarioTimeline>();
-        // What the game saw, ten frames a second (for reading; the simulation starts from the cars' poses).
         public readonly List<ScenarioFrame> History = new List<ScenarioFrame>();
 
         public LaneGraph BuildGraph()
@@ -45,7 +39,6 @@ namespace DrivenRides.Core.Testing
                 lateral[i] = w.Lateral ?? Array.Empty<int>();
                 anyLateral |= w.Lateral != null;
             }
-            // The lanes beside each waypoint, as the game's graph had them; an older dump without them infers them.
             return new LaneGraph(positions, next, masks, junction, kmh, otherLanes: lateral, inferLanes: !anyLateral);
         }
 
@@ -132,7 +125,6 @@ namespace DrivenRides.Core.Testing
             return j.ToString();
         }
 
-        // Round-trip precision (G9): a scenario read back runs exactly as written (review round 6, AA6).
         private static string F(float v) => float.IsNaN(v) || float.IsInfinity(v) ? "0" : v.ToString("G9", CultureInfo.InvariantCulture);
         private static string Ints(IEnumerable<int> values) => "[" + string.Join(",", values) + "]";
 
@@ -160,29 +152,21 @@ namespace DrivenRides.Core.Testing
     {
         public float X, Y, Z;
         public int[] Next = Array.Empty<int>();
-        // The lanes beside it a car can change to (Gley's otherLanes and the lane graph's inferred ones), or null.
         public int[]? Lateral;
         public bool InJunction;
         public float Kmh;
-        // Gley's flags at the start (a simulated or replayed junction changes `Stop` as it runs).
         public bool Stop, GiveWay, Enter, Exit;
         public int Junction = -1, Road = -1;
-        // Its index in Gley's waypoint list, for a dump from the game.
         public int Source = -1;
     }
 
     public sealed class ScenarioJunction
     {
         public int Id;
-        // "lights": a cycle, one road green at a time, amber held while anyone is inside (Gley's
-        // TrafficLightsIntersection); "priority": round robin by road, at most three inside (PriorityIntersection);
-        // "replay": stop flags from Timelines.
         public string Kind = "lights";
-        // Each road's entry waypoints (Gley's stopWaypoints or enterWaypoints).
         public List<int[]> Roads = new List<int[]>();
         public float Green = 12f, Yellow = 3f;
         public int FirstRoad;
-        // Seconds of the first road's green already gone at the start.
         public float Offset;
     }
 
@@ -198,26 +182,15 @@ namespace DrivenRides.Core.Testing
         public int[] Path = Array.Empty<int>();
         public List<ScenarioArc> Arcs = new List<ScenarioArc>();
         public float Wheelbase = 2.8f, Lock = 35f, FrontAhead = 3.7f, RearBehind = 0.9f, HalfWidth = 0.92f, TopMs = 13.9f;
-        // Rear axle, heading (radians, as atan2(dx, dz)), speed.
         public float X, Z, Heading, Speed;
         public List<(float From, float To, float Ms)> Slow = new List<(float, float, float)>();
-        // The car as the game measured it (review round 1, S10): the lock at speeds (m/s, degrees; empty: Lock at any
-        // speed), the front track for NWH's Ackermann, the model's yaw factor, the wheel's rate (degrees a second),
-        // and the wheel's angle at the start.
         public List<(float Ms, float Degrees)> LockCurve = new List<(float, float)>();
         public float TrackWidth, YawFactor = 1f, WheelRate = 180f, Steer;
-        // The wheel's smoothing (seconds), the pedals' integral term at the start, and the line's curve spans
-        // (DriveLine.Curves, metres along Line: where the driver steers ahead for the curvature), so a restored drive
-        // continues as the game's did (review round 2, U3).
         public float WheelSmooth = DrivenRides.Core.Drive.CarModel.SmoothSeconds, Integral;
         public List<(float From, float To)> Curves = new List<(float, float)>();
-        // The line the car drove, as built (arcs, fillets, shifts), and how far along it each path position is; empty:
-        // the line is built from the path and the arcs.
         public List<Vec3> Line = new List<Vec3>();
         public float[] LineAlong = Array.Empty<float>();
 
-        // The line the car drives: the one the game drove, or else one built from the path and arcs as NwhDrive builds
-        // it; pathAlong: how far along it each path position is.
         public DrivenRides.Core.Drive.DriveLine BuildLine(LaneGraph graph, out float[] pathAlong)
         {
             if (Line.Count >= 2 && LineAlong.Length == Path.Length)
@@ -245,7 +218,6 @@ namespace DrivenRides.Core.Testing
             return driver;
         }
 
-        // The wheel is set with its smoothing state (SetWheel), so it holds its angle rather than easing back to 0.
         public DrivenRides.Core.Drive.CarModel BuildCar()
         {
             var car = new DrivenRides.Core.Drive.CarModel(Wheelbase, LockAt, X, Z, Heading, Speed) { TrackWidth = TrackWidth, Rate = WheelRate, YawFactor = YawFactor, Smooth = WheelSmooth };
@@ -253,7 +225,6 @@ namespace DrivenRides.Core.Testing
             return car;
         }
 
-        // The lock at a speed, from the curve (linear between samples) or the constant Lock.
         public float LockAt(float ms)
         {
             if (LockCurve.Count == 0) return Lock;
@@ -272,13 +243,10 @@ namespace DrivenRides.Core.Testing
     {
         public int Id;
         public float Spawn;
-        // Waypoints it drives through; past the last one it takes the first successor.
         public int[] Route = Array.Empty<int>();
-        // Middle of its body, heading, speed; without a pose it starts at its route's first waypoint, heading to the second.
         public bool HasPose;
         public float X, Z, Heading, Speed;
         public float Length = 4.5f, Width = 1.9f, Trigger = 3f;
-        // Its speed as a share of the road's limit.
         public float Pace = 1f;
     }
 

@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Regression check of the built mod's paint transfer in Unity, using real game components.
-# Usage: tools/check-paint.sh [path/to/DrivenRides.dll]
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${BA_SDK:-$REPO/build/sdk}"

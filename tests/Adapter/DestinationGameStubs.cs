@@ -5,7 +5,6 @@ using Xunit;
 [CollectionDefinition("Game adapters")]
 public sealed class GameAdapterCollection { }
 
-// Narrow doubles for destination input and dispatch; SDK compilation checks the real game API surface.
 public sealed record Address(string Name);
 public sealed class Building { public string BuildingType = "ba:buildingtype_residential"; }
 public sealed class CityBuildingController { public Building building = new(); }

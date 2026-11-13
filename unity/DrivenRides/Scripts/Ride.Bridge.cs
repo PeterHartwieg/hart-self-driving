@@ -24,14 +24,12 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // Bridge operations. Fields remain in Ride.cs to preserve initialization order.
     internal sealed partial class Ride
     {
 
         private bool OnBridge()
         {
             var here = Body.position;
-            // Found once per ride: a scene search every frame is what made 0.1.5 lag.
             bridges ??= Object.FindObjectsOfType<Streets.BridgeTriggerController>();
             foreach (var bridge in bridges)
             {
@@ -43,7 +41,6 @@ namespace DrivenRides
                 // A test never crosses a bridge (its cases stay clear of the triggers); if one does, it ends here.
                 if (kind == Kind.Test) { EndWith(Outcome.Vanilla, "bridge"); return true; }
                 if (!(SkipTargetsField?.GetValue(bridge) is Transform[] targets) || targets.Length == 0) { Event("Bridge: no skip targets."); return false; }
-                // As SkipBridgeHelper.FindTarget: the target facing most nearly the car's way, here also ahead of it.
                 Transform? best = null;
                 var bestAngle = float.MaxValue;
                 foreach (var t in targets)
@@ -53,13 +50,6 @@ namespace DrivenRides
                     if (angle < bestAngle) { bestAngle = angle; best = t; }
                 }
                 if (best == null) { Event("Bridge: no skip target ahead."); return false; }
-                // The landing is the first route waypoint within Bridges.LandWithin of any target ahead facing the car's
-                // way, as the planner's skip (Bridges.Follow) has it; not the waypoint nearest the best target, which
-                // tips between targets on a degree of heading: the rightmost lane comes down its own ramp straight
-                // into a right turn, and a late landing left the car too close to that turn to make it, so it backed
-                // off and the ride ended the vanilla way (0.2.0-rc5).
-                // Only a real crossing: the far end's own trigger, met just after landing, is no bridge to skip (spike
-                // 16 skipped twice, the second time 41 m).
                 var ahead = new List<Transform>();
                 foreach (var t in targets)
                     if (t != null && Vector3.Dot(t.position - here, Body.forward) >= 0f && Vector3.Dot(t.forward, Body.forward) > 0f) ahead.Add(t);
@@ -85,10 +75,6 @@ namespace DrivenRides
             return false;
         }
 
-        // The bridge skip for an NWH ride: the route from the first of its waypoints at or past path position `at`, a
-        // plan for the car from there (NwhPlanner.Plan), the car at rest with its rear axle on that waypoint facing
-        // along the lane, and the drive going on along the plan (NwhDrive.DriveOn). False, with why, if any of it fails;
-        // the ride then finishes the vanilla way.
         private bool LandNwh(int at, out Vector3 landedAt, out string why)
         {
             landedAt = Body.position;
@@ -104,8 +90,6 @@ namespace DrivenRides
             var plan = nwhPlanner.Plan(graph, rest, out var failed);
             if (plan == null) { why = failed.Count > 0 ? $"step {failed[0].From} -> {failed[0].To} fails as driven" : "no plan"; return false; }
             var all = GleyGraph.Waypoints!;
-            // On the road under the waypoints, not on the lane: on a bridge's ramp the lane runs below the deck
-            // (NwhPlanner.RoadAt).
             var ignore = nwh!.Car.Root.transform;
             var land = all[rest[0]].position;
             var ahead = all[rest[1]].position;
@@ -113,8 +97,6 @@ namespace DrivenRides
             ahead.y = NwhPlanner.RoadAt(ahead, ignore) ?? ahead.y;
             var heading = graph.PlainHeading(rest[0], out var hx, out var hz) ? new Vector3(hx, 0f, hz) : ahead - land;
             heading.y = 0f;
-            // Pitched to the road's slope: the landing can be on a bridge's ramp (OnBridge), and a level car there
-            // would put its front into the road.
             var next = ahead - land;
             var run = new Vector2(next.x, next.z).magnitude;
             if (heading.sqrMagnitude > 0.01f && run > 0.5f) heading = heading.normalized + Vector3.up * (next.y / run);
@@ -148,9 +130,6 @@ namespace DrivenRides
 
             if (nwh != null)
             {
-                // An NWH car is teleported: its rear axle onto the first route waypoint on the far side, at rest, and
-                // the drive goes on along the rest of the route, planned for the car from there.
-                // The own car pays the game's bridge fuel, and only crosses if its tank covers it, as vanilla's skip.
                 var ownOnBridge = kind == Kind.OwnCar ? OwnCarDrive.Car : null;
                 if (ownOnBridge != null && !OwnCarTaxi.HasFuelForBridge(ownOnBridge, Vector3.Distance(from, to)))
                 {
@@ -168,7 +147,6 @@ namespace DrivenRides
             }
             else
             {
-                // The car onto the far side, facing along the route; the path from there on.
                 var ahead = all[path[at + 1]].position - to;
                 var rotation = ahead.sqrMagnitude > 0.01f ? Quaternion.LookRotation(ahead) : target.rotation;
                 if (car.rb != null)
@@ -179,7 +157,6 @@ namespace DrivenRides
                     car.rb.rotation = rotation;
                 }
                 car.transform.SetPositionAndRotation(to + Vector3.up * 0.3f, rotation);
-                // Every bridge trigger near the landing is done with too.
                 if (bridges != null)
                     foreach (var other in bridges)
                         if (other != null && Vector3.Distance(other.transform.position, to) < 300f) skipped.Add(other);
@@ -203,7 +180,6 @@ namespace DrivenRides
                 yield return null;
             }
 
-            // The game's own bridge time: 0.04 game minutes per metre at the game speed (SkipBridgeHelper).
             var minutes = Vector3.Distance(from, to) * 0.04f * PlayerPrefSettings.GameSpeed;
             timeMachineEnded = false;
             Action ended = () => timeMachineEnded = true;

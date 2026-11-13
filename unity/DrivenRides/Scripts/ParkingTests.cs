@@ -13,7 +13,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // Test-mode only. Uses the game's parking-slot poses, never clears an occupied space.
     internal static class ParkingTests
     {
         private static readonly System.Reflection.FieldInfo? SideBySide = AccessTools.Field(typeof(ParkingLaneGenerator), "sideBySideParkingSpots");
@@ -104,8 +103,6 @@ namespace DrivenRides
             if (VehicleHelper.GetCurrentVehicleBase() is VehicleController oldCar) { oldCar.ExitVehicle(); yield return null; }
             foreach (var lane in lanes.Take(20))
             {
-                // Populate the area before choosing a free space. The seeded pose is recorded as well: occupancy
-                // may differ after a reload even for the same seed.
                 player.Character.WarpSafely(lane.GetWorldCenterPosition());
                 var settle = Time.unscaledTime + 2f;
                 while (Time.unscaledTime < settle) yield return null;
@@ -117,7 +114,6 @@ namespace DrivenRides
                     finally { UnityEngine.Random.state = state; }
                     if (!found) break;
                     if (args.TryGetValue("parkreverse", out var reverse) && reverse == "on") r *= Quaternion.Euler(0, 180, 0);
-                    // Slot poses name the body's centre. Account for this model's origin before teleporting.
                     p -= r * new Vector3(wrapped.BodyCentre.x, 0, wrapped.BodyCentre.z);
                     var ground = NwhPlanner.GroundBelow(GleyGraph.ToVec(p), owner.transform);
                     if (ground == null) continue;

@@ -1,4 +1,3 @@
-"""Local-only paths, ownership and identity checks for the Mac fallback rig."""
 import contextlib
 import json
 import os

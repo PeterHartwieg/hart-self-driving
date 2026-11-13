@@ -5,10 +5,6 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // The mod's options page. The game keeps each value in PlayerPrefs under "m:<modId>:<optionId>" and calls a
-    // callback only when the page builds its controls or the player changes one, so the values are read from
-    // PlayerPrefs at load and the callbacks keep them current afterwards. The ride panel's speed and clock buttons
-    // write the same keys, so the page shows the panel's last choice (Peter, 12 October 2026).
     internal static class Options
     {
         private const string RouteLineId = "routeline";
@@ -30,7 +26,6 @@ namespace DrivenRides
         private const string CarPhysicsId = "carphysics";
         private static readonly float[] Speeds = { 1f, 2f, 3f };
         private const int DefaultSpeedIndex = 0;
-        // The clock's rate during a ride in percent: 0 stops it, 100 is normal (Peter, 12 October 2026).
         private const int DefaultClockPercent = 33;
         private static string? modId;
 
@@ -40,7 +35,6 @@ namespace DrivenRides
         public static bool OwnCar { get; private set; } = true;
         public static AutoparkMode Autopark { get => AutoparkOverride ?? autopark; private set => autopark = value; }
         private static AutoparkMode autopark = AutoparkMode.CarsWithIt;
-        // Set by the rig's own-car rides (RideCommand autopark=...), never written to PlayerPrefs.
         public static AutoparkMode? AutoparkOverride;
         public static float RideSpeed { get; private set; } = 1f;
         public static int ClockPercent { get; private set; } = DefaultClockPercent;
@@ -48,8 +42,6 @@ namespace DrivenRides
         public static bool Shortcut { get; private set; } = true;
         public static int PinnedKey { get; private set; } = DestinationShortcut.DefaultPinnedKey;
         public static int HomeKey { get; private set; } = DestinationShortcut.DefaultHomeKey;
-        // Taxi and private driver rides drive with the car's own physics (NWH, phase 5); off, they are the Gley rides
-        // as before. The rig's `ridemode` command overrides it for a session without touching PlayerPrefs.
         public static bool CarPhysics { get => CarPhysicsOverride ?? carPhysics; private set => carPhysics = value; }
         private static bool carPhysics = true;
         public static bool? CarPhysicsOverride;
@@ -58,10 +50,7 @@ namespace DrivenRides
         // The ride car brakes and stops for people in its way (NwhDrive's cast). Off by default: Gley's cars don't,
         // and people cross on red anyway (Peter, 14 October 2026). The car passes through people either way.
         public static bool Pedestrians { get; private set; }
-        // The ride car drives up to its own top speed instead of DrivePlan.LimitFactor of the road's limit; corners,
-        // traffic, following and lights as before. Off by default. Taken when a ride is planned (NwhPlanner.For).
         public static bool IgnoreSpeedLimits { get; private set; }
-        // Set by a test session (lights obeyed), never written to PlayerPrefs, so the options page can't undo it.
         public static bool? LightsOverride;
 
         public static void Register(string id)
@@ -120,7 +109,6 @@ namespace DrivenRides
             if (modId != null) OptionsService.RemoveModOptions(modId);
         }
 
-        // The panel's buttons: the choice becomes the options page's value and the next ride's start.
         public static void RememberSpeed(float speed)
         {
             var index = Array.IndexOf(Speeds, speed);
@@ -129,7 +117,6 @@ namespace DrivenRides
             Save(SpeedId, index);
         }
 
-        // The panel's slider sets the rate while it is dragged and writes it to disk once, when it is let go.
         public static void SetClock(int percent)
         {
             if (modId == null) return;

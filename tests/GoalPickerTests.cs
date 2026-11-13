@@ -64,7 +64,6 @@ public sealed class GoalPickerTests
     [Fact]
     public void NoLimitByDefaultSoFartherReachableGoalsStay()
     {
-        // Twenty parallel one-way stretches near the target; a cut to the nearest few could keep only unreachable lanes.
         var points = new System.Collections.Generic.List<Vec3>();
         var edges = new System.Collections.Generic.List<int[]>();
         for (var lane = 0; lane < 20; lane++)
@@ -80,8 +79,6 @@ public sealed class GoalPickerTests
 
     private static LaneGraph SetbackDestinationRoad()
     {
-        // The door is 85 m back from a one-way road. Reaching the lane beside it needs a drive round the block;
-        // stopping at the entrance is quicker overall, but leaves the passenger 131 m from the door.
         Vec3[] points = { new(-10, 0, 0), new(0, 0, 0), new(-200, 0, 0), new(-200, 0, 300),
             new(100, 0, 300), new(100, 0, 0), new(110, 0, 0) };
         int[][] edges = { new[] { 1 }, new[] { 2 }, new[] { 3 }, new[] { 4 }, new[] { 5 }, new[] { 6 }, Array.Empty<int>() };
@@ -96,7 +93,7 @@ public sealed class GoalPickerTests
         var options = new GoalOptions { Radius = 150, MinStraightMetres = 0, AnyVehicleType = true };
         Assert.Empty(GoalPicker.Pick(graph, target, 0));
         var broad = RoutePlanner.Plan(graph, new RouteRequest { Start = 0, Goals = GoalPicker.Pick(graph, target, 0, options) }, int.MaxValue);
-        Assert.Equal(1, broad.Result!.Waypoints.Last()); // The old wide fallback chooses the entrance.
+        Assert.Equal(1, broad.Result!.Waypoints.Last());
 
         var batches = GoalPicker.PickNearbyFirst(graph, target, 0, options).ToList();
         var near = RoutePlanner.Plan(graph, new RouteRequest { Start = 0, Goals = batches[0] }, int.MaxValue);

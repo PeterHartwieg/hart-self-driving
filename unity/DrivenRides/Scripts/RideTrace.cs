@@ -6,9 +6,6 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // Test mode only (TestMode): what the ride car does, for finding where it goes wrong away from the game. Four
-    // samples a second to <LocalLow>/.../DrivenRides/ride-trace.csv (the latest ride only), and every collision with
-    // something that isn't a vehicle to the log. In a normal game it keeps and writes nothing.
     internal sealed class RideTrace
     {
         private readonly StringBuilder lines = new StringBuilder("t,x,z,heading,speed,target,state,along,left,path\n");
@@ -32,7 +29,6 @@ namespace DrivenRides
             if (TestMode.On) lines.Append("# ").Append(time.ToString("0.00", CultureInfo.InvariantCulture)).Append(' ').Append(text).Append('\n');
         }
 
-        // A ride's trace goes to ride-trace.csv (the latest only); a test ride's to the file it names.
         public void Save(string? file = null)
         {
             if (!TestMode.On) return;
@@ -46,7 +42,6 @@ namespace DrivenRides
         }
     }
 
-    // On the ride car while it carries the player: logs what it hits, at most once a second.
     internal sealed class CollisionProbe : MonoBehaviour
     {
         public RideTrace? Trace;

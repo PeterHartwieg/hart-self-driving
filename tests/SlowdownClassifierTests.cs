@@ -8,11 +8,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// The slowdown dumps real rides write (NwhDrive.SlowdownDump): DR_CLASSIFY=<folder> replays each one's decisions on
-// the recorded frames and says, for the stop that began the slowdown, which rule made it, for which car, and whether
-// that car's recorded body came within NeededMetres of where the ride car's body would have been had it gone on at the
-// speed it had (along its line, for LookSeconds, or until a second past when it would have met the car): needed, or needless (Peter, 14 October: "it gives way to other cars
-// where nobody would usually give way").
 public sealed class SlowdownClassifierTests
 {
     public const float NeededMetres = 2f, LookSeconds = 3f;
@@ -35,8 +30,6 @@ public sealed class SlowdownClassifierTests
         foreach (var kv in counts.OrderByDescending(k => k.Value)) output.WriteLine($"{kv.Value,4} {kv.Key}");
     }
 
-    // DR_CLOSED=<folder>: each dump driven in the simulation (its cars as Gley's), its slowdowns to under 1 m/s for a
-    // car, and how it ended.
     [Fact]
     public void SlowdownDumpsClosedLoop()
     {
@@ -67,12 +60,10 @@ public sealed class SlowdownClassifierTests
         var flags = new TrafficTests.ReplayFlags(s);
         var sizes = s.Cars.ToDictionary(c => c.Id);
         var frames = s.History;
-        // The slowdown: the lowest speed, and the highest before it.
         var low = 0;
         for (var i = 0; i < frames.Count; i++) if (frames[i].RideSpeed < frames[low].RideSpeed) low = i;
         var peak = 0;
         for (var i = 0; i <= low; i++) if (frames[i].RideSpeed >= frames[peak].RideSpeed) peak = i;
-        // The decisions from the start, and the first stop for a car from the peak on.
         int onset = -1, car = -1;
         string why = "", note = "";
         var kind = YieldNoteKind.None;
@@ -93,7 +84,6 @@ public sealed class SlowdownClassifierTests
             if (i < peak) continue;
             var id = d.YieldFor >= 0 ? d.YieldFor : d.GapFor;
             if (id < 0) continue;
-            // The car the stops were for most often from the highest speed to the lowest, from where it was first.
             held[id] = held.TryGetValue(id, out var n) ? n + 1 : 1;
             if (!first.ContainsKey(id)) first[id] = (i, d.Why, d.YieldNote, d.Note.Kind, driver.Along, d.Note.Late);
         }
@@ -113,7 +103,6 @@ public sealed class SlowdownClassifierTests
             YieldNoteKind.Still => "still giving way",
             _ => why.StartsWith("behind") ? "behind" : "giving way",
         };
-        // Gone on at the onset's speed along the line: the nearest the car's recorded body came to that body.
         var v = Math.Max(1f, frames[onset].RideSpeed);
         var nearest = float.MaxValue;
         for (var i = onset; i < frames.Count && frames[i].T - frames[onset].T <= look; i++)

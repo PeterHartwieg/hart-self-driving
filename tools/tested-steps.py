@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""Writes unity/DrivenRides/Scripts/TestedSteps.cs from turn test results (docs/turn-tests.md).
-
-Every manoeuvre that failed in a turn test (a hit, a near miss, stuck, into oncoming lanes, a missed gate or
-the wrong lane) becomes a step the planner avoids for cars at least as long as the shortest car that failed it.
-Replans, avoided and incomplete runs and the controls' bad halves don't count. Waypoint indices are the game's
-lane data, so the list belongs to one game build; regenerate it after a game update.
-Usage: tools/tested-steps.py <results-*.jsonl>[:Kind,Kind] [...]   (a kind list keeps only those kinds from that file,
-for results from a build whose other manoeuvres have changed since)
-"""
 import json
 import pathlib
 import sys
@@ -15,7 +6,6 @@ import sys
 FAULTS = ("contact", "near-miss", "stuck", "intrusion", "far-side-early", "missed-gate", "exit-lane", "exit-heading")
 repo = pathlib.Path(__file__).resolve().parent.parent
 lengths = {}
-# The car list the game wrote (the "cars" command), beside the results or from the first test session.
 files = [(a.split(":")[0], set(a.split(":")[1].split(",")) if ":" in a else None) for a in sys.argv[1:]]
 for cars in [pathlib.Path(p).parent / "cars.jsonl" for p, _ in files] + [repo / "build/tests/first/cars.jsonl"]:
     if cars.exists():
@@ -56,7 +46,6 @@ for path, kinds in files:
         if kinds is not None and fixture["Manoeuvre"] not in kinds:
             continue
         reasons = [r for r in run["judge"]["Reasons"] if r.split(":")[0] in FAULTS]
-        # Only a fault in the manoeuvre itself: one before its entry gate belongs to the run-up's own lanes.
         if not reasons or "entry" not in run["judge"]["GatesPassed"]:
             continue
         route, entry = fixture["Route"], fixture["EntryIndex"]

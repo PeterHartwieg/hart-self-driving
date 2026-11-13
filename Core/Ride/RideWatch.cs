@@ -67,7 +67,6 @@ namespace DrivenRides.Core.Ride
             }
             if (nowSeconds - restartTime >= restartSeconds)
             {
-                // Returning a restart also starts its window, even if the adapter delays acknowledgement.
                 restartTime = nowSeconds;
                 LastReason = "Progress stalled before restart limit";
                 return WatchVerdict.Restart;
@@ -82,8 +81,6 @@ namespace DrivenRides.Core.Ride
             restartTime = nowSeconds;
             restartAlong = along;
         }
-        // The car is waiting for a red light, a give-way or the car in front: the stall clocks start again, the
-        // ride deadline doesn't move.
         public void Waiting(double nowSeconds)
         {
             CheckTime(nowSeconds);

@@ -10,14 +10,6 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // What Core's traffic decisions (TrafficDriver) read from Gley, and the two things they ask of it
-    // (docs/implementation-plan.md, "The four layers"): the active traffic cars near the ride car with their target
-    // waypoints and whether the ride car is what holds them back (VehicleComponent.obstacleList, private); the live
-    // flags of any waypoint; the intersection a waypoint belongs to (Waypoint.associatedIntersection, private) and the
-    // road it enters by; Waypoint.CanChange(); IIntersection.VehicleEnter(-1) and VehicleLeft(-1).
-    // Phase 1 (13 October 2026, 0.1.54): obstacleList readable on every active car; reading every car within 60 m
-    // each physics step took 30 µs (median), 257 µs at most; VehicleEnter(-1) holds a light on amber and
-    // VehicleLeft(-1) lets it change 0.3 s later; CanChange() answers from outside.
     internal sealed class GleyTraffic : ILiveFlags
     {
         private static readonly FieldInfo? TrafficVehiclesField = AccessTools.Field(typeof(TrafficManager), "trafficVehicles");
@@ -25,7 +17,6 @@ namespace DrivenRides
         private static readonly FieldInfo? IntersectionField = AccessTools.Field(typeof(Waypoint), "associatedIntersection");
         private static bool reported;
 
-        // Each intersection the ride meets gets a number for Core; the same object keeps its number.
         private readonly Dictionary<IIntersection, int> ids = new Dictionary<IIntersection, int>();
         private readonly List<IIntersection> byId = new List<IIntersection>();
         private readonly Dictionary<int, (int Junction, int Road)> cache = new Dictionary<int, (int, int)>();
@@ -46,11 +37,9 @@ namespace DrivenRides
         public static List<VehicleComponent>? Pool() =>
             TrafficManager.HasInstance ? (TrafficVehiclesField?.GetValue(TrafficManager.Instance) as TrafficVehicles)?.GetVehicleList() : null;
 
-        // Each Gley model's shape once a session (the name only for a car not seen before: Unity's name allocates).
         private static readonly HashSet<string> loggedShapes = new HashSet<string>();
         private static readonly HashSet<int> loggedIds = new HashSet<int>();
 
-        // Every active Gley car within `radius` of `near`, as Core sees it. Components[i] is the car of into[i].
         public void ReadCars(Vector3 near, float radius, List<OtherCar> into)
         {
             into.Clear();
@@ -96,7 +85,6 @@ namespace DrivenRides
             return action == SpecialDriveActionTypes.Follow || action == SpecialDriveActionTypes.Overtake;
         }
 
-        // Whether the ride car's collider is in this car's obstacleList: what its front trigger stops it for.
         private bool HoldsUs(VehicleComponent v)
         {
             if (!(ObstacleListField?.GetValue(v) is List<Collider> list)) return false;
@@ -104,7 +92,6 @@ namespace DrivenRides
             return false;
         }
 
-        // How far the trigger box reaches ahead of the front (the box is frontTrigger's first child).
         private static readonly Dictionary<GameObject, float> triggerLengths = new Dictionary<GameObject, float>();
 
         private static float TriggerLength(VehicleComponent v)
@@ -142,8 +129,6 @@ namespace DrivenRides
             return junction >= 0;
         }
 
-        // The intersection a waypoint belongs to, numbered for Core, and the road it enters by (its group in the
-        // intersection's enter or stop waypoints), -1 when there is none.
         public (int Junction, int Road) JunctionOf(int waypoint)
         {
             if (cache.TryGetValue(waypoint, out var known)) return known;
@@ -173,8 +158,6 @@ namespace DrivenRides
 
         public IIntersection? Intersection(int junction) => junction >= 0 && junction < byId.Count ? byId[junction] : null;
 
-        // Gley's own answer for a give-way waypoint at an intersection. Asking counts as a request for the road, as a
-        // waiting Gley car's does (PriorityIntersection.IsPathFree).
         public static bool? CanChange(int waypoint)
         {
             var w = At(waypoint);
@@ -183,7 +166,6 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error("CanChange: " + ex.Message); return null; }
         }
 
-        // Counts the ride car in, or out of, an intersection, once each way.
         public void Apply(JunctionEvent e)
         {
             var x = Intersection(e.Junction);
@@ -196,7 +178,6 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error($"Junction {e}: {ex.Message}"); }
         }
 
-        // Out of every intersection: at the end of the drive and on any exit.
         public void LeaveAll()
         {
             foreach (var j in new List<int>(entered)) Apply(new JunctionEvent { Kind = JunctionEventKind.Leave, Junction = j });

@@ -8,7 +8,6 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // Only the local manoeuvre owns this lease. Gley's actions, waypoints and saved state are never replaced.
     internal sealed class ParkingTraffic : IDisposable
     {
         internal static bool HooksReady;
@@ -40,9 +39,6 @@ namespace DrivenRides
             return false;
         }
 
-        // Ignore Gley's propulsion/rotation for one FixedUpdate only. A Harmony finalizer releases every flag
-        // even when another patch or Gley throws. Its own suspension, lights and collision sensing continue.
-        // Previously ignored cars belong to someone else; never acquire or release those.
         internal sealed class Frame : IDisposable
         {
             internal readonly TrafficManager Manager;
@@ -83,7 +79,6 @@ namespace DrivenRides
                 var velocity = v.rb.velocity;
                 var speed = cars[i].Speed;
                 var factor = speed > 0.001f ? TrafficReservation.BrakedSpeed(speed, distance, Time.fixedDeltaTime) / speed : 0;
-                // No teleport, kinematic toggle or restored velocity: brake horizontally and keep gravity/suspension.
                 v.rb.velocity = new Vector3(velocity.x * factor, velocity.y, velocity.z * factor);
                 HeldCount++;
             }
@@ -94,7 +89,6 @@ namespace DrivenRides
         {
             var lease = Current;
             if (lease == null) return true;
-            // PositionValidator receives the front-wheel waypoint, not the body centre.
             var middle = position - rotation * new Vector3(0, 0, frontOffset);
             return !lease.region.Touches(new Box(middle.x, middle.z, rotation.eulerAngles.y * Mathf.Deg2Rad, halfWidth, halfLength), middle.y);
         }

@@ -26,9 +26,6 @@ namespace DrivenRides.Core.Testing
                 if (!graph.PlainHeading(entry, out float dx, out float dz) || !graph.PlainHeading(exit, out float ex, out float ez) || ex * dz - ez * dx >= 0) continue;
                 var vias = graph.TurnVias(entry, exit);
                 if (vias.Count == 0) continue;
-                // The bad half aims into the oncoming lane of the road it turns into, past its mouth, as the turns of
-                // spikes 11 and 12 came out on the centre line: the waypoint after the vias (where the car aims) is
-                // swapped for the nearest plain waypoint of a lane heading the other way.
                 var correct = PathExpander.Expand(graph, fixture.Route);
                 int aim = correct.Path.IndexOf(vias[vias.Count - 1]) + 1;
                 if (aim <= 0 || aim >= correct.Path.Count) continue;

@@ -1,8 +1,3 @@
-# Installs a staged package folder into the game's ModsLocal folder and deletes the staged copy.
-# The copy is checked against the build's SHA-256 list before it replaces anything. The previous
-# package goes to DrivenRidesPackageBackups and comes back if the swap fails. Nothing is staged inside
-# ModsLocal, because the game loads every folder there and rejects two copies of the same mod.
-# Run by tools/install-remote.sh over ssh, or by hand on the game PC.
 param(
     [Parameter(Mandatory = $true)][string]$Source,
     [Parameter(Mandatory = $true)][string]$Manifest,

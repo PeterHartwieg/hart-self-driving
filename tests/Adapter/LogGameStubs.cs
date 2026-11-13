@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace BAModAPI
 {
-    // Only the logger surface consumed by Log; the SDK build checks the real interface.
     public interface IModLogger
     {
         void Info(string message);

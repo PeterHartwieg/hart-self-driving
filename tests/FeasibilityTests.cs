@@ -14,7 +14,6 @@ public sealed class FeasibilityTests
     private readonly ITestOutputHelper output;
     public FeasibilityTests(ITestOutputHelper output) => this.output = output;
 
-    // A small car and a long one with a wide circle, lengths from the rear axle.
     private static CarSpec Small() => new("small", 2.5f, _ => 40f, new Vec3(0, 0.7f, 1.25f), new Vec3(0.9f, 0.7f, 2f), 50f, 1.5f);
     private static CarSpec Barge() => new("barge", 6f, _ => 18f, new Vec3(0, 1.2f, 3f), new Vec3(1.2f, 1.2f, 5f), 50f, 1.9f);
 
@@ -46,7 +45,6 @@ public sealed class FeasibilityTests
         Assert.Equal("u-curve", uTurn.Form);
     }
 
-    // TurnTestGraph.UTurn with a second lane on the far carriageway, outside the target lane: room to swing into.
     private static (LaneGraph Graph, int Entry) TwoLaneUTurn()
     {
         var b = new TurnTestGraph();
@@ -67,8 +65,6 @@ public sealed class FeasibilityTests
     [Fact]
     public void ACarThatEndsUpOffItsLanePastTheExitIsNotFeasible()
     {
-        // The turn case driven on a path that swings 7 m to the right of the exit lane after the exit: what a U-turn
-        // run wide into the parking lane looked like in T2 (the car nosed into a parked van; the check had passed it).
         var b = new TurnTestGraph();
         var (_, entry, exit) = TurnTestGraph.Turn();
         int a = b.Add(0, -30), run = b.Add(0, -20), e = b.Add(0, -10);
@@ -100,7 +96,6 @@ public sealed class FeasibilityTests
         output.WriteLine(verdict.ToString());
         Assert.False(verdict.Feasible);
         Assert.NotEqual("", verdict.Reason);
-        // Kept for the session: the second question costs no simulation.
         var simulations = check.Simulations;
         check.Step(uEntry, u.UTurn(uEntry));
         Assert.Equal(simulations, check.Simulations);
@@ -110,7 +105,6 @@ public sealed class FeasibilityTests
     public void ABodyThatTouchesTheWorldFailsTheStep()
     {
         var (graph, entry, exit) = TurnTestGraph.Turn();
-        // A post where the lanes cross: whatever line the car takes, its body passes over it.
         var post = new Vec3(4f, 0f, -3f);
         string? World(BodyBox box)
         {
@@ -124,19 +118,15 @@ public sealed class FeasibilityTests
         Assert.False(verdict.Feasible);
         Assert.Contains("contact", verdict.Reason);
         Assert.StartsWith("post [rear axle", verdict.Hit);
-        // Without the post, the same car makes it.
         Assert.True(new Feasibility(graph, Small(), _ => null).Step(entry, exit).Feasible);
     }
 
     [Fact]
     public void AWheelUpOnTheKerbFailsTheStep()
     {
-        // NWH's wheels are ray casts: a wheel on the pavement touches nothing, so the ground under each wheel is asked.
         var (graph, entry, exit) = TurnTestGraph.Turn();
         var flat = new Feasibility(graph, Small(), _ => null) { GroundAt = _ => 0f };
         Assert.True(flat.Step(entry, exit).Feasible);
-        // A pavement 0.15 m up under the left tyre (track / 2 = 0.75 m). Put it under the tyre itself, so this
-        // fixture tests a kerb strike without depending on the old slower tune's drift toward x = -1.
         var kerb = new Feasibility(graph, Small(), _ => null) { GroundAt = p => p.X < -0.65f ? 0.15f : 0f };
         var verdict = kerb.Step(entry, exit);
         output.WriteLine(verdict.ToString());
@@ -147,8 +137,6 @@ public sealed class FeasibilityTests
     [Fact]
     public void AUTurnIsOneSmoothCurveAsWideAsTheLanesAreApart()
     {
-        // The two-lane street: inner to inner is 15 m across, outer to outer 23 m. The curve is a semicircle of half
-        // that, its heading turning steadily (no straight across between two quarter turns, as through the vias).
         var (u, entry) = TwoLaneUTurn();
         foreach (var (target, width) in u.UTurns(entry))
         {
@@ -166,7 +154,6 @@ public sealed class FeasibilityTests
             }
             Assert.InRange(Math.Abs(turned), Math.PI - 0.15, Math.PI + 0.15);
         }
-        // Too narrow for a car whose tightest followable circle is 9 m: none.
         Assert.Null(TurnArc.FitUTurn(u, entry, u.UTurn(entry), 9f));
     }
 
@@ -175,19 +162,15 @@ public sealed class FeasibilityTests
     {
         var car = Small();
         var radius = car.ArcMinRadius();
-        // The arc it allows is at least as wide as the car's circle at that arc's corner speed, with the slack.
         var arc = Math.Max(radius * TurnArc.RadiusSlack, TurnArc.MinDriveRadius);
         var speed = Math.Max(PursuitDriver.MinCornerMs, (float)Math.Sqrt(PursuitDriver.Lateral * arc));
         Assert.True(arc >= car.RadiusAt(speed) * TurnArc.RadiusSlack - 0.02f);
-        // NWH's Ackermann: about 2 t / L as sharply as a bicycle with the same wheel angle (sharper for this short car).
         Assert.InRange(car.RadiusAt(0f) * car.YawGain / (car.Wheelbase / (float)Math.Tan(40 * Math.PI / 180)), 0.9f, 1f);
     }
 
     [Fact]
     public void ALongCarKeepsATightArcByTakingItBelowThePreferredCornerSpeed()
     {
-        // The measured Dash: using the faster corner target to size candidate arcs rejected this 12 m bend.
-        // Keep the arc available, then let the existing speed-sensitive lock cap set its actual pace.
         var car = CarSpec.Parse("dash;4.02;65;-0.005,1.436,1.624;1.128,1.164,3.404;0=35,10=33.28,25=26.39,50=14.73;1.7;140");
         var b = new TurnTestGraph();
         int start = b.Add(0, -40), entry = b.Add(0, 20), j1 = b.Add(0, 25, true), j2 = b.Add(0, 35, true), north = b.Add(0, 45);
@@ -207,8 +190,6 @@ public sealed class FeasibilityTests
     [Fact]
     public void TheDriverFollowsAnArcWithNwhsAckermann()
     {
-        // As PursuitDriverTests' corner, with the limo's track: steering for the car's real curvature keeps it on the
-        // arc; steering for a bicycle ran it wide (tools/calibrate on rig session 20261013-083259).
         var arc = TurnArc.Fit(new Vec3(0, 0, 20), 0, 1, new Vec3(12, 0, 30), 1, 0, 6f)!;
         var points = Enumerable.Range(0, 8).Select(k => new Vec3(0, 0, -40 + k * 60f / 7)).Concat(Enumerable.Range(0, 10).Select(k => new Vec3(12 + k * 68f / 9, 0, 30))).ToList();
         var entry = points.FindIndex(p => Math.Abs(p.Z - 20) < 0.01f && p.X == 0);

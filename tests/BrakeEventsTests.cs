@@ -5,7 +5,6 @@ namespace DrivenRides.Core.Tests;
 
 public sealed class BrakeEventsTests
 {
-    // A brake for a car in a turn, 9 to 3 m/s and back: one line, with the reason given when it began and the wheel.
     [Fact]
     public void ASlowdownGivesOneLine()
     {

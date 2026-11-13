@@ -8,9 +8,6 @@ using Xunit.Abstractions;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 8. The ride car crosses a two-lane road (lane A eastbound at z = 12, lane B westbound at z = 17) with
-// no junction rules: it judges the gaps itself. Swept over its start speed and over the two cars' times, in small
-// steps (adjacent positions and decision times, not single snapshots).
 public sealed class ReviewRound8Tests
 {
     private readonly ITestOutputHelper output;
@@ -31,13 +28,6 @@ public sealed class ReviewRound8Tests
         return b.S;
     }
 
-    // CC1 and CC3: crossing two lanes with a car on each, swept over the ride car's start speed and the cars' times in
-    // small steps, both car orders (which car the snapshot lists first): no contact, no stall, and no stop the car can
-    // no longer make handed to the driver except by the emergency rule. Every stop kept for a car is lifted only on a
-    // trajectory with the other car's kept stop in place (CC1).
-    // With car B listed first (and so the slower-reacting car 2 on lane A) 7 of the 1200 runs ended in a contact in
-    // round 8: the ride car stopped for car B with its nose past car A's keep-clear point and stood across lane A. Now
-    // the keep-clear holds from the body's own pose too (a stop there is the emergency rule's).
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -46,7 +36,6 @@ public sealed class ReviewRound8Tests
         var runs = 0;
         var gave = 0;
         var bad = new List<string>();
-        // Every 0.4 s with DR_TRAFFIC_SEEDS=500 (before an install), every 1.2 s in a plain run.
         var step = TrafficTests.Full ? 0.4f : 1.2f;
         foreach (var rideMs in new[] { 6f, 9f, 12f })
             for (var aAt = 0f; aAt <= 8f; aAt += step)
@@ -64,8 +53,6 @@ public sealed class ReviewRound8Tests
         Assert.True(gave > runs / 4, $"only {gave} of {runs} runs gave way: the sweep doesn't exercise the crossing");
     }
 
-    // CC3: the merge runs that lost the stopping option in round 7, swept over the ride car's start speed: no contact,
-    // no stall, and no unmakeable stop except by the emergency rule.
     [Fact]
     public void MergesAcrossASweepOfStartSpeeds()
     {
@@ -85,10 +72,6 @@ public sealed class ReviewRound8Tests
         Assert.Empty(bad);
     }
 
-    // CC2: with the final pass given no rounds at all, every decision where judging the commitments still tightens the
-    // stops runs out (the crossing's conflicts found too late make sure there are some); each is replaced by the
-    // emergency rule's (a stop now for cars marked as the emergency rule's, or on with the floor as a forced commit),
-    // never driven as it was. Deliberately exhausted: the soak never needs more than three rounds of eight.
     [Fact]
     public void AnUnsettledPassIsReplacedByTheEmergencyRule()
     {

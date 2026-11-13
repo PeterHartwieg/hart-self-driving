@@ -4,9 +4,6 @@ using DrivenRides.Core.Drive;
 
 namespace DrivenRides.Core.Parking
 {
-    // Bounded hybrid search in pose space. Expansions are car-model rollouts, swept at <= 0.1 m, including
-    // steering slew. Forward and reverse are equally available; changing direction costs more than driving on.
-    // Step has an expansion budget so the game can spread the work over frames.
     public sealed class ManoeuvrePlanner
     {
         private sealed class Node
@@ -49,8 +46,6 @@ namespace DrivenRides.Core.Parking
             var dx = start.X - goal.X; var dz = start.Z - goal.Z;
             var s = (float)Math.Sin(goal.Heading); var c = (float)Math.Cos(goal.Heading);
             var ahead = dx * s + dz * c; var side = dx * c - dz * s;
-            // Beside a space, first pull forward along the current heading. This local staging pose avoids
-            // spending the bounded search on sideways shuffles and still checks the entire approach for obstacles.
             if (stageForParking && ahead >= -8f && ahead < car.FrontAhead + 3f && Math.Abs(side) > 1f
                 && Math.Abs(ManoeuvrePlan.Angle(start.Heading - goal.Heading)) < 0.2f)
             {
@@ -59,9 +54,6 @@ namespace DrivenRides.Core.Parking
                 staging = true;
                 if (!space.Clear(car, this.goal)) { Finish("no clear staging pose beside the space"); return; }
             }
-            // Leave a perpendicular bay along its axis before searching the turn into the aisle. This avoids
-            // spending the pose-space budget steering between adjacent parked cars. Only use a fully clear
-            // straight staging leg; an obstructed leg leaves the general search available.
             if (roadEntry && ManoeuvrePlan.Distance(start, goal) > 8f
                 && Math.Abs(ManoeuvrePlan.Angle(start.Heading - goal.Heading)) > 0.6f)
             {
@@ -131,7 +123,6 @@ namespace DrivenRides.Core.Parking
             model.SetWheel(from.Pose.Wheel);
             var trace = new List<ManoeuvrePoint>();
             var wheel = steering * car.LockAt(Speed);
-            // Shorter steps near the goal allow accurate final placement without snapping the car.
             var count = ManoeuvrePlan.Distance(from.Pose, goal) < 2f ? 5 : 12;
             for (var i = 0; i < count; i++)
             {
@@ -139,15 +130,10 @@ namespace DrivenRides.Core.Parking
                 var p = new CarPose((float)model.X, (float)model.Z, ManoeuvrePlan.Angle((float)model.Heading), 0, (float)model.Steer);
                 if (!space.Clear(car, p))
                 {
-                    // A tight space can allow a short shunt but not the whole 0.96 m primitive. Keep its
-                    // checked prefix so the next leg can change steering/direction before the obstacle.
-                    // Two samples avoid expanding almost-identical poses from a single clearance sliver.
                     if (trace.Count < 2) return;
                     break;
                 }
                 trace.Add(new ManoeuvrePoint(p, direction));
-                // A rollout can pass the target before its last sample. Keep that clear, aligned pose rather
-                // than driving past it and forcing the search to find another short forward/reverse shuffle.
                 if (AtGoal(p)) break;
             }
             var pose = trace[trace.Count - 1].Pose;
@@ -161,8 +147,6 @@ namespace DrivenRides.Core.Parking
         }
         private bool AtGoal(CarPose pose) => ManoeuvrePlan.Distance(pose, goal) <= (roadEntry ? 0.3f : PositionTolerance)
             && Math.Abs(ManoeuvrePlan.Angle(pose.Heading - goal.Heading)) <= (roadEntry ? 0.06f : HeadingTolerance) && Math.Abs(pose.Wheel) < 5f;
-        // A second bounded attempt lets the driveway guide control long departures. Matching the final road heading too early traps a
-        // nose-in car behind neighbours instead of allowing it to reverse into the aisle first.
         private float Estimate(CarPose p) => Math.Max(ManoeuvrePlan.Distance(p, goal), staging ? 0 : space.Estimate?.Invoke(p) ?? 0)
             + 3f * (deferredHeading && !staging ? Math.Max(0,1-ManoeuvrePlan.Distance(p,goal)/15f) : 1) * Math.Abs(ManoeuvrePlan.Angle(p.Heading - goal.Heading));
         private void Finish(string reason) { Reason = reason; Done = true; }

@@ -16,8 +16,6 @@ namespace DrivenRides.Core.Testing
     public sealed class Pavement
     {
         public const float LaneHalf = 2f;
-        // A parking lane's width beyond the outermost lane; settable for tools/rejudge (--parking) to see how much
-        // of it runs use.
         public static float ParkingLane = 2.5f;
         public static float KerbOffset => LaneHalf + ParkingLane;
         // The left kerb too (a median's or a one-way street's), half a lane past the leftmost lane where no oncoming
@@ -28,7 +26,6 @@ namespace DrivenRides.Core.Testing
         private readonly LaneGraph graph;
         private readonly List<LaneStretch> stretches = new List<LaneStretch>();
 
-        // The route's lane steps from `from` on that leave or join a junction or run outside one.
         internal Pavement(LaneGraph graph, IReadOnlyList<int> route, int from)
         {
             this.graph = graph;
@@ -44,8 +41,6 @@ namespace DrivenRides.Core.Testing
             }
         }
 
-        // A footprint point past the kerb beside the stretch it stands on (the nearest one along whose length it
-        // is), unless it stands on another lane (a cross street's mouth): what and where, or null.
         internal string? Past(Vec3[] footprint)
         {
             foreach (var p in footprint)
@@ -76,11 +71,6 @@ namespace DrivenRides.Core.Testing
             return null;
         }
 
-        // A footprint corner, pulled Judge.PavementInset inward, on pedestrian ground (the game's pedestrians' NavMesh)
-        // and not carriageway (OnALane): what and where, with how far it is from the nearest lane, or null. The rig's
-        // judge and the planner's sweep share it. inBox: told of each corner on pedestrian ground that counts as
-        // carriageway only for lying in a junction's box, and its distance from the nearest lane (the rig records the
-        // farthest, so T3 shows whether a box holds real pavement).
         public static string? CornerOnPavement(LaneGraph graph, Vec3[] footprint, Vec3 centre, Func<Vec3, bool> pedestrianGround, Action<Vec3, float>? inBox = null)
         {
             for (int k = 0; k < 4 && k < footprint.Length; k++)
@@ -97,15 +87,8 @@ namespace DrivenRides.Core.Testing
             return null;
         }
 
-        // Whether a point is carriageway though pedestrian ground: in a junction's box (JunctionBoxes: its crossings
-        // and a median's opening), or within half a lane of any lane of the graph, whatever its direction (a promenade
-        // beside a lane by the pier).
         public static bool OnALane(LaneGraph graph, Vec3 p) => graph.Junctions.Contains(p) || LaneDistance(graph, p) <= LaneHalf;
 
-        // Whether a point outside every junction's box lies on a lane going another way than any of `ways` (unit
-        // headings, x and z): within half a lane of a lane step, and none of the lane steps it is that near to
-        // within 45 degrees of one of them. A turn's body may sweep its own direction's lanes and the junction, never
-        // the oncoming lanes before or after it (0.1.100: a left turn's arc cut across the oncoming lanes' mouth).
         public static bool OnAnotherWaysLane(LaneGraph graph, Vec3 p, IReadOnlyList<(float X, float Z)> ways)
         {
             if (graph.Junctions.Contains(p)) return false;
@@ -131,7 +114,6 @@ namespace DrivenRides.Core.Testing
             return other;
         }
 
-        // How far a point is from the nearest lane step of the graph level with it (within 30 m; infinity if none).
         public static float LaneDistance(LaneGraph graph, Vec3 p)
         {
             var best = float.PositiveInfinity;

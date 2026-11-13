@@ -62,7 +62,7 @@ public sealed class ParkingGoalTests
         var goals = ParkingGoalPicker.Pick(graph, new[] { strip }, new Vec3(40, 0, 8), Car, 0);
         Assert.NotEmpty(goals);
         Assert.All(goals, g => Assert.Equal(0, graph.Position(g.Waypoint).Z));
-        var start = 21 + 12; // Opposite carriageway, directly beside the building, facing west.
+        var start = 21 + 12;
         var job = RoutePlanner.Plan(graph, new RouteRequest { Start = start, Goals = goals }, int.MaxValue);
         Assert.Equal(PlanStatus.Found, job.Status);
         Assert.Contains(0, job.Result!.Waypoints);

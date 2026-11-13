@@ -7,9 +7,6 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // On a turn test's car while it drives (docs/turn-tests.md): each physics step it measures the car's body box,
-    // front axle, speed and near misses for the judge, and reports hits. The first failure latches the car's outline
-    // for the failure picture. Removed before the car goes back to Gley's pool.
     internal sealed class TestCar : MonoBehaviour
     {
         public Judge? Judge;
@@ -19,32 +16,22 @@ namespace DrivenRides
         public Vector3[]? FailureOutline { get; private set; }
         public Vector3 FailureCentre { get; private set; }
         public bool PictureDue { get; set; }
-        // Every sample and every hit, for judging the run again away from the game (tools/rejudge): S lines are
-        // samples, C contacts, I incidents, O other collisions, R a replan.
         public readonly System.Text.StringBuilder Samples = new System.Text.StringBuilder();
         private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
 
         private VehicleComponent? car;
         private Rigidbody? body;
-        // A car with no Gley component (an NWH-driven one, NwhCar): its front axle and its body box, set before the
-        // judge starts.
         public System.Func<Vector3>? FrontAxleOf;
         private Vector3 boxCenter, boxHalf;
-        // An NWH car's wheels, for the kerb check: they ride on ray casts, not colliders, so a wheel rolling up onto the
-        // pavement touches nothing and the body may never hit the kerb (Peter, turn test 0.1.55: "quite a few are on
-        // the sidewalk at the end", while the judge saw no contact).
         public NWH.Common.Vehicles.WheelUAPI[]? Wheels;
         private int[]? kerbSteps;
         private bool[]? kerbReported;
-        // A wheel this far above the plane of the other three, for this many physics steps in a row, is on a kerb. A
-        // road's camber across the car is a few centimetres; a kerb is about 15.
         private const float KerbRise = 0.1f;
         private const int KerbSteps = 5;
         private readonly Collider[] hits = new Collider[32];
         private static readonly float[] Inflations = { 0.3f, 0.2f, 0.1f };
         private float time;
 
-        // Buildings and street props: what a car must never touch (the ride's own obstacle mask).
         public static readonly int ObstacleMask = LayerMask.GetMask("StreetProps") | LayerHelper.buildingsLayerMask;
         private static readonly int RoadsLayer = LayerMask.NameToLayer("Roads");
 
@@ -60,8 +47,6 @@ namespace DrivenRides
             if (car != null) BodyBox(car, out boxCenter, out boxHalf);
         }
 
-        // The body box in the car's own space, from its solid colliders; the triggers and Gley's sensors are left out.
-        // Also for the ride's world check, on a pooled copy that may be inactive.
         public static void BodyBox(VehicleComponent car, out Vector3 centre, out Vector3 half)
         {
             var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
@@ -94,7 +79,6 @@ namespace DrivenRides
             Bounds b;
             if (c is BoxCollider box) b = new Bounds(box.center, box.size);
             else if (c is MeshCollider mesh && mesh.sharedMesh != null) b = mesh.sharedMesh.bounds;
-            // World bounds are empty while the car is inactive.
             else if (!c.gameObject.activeInHierarchy) yield break;
             else { var w = c.bounds; for (var i = 0; i < 8; i++) yield return Corner(w.center, w.extents, i); yield break; }
             for (var i = 0; i < 8; i++) yield return c.transform.TransformPoint(Corner(b.center, b.extents, i));
@@ -107,7 +91,6 @@ namespace DrivenRides
 
         public float HalfWidth => boxHalf.x;
 
-        // The footprint at the bottom of the body box: four corners, then four edge midpoints.
         public Vector3[] Outline()
         {
             var t = transform;
@@ -156,8 +139,6 @@ namespace DrivenRides
             if (Judge == null) return;
             if (Step == 0 && Sidewalk.Available)
             {
-                // The pavement from the pedestrians' NavMesh (Sidewalk), recorded so tools/rejudge doesn't fall back
-                // on the kerb estimate.
                 Judge.PavementAt = Sidewalk.At;
                 Judge.OnPavement = (step, what) => Samples.Append("P,").Append(step).Append(',').Append(what.Replace(',', ';')).Append('\n');
                 Samples.Append("N,pavement from the pedestrians' NavMesh\n");
@@ -197,9 +178,6 @@ namespace DrivenRides
             foreach (var w in wheels) if (w == null || !w.IsGrounded) return;
             for (var i = 0; i < wheels.Length; i++)
             {
-                // Off the plane through three other wheels: a slope or a ramp tilts all four together (turn test 0.1.59:
-                // the rear wheels 0.49 m above the front ones on a Hamptons highway ramp read as a kerb).
-                // The planner's check measures the same way (Core WheelPlane).
                 var points = new Core.Routing.Vec3[wheels.Length];
                 for (var j = 0; j < wheels.Length; j++) points[j] = GleyGraph.ToVec(wheels[j].HitPoint);
                 if (!(Core.Drive.WheelPlane.Rise(points, i) is float rise)) continue;
@@ -251,10 +229,7 @@ namespace DrivenRides
             if ((ObstacleMask & (1 << layer)) != 0) { Judge.Contact(Step, what); Samples.Append("C,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n'); }
             else if (c.attachedRigidbody != null && c.attachedRigidbody.GetComponent<VehicleComponent>() != null) { Judge.Incident(Step, "vehicle " + what); Samples.Append("I,").Append(Step).Append(",vehicle ").Append(what.Replace(',', ';')).Append('\n'); }
             else if (LayerMask.LayerToName(layer) == "Human") { Judge.Incident(Step, "pedestrian " + what); Samples.Append("I,").Append(Step).Append(",pedestrian ").Append(what.Replace(',', ';')).Append('\n'); }
-            // A road collider's upright face is a divider or a kerb wall built into the road (Peter: a car stuck on a
-            // divider by Vantander Bank, turn test 0.1.41); its top is the road.
             else if (layer == RoadsLayer && Mathf.Abs(collision.GetContact(0).normal.y) < 0.5f) { Judge.Contact(Step, "road edge " + what); Samples.Append("C,").Append(Step).Append(",road edge ").Append(what.Replace(',', ';')).Append('\n'); }
-            // Anything else (the road, terrain): recorded, not judged.
             else Samples.Append("O,").Append(Step).Append(',').Append(what.Replace(',', ';')).Append('\n');
             if (!failedBefore && Judge.Failed) Latch(Outline(), transform.TransformPoint(boxCenter));
         }

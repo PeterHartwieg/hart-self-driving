@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Copies Player.log and Player-prev.log from the Windows game PC into build/logs/game/<label>-<time>/.
-# Usage: tools/fetch-log-remote.sh <label> [ssh host]   (or set BA_GAME_HOST)
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LABEL="${1:?label, for example phase-b}"

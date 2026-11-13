@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Summarises a turn test results file (docs/turn-tests.md): counts per kind and car, the controls, the failures."""
 import collections
 import json
 import sys

@@ -36,7 +36,6 @@ def require_identity(health):
         raise RuntimeError('Unexpected agent bridge configuration')
 
 def call(cmd, args):
-    # Read identity and bind the command to this bridge generation in one remote transaction.
     payload = {'cmd': cmd, 'args': args, 'lock_token': locks.token('agent1')}
     script = r'''
 $ErrorActionPreference='Stop'

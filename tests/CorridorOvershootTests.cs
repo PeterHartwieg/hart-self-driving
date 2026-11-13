@@ -6,8 +6,6 @@ using Xunit;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 5 (Y2): a car giving way to the road the ride car holds, too fast to stop at its line, stops past it by
-// what it can't shed; its corridor follows every way on from the line for that far, across waypoints however close.
 public sealed class CorridorOvershootTests
 {
     private sealed class GiveWayAt : ILiveFlags
@@ -23,8 +21,6 @@ public sealed class CorridorOvershootTests
         }
     }
 
-    // North along x = 0 to the line at z = 0, then waypoints half a metre apart for 3 m, then a fork: one way on north,
-    // one bending east.
     private static (LaneGraph Graph, int First, int Line) Build()
     {
         var b = new TurnTestGraph();
@@ -52,7 +48,6 @@ public sealed class CorridorOvershootTests
     {
         var (graph, first, line) = Build();
         var corridor = new Corridor();
-        // Front 5 m short of the line at 10 m/s: it stops 100 / 8 - 5 = 7.5 m past it.
         var car = new OtherCar { Id = 1, X = 0f, Z = -7.25f, Heading = 0f, Vz = 10f, Length = 4.5f, Width = 1.9f, TriggerLength = 3f, Target = line };
         corridor.Build(graph, car, new GiveWayAt(line), 6f, 0f, _ => 1);
         Assert.True(Covered(corridor, 0f, 2f));

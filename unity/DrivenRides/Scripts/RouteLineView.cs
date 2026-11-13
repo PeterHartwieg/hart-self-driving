@@ -9,9 +9,6 @@ using Object = UnityEngine.Object;
 
 namespace DrivenRides
 {
-    // One reusable lineRenderer per loaded city, independent of pooled cars and ride coroutines.
-    // Only a larger/replaced plan grows buffers. Normal frames update one vertex; crossing a sample uploads
-    // the remaining cached suffix. Road probes are bounded, and never repeated for the full route per frame.
     internal sealed class RouteLineView : MonoBehaviour
     {
         private const float Lift = 0.06f;
@@ -26,13 +23,11 @@ namespace DrivenRides
         private Material? material;
         private GameObject? lineObject;
         private bool failed;
-        // The current plan has a non-finite point: hidden until the next plan, which is tried again.
         private bool rejected;
         private float nearRefreshAt;
 
         private void OnEnable() => instance = this;
         internal static void HideActive() { if (instance != null) instance.Hide(); }
-        // Mod unload: destroyed, so OnDestroy releases the line object and material, and the buffers go with it.
         internal static void DestroyActive()
         {
             if (instance == null) return;
@@ -57,7 +52,6 @@ namespace DrivenRides
             }
             catch (Exception ex)
             {
-                // A cosmetic failure must never abort a paid ride or repeatedly throw each frame.
                 Hide();
                 failed = true;
                 Log.Error("Route line disabled for this city: " + ex.Message);
@@ -90,11 +84,9 @@ namespace DrivenRides
             if (rejected) return;
             var next = samples.FirstAfter(Mathf.Max(0f, along));
             if (next >= samples.Count) { Hide(); return; }
-            // Begin at the visible suffix, including the sample used to interpolate the head height.
-            // Consumed road needs no probes when switching on midway through a long ride.
             probed = Math.Max(probed, Math.Max(0, next - 1));
             var end = Math.Min(samples.Count, probed + ProbesPerFrame);
-            if (end > probed) first = -1; // Upload again as the prepared portion grows.
+            if (end > probed) first = -1;
             for (; probed < end; probed++)
             {
                 var point = samples.Point(probed);
@@ -102,10 +94,6 @@ namespace DrivenRides
                 p.y = (NwhPlanner.RoadAt(p, vehicle) ?? p.y) + Lift;
                 grounded[probed] = p;
             }
-            // Show only the prepared near portion, extending it each frame within the same probe budget.
-            // No unprojected points or old route are exposed while a very long plan finishes preparing.
-            // Distant colliders can stream in after the route was prepared. Recheck only the next 64 m,
-            // twice a second, so the visible nearby ribbon follows newly loaded road surfaces too.
             if (Time.unscaledTime >= nearRefreshAt)
             {
                 nearRefreshAt = Time.unscaledTime + 0.5f;
@@ -122,11 +110,8 @@ namespace DrivenRides
             }
             EnsureRenderer();
             var r = lineRenderer!;
-            // Gley supplies the car position because its native U-turn can run wide of the waypoint line.
-            // Physics supplies no override: keep the rear axle, avoiding a folded first segment under the body.
             var at = RouteLinePath.Head(line, along, headCarPosition);
             var head = new Vector3(at.X, 0f, at.Z);
-            // Use the sampled road height as the ray's reference, not the vehicle's body pivot height.
             var previous = Math.Max(0, next - 1);
             var span = samples.Distance(next) - samples.Distance(previous);
             var fraction = span > 0f ? Mathf.Clamp01((along - samples.Distance(previous)) / span) : 0f;
@@ -151,7 +136,6 @@ namespace DrivenRides
             var shader = Shader.Find("HDRP/Unlit");
             if (shader == null) throw new InvalidOperationException("HDRP/Unlit shader unavailable");
             material = new Material(shader) { name = "DrivenRides.RouteBlue", hideFlags = HideFlags.DontSave };
-            // The game uses HDRP. Its unlit shader takes colour/alpha from the material, not line vertex colours.
             material.SetColor("_UnlitColor", new Color(47f / 255f, 128f / 255f, 1f, 0.82f));
             material.SetFloat("_SurfaceType", 1f);
             material.SetFloat("_BlendMode", 0f);
@@ -159,11 +143,9 @@ namespace DrivenRides
             material.SetFloat("_TransparentZWrite", 0f);
             material.SetFloat("_ZTestTransparent", (float)CompareFunction.LessEqual);
             if (!HDMaterial.ValidateMaterial(material)) throw new InvalidOperationException("HDRP route material validation failed");
-            // Once per city, on the first show: the rig log shows which shader and queue the player really used.
             Log.Info($"Route line material: shader {material.shader.name}, render queue {material.renderQueue}.");
             lineObject = new GameObject("DrivenRides.RouteLine") { hideFlags = HideFlags.DontSave };
             lineObject.transform.SetParent(transform, false);
-            // TransformZ makes a road-facing ribbon, independent of camera pitch.
             lineObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             lineRenderer = lineObject.AddComponent<LineRenderer>();
             lineRenderer.enabled = false;

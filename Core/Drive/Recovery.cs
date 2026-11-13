@@ -3,14 +3,8 @@ using System.Collections.Generic;
 
 namespace DrivenRides.Core.Drive
 {
-    // The way back from a blocked step (NwhDrive's blocked rule): a short, slow reverse along the line while there is
-    // room behind, then the step is given up and the planner asked for another way. The first version reversed for
-    // 1.5 s whatever stood behind (review round 1: a car against a kerb could back into a following car or a person).
-    // Room is the traffic back-off's: nothing the adapter sees behind within RoomBehind (parked cars, people, Gley's
-    // cars on their layer) and no traffic car's body within RoomBehind of the rear. No room: the car holds where it is.
     public sealed class Recovery
     {
-        // At most this far back, no faster than this, and no longer than this.
         public const float MaxMetres = 2f;
         public const float MaxMs = 1f;
         public const float MaxSeconds = 4f;
@@ -21,11 +15,8 @@ namespace DrivenRides.Core.Drive
         private bool started;
 
         public float Backed { get; private set; }
-        // Why it stopped backing: "" while it goes on.
         public string Ended { get; private set; } = "";
 
-        // One physics step. Body centre and heading (radians, as atan2(dx, dz)), the body's half width and half length,
-        // the speed along the heading (negative backwards), the adapter's gap behind the rear bumper, the traffic cars.
         public Step Next(float centreX, float centreZ, float heading, float halfWidth, float halfLength, float speedMs,
             float? gapBehind, IReadOnlyList<OtherCar> cars, float dt)
         {

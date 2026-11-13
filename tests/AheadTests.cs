@@ -7,9 +7,6 @@ using Xunit;
 
 namespace DrivenRides.Core.Tests;
 
-// Review round 1 (O6): a standing car is ahead or behind as seen from the pose of the ride car's body that touches
-// it, not from the car's heading now. On a U-turn a car standing in the lane the ride turns into lies behind the car
-// as it starts the turn, yet the ride drives into its back.
 public sealed class AheadTests
 {
     private sealed class NoFlags : ILiveFlags
@@ -18,7 +15,6 @@ public sealed class AheadTests
         public bool GiveWayEntry(int waypoint, out int junction, out int road) { junction = road = -1; return false; }
     }
 
-    // Up 4 m, a half circle of 6 m radius to the right, then down past the start.
     private static DriveLine Hairpin()
     {
         var points = new List<Vec3>();
@@ -44,7 +40,6 @@ public sealed class AheadTests
     [Fact]
     public void ACarStandingInTheLaneAUTurnEntersIsAhead()
     {
-        // In the far leg, facing down it, 3 m behind the ride car's start as the ride car stands now.
         var d = Decide(new OtherCar { Id = 1, X = 12f, Z = -3f, Heading = (float)Math.PI, Length = 4.5f, Width = 1.9f, TriggerLength = 3f, Target = -1 });
         Assert.Equal(1, d.GapFor);
         Assert.NotNull(d.GapAhead);

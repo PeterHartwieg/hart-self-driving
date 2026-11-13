@@ -7,36 +7,25 @@ namespace DrivenRides.Core.Drive
     // pavement, not off other cars.
     public static class TrafficMargins
     {
-        // Following a moving car (PursuitDriver.Follow): how long after the car ahead starts braking the ride car
-        // brakes too, how hard each is taken to brake, and the gap left when both stand. Together they set the
-        // moving gap: about 6.9 m at 10 m/s, instead of 9.6 m with the previous 0.33 s / 3 m/s² policy.
         public const float FollowReaction = 0.3f;
         public const float FollowBrake = 3.5f;
         public const float LeaderBrake = 4f;
-        // Free travel left behind a standing car: about 2 m bumper to bumper (Peter, 14 October; 2.5 left 2.4 m).
         public const float StopGap = 2.1f;
 
-        // How early the ride car slows for a stop, a light or a car given way to: the braking it plans with (m/s²).
         public const float Decel = 3f;
 
-        // Gap acceptance at give-ways, merges and crossings: the time either side of the ride car's own passage that
-        // a traffic car must keep clear of it, and how much longer when pulling away from a standstill.
         public const float Headway = 0.6f;
         public const float StartHeadway = 0.3f;
 
-        // Room round the ride car's body when its way is checked against a moving car's: sideways and lengthways (m).
         public const float SideMargin = 0.3f;
         public const float EndMargin = 0.35f;
 
-        // A car the ride car joins in front of must stay behind it braking at no more than this (m/s²), with this gap.
         public const float JoinBrake = 4f;
         public const float JoinGap = 1.2f;
 
-        // Passing a car waiting for us, or squeezing beside a stationary body with only the margin overlapping.
         public const float CreepMs = 4.5f;
         public const float SqueezeMs = 3f;
 
-        // How long a car given way to stays a conflict once the check stops finding one (s).
         public const float ConflictMemory = 0f;
     }
 }

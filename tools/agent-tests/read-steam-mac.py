@@ -1,4 +1,3 @@
-"""Verify ownership in a short-lived installer process; the test player itself stays offline."""
 import ctypes as c
 import datetime
 import json

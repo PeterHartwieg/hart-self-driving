@@ -12,14 +12,10 @@ using UnityEngine;
 
 namespace DrivenRides
 {
-    // The shape of a car driven by its own physics, read from its drivable prefab asset without spawning it (as
-    // DrivableSteering reads the wheelbase): the axles, the lock and its speed curve, NWH's Ackermann (the front
-    // track) and the body box, all from the rear axle. Core's feasibility check takes it (CarSpec).
     internal static class NwhShape
     {
         private static readonly Dictionary<string, CarSpec?> known = new Dictionary<string, CarSpec?>();
 
-        // vehicleTypeName: the type whose Vehicles/PlayerVehicles/<id> prefab drives; null if it has none (the taxi).
         public static CarSpec? For(string vehicleTypeName, float topKmh)
         {
             var key = vehicleTypeName + "@" + topKmh.ToString(CultureInfo.InvariantCulture);
@@ -42,8 +38,6 @@ namespace DrivenRides
                 if (wheels.Count < 2) { Log.Trace($"NWH shape for {vehicleTypeName}: {wheels.Count} wheels."); return null; }
                 float rear = float.MaxValue, front = float.MinValue;
                 foreach (var w in wheels) { rear = Mathf.Min(rear, w.z); front = Mathf.Max(front, w.z); }
-                // The front track, as WheelGroup.FindBelongingWheels measures it: the two front wheels apart. NWH's
-                // Ackermann only where the steering group adds it (WheelGroup.addAckerman, on by default).
                 float left = float.MaxValue, right = float.MinValue;
                 foreach (var w in wheels) if (front - w.z < 0.3f) { left = Mathf.Min(left, w.x); right = Mathf.Max(right, w.x); }
                 var track = right > left ? right - left : 0f;
@@ -58,7 +52,6 @@ namespace DrivenRides
                 MeasureBody(asset, rear, out var centre, out var half);
                 var spec = new CarSpec(NwhCar.Id(vehicleTypeName), front - rear, lockAt, centre, half, topKmh, track, vehicle.steering.degreesPerSecondLimit);
                 var inv = CultureInfo.InvariantCulture;
-                // One line in CarSpec.Parse's form, for tools/rejudge and tools/calibrate.
                 Log.Trace($"NWH shape for {vehicleTypeName}: {spec}; steer rate {vehicle.steering.degreesPerSecondLimit:0}°/s, front group coefficient {coefficient:0.00}. As text: " +
                          string.Format(inv, "{0};{1:0.###};{2:0};{3:0.###},{4:0.###},{5:0.###};{6:0.###},{7:0.###},{8:0.###};0={9:0.##},10={10:0.##},25={11:0.##},50={12:0.##};{13:0.###};{14:0}",
                              spec.Name, spec.Wheelbase, topKmh, centre.X, centre.Y, centre.Z, half.X, half.Y, half.Z,
@@ -68,7 +61,6 @@ namespace DrivenRides
             catch (Exception ex) { Log.Error($"NWH shape for {vehicleTypeName}: {ex.Message}"); return null; }
         }
 
-        // The body box from the solid colliders, as NwhCar measures it on a spawned car, moved to the rear axle.
         private static void MeasureBody(GameObject asset, float rearZ, out Vec3 centre, out Vec3 half)
         {
             var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
@@ -101,10 +93,6 @@ namespace DrivenRides
         }
     }
 
-    // The planner's questions for a ride car driven by its own physics (docs/implementation-plan.md, "What the car can
-    // drive" and "Parked cars in lanes"): which form each added turn takes and whether the car can make it (Core's
-    // Feasibility, with the world swept here), and whether a lane is blocked by a parked car. One per car and session;
-    // the Gley path (Ride.FindBlockedSteps, TurnDrive) stays for Gley ride cars.
     internal sealed class NwhPlanner : IWayOnWorld
     {
         private static readonly Dictionary<string, NwhPlanner> planners = new Dictionary<string, NwhPlanner>();
@@ -112,26 +100,14 @@ namespace DrivenRides
 
         public readonly CarSpec Car;
         public readonly Feasibility Check;
-        // The ride car itself (or the player's own car it stands for) is never in its own way.
         public Transform? Ignore { get; set; }
         private readonly HashSet<(int, int)> laneClear = new HashSet<(int, int)>();
-        // Steps this car can't drive, with why (BlockCause): what one car can't make another may (GleyGraph's set is
-        // for every car).
         private readonly Dictionary<(int, int), (BlockCause Cause, float At)> blocked = new Dictionary<(int, int), (BlockCause, float)>();
         private readonly Collider[] hits = new Collider[32];
         private readonly Vector3 laneHalf, bodyHalf;
 
-        // A turn's way is checked against the road's own colliders from this height above the lane up: a slope or a
-        // crown stays under it, a divider built into the road does not (as Ride.BodyClear, turn test 0.1.41).
         private const float RoadClearance = 0.35f;
-        // The road's own colliders and the Default layer's, from RoadClearance up: a divider built into the road, and
-        // the median islands, whose colliders are on Default (T2: the limo stuck at full throttle against one
-        // where its lane hugs a median's rounded nose, 'Collider' (Default), turn rig run 20261013-182118-0027).
         private static readonly int RaisedMask = LayerMask.GetMask("Roads", "Default");
-        // Parked cars, the player's parked cars and what stands in a lane: a car driven by its own physics hits all of
-        // them (Gley's cars pass through the parked ones' layer; the spike's turn-18207-14353 ran into one on Broadway).
-        // They don't move within a session, so the manoeuvres' body sweep counts them too (T2: U-turns run wide into
-        // the parking lane nosed into a parked van and an ambulance).
         private static int parkedMask = -1;
         // The lane sweep's: parked cars and the player's cars at the width the driver stops for, and what truly
         // stands in the lane (props, buildings, the road's raised edges, median islands) at the car's own width, a
@@ -141,14 +117,10 @@ namespace DrivenRides
         private static int CarsMask => (1 << LayerHelper.ParkedVehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex);
         private static int ParkedMask => parkedMask >= 0 ? parkedMask
             : parkedMask = (1 << LayerHelper.ParkedVehiclesLayerIndex) | (1 << LayerHelper.PlayerVehiclesLayerIndex) | TestCar.ObstacleMask;
-        // The lanes are swept this far ahead when a ride is planned; the rest as the car drives (BlockedAhead), since
-        // the game parks cars only near the player.
         public const float PlannedAheadMetres = 200f;
 
         private readonly LaneGraph graph;
 
-        // The road's limit per waypoint for the plans (DrivePlan.Build caps the car at DrivePlan.LimitFactor of it), or
-        // null with "Ignore speed limits" on: the car's own top speed, corners still from the line (Options).
         private readonly Func<int, float>? limitKmh;
 
         private NwhPlanner(CarSpec car, bool speedLimits)
@@ -156,25 +128,18 @@ namespace DrivenRides
             Car = car;
             graph = GleyGraph.Graph!;
             limitKmh = speedLimits ? LimitKmh : (Func<int, float>?)null;
-            // The pavement from the pedestrians' NavMesh (Sidewalk): no manoeuvre that puts a corner of the body on it.
             Check = new Feasibility(graph, car, WorldHit, Feasibility.DefaultMargin, limitKmh)
                 { GroundAt = GroundAt, PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null };
             var h = car.BodyHalf;
-            // The driver stops for anything within its half width and 0.4 m of its line (NwhDrive.GapAhead).
             laneHalf = new Vector3(h.X + 0.4f, 0.6f, 0.5f);
-            // The body itself, a near-miss larger, against what is built into the road: the car follows a lane to
-            // within a few centimetres (T2's limo, 0.1 m on straights).
             bodyHalf = new Vector3(h.X + Feasibility.NearMiss, h.Y, 0.5f);
         }
 
-        // The planner for a vehicle type driven by its own physics, kept for the lane graph's lifetime (a city load
-        // starts afresh); null if the type has no drivable prefab or there is no graph.
         public static NwhPlanner? For(string vehicleTypeName, float topKmh)
         {
             var graph = GleyGraph.Graph;
             if (graph == null) return null;
             if (!ReferenceEquals(plannersFor, graph)) { planners.Clear(); plannersFor = graph; }
-            // One per speed-limit setting: its checks were worked out at those speeds.
             var speedLimits = !Options.IgnoreSpeedLimits;
             var key = vehicleTypeName + "@" + topKmh.ToString(CultureInfo.InvariantCulture) + (speedLimits ? "" : "@nolimits");
             if (planners.TryGetValue(key, out var planner)) return planner;
@@ -185,8 +150,6 @@ namespace DrivenRides
             return planner;
         }
 
-        // For a ride car given as its traffic prefab (the Gley path's car): its drivable version, or for a car with
-        // none (the taxi) the drivable car it is dressed on (NwhDress), whose physics it drives with.
         public static NwhPlanner? ForTrafficPrefab(GameObject trafficPrefab, float topKmh)
         {
             var type = DrivableSteering.TypeOf(trafficPrefab.name) ?? NwhDress.DonorFor(trafficPrefab, out _)?.TypeName;
@@ -195,14 +158,8 @@ namespace DrivenRides
 
         public void Block(int from, int to, BlockCause cause = BlockCause.Manoeuvre) => blocked[(from, to)] = (cause, Time.realtimeSinceStartup);
 
-        // A step through a gate that stays shut for the player (Gates) is blocked like the others.
         public bool IsBlocked(int from, int to) => blocked.ContainsKey((from, to)) || Gates.LockedStep(from, to);
 
-        // A new ride: only a manoeuvre the car can't make in the built world (BlockCause.Manoeuvre) stays blocked for
-        // the session. What stood on the way (traffic, no motion) or in a lane (a parked car, a prop, a lane's corner)
-        // blocked the last ride only: the new one sweeps its lanes again when it plans and as the car comes near them
-        // (review round 1 gave InLane 180 s; T3 on 0.1.80 then found later rides with no route and no block of their
-        // own listed). No lane is taken as clear from the last ride's sweep either.
         public void BeginRide()
         {
             var stale = new List<(int, int)>();
@@ -210,15 +167,12 @@ namespace DrivenRides
             foreach (var key in stale)
             {
                 blocked.Remove(key);
-                // Checked afresh: a manoeuvre's verdict was cached with what stood in its way then.
                 Check.Forget(key.Item1, key.Item2);
             }
             laneClear.Clear();
-            // The gates and whether each opens for the player now (a house bought since).
             Gates.Refresh(graph);
         }
 
-        // The cause a step found blocked gets, from what failed it (WayOnPlanner.CauseOf).
         public static BlockCause CauseOf(LaneGraph graph, int from, int to, string what) => WayOnPlanner.CauseOf(graph, from, to, what);
 
         private static float LimitKmh(int waypoint)
@@ -227,35 +181,26 @@ namespace DrivenRides
             return all != null && waypoint >= 0 && waypoint < all.Length && all[waypoint] != null ? all[waypoint].maxSpeed : 0f;
         }
 
-        // The body box at a simulated pose against street props and buildings, and against the road's own colliders
-        // from RoadClearance up (the rig's contact and near-miss).
-        // A car (parked, or the player's) is named as movable (Feasibility.Movable): it may be gone later (CauseOf).
         private string? WorldHit(BodyBox box)
         {
             var rotation = Quaternion.Euler(0f, box.Heading * Mathf.Rad2Deg, 0f);
             var centre = new Vector3(box.Centre.X, box.Centre.Y, box.Centre.Z);
-            // The box as the check sized it: the margin while manoeuvring, the body itself when settled in its lane.
             var half = new Vector3(box.Half.X, box.Half.Y, box.Half.Z);
             if (Overlap(centre, half, rotation, CarsMask) is string car) return Feasibility.Movable + car;
             if (Overlap(centre, half, rotation, ParkedMask & ~CarsMask) is string hit) return hit;
             return Raised(centre, half, rotation, centre.y - Car.BodyCentre.Y) is string raised ? "road edge " + raised : null;
         }
 
-        // What a wheel stands on: the road, the pavement, a kerb; not cars, people, props or buildings (the body sweep
-        // has those).
         private static int groundMask;
         private static int GroundMask => groundMask != 0 ? groundMask
             : groundMask = Physics.DefaultRaycastLayers & ~(ParkedMask | (1 << LayerHelper.VehiclesLayerIndex) | (NwhCar.GleyLayer >= 0 ? 1 << NwhCar.GleyLayer : 0)
                 | LayerMask.GetMask("Human", "Ignore Raycast"));
         private static readonly RaycastHit[] groundHits = new RaycastHit[8];
 
-        // The highest step a wheel can be on above the line's height: a kerb is about 0.15 m.
         private const float MaxStep = Feasibility.KerbMax;
 
-        // The ground's height under a point, from 2 m above it down to 2 m below.
         private float? GroundAt(Vec3 p) => GroundBelow(p, Ignore);
 
-        // The same for anyone (the rig's TestCar), leaving out a car's own colliders.
         internal static float? GroundBelow(Vec3 p, Transform? ignore)
         {
             var n = Physics.RaycastNonAlloc(new Vector3(p.X, p.Y + 2f, p.Z), Vector3.down, groundHits, 4f, GroundMask, QueryTriggerInteraction.Ignore);
@@ -263,8 +208,6 @@ namespace DrivenRides
             for (var h = 0; h < n; h++)
             {
                 if (ignore != null && groundHits[h].transform.IsChildOf(ignore)) continue;
-                // Nothing a wheel could climb onto: a deck or a hider over the lane, a metre up (0.1.90: "a rear wheel
-                // 0.96 m above the plane of the others" for a car settled on its line by a bridge).
                 if (groundHits[h].point.y > p.Y + MaxStep) continue;
                 if (highest == null || groundHits[h].point.y > highest) highest = groundHits[h].point.y;
             }
@@ -288,7 +231,6 @@ namespace DrivenRides
             return best;
         }
 
-        // A box against the given layers, leaving out the ride car itself.
         private string? Overlap(Vector3 centre, Vector3 half, Quaternion rotation, int mask)
         {
             var n = Physics.OverlapBoxNonAlloc(centre, half, hits, rotation, mask, QueryTriggerInteraction.Ignore);
@@ -297,8 +239,6 @@ namespace DrivenRides
             return null;
         }
 
-        // The part of a box from RoadClearance above the ground up, against the road's and the Default layer's
-        // colliders.
         private string? Raised(Vector3 centre, Vector3 half, Quaternion rotation, float ground, int mask = 0)
         {
             var bottom = Mathf.Max(centre.y - half.y, ground + RoadClearance);
@@ -312,9 +252,6 @@ namespace DrivenRides
             return null;
         }
 
-        // Whether a road collider is the surface under the car at a point on its line: a ray down onto it there meets a
-        // face looking up within SurfaceReach of the line's height. A divider or a kerb beside the line isn't under it;
-        // a bridge deck or a joint plate the line runs on is, wherever its bounds reach.
         private const float SurfaceReach = 0.6f;
 
         private static bool IsRoadSurface(Collider c, Vector3 onLine)
@@ -325,8 +262,6 @@ namespace DrivenRides
 
         private static string Name(Collider c) => $"'{c.name}' ({LayerMask.LayerToName(c.gameObject.layer)})";
 
-        // The steps of a route this car can't drive: each added turn and U-turn through the feasibility check, each
-        // lane change swept as wide as the car, and the lanes of the first `laneMetres` swept for parked cars.
         public List<(int From, int To, string What)> BlockedSteps(LaneGraph graph, IReadOnlyList<int> w, float laneMetres = PlannedAheadMetres)
         {
             var result = new List<(int From, int To, string What)>();
@@ -341,7 +276,6 @@ namespace DrivenRides
             {
                 int from = w[k], to = w[k + 1];
                 var step = Vec3.HorizontalDistance(graph.Position(from), graph.Position(to));
-                // A bridge the ride skips is never driven (Bridges).
                 if (Bridges.Skips(from)) { gone += step; continue; }
                 if (Contains(graph.Successors(from), to))
                 {
@@ -378,8 +312,6 @@ namespace DrivenRides
             return result;
         }
 
-        // Each lane step swept goes in `result` as soon as it is: what blocks it (null: passable, perhaps on a sideways
-        // move) and the metres along it where that begins (the look-ahead holds short of it; review round 4).
         private IEnumerable<object?> BlockedAheadWork(LaneGraph graph, IReadOnlyList<int> path, int fromPosition, float metres, Vec3? near,
             List<(int From, int To, string? What, float At)> result)
         {
@@ -397,18 +329,8 @@ namespace DrivenRides
             }
         }
 
-        // Within this of the ride car, the game's parked cars are there (they are cleared beyond 80 m of the player,
-        // ParkingLaneGenerator.CleanupParkedVehicles).
         public const float LoadedMetres = WayOnPlanner.LoadedMetres;
 
-        // A plain lane step swept for what stands in it: parked cars and the player's cars, and from RoadClearance up
-        // props, buildings, the road's raised edges and median islands. A driver passes a car parked partly in the
-        // lane by moving over within it: where the obstacles leave room on one side (the car's half width, a margin
-        // the driver's gap check doesn't stop for, and no more than a little past the lane's edge), the step is
-        // passed on a line moved sideways (ShiftFor, DriveLine.Shifted); otherwise it is blocked, and the route
-        // changes lanes round it or goes another way (T3, session 20261013-200946: twelve rides refused for a car
-        // parked partly in their lane). Not in a junction: nothing parks there, and the turn's own check covers it.
-        // at: metres along the step where what blocks it begins (0 if nothing does).
         private string? LaneBlocked(LaneGraph graph, int from, int to, out float at)
         {
             at = 0f;
@@ -421,7 +343,6 @@ namespace DrivenRides
             var rotation = Quaternion.LookRotation(forward);
             var half = Car.BodyHalf.X;
             var bodyBottom = Mathf.Max(0.05f, Car.BodyCentre.Y - Car.BodyHalf.Y);
-            // Room needed beside each kind: the driver stops for a car within half width + 0.4 m of its line.
             const float carClear = 0.5f, propClear = Feasibility.NearMiss + 0.1f;
             var maxShift = Pavement.LaneHalf + 0.2f - half;
             float lo = -maxShift, hi = maxShift;
@@ -433,9 +354,6 @@ namespace DrivenRides
                 var f = (float)i / steps;
                 var ground = a.Y + (b.Y - a.Y) * f;
                 var centre = new Vector3(a.X + (b.X - a.X) * f, ground, a.Z + (b.Z - a.Z) * f);
-                // Props and buildings from the body's underside up (T3 on 0.1.81: the limo's bumper met a Hamptons gate's
-                // door 0.18 m above the road, under the 0.35 m the sweep looked from); the road's own raised parts from
-                // RoadClearance, so a crown or a ramp stays under it.
                 foreach (var (hit, clear, lowest) in new[] { (CarsMask, carClear, 0.3f), (TestCar.ObstacleMask, propClear, bodyBottom), (RaisedMask, propClear, RoadClearance) })
                 {
                     var box = new Vector3(Pavement.LaneHalf + 0.5f, (1.5f - lowest) / 2f, 0.5f);
@@ -456,9 +374,6 @@ namespace DrivenRides
                         float? side = null;
                         if (c.Raycast(new Ray(probe, right), out var toRight, 3f)) side = toRight.distance;
                         if (c.Raycast(new Ray(probe, -right), out var toLeft, 3f) && (side == null || toLeft.distance < side.Value)) side = -toLeft.distance;
-                        // Neither way: the line runs through it (a convex one holds the point, or it crosses the line
-                        // within this metre: a gate's door across the lane, which T3 on 0.1.81 drove into on ride 16,
-                        // was passed over as ahead or behind), or it is only ahead or behind within this metre's box.
                         if (side == null && (c.Raycast(new Ray(probe - forward * 0.5f, forward), out _, 1f) || c.Raycast(new Ray(probe + forward * 0.5f, -forward), out _, 1f)))
                             side = 0f;
                         if (side == null)
@@ -485,7 +400,6 @@ namespace DrivenRides
                         first ??= f * length;
                         last = f * length;
                         what ??= (hit == CarsMask ? "parked in the lane: " : "in the lane: ") + Name(c) + $" (bounds {c.bounds.min} to {c.bounds.max})";
-                        // Standing on the line itself: no side to pass on.
                         if (Mathf.Abs(side.Value) < 0.05f) { lo = 1f; hi = 0f; continue; }
                         if (side.Value > 0f) hi = Mathf.Min(hi, side.Value - need);
                         else lo = Mathf.Max(lo, side.Value + need);
@@ -495,9 +409,7 @@ namespace DrivenRides
             if (first == null) { shifts.Remove((from, to)); return null; }
             if (lo > hi) { shifts.Remove((from, to)); at = first.Value; return what + ", no room to pass within the lane"; }
             var offset = Mathf.Clamp(0f, lo, hi);
-            // A move of a few centimetres is within the margins: the line stays (T3 listed shifts of 0.06 m).
             if (Mathf.Abs(offset) < 0.1f) { shifts.Remove((from, to)); return null; }
-            // The rear axle moves over before the front reaches the obstacle and back once the rear has passed it.
             var rear = Car.BodyHalf.Z - Car.BodyCentre.Z;
             var move = (first.Value - Car.FrontAhead - 1f, last!.Value + rear + 1f, offset);
             shifts[(from, to)] = move;
@@ -505,17 +417,13 @@ namespace DrivenRides
             return null;
         }
 
-        // Lane steps passed on a line moved sideways (LaneBlocked): metres along the step where the move holds, and
-        // the offset (right positive).
         private readonly Dictionary<(int, int), (float From, float To, float Offset)> shifts = new Dictionary<(int, int), (float, float, float)>();
         public (float From, float To, float Offset)? ShiftFor(int from, int to) => shifts.TryGetValue((from, to), out var s) ? s : ((float, float, float)?)null;
 
-        // A lane change swept as wide as the car (a 2.3 m car changed lanes into a lamp post, turn test 0.1.33).
         private string? LaneChangeBlocked(LaneGraph graph, int from, int to)
         {
             Vec3 a = graph.Position(from), b = graph.Position(to);
             var radius = Car.BodyHalf.X + 0.1f;
-            // From RoadClearance up, so the kerb along the lanes is no lane change's obstacle.
             var lift = RoadClearance + radius;
             var n = Physics.OverlapCapsuleNonAlloc(new Vector3(a.X, a.Y + lift, a.Z), new Vector3(b.X, b.Y + lift, b.Z), radius, hits, ParkedMask, QueryTriggerInteraction.Ignore);
             for (var h = 0; h < n; h++)
@@ -523,10 +431,6 @@ namespace DrivenRides
             return null;
         }
 
-        // A route planned for this car, as an NWH ride is planned (Ride.TryCreateRide; the rig's ride cases): wider
-        // U-turns allowed, up to PlanRounds rounds of planning, each finding the steps this car can't drive
-        // (BlockedSteps) and the steps its line fails on as driven (Feasibility.Validate), and blocking them. The
-        // route and its checked plan, or nulls, and a short summary of the added steps driven and the ones blocked.
         public (Route? Route, DrivePlan? Plan, string Summary) PlanRoute(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds = PlanRounds)
         {
             var into = new Planned();
@@ -534,9 +438,6 @@ namespace DrivenRides
             return (into.Route, into.Plan, into.Summary);
         }
 
-        // Rounds of planning: each blocks at least one step, so the search ends anyway; this bounds the time. A U-turn
-        // group has several pairs and each failed pair cost a round: T3 on 0.1.80 ran out of eight rounds on ride 1 (8
-        // blocked), and on 0.1.70 the same ride found its route in its eighth (planner round 1 after T3).
         public const int PlanRounds = 16;
 
         private sealed class Planned
@@ -546,14 +447,12 @@ namespace DrivenRides
             public string Summary = "";
         }
 
-        // The route search is stepped this many expansions at a time inside a job, up to MaxExpansions.
         private const int SearchStep = 2000;
         private const int MaxExpansions = 200000;
 
         private IEnumerable<object?> PlanRouteWork(LaneGraph graph, int start, IReadOnlyList<Goal> goals, int vehicleType, int rounds, WayOnJob? job, Planned into, bool atGate = false)
         {
             if (!Gates.Read) Gates.Refresh(graph);
-            // The pedestrians' NavMesh may have come since the planner was made (Sidewalk).
             Check.PavementAt = Sidewalk.Available ? Sidewalk.At : (Func<Vec3, bool>?)null;
             var blockedNotes = new List<string>();
             var noCase = 0;
@@ -578,9 +477,6 @@ namespace DrivenRides
                 foreach (var y in BlockedStepsWork(graph, route.Waypoints, PlannedAheadMetres, found)) yield return y;
                 if (found.Count == 0)
                 {
-                    // The line the car will drive, rounded corners and sideways moves included, checked as driven: a
-                    // step it fails on is blocked like the others (review round 2: never an unchecked plan).
-                    // Its turns' checks worked out first as yielding work, so Build finds them known (review round 3).
                     foreach (var y in Check.PrepareWork(route.Waypoints)) yield return y;
                     var built = DrivePlan.Build(graph, route.Waypoints, Car, Check.Arc, Check.Clear, limitKmh, ShiftFor);
                     ThroughGates(built);
@@ -596,7 +492,6 @@ namespace DrivenRides
                     if (what.Contains(Feasibility.NoCase)) noCase++;
                     shifts.Remove((from, to));
                     Block(from, to, CauseOf(graph, from, to, what));
-                    // One line per rejection, in full: the summary has room for four, cut at 60 characters.
                     Log.Trace($"NWH planner: blocked {StepKind(graph, from, to)} {from} -> {to} for {Car.Name}: {what}.");
                     blockedNotes.Add($"{StepKind(graph, from, to)} {from}->{to} ({(what.Length > 60 ? what.Substring(0, 60) + "..." : what)})");
                 }
@@ -621,8 +516,6 @@ namespace DrivenRides
             if (noCase > 0) Log.Trace($"NWH planner: {noCase} steps blocked with no case to check them on.");
             into.Route = route;
             into.Plan = route != null ? plan : null;
-            // With no route, how many steps blocked earlier in the session (manoeuvres this car can't make) the search
-            // also kept out, so a "no route" with no block of its own listed says why.
             var earlier = blocked.Count - blockedNotes.Count;
             // No way round a gate that stays shut for the player, and the goal behind it: the ride ends before the
             // gate, on the lane, with room to stop clear of its doors and trigger, and the player walks the rest
@@ -681,11 +574,8 @@ namespace DrivenRides
             plan.Shifts.RemoveAll(shift => Bridges.Skips(path[shift.Position]));
         }
 
-        // A ride ending before a shut gate stops its front this far outside the gate's doors and trigger.
         public const float GateClear = 3f;
 
-        // Through a gate that opens for the player, the step before it and the step through it at SqueezeKmh: the
-        // doors swing open in about a second once the car is in their trigger (FenceDoor.openDuration).
         private static void ThroughGates(DrivePlan plan)
         {
             var path = plan.Path;
@@ -699,10 +589,6 @@ namespace DrivenRides
 
         public static int RouteStepAt(IReadOnlyList<int> route, IReadOnlyList<int> path, int position) => WayOnPlanner.RouteStepAt(route, path, position);
 
-        // The ride's expansion of a route for this car: added turns on an arc the car can drive cleanly, else through
-        // vias it can; the slow stretches and the road limits (DrivePlan). The line is checked as it will be driven
-        // (Feasibility.Validate; review rounds 1 and 2): null, with the steps it fails on in `failed`, when any part
-        // of it fails, so no caller drives an unchecked fallback.
         public DrivePlan? Plan(LaneGraph graph, IReadOnlyList<int> route, out List<(int From, int To, string What)> failed)
         {
             var plan = DrivePlan.Build(graph, route, Car, Check.Arc, Check.Clear, limitKmh, ShiftFor);
@@ -719,8 +605,6 @@ namespace DrivenRides
             return failed.Count == 0 ? plan : null;
         }
 
-        // The way on round a step the car found blocked on its way, and the look-ahead while it drives: Core's
-        // WayOnPlanner, with this planner as its world.
         public WayOnPlanner WayOn => wayOn ??= new WayOnPlanner(this);
         private WayOnPlanner? wayOn;
 
@@ -730,7 +614,6 @@ namespace DrivenRides
         public WayOnJob LookAhead(IReadOnlyList<int> route, IReadOnlyList<int> path, int position, Func<CarPose> pose,
             IReadOnlyList<Goal> goals, int vehicleType, WayOnPlanner.Watch watch) => WayOn.LookAhead(route, path, position, pose, goals, vehicleType, watch);
 
-        // IWayOnWorld: this planner's graph, check, route search, lane sweep, moves and blocks.
         LaneGraph IWayOnWorld.Graph => graph;
         Feasibility IWayOnWorld.Check => Check;
 

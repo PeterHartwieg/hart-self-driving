@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""Builds build/package/<MOD_FOLDER>/ from build/DrivenRides and checks it (tools/package-mod.sh runs this).
-
-Refuses the package when the name or version disagree between files, a locale key is missing or unused, a file is
-missing or extra, or a hash is off. Never ships game DLLs, decompiled code, saves or anything outside the list.
-"""
 import hashlib
 import json
 import re
@@ -17,7 +12,7 @@ from pathlib import Path
 REPO = Path(sys.argv[1]).resolve()
 BUILD = REPO / "build" / "DrivenRides"
 MOD = REPO / "unity" / "DrivenRides"
-PREVIEW_LIMIT = 1024 * 1024  # Steam's limit for a Workshop preview image
+PREVIEW_LIMIT = 1024 * 1024
 errors = []
 
 
@@ -68,7 +63,6 @@ def placeholder_png(path, width=1280, height=720):
 cfg = conf()
 name, folder, game_build = cfg["MOD_NAME"], cfg["MOD_FOLDER"], cfg["GAME_BUILD"]
 
-# Name and version agree everywhere players see them.
 manifest_asset = (MOD / "ModManifest.asset").read_text(encoding="utf-8")
 mod_cs = (MOD / "Scripts" / "DrivenRidesMod.cs").read_text(encoding="utf-8")
 readme = (REPO / "README.md").read_text(encoding="utf-8")
@@ -98,7 +92,6 @@ if not re.search(r"^## " + re.escape(version) + r"(?:\s|$)", changelog, re.M):
 if f"build {game_build}" not in readme:
     fail(f"The README doesn't name the target game build {game_build}.")
 
-# Every key the code uses is in the locale file, and every key there is used.
 used, prefixes = set(), set()
 for script in (MOD / "Scripts").glob("*.cs"):
     for key in re.findall(r"drivenrides:[a-z0-9_]+", script.read_text(encoding="utf-8")):
@@ -115,7 +108,6 @@ for key, value in locale.items():
     if not isinstance(value, str) or not value.strip():
         fail(f"Locale key {key} has no text.")
 
-# The package: build/DrivenRides as tools/build-mod.sh left it, plus the preview image.
 out_root = REPO / "build" / "package"
 out = out_root / folder
 if out.exists():
@@ -147,14 +139,12 @@ roots = [p for p in out.glob("*.dll")]
 if len(roots) != 1:
     fail(f"The game needs exactly one DLL in the mod folder's root; found {len(roots)}.")
 
-# Nothing of the game's own: no file named like a game DLL (Harmony is ours, pinned).
 game_dlls = {p.name.lower() for p in (REPO / "build" / "game-dlls").glob("*.dll")}
 for rel in files:
     base = Path(rel).name.lower()
     if base in game_dlls and base != "0harmony.dll":
         fail(f"{rel} has the name of a game DLL.")
 
-# Hashes: Harmony as pinned, Core as just built, the rest as tools/build-mod.sh recorded them, the texts as in git.
 harmony_pin = one(r'^HARMONY_DLL_SHA256="([0-9a-f]{64})"$', (REPO / "tools" / "build-mod.sh").read_text(encoding="utf-8"), "Harmony's pinned hash")
 if "Dependencies/0Harmony.dll" in files and sha256(files["Dependencies/0Harmony.dll"]) != harmony_pin:
     fail("Dependencies/0Harmony.dll doesn't match the pinned Harmony 2.4.2 hash.")
@@ -175,7 +165,6 @@ for rel, source in (("Locales/en.json", locale_path), ("README.md", REPO / "READ
     if rel in files and sha256(files[rel]) != sha256(source):
         fail(f"{rel} differs from the repo's copy; rebuild with tools/build-mod.sh.")
 
-# The mod DLL carries this version (Log line "Version ... loading.", a UTF-16 string in the assembly).
 dll = out / "DrivenRides.dll"
 if dll.exists() and version.encode("utf-16-le") not in dll.read_bytes():
     fail(f"DrivenRides.dll doesn't contain the version {version}; rebuild with tools/build-mod.sh.")

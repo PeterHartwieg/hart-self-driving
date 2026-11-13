@@ -21,7 +21,6 @@ namespace DrivenRides
         public string Reason = "cancelled";
     }
 
-    // A short-lived controller for local manoeuvres. Never writes a road plan, waypoint or lane offset.
     internal sealed class NwhManoeuvre : MonoBehaviour
     {
         private NwhCar car = null!;
@@ -56,8 +55,6 @@ namespace DrivenRides
             try
             {
                 if (stop() || car.Root == null) yield break;
-                // Own the reservation before the incremental search. Stop/disable/unload can now release it
-                // even while the coroutine is still planning and Unity abandons its iterator.
                 drive = car.Root.AddComponent<NwhManoeuvre>();
                 drive.car = car; drive.spec = spec;
                 drive.reservation = new ParkingTraffic(drive, car,
@@ -71,12 +68,9 @@ namespace DrivenRides
                     if (world.Space.Estimate?.Invoke(Pose(car)) == float.PositiveInfinity)
                     { result.Reason = "parking area has no clear ground connection to this lane"; world.Dump(target, parking); yield break; }
                 }
-                // Only the immutable Core snapshot goes to a worker. Sample Unity's steering curve here;
-                // the bounded low-speed search must not call a game/Unity API off the main thread.
                 var lockDegrees = spec.LockAt(.8f);
                 var searchCar = departure ? new CarSpec(spec.Name,spec.Wheelbase,_=>lockDegrees,spec.BodyCentre,spec.BodyHalf,
                     spec.TopKmh,spec.TrackWidth,spec.WheelRate) {YawFactor=spec.YawFactor} : spec;
-                // Both curbside and lot departures hand over to a road; only an arrival needs parking precision.
                 var search = new ManoeuvrePlanner(searchCar, world.Space, Pose(car), target, stageForParking: parking, roadEntry: !parking);
                 var total = Stopwatch.StartNew();
                 if (departure)
@@ -116,8 +110,6 @@ namespace DrivenRides
                     world.Dump(target, parking);
                     yield break;
                 }
-                // The broad-phase snapshot is conservative for bodies. Check the actual surface and world too before
-                // moving, spread over frames. A fresh scan while driving catches changed or newly spawned obstacles.
                 for (var i = 0; i < search.Result.Points.Count; i += 3)
                 {
                     if (stop() || car.Root == null || drive.Ended) yield break;
@@ -156,7 +148,6 @@ namespace DrivenRides
                 elapsed += Time.fixedDeltaTime;
                 var pose = Pose(car);
                 traffic.ReadCars(car.Root.transform.position, 60, cars);
-                // Another deck of road must not block this street's manoeuvre or its reservation.
                 for (var i = cars.Count - 1; i >= 0; i--)
                     if (Mathf.Abs(traffic.Components[i].transform.position.y - car.Root.transform.position.y) >= 2)
                     { cars.RemoveAt(i); traffic.Components.RemoveAt(i); }
@@ -218,8 +209,6 @@ namespace DrivenRides
         }
     }
 
-    // Snapshot for search; precise live overlap/ground checks for execution. Own colliders and road surfaces do
-    // not obstruct the car, but other cars, props, sidewalk and missing ground do. No road-planner caches are used.
     internal sealed class ManoeuvreWorld
     {
         public readonly ManoeuvreSpace Space;
@@ -245,14 +234,11 @@ namespace DrivenRides
             Space = new ManoeuvreSpace { MinX = Mathf.Min(start.X, goal.X) - reach, MaxX = Mathf.Max(start.X, goal.X) + reach,
                 MinZ = Mathf.Min(start.Z, goal.Z) - reach, MaxZ = Mathf.Max(start.Z, goal.Z) + reach };
             if (departure) { Space.MinX=start.X-96; Space.MaxX=start.X+96; Space.MinZ=start.Z-96; Space.MaxZ=start.Z+96; }
-            // Constrain the search to the local street strip, preventing a detour through another lane/block.
             var s = Mathf.Sin(goal.Heading); var c = Mathf.Cos(goal.Heading);
             var side = (start.X - goal.X) * c - (start.Z - goal.Z) * s;
             if (!departure) Space.Allowed = p => { var x = (p.X - goal.X) * c - (p.Z - goal.Z) * s; return x >= Mathf.Min(0, side) - 0.5f && x <= Mathf.Max(0, side) + 0.5f; };
             var centre = new Vector3((Space.MinX + Space.MaxX) / 2, height + 1, (Space.MinZ + Space.MaxZ) / 2);
             var radius = departure ? 138 : ManoeuvrePlan.Distance(start, goal) / 2 + 16;
-            // Junctions require the road driver's signals and right-of-way rules. Treat their lanes as local
-            // manoeuvre boundaries, including when the parking plan first pulls forward beside a space.
             var graph = GleyGraph.Graph;
             if (graph != null && GleyGraph.Waypoints != null)
                 foreach (var w in graph.Near(GleyGraph.ToVec(centre), radius))
@@ -286,8 +272,6 @@ namespace DrivenRides
             && c.Raycast(new Ray(at + Vector3.up * 2, Vector3.down), out var hit, 4)
             && hit.normal.y > 0.7f && Mathf.Abs(hit.point.y - height) < 0.3f;
 
-        // Read surface constraints before the search, not only after it has chosen a path across pavement.
-        // Legal parking may overlap pedestrian ground; other pedestrian ground remains out of bounds.
         public IEnumerator ReadSurface(CarPose goal)
         {
             if (surfaceGrid != null) { surfaceGrid.Guide(goal,Space.Obstacles); yield break; }
@@ -309,15 +293,12 @@ namespace DrivenRides
                 if (timer.Elapsed.TotalMilliseconds > 3) { yield return null; timer.Restart(); }
             }
             grid.Guide(goal, Space.Obstacles);
-            // Preserve only the original legal bumper overhang, never an exception along the whole route.
-            // Tyres stay on the surface even within that original footprint.
             Space.Allowed = p => SurfaceClear(p,.2f);
             Space.Estimate = grid.Estimate;
         }
         internal bool SurfaceClear(CarPose p, float bodyMargin) => surfaceGrid!.Contains(spec,p,tyresOnly:true)
             && surfaceGrid.Contains(spec,p,permittedOverhang:parkedFootprint,bodyMargin:bodyMargin);
 
-        // Test-only geometry replay. This lives beside rig logs, never in a save or the shipped package.
         public void Dump(CarPose goal, bool parking)
         {
             if (!TestMode.On) return;

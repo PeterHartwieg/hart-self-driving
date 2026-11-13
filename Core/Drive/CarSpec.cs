@@ -6,23 +6,16 @@ using DrivenRides.Core.Routing;
 
 namespace DrivenRides.Core.Drive
 {
-    // What the feasibility check needs of a car driven by its own physics, measured from its drivable prefab (the game
-    // side reads it from the prefab asset, NwhShape): the wheelbase, the lock at a speed, and the body box. Lengths are
-    // from the rear axle on the ground: x to the right, y up, z forward.
     public sealed class CarSpec
     {
         public string Name { get; }
         public float Wheelbase { get; }
-        // The lock in degrees at a speed in m/s (NWH: maximumSteerAngle x speedSensitiveSteeringCurve at speed / 50).
         public Func<float, float> LockAt { get; }
         public Vec3 BodyCentre { get; }
         public Vec3 BodyHalf { get; }
-        // The vehicle type's top speed, km/h.
         public float TopKmh { get; }
-        // The front wheels' track with NWH's Ackermann, 0 without (CarModel.TrackWidth).
         public float TrackWidth { get; }
 
-        // How fast the wheel turns, degrees a second (NWH's degreesPerSecondLimit: 140 on the cars measured so far).
         public float WheelRate { get; }
 
         public CarSpec(string name, float wheelbase, Func<float, float> lockAt, Vec3 bodyCentre, Vec3 bodyHalf, float topKmh, float trackWidth,
@@ -38,25 +31,17 @@ namespace DrivenRides.Core.Drive
             TopKmh = topKmh > 0f ? topKmh : 50f;
         }
 
-        // The front bumper, metres ahead of the rear axle.
         public float FrontAhead => BodyCentre.Z + BodyHalf.Z;
         public float Length => BodyHalf.Z * 2f;
-        // A long car takes U-turns at a crawl (the rig: 15 km/h from 5.5 m; at 25 a 6.7 m car went wide into the kerb).
         public bool Long => Length >= 5.5f;
 
-        // How sharply the car turns against a bicycle with its wheelbase (NWH's Ackermann).
         public float YawGain => CarModel.YawGain(Wheelbase, TrackWidth);
 
-        // The car's tightest circle at a speed, measured at the rear axle.
         public float RadiusAt(float speedMs) => (float)(1 / (YawFactor * CarModel.Curvature(Math.Max(5f, LockAt(speedMs)), Wheelbase, TrackWidth)));
 
-        // How sharply the car turns against the model at the same wheel angle (CarModel.YawFactor): 0.97 replays the
-        // T2 runs of the limo, the Dash and the taxi best (U-turn exits within 0.21 to 0.39 m, every run within 0.41 m;
-        // tools/calibrate with YAW=).
         public const float DefaultYawFactor = 0.97f;
         public float YawFactor { get; set; } = DefaultYawFactor;
 
-        // The model of this car at a pose.
         public CarModel Model(double x, double z, double heading, double speed = 0) => new CarModel(Wheelbase, LockAt, x, z, heading, speed) { TrackWidth = TrackWidth, Rate = WheelRate, YawFactor = YawFactor };
 
         // Keep the smallest candidate arc at the established 4 m/s² reference pace. Raising the driver's preferred
@@ -80,7 +65,6 @@ namespace DrivenRides.Core.Drive
         private float CornerSpeed(float radius) =>
             Math.Min(TopKmh / 3.6f, Math.Max(PursuitDriver.MinCornerMs, (float)Math.Sqrt(ArcReferenceLateral * radius)));
 
-        // A lock curve through measured points (km/h, degrees), straight between them and flat past the ends.
         public static Func<float, float> LockCurve(IReadOnlyList<(float Kmh, float Degrees)> points) => speedMs =>
         {
             var kmh = Math.Abs(speedMs) * 3.6f;
@@ -94,8 +78,6 @@ namespace DrivenRides.Core.Drive
             return points[points.Count - 1].Degrees;
         };
 
-        // For the tools: "name;wheelbase;top km/h;body centre x,y,z;body half x,y,z;km/h=lock,km/h=lock,...;track width[;wheel rate]",
-        // lengths from the rear axle, as the game log's "NWH shape" line gives them.
         public static CarSpec Parse(string text)
         {
             var parts = text.Split(';');

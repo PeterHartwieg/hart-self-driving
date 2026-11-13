@@ -9,23 +9,14 @@ namespace DrivenRides.Core.Routing
         public float MaxHeightDiff = 3f;
         public float MinStraightMetres = 15f;
         public float WalkSpeedMs = 1.4f;
-        // No limit by default: a cut by walking distance alone can drop every reachable goal (one-way lanes).
         public int MaxGoals = int.MaxValue;
-        // Prefer the lane at the kerb (no lane to its right), so the car stops beside the pavement. Falls back to
-        // any lane when none qualifies.
         public bool KerbLane = false;
-        // Only lanes with the target on their right, so the passenger gets out on the destination's side of the
-        // street instead of across it. No fallback here: the caller plans again without it if no route is found.
         public bool TargetOnRight = false;
-        // Lanes not allowed for the vehicle type count too (the Hamptons' private roads allow none).
         public bool AnyVehicleType = false;
     }
 
     public static class GoalPicker
     {
-        // A wide destination search must not turn into permission to leave the passenger at the road's entrance.
-        // Try stops nearest the door first, then retain those while adding farther stops if none is reachable.
-        // Each batch owns its list: a route or a later replan may keep it after enumeration moves on.
         public static IEnumerable<List<Goal>> PickNearbyFirst(LaneGraph g, Vec3 target, int vehicleType,
             GoalOptions options, float bandMetres = 20f)
         {

@@ -11,10 +11,8 @@ namespace DrivenRides.Core.Drive
     // 10 ms (review round 11).
     public static class TrafficWarmUp
     {
-        // The decisions made; for the log and the test.
         public static int Run(CarModel? model = null)
         {
-            // Three lanes, waypoints 4 m apart: east along z = 0, west along z = 4, north across them at x = 100.
             var points = new List<Vec3>();
             var next = new List<int[]>();
             void Lane(float x0, float z0, float dx, float dz, int count)
@@ -36,8 +34,6 @@ namespace DrivenRides.Core.Drive
             var graph = new LaneGraph(points.ToArray(), next.ToArray(), mask, new bool[n], speeds);
 
             var decisions = 0;
-            // Straight on through the junction at x = 92 to 108, then standing; and left into the lane going north
-            // there, joining it ahead of a car in it.
             var straight = new List<int>();
             for (var i = 0; i < 50; i++) straight.Add(i);
             var left = new List<int>();
@@ -62,8 +58,6 @@ namespace DrivenRides.Core.Drive
             var marks = new List<PathMark>();
             var east = (float)(Math.PI / 2);
             var decisions = 0;
-            // A car ahead, one coming the other way, one in the lane going north; standing, one waiting for the ride
-            // car just ahead (the layer 3 rules: back-off, stand-off).
             float a = 70f, v = 10f;
             for (var step = 0; step < 300; step++)
             {
@@ -75,7 +69,6 @@ namespace DrivenRides.Core.Drive
                 var q = line.Line.At(a + 0.5f);
                 var heading = (float)Math.Atan2(q.X - p.X, q.Z - p.Z);
                 driver.StartAt(p.X, p.Z);
-                // The junction's entry a stop line for the first 0.8 s, then a give-way.
                 marks.Clear();
                 for (var k = 0; k < way.Count; k++)
                 {

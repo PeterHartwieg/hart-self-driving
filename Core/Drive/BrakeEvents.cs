@@ -2,11 +2,6 @@ using System;
 
 namespace DrivenRides.Core.Drive
 {
-    // A ride's slowdowns, one line each (Peter, 14 October: "when turning it sometimes brakes for no obvious reason for
-    // a second or two"; a real ride writes no per-step trace). A slowdown is the speed falling Drop below its highest of
-    // the last PeakSeconds; it ends when the speed is back up by Recover, or after MaxSeconds (then it waited). The
-    // line has the speeds, how long it took, how far the wheel was turned, and the traffic decision's reason when the
-    // speed had fallen Onset (with its note: the car, the pose, the times; none: the plan's own speed).
     public sealed class BrakeEvents
     {
         public const float Drop = 2f, Recover = 1.5f, MaxSeconds = 10f, PeakSeconds = 3f, Onset = 0.5f;
@@ -17,12 +12,8 @@ namespace DrivenRides.Core.Drive
         private YieldNote note;
         private bool red, caught;
 
-        // The slowdown the last line was about, for the simulation's counts.
         public (float Peak, float Low, float Seconds, bool Back, float Wheel, string Reason, YieldNoteKind Kind, int Car, bool Red) Last { get; private set; }
 
-        // One physics step: the time, metres along the line, the speed, the wheel's angle (degrees), the decision's
-        // reason and note, and whether a red holds the car. A line when a slowdown ends, else null; nothing allocated
-        // otherwise (it runs every physics step).
         public string? Step(float time, float along, float speed, float wheelDegrees, string why, in YieldNote yieldNote, bool redAhead)
         {
             if (!open)
